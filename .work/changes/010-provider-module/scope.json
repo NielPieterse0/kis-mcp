@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "010-provider-module",
-  "status": "active",
+  "status": "closed",
   "branch": "change/010-provider-module",
   "worktree": ".work/worktrees/010-provider-module",
   "base": "main",
