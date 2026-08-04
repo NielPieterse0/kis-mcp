@@ -2,11 +2,22 @@
 
 ## Prerequisites
 
+
 - Windows with PowerShell.
 - Python 3.11 or newer.
 - `uv` for the Python environment.
 - Node.js 18 or newer with npm.
 - Direct operator supervision for bootstrap and upgrades.
+
+## Deployment model
+
+`kis-mcp` is operated from a supervised source checkout. The checkout root is the authoritative configuration root and must contain:
+
+- `settings/kis-mcp.settings.json`
+- `policy/kis-mcp.policy.json`
+
+A standalone wheel installation is not a supported deployment model. Starting the runtime without those canonical JSON files fails with `KIS_MCP_SOURCE_CHECKOUT_REQUIRED` and identifies the resolved root and missing files. Run the CLI and scripts from the repository checkout; generated state remains beneath `C:\Projects\.kis-mcp` as described below.
+
 
 ## Generated state
 All generated state remains inside the approved write boundary and outside the repository:

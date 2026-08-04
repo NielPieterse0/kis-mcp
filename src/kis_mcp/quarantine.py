@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import heapq
 import hmac
 import json
 import os
@@ -103,14 +104,14 @@ class QuarantineService:
 
         records: list[QuarantineRecord] = []
         invalid: list[str] = []
-        operation_entries = sorted(
+        operation_entries = heapq.nlargest(
+            limit,
             (
                 path
                 for path in self.quarantine_root.iterdir()
                 if _OPERATION_ID_PATTERN.fullmatch(path.name) is not None
             ),
             key=lambda item: item.name,
-            reverse=True,
         )
         for operation_root in operation_entries:
             metadata_path = operation_root / "metadata.json"
@@ -123,8 +124,7 @@ class QuarantineService:
             try:
                 record = self._read_metadata(metadata_path)
                 self._validate_record(record, operation_root)
-                if len(records) < limit:
-                    records.append(record)
+                records.append(record)
             except (OSError, ValueError, json.JSONDecodeError, QuarantineError):
                 invalid.append(operation_root.name)
 

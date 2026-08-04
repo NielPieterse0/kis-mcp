@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "015-p1-boundary-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/015-p1-boundary-hardening",
   "worktree": ".work/worktrees/015-p1-boundary-hardening",
   "base": "main",
