@@ -70,6 +70,10 @@ The future platform may add Discover, Govern, workflow coordination, evidence no
 
 Profiles, catalogues, governance checks, evidence requirements, readiness states, and workflow routing may control what platform functionality is installed, selected, or presented. They MUST NOT be interpreted as independent reasons to block an otherwise permitted Desktop Commander invocation under the three-rule Work policy.
 
+### Implemented Skills capability
+
+The current platform also includes a focused `skills.catalogue` capability. It resolves reusable procedures from `C:\Projects\.agents\skills`, exposes bounded catalogue/read/evaluation operations, and routes create/improve mutations through the existing Work middleware and Desktop Commander backend. Skills remain reusable procedures rather than repository authority, provider plugins, or new policy rules. ChatGPT loads instructions and composes ordinary Work operations; the runtime does not automatically execute arbitrary skill code. Initial catalogue failure leaves the wider Work/gateway server available and surfaces a corrective Skills error.
+
 ## 4. Shared platform kernel
 
 ```text

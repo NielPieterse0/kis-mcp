@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "change_id": "014-provider-runtime-composition",
+  "status": "active",
+  "branch": "change/014-provider-runtime-composition",
+  "worktree": ".work/worktrees/014-provider-runtime-composition",
+  "base": "main",
+  "outcome": "Mount enabled external provider adapters into the shared FastMCP runtime with deterministic namespaces, contained build failures, and truthful provider runtime status without changing Work policy or provider authentication",
+  "owned_paths": [
+    ".work/changes/014-provider-runtime-composition/**",
+    "src/kis_mcp/providers/runtime.py",
+    "src/kis_mcp/providers/runtime_settings.py",
+    "settings/providers/platform-runtime.provider.json",
+    "contracts/providers/runtime/**",
+    "tests/providers/test_runtime_composition.py",
+    "docs/development/provider-runtime-composition/**"
+  ],
+  "shared_paths": [
+    "src/kis_mcp/server.py",
+    "tests/test_public_contracts.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md"
+  ],
+  "excluded_paths": [
+    "src/kis_mcp/providers/github/**",
+    "src/kis_mcp/providers/supabase/**",
+    "settings/providers/github-mcp.provider.json",
+    "settings/providers/supabase-mcp.provider.json",
+    "scripts/install-github-mcp.ps1",
+    "scripts/smoke-github-mcp.ps1",
+    "scripts/smoke-supabase-mcp.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/setup-tunnel.ps1",
+    "src/kis_mcp/remote_runtime.py",
+    "src/kis_mcp/provider_lifecycle.py",
+    "src/kis_mcp/provider_startup_compat.cjs",
+    "src/kis_mcp/desktop_commander.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/quarantine.py",
+    "policy/**"
+  ],
+  "dependencies": [
+    "005-discover-foundation",
+    "006-provider-state-atomicity",
+    "010-provider-module",
+    "011-provider-composition",
+    "012-skills-module"
+  ],
+  "integration_owner": "014-provider-runtime-composition"
+}

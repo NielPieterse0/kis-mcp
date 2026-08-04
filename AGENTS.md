@@ -27,7 +27,7 @@ When documents conflict, use the earliest applicable authority above.
 
 ## Skill authority and routing
 
-Skills under `.agents/skills` are procedural development aids. They are not product, runtime, policy, or repository authority, and their presence does not prove that a platform capability is implemented.
+Repository-local skills under `.agents/skills` are procedural development aids. They are not product, runtime, policy, or repository authority, and their presence does not prove that a platform capability is implemented. The runtime Skills module is separate: it resolves the operator-approved shared catalogue at `C:\Projects\.agents\skills` through `settings/skills.settings.json`. Shared runtime skills remain reusable procedures rather than repository-specific authority; ChatGPT loads their instructions and executes resulting work through the ordinary kis-mcp Work surface.
 
 Apply skills under these rules:
 
