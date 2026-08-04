@@ -11,7 +11,15 @@ from fastmcp.client.transports import StdioTransport
 from fastmcp.server import create_proxy
 from fastmcp.server.providers.proxy import ProxyClient
 
-from kis_mcp.provider_registry import ProviderDescriptor, ProviderRegistry
+from kis_mcp.providers import (
+    ProviderBoundary,
+    ProviderCapability,
+    ProviderDescriptor,
+    ProviderKind,
+    ProviderReadiness,
+    ProviderRegistry,
+    ProviderState,
+)
 
 from .scope import GitHubRepositoryScope, GitHubRepositoryScopeMiddleware
 from .settings import GitHubProviderSettings, load_github_provider_settings
@@ -71,6 +79,30 @@ def github_provider_health(
     )
 
 
+def github_provider_readiness(
+    settings: GitHubProviderSettings,
+    environ: Mapping[str, str] | None = None,
+) -> ProviderReadiness:
+    health = github_provider_health(settings, environ)
+    state = ProviderState.READY if health.ready else ProviderState.UNAVAILABLE
+    summary = (
+        "GitHub MCP provider is ready."
+        if health.ready
+        else "GitHub MCP provider is unavailable."
+    )
+    return ProviderReadiness(
+        provider_id=health.provider_id,
+        state=state,
+        summary=summary,
+        details={
+            "executable_present": health.executable_present,
+            "token_present": health.token_present,
+            "toolsets": health.toolsets,
+            "approved_repositories": health.approved_repositories,
+        },
+    )
+
+
 def build_github_provider_server(
     settings: GitHubProviderSettings | None = None,
     *,
@@ -114,15 +146,29 @@ def build_github_provider_server(
 def register_github_provider(
     registry: ProviderRegistry,
     settings: GitHubProviderSettings | None = None,
+    *,
+    environ: Mapping[str, str] | None = None,
 ) -> ProviderDescriptor:
     runtime = settings or load_github_provider_settings()
     descriptor = ProviderDescriptor(
         provider_id=runtime.provider_id,
-        provider_kind="connector",
-        boundary="approved_external_connector",
+        display_name="GitHub MCP",
+        provider_kind=ProviderKind.CONNECTOR,
+        boundary=ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR,
         authoritative_source=runtime.authoritative_source,
         source_revision=runtime.source_revision,
-        builder=lambda: build_github_provider_server(runtime),
+        capabilities=(
+            ProviderCapability(
+                capability_id="repository.remote_read_write",
+                description=(
+                    "Read and write approved private GitHub repositories through "
+                    "the official GitHub MCP provider."
+                ),
+                effects=("external_network", "repository_read", "repository_write"),
+            ),
+        ),
+        builder=lambda: build_github_provider_server(runtime, environ=environ),
+        readiness_probe=lambda: github_provider_readiness(runtime, environ),
     )
     return registry.register(descriptor)
 

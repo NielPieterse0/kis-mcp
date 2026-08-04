@@ -31,6 +31,8 @@
     "src/kis_mcp/config.py",
     "src/kis_mcp/server.py"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "010-provider-module"
+  ],
   "integration_owner": null
 }

@@ -9,6 +9,7 @@ from .server import (
     build_github_provider_server,
     github_provider_environment,
     github_provider_health,
+    github_provider_readiness,
     register_github_provider,
 )
 from .settings import (
@@ -27,6 +28,7 @@ __all__ = [
     "build_github_provider_server",
     "github_provider_environment",
     "github_provider_health",
+    "github_provider_readiness",
     "load_github_provider_settings",
     "normalize_repository",
     "register_github_provider",

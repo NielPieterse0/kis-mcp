@@ -2,7 +2,7 @@
 
 ## Implemented scope
 
-- Added a generic immutable `ProviderRegistry` and provider descriptor.
+- Conformed the GitHub adapter to the shared `kis_mcp.providers` contracts, registry, capability metadata, and readiness model from merged change 010.
 - Added strict JSON settings for the official GitHub MCP server at pinned source revision `3778a41476e31a072430cfee7c5d31c5f72def60`.
 - Added a standalone FastMCP proxy endpoint launched with `python -m kis_mcp.providers.github`.
 - Configured the official local provider over stdio with the `all` toolset.
@@ -14,7 +14,7 @@
 
 ## Validation evidence
 
-- Focused checks: `scripts/smoke-github-mcp.ps1` — PASS, 34 tests.
+- Focused checks: `scripts/smoke-github-mcp.ps1` — PASS, 32 tests after shared-contract conformance.
 - JSON validation: provider settings and schema — PASS.
 - Repository verification: `scripts/verify.ps1` — PASS, exit code 0.
 - Diff scope check: PASS; `change-workflow check` listed only declared owned paths and `git diff --check` passed. Global validation remains affected by the pre-existing duplicate `004`/`006` claim defect.

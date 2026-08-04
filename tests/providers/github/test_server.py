@@ -6,7 +6,12 @@ from typing import Any
 
 import pytest
 
-from kis_mcp.provider_registry import ProviderRegistry
+from kis_mcp.providers import (
+    ProviderBoundary,
+    ProviderKind,
+    ProviderRegistry,
+    ProviderState,
+)
 from kis_mcp.providers.github import server as github_server
 from kis_mcp.providers.github.settings import GitHubProviderSettings
 
@@ -113,11 +118,27 @@ def test_builds_official_stdio_proxy_with_scope_middleware(monkeypatch: pytest.M
     assert "kis_github_health" in proxy.tools
 
 
-def test_registers_builder_in_provider_registry() -> None:
+def test_registers_common_provider_descriptor_and_readiness(tmp_path: Path) -> None:
     registry = ProviderRegistry()
+    settings = _settings(str(tmp_path / "missing-github-mcp-server.exe"))
 
-    descriptor = github_server.register_github_provider(registry, _settings())
+    descriptor = github_server.register_github_provider(
+        registry,
+        settings,
+        environ={},
+    )
 
     assert descriptor.provider_id == "github-mcp"
-    assert descriptor.boundary == "approved_external_connector"
+    assert descriptor.display_name == "GitHub MCP"
+    assert descriptor.provider_kind is ProviderKind.CONNECTOR
+    assert descriptor.boundary is ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR
+    assert [item.capability_id for item in descriptor.capabilities] == [
+        "repository.remote_read_write"
+    ]
     assert registry.get("github-mcp") is descriptor
+
+    readiness = descriptor.readiness_probe()
+    assert readiness.provider_id == "github-mcp"
+    assert readiness.state is ProviderState.UNAVAILABLE
+    assert readiness.details["executable_present"] is False
+    assert readiness.details["token_present"] is False
