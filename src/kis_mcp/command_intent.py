@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-import configparser
 import re
 import shlex
 from collections.abc import Iterable
 from pathlib import Path
 from urllib.parse import urlparse
 
+from .git_context import git_remote_targets, parse_git_invocation
 from .models import InvocationEffects
 from .paths import PathValidationError, normalize_windows_path
+from .shell_parser import ShellState, resolve_shell_segments, shell_from_command
 
 _REDIRECT_RE = re.compile(
     r"(?<![<])(?:>>|>)\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s;&|]+))"
@@ -143,7 +144,6 @@ _PACKAGE_REMOTE_PREFIXES = (
     "bitbucket:",
 )
 
-_REMOTE_GIT_COMMANDS = {"clone", "fetch", "pull", "push", "ls-remote"}
 _LOCAL_GIT_WRITE_COMMANDS = {
     "add",
     "checkout",
@@ -239,59 +239,15 @@ def _tokens(command: str) -> list[str]:
         return command.split()
 
 
-def _split_shell_segments(command: str) -> list[str]:
-    segments: list[str] = []
-    current: list[str] = []
-    quote: str | None = None
-    index = 0
-    while index < len(command):
-        character = command[index]
-        if quote is not None:
-            current.append(character)
-            if character == quote:
-                quote = None
-            elif character in {"`", "^", "\\"} and index + 1 < len(command):
-                index += 1
-                current.append(command[index])
-            index += 1
-            continue
-
-        if character in {"\"", "'"}:
-            quote = character
-            current.append(character)
-            index += 1
-            continue
-        if character in {"`", "^"} and index + 1 < len(command):
-            current.append(character)
-            index += 1
-            current.append(command[index])
-            index += 1
-            continue
-
-        separator_length = 0
-        if command.startswith("&&", index) or command.startswith("||", index):
-            separator_length = 2
-        elif character in {";", "|", "\n", "\r"}:
-            separator_length = 1
-        if separator_length:
-            segment = "".join(current).strip()
-            if segment:
-                segments.append(segment)
-            current = []
-            index += separator_length
-            continue
-
-        current.append(character)
-        index += 1
-
-    segment = "".join(current).strip()
-    if segment:
-        segments.append(segment)
-    return segments or ([command.strip()] if command.strip() else [])
-
-
 def _clean_token(token: str) -> str:
     return token.strip().strip("\"'").rstrip(",;)")
+
+
+def _strip_outer_quotes(token: str) -> str:
+    value = token.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"\"", "'"}:
+        return value[1:-1]
+    return value
 
 
 def _wrapped_command_payload(tokens: list[str]) -> str | None:
@@ -301,13 +257,36 @@ def _wrapped_command_payload(tokens: list[str]) -> str | None:
     if program not in _SHELL_WRAPPERS:
         return None
 
-    arguments = [_clean_token(token) for token in tokens[1:]]
+    arguments = [_strip_outer_quotes(token) for token in tokens[1:]]
     markers = {"/c", "/k"} if program == "cmd" else {"-command", "-c"}
     for index, argument in enumerate(arguments):
         if argument.casefold() in markers and index + 1 < len(arguments):
             payload = " ".join(arguments[index + 1 :]).strip()
             return payload or None
     return None
+
+
+def _persistent_shell_payload(tokens: list[str]) -> tuple[str, str] | None:
+    if not tokens:
+        return None
+    program = _program_name(tokens[0])
+    arguments = [_strip_outer_quotes(token) for token in tokens[1:]]
+    lowered = [argument.casefold() for argument in arguments]
+
+    if program == "cmd":
+        markers = {"/k"}
+        nested_shell = "cmd"
+    elif program in {"powershell", "pwsh"} and "-noexit" in lowered:
+        markers = {"-command", "-c"}
+        nested_shell = "powershell"
+    else:
+        return None
+
+    for index, argument in enumerate(lowered):
+        if argument in markers:
+            payload = " ".join(arguments[index + 1 :]).strip()
+            return nested_shell, payload
+    return nested_shell, ""
 
 
 def _program_name(token: str) -> str:
@@ -479,93 +458,6 @@ def _package_sources(tokens: list[str]) -> tuple[list[str], list[str]]:
     return endpoint_values, package_values
 
 
-def _git_directory(cwd: str) -> Path | None:
-    marker = Path(cwd) / ".git"
-    if marker.is_dir():
-        return marker
-    if marker.is_file():
-        try:
-            declaration = marker.read_text(encoding="utf-8-sig").strip()
-        except (OSError, UnicodeError):
-            return None
-        if declaration.casefold().startswith("gitdir:"):
-            target = declaration.split(":", 1)[1].strip()
-            candidate = Path(target)
-            return candidate if candidate.is_absolute() else (marker.parent / candidate).resolve()
-    return None
-
-
-def _git_config(cwd: str) -> configparser.ConfigParser | None:
-    git_dir = _git_directory(cwd)
-    if git_dir is None:
-        return None
-    parser = configparser.ConfigParser(interpolation=None)
-    parser.optionxform = str
-    try:
-        with (git_dir / "config").open(encoding="utf-8-sig") as stream:
-            parser.read_file(stream)
-    except (OSError, configparser.Error, UnicodeError):
-        return None
-    return parser
-
-
-def _git_current_branch(cwd: str) -> str | None:
-    git_dir = _git_directory(cwd)
-    if git_dir is None:
-        return None
-    try:
-        head = (git_dir / "HEAD").read_text(encoding="utf-8-sig").strip()
-    except (OSError, UnicodeError):
-        return None
-    prefix = "ref: refs/heads/"
-    return head[len(prefix) :] if head.startswith(prefix) else None
-
-
-def _git_remote_names(config: configparser.ConfigParser) -> list[str]:
-    names: list[str] = []
-    for section in config.sections():
-        match = re.fullmatch(r'remote\s+"(.+)"', section, re.IGNORECASE)
-        if match:
-            names.append(match.group(1))
-    return names
-
-
-def _git_remote_url(cwd: str, remote: str | None, operation: str) -> str | None:
-    config = _git_config(cwd)
-    if config is None:
-        return None
-
-    selected = remote
-    branch = _git_current_branch(cwd)
-    if selected is None and branch:
-        branch_section = f'branch "{branch}"'
-        if operation == "push":
-            selected = config.get(branch_section, "pushRemote", fallback=None)
-            selected = selected or config.get("remote", "pushDefault", fallback=None)
-        selected = selected or config.get(branch_section, "remote", fallback=None)
-
-    names = _git_remote_names(config)
-    if selected is None and len(names) == 1:
-        selected = names[0]
-    if not selected or selected == ".":
-        return None
-
-    section = f'remote "{selected}"'
-    return config.get(section, "url", fallback=None)
-
-
-def _git_all_remote_urls(cwd: str) -> tuple[str, ...]:
-    config = _git_config(cwd)
-    if config is None:
-        return ()
-    urls: list[str] = []
-    for name in _git_remote_names(config):
-        value = config.get(f'remote "{name}"', "url", fallback=None)
-        if value:
-            urls.append(value)
-    return tuple(urls)
-
-
 def _network_intent(tokens: list[str], *, cwd: str) -> bool:
     if not tokens:
         return False
@@ -597,27 +489,11 @@ def _network_intent(tokens: list[str], *, cwd: str) -> bool:
         ) or any(_explicit_remote_reference(value, cwd=cwd) for value in packages)
 
     if program == "git":
-        operation, tail = _operation_and_tail(tokens)
-        if operation not in _REMOTE_GIT_COMMANDS:
-            return False
-        values = [value for value in tail if value and not value.startswith("-")]
-        if operation in {"clone", "ls-remote"}:
-            if not values:
-                return False
-            candidate = values[0]
-            resolved = _git_remote_url(cwd, candidate, operation)
-            target = resolved or candidate
-            return _explicit_remote_reference(target, cwd=cwd)
-        if "--all" in lowered_arguments:
-            return any(
-                _explicit_remote_reference(url, cwd=cwd)
-                for url in _git_all_remote_urls(cwd)
-            )
-        candidate = values[0] if values else None
-        resolved = _git_remote_url(cwd, candidate, operation)
-        if resolved:
-            return _explicit_remote_reference(resolved, cwd=cwd)
-        return bool(candidate) and _explicit_remote_reference(candidate, cwd=cwd)
+        invocation = parse_git_invocation(tokens, cwd=cwd)
+        return any(
+            _explicit_remote_reference(target, cwd=invocation.cwd)
+            for target in git_remote_targets(invocation)
+        )
 
     return False
 
@@ -663,11 +539,6 @@ def _redirection_paths(command: str, *, cwd: str) -> list[str]:
     return paths
 
 
-def _git_operation(tokens: list[str]) -> str:
-    operation, _tail = _operation_and_tail(tokens)
-    return operation
-
-
 def _git_option_key(value: str) -> str:
     return value.split("=", 1)[0]
 
@@ -687,9 +558,10 @@ def _git_has_positional(arguments: list[str]) -> bool:
     return any(argument and not argument.startswith("-") for argument in arguments)
 
 
-def _git_local_write_intent(tokens: list[str]) -> bool:
-    operation, tail = _operation_and_tail(tokens)
-    arguments = [_clean_token(value) for value in tail]
+def _git_local_write_intent(tokens: list[str], *, cwd: str) -> bool:
+    invocation = parse_git_invocation(tokens, cwd=cwd)
+    operation = invocation.operation
+    arguments = [_clean_token(value) for value in invocation.tail]
     lowered = [value.casefold() for value in arguments]
 
     if operation in _LOCAL_GIT_WRITE_COMMANDS:
@@ -704,7 +576,16 @@ def _git_local_write_intent(tokens: list[str]) -> bool:
         read_only = (
             _git_has_option(arguments, _GIT_BRANCH_READ_VALUE_OPTIONS)
             or any(
-                value in {"-a", "-r", "-l", "--all", "--remotes", "--list", "--show-current"}
+                value
+                in {
+                    "-a",
+                    "-r",
+                    "-l",
+                    "--all",
+                    "--remotes",
+                    "--list",
+                    "--show-current",
+                }
                 or value.startswith("-v")
                 for value in arguments
             )
@@ -725,7 +606,10 @@ def _git_local_write_intent(tokens: list[str]) -> bool:
         return False if read_only else _git_has_positional(arguments)
 
     if operation == "stash":
-        action = next((value for value in lowered if value and not value.startswith("-")), "")
+        action = next(
+            (value for value in lowered if value and not value.startswith("-")),
+            "",
+        )
         return action not in {"list", "show"}
 
     return False
@@ -739,12 +623,14 @@ def _combined_short_flag(tokens: list[str], flag: str) -> bool:
     return False
 
 
-def _git_clean_is_unresolved_delete(tokens: list[str]) -> bool:
-    if _git_operation(tokens) != "clean":
+def _git_clean_is_unresolved_delete(tokens: list[str], *, cwd: str) -> bool:
+    invocation = parse_git_invocation(tokens, cwd=cwd)
+    if invocation.operation != "clean":
         return False
-    lowered = {_clean_token(token).casefold() for token in tokens[1:]}
-    dry_run = "--dry-run" in lowered or _combined_short_flag(tokens, "n")
-    force = "--force" in lowered or _combined_short_flag(tokens, "f")
+    operation_tokens = ["git", *invocation.tail]
+    lowered = {_clean_token(token).casefold() for token in invocation.tail}
+    dry_run = "--dry-run" in lowered or _combined_short_flag(operation_tokens, "n")
+    force = "--force" in lowered or _combined_short_flag(operation_tokens, "f")
     return force and not dry_run
 
 
@@ -772,8 +658,9 @@ def _explicit_write_paths(tokens: list[str], command: str, *, cwd: str) -> list[
     program = _program_name(tokens[0])
 
     if program == "git":
-        if _git_local_write_intent(tokens):
-            paths.append(cwd)
+        if _git_local_write_intent(tokens, cwd=cwd):
+            invocation = parse_git_invocation(tokens, cwd=cwd)
+            paths.extend(invocation.mutation_paths or (invocation.cwd,))
         return list(dict.fromkeys(paths))
 
     values = _non_option_values(tokens[1:])
@@ -842,37 +729,91 @@ def _merge_effects(effects: Iterable[InvocationEffects]) -> InvocationEffects:
 def _resolve_command_recursive(
     command: str,
     *,
-    cwd: str,
+    state: ShellState,
     depth: int,
-) -> InvocationEffects:
+) -> tuple[InvocationEffects, ShellState]:
     if depth > _MAX_NESTED_COMMAND_DEPTH:
-        return InvocationEffects()
+        return InvocationEffects(), state
 
-    segments = _split_shell_segments(command)
-    if len(segments) > 1:
-        return _merge_effects(
-            _resolve_command_recursive(segment, cwd=cwd, depth=depth + 1)
-            for segment in segments
+    segments, final_state = resolve_shell_segments(command, state)
+    effects: list[InvocationEffects] = []
+    for segment in segments:
+        tokens = _tokens(segment.text)
+        direct = InvocationEffects(
+            write_paths=tuple(
+                _explicit_write_paths(tokens, segment.text, cwd=segment.cwd)
+            ),
+            entry_paths=tuple(_entry_paths(tokens, cwd=segment.cwd)),
+            delete_paths=tuple(
+                _delete_paths(tokens, segment.text, cwd=segment.cwd)
+            ),
+            unresolved_delete=(
+                bool(tokens)
+                and _program_name(tokens[0]) == "git"
+                and _git_clean_is_unresolved_delete(tokens, cwd=segment.cwd)
+            ),
+            external_network=_network_intent(tokens, cwd=segment.cwd),
         )
+        effects.append(direct)
 
-    segment = segments[0] if segments else command.strip()
-    tokens = _tokens(segment)
-    direct = InvocationEffects(
-        write_paths=tuple(_explicit_write_paths(tokens, segment, cwd=cwd)),
-        entry_paths=tuple(_entry_paths(tokens, cwd=cwd)),
-        delete_paths=tuple(_delete_paths(tokens, segment, cwd=cwd)),
-        unresolved_delete=(
-            bool(tokens)
-            and _program_name(tokens[0]) == "git"
-            and _git_clean_is_unresolved_delete(tokens)
-        ),
-        external_network=_network_intent(tokens, cwd=cwd),
+        payload = _wrapped_command_payload(tokens)
+        if not payload or payload.strip() == segment.text.strip():
+            continue
+        wrapper = _program_name(tokens[0]) if tokens else ""
+        nested_shell = "cmd" if wrapper == "cmd" else "powershell"
+        nested_state = ShellState(cwd=segment.cwd, shell=nested_shell)
+        nested, _nested_final = _resolve_command_recursive(
+            payload,
+            state=nested_state,
+            depth=depth + 1,
+        )
+        effects.append(nested)
+
+    return _merge_effects(effects), final_state
+
+
+def resolve_persistent_shell_startup_state(
+    command: str,
+    *,
+    state: ShellState,
+    project_boundary: str,
+) -> ShellState:
+    """Return the final state of a statically recognized persistent shell."""
+
+    persistent = _persistent_shell_payload(_tokens(command))
+    if persistent is None:
+        return state
+    nested_shell, payload = persistent
+    nested_state = ShellState(cwd=state.cwd, shell=nested_shell)
+    if not payload:
+        return nested_state
+    _effects, final_state = resolve_command_effects_with_state(
+        payload,
+        state=nested_state,
+        project_boundary=project_boundary,
     )
-    payload = _wrapped_command_payload(tokens)
-    if not payload or payload.strip() == segment.strip():
-        return direct
-    nested = _resolve_command_recursive(payload, cwd=cwd, depth=depth + 1)
-    return _merge_effects((direct, nested))
+    return final_state
+
+
+def resolve_command_effects_with_state(
+    command: str,
+    *,
+    state: ShellState,
+    project_boundary: str,
+) -> tuple[InvocationEffects, ShellState]:
+    """Resolve concrete effects and the next supported shell state."""
+
+    effective_cwd = normalize_windows_path(
+        state.cwd or project_boundary,
+        base=project_boundary,
+    )
+    normalized_state = ShellState(
+        cwd=effective_cwd,
+        shell=state.shell,
+        directory_stack=state.directory_stack,
+        terminated=state.terminated,
+    )
+    return _resolve_command_recursive(command, state=normalized_state, depth=0)
 
 
 def resolve_command_effects(
@@ -880,8 +821,18 @@ def resolve_command_effects(
     *,
     cwd: str,
     project_boundary: str,
+    shell: str | None = None,
 ) -> InvocationEffects:
     """Resolve only explicit HR-001/HR-002/HR-003 evidence from a command."""
 
     effective_cwd = normalize_windows_path(cwd or project_boundary, base=project_boundary)
-    return _resolve_command_recursive(command, cwd=effective_cwd, depth=0)
+    initial_state = ShellState(
+        cwd=effective_cwd,
+        shell=shell_from_command(command, shell),
+    )
+    effects, _final_state = _resolve_command_recursive(
+        command,
+        state=initial_state,
+        depth=0,
+    )
+    return effects
