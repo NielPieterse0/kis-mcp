@@ -50,7 +50,7 @@
   },
   "implementation_status": {
     "policy_core": "diagnostic_unit_verified",
-    "desktop_commander_adapter": "diagnostic_unit_verified_live_schema_not_verified",
+    "desktop_commander_adapter": "diagnostic_unit_and_live_schema_verified",
     "quarantine": "diagnostic_unit_verified",
     "dependency_lock": "verified",
     "desktop_commander_installation": "verified_offline_install_and_stdio_startup",

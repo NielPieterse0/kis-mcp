@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .command_intent import resolve_command_effects
+from .contracts import ProviderCapabilities
 from .models import InvocationEffects
 
 
@@ -13,9 +14,16 @@ UNEXPOSED_TOOL_ARGUMENTS: dict[str, frozenset[str]] = {
     "read_file": frozenset({"isUrl"}),
 }
 UNEXPOSED_CONFIG_KEYS = frozenset({"blockedCommands", "allowedDirectories"})
+CONFIGURATION_TOOL_NAME = "set_config_value"
 COMMAND_TOOLS = frozenset(
     {"start_process", "execute_command", "interact_with_process"}
 )
+ENTRY_PATH_KEYS: dict[str, tuple[str, ...]] = {
+    "move_file": ("source", "destination"),
+}
+CONDITIONAL_WRITE_PATH_KEYS: dict[str, tuple[str, ...]] = {
+    "write_pdf": ("path", "outputPath"),
+}
 
 WRITE_PATH_KEYS: dict[str, tuple[str, ...]] = {
     "write_file": ("path",),
@@ -39,20 +47,30 @@ class DesktopCommanderEffectResolver:
     provider_state_file: str
 
     @property
+    def capabilities(self) -> ProviderCapabilities:
+        return ProviderCapabilities(
+            network_only_tools=NETWORK_ONLY_TOOLS,
+            direct_delete_tools=frozenset(DELETE_PATH_KEYS),
+            unexposed_tool_arguments=UNEXPOSED_TOOL_ARGUMENTS,
+            unexposed_config_keys=UNEXPOSED_CONFIG_KEYS,
+            configuration_tool_name=CONFIGURATION_TOOL_NAME,
+        )
+
+    @property
     def network_only_tools(self) -> frozenset[str]:
-        return NETWORK_ONLY_TOOLS
+        return self.capabilities.network_only_tools
 
     @property
     def direct_delete_tools(self) -> frozenset[str]:
-        return frozenset(DELETE_PATH_KEYS)
+        return self.capabilities.direct_delete_tools
 
     @property
-    def unexposed_tool_arguments(self) -> dict[str, frozenset[str]]:
-        return UNEXPOSED_TOOL_ARGUMENTS
+    def unexposed_tool_arguments(self) -> Mapping[str, frozenset[str]]:
+        return self.capabilities.unexposed_tool_arguments
 
     @property
     def unexposed_config_keys(self) -> frozenset[str]:
-        return UNEXPOSED_CONFIG_KEYS
+        return self.capabilities.unexposed_config_keys
 
     def resolve(
         self,
@@ -73,7 +91,7 @@ class DesktopCommanderEffectResolver:
                 project_boundary=self.project_boundary,
             )
 
-        if normalized_name == "set_config_value":
+        if normalized_name == CONFIGURATION_TOOL_NAME:
             external_network = (
                 str(args.get("key", "")).casefold() == "telemetryenabled"
                 and not self._telemetry_disabled(args.get("value"))
@@ -83,11 +101,11 @@ class DesktopCommanderEffectResolver:
                 external_network=external_network,
             )
 
-        if normalized_name == "move_file":
-            paths = self._collect_paths(args, ("source", "destination"))
+        if normalized_name in ENTRY_PATH_KEYS:
+            paths = self._collect_paths(args, ENTRY_PATH_KEYS[normalized_name])
             return InvocationEffects(entry_paths=paths)
 
-        if normalized_name == "write_pdf":
+        if normalized_name in CONDITIONAL_WRITE_PATH_KEYS:
             output_path = args.get("outputPath")
             effective_key = (
                 "outputPath"

@@ -111,7 +111,9 @@ The repository checks also confirm:
 3. Desktop Commander is not vendored;
 4. generated-state paths remain canonical and outside the repository;
 5. predecessor runtime identities are absent from authoritative and runtime files;
-6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, and middleware regression tests pass.
+6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass.
+
+Verification also checks the pinned provider surface under `contracts/desktop-commander/`, including provider identity, all exposed tool schemas and annotations, effect classification coverage, adapter mappings, and the recorded SHA-256 fingerprint. These checks are release evidence only; they do not add a runtime allowlist or a fourth policy rule.
 
 Verification improves confidence in resolved intent and boundary behavior. It does not create a separate permission gate and does not replace live provider end-to-end testing.
 
@@ -120,10 +122,16 @@ Verification improves confidence in resolved intent and boundary behavior. It do
 1. Check the authoritative package release outside Work.
 2. Update only `desktop_commander.version` in `settings/kis-mcp.settings.json`.
 3. Run the operator installation script.
-4. Capture the provider tool list and compare schemas.
-5. Update only the narrow adapter mappings that changed.
-6. Run the complete verification suite.
-7. Record the verified version in the implementation-status documentation.
+4. Capture the installed provider contract through local stdio:
+
+   ```powershell
+   pwsh -File .\scripts\capture-provider-contract.ps1
+   ```
+
+5. Review the resulting contract and fingerprint diff, including every changed tool, argument, annotation, and effect classification.
+6. Update only the narrow adapter mappings that changed.
+7. Run the complete verification suite.
+8. Record the verified version in the implementation-status documentation.
 
 Do not use `latest` during normal startup.
 

@@ -1,0 +1,914 @@
+{
+  "adapter_contract": {
+    "command_tools": [
+      "execute_command",
+      "interact_with_process",
+      "start_process"
+    ],
+    "conditional_write_path_keys": {
+      "write_pdf": [
+        "outputPath",
+        "path"
+      ]
+    },
+    "configuration_tool": {
+      "name": "set_config_value",
+      "unexposed_keys": [
+        "allowedDirectories",
+        "blockedCommands"
+      ]
+    },
+    "delete_path_keys": {
+      "delete_directory": [
+        "path"
+      ],
+      "delete_file": [
+        "path"
+      ],
+      "remove_directory": [
+        "path"
+      ],
+      "remove_file": [
+        "path"
+      ]
+    },
+    "entry_path_keys": {
+      "move_file": [
+        "destination",
+        "source"
+      ]
+    },
+    "network_only_tools": [
+      "give_feedback_to_desktop_commander"
+    ],
+    "unexposed_tool_arguments": {
+      "read_file": [
+        "isUrl"
+      ]
+    },
+    "write_path_keys": {
+      "create_directory": [
+        "path"
+      ],
+      "edit_block": [
+        "file_path",
+        "path"
+      ],
+      "write_docx": [
+        "path"
+      ],
+      "write_excel": [
+        "path"
+      ],
+      "write_file": [
+        "path"
+      ]
+    }
+  },
+  "effect_classifications": {
+    "create_directory": "direct_write",
+    "edit_block": "direct_write",
+    "force_terminate": "no_proven_prohibited_effect",
+    "get_config": "no_proven_prohibited_effect",
+    "get_file_info": "no_proven_prohibited_effect",
+    "get_more_search_results": "no_proven_prohibited_effect",
+    "get_prompts": "no_proven_prohibited_effect",
+    "get_recent_tool_calls": "no_proven_prohibited_effect",
+    "get_usage_stats": "no_proven_prohibited_effect",
+    "give_feedback_to_desktop_commander": "network_only",
+    "interact_with_process": "command_execution",
+    "kill_process": "no_proven_prohibited_effect",
+    "list_directory": "no_proven_prohibited_effect",
+    "list_processes": "no_proven_prohibited_effect",
+    "list_searches": "no_proven_prohibited_effect",
+    "list_sessions": "no_proven_prohibited_effect",
+    "move_file": "entry_mutation",
+    "read_file": "mixed_network_argument",
+    "read_multiple_files": "no_proven_prohibited_effect",
+    "read_process_output": "no_proven_prohibited_effect",
+    "set_config_value": "provider_configuration",
+    "start_process": "command_execution",
+    "start_search": "no_proven_prohibited_effect",
+    "stop_search": "no_proven_prohibited_effect",
+    "write_file": "direct_write",
+    "write_pdf": "conditional_write"
+  },
+  "provider": {
+    "package": "@wonderwhy-er/desktop-commander",
+    "version": "0.2.46"
+  },
+  "schema_version": 1,
+  "tools": [
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false,
+        "title": "Create Directory"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "create_directory"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Edit Block"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {},
+          "expected_replacements": {
+            "default": 1,
+            "type": "number"
+          },
+          "file_path": {
+            "type": "string"
+          },
+          "new_string": {
+            "type": "string"
+          },
+          "old_string": {
+            "type": "string"
+          },
+          "options": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "file_path"
+        ],
+        "type": "object"
+      },
+      "name": "edit_block"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Force Terminate Process"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "pid": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "pid"
+        ],
+        "type": "object"
+      },
+      "name": "force_terminate"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Get Configuration"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_config"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Get File Information"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "get_file_info"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Get Search Results"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "length": {
+            "default": 100,
+            "type": "number"
+          },
+          "offset": {
+            "default": 0,
+            "type": "number"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "name": "get_more_search_results"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Get Prompts"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "enum": [
+              "get_prompt"
+            ],
+            "type": "string"
+          },
+          "promptId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "action",
+          "promptId"
+        ],
+        "type": "object"
+      },
+      "name": "get_prompts"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Get Recent Tool Calls"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "maxResults": {
+            "default": 50,
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "number"
+          },
+          "since": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "toolName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "name": "get_recent_tool_calls"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Get Usage Statistics"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "get_usage_stats"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Give Feedback"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "give_feedback_to_desktop_commander"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Send Input to Process"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "type": "string"
+          },
+          "pid": {
+            "type": "number"
+          },
+          "timeout_ms": {
+            "type": "number"
+          },
+          "verbose_timing": {
+            "type": "boolean"
+          },
+          "wait_for_prompt": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pid",
+          "input"
+        ],
+        "type": "object"
+      },
+      "name": "interact_with_process"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Kill Process"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "pid": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "pid"
+        ],
+        "type": "object"
+      },
+      "name": "kill_process"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "List Directory Contents"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "depth": {
+            "default": 2,
+            "type": "number"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "list_directory"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "List Running Processes"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_processes"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "List Active Searches"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_searches"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "List Terminal Sessions"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object"
+      },
+      "name": "list_sessions"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Move/Rename File"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "destination": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "destination"
+        ],
+        "type": "object"
+      },
+      "name": "move_file"
+    },
+    {
+      "annotations": {
+        "openWorldHint": true,
+        "readOnlyHint": true,
+        "title": "Read File or URL"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "isUrl": {
+            "default": false,
+            "type": "boolean"
+          },
+          "length": {
+            "default": 1000,
+            "type": "number"
+          },
+          "offset": {
+            "default": 0,
+            "type": "number"
+          },
+          "options": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "range": {
+            "type": "string"
+          },
+          "sheet": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      },
+      "name": "read_file"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Read Multiple Files"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "paths"
+        ],
+        "type": "object"
+      },
+      "name": "read_multiple_files"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Read Process Output"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "length": {
+            "type": "number"
+          },
+          "offset": {
+            "type": "number"
+          },
+          "pid": {
+            "type": "number"
+          },
+          "timeout_ms": {
+            "type": "number"
+          },
+          "verbose_timing": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "pid"
+        ],
+        "type": "object"
+      },
+      "name": "read_process_output"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Set Configuration Value"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ],
+        "type": "object"
+      },
+      "name": "set_config_value"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": true,
+        "readOnlyHint": false,
+        "title": "Start Terminal Process"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "shell": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "number"
+          },
+          "verbose_timing": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "command",
+          "timeout_ms"
+        ],
+        "type": "object"
+      },
+      "name": "start_process"
+    },
+    {
+      "annotations": {
+        "readOnlyHint": true,
+        "title": "Start Search"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "contextLines": {
+            "default": 5,
+            "type": "number"
+          },
+          "earlyTermination": {
+            "type": "boolean"
+          },
+          "filePattern": {
+            "type": "string"
+          },
+          "ignoreCase": {
+            "default": true,
+            "type": "boolean"
+          },
+          "includeHidden": {
+            "default": false,
+            "type": "boolean"
+          },
+          "literalSearch": {
+            "default": false,
+            "type": "boolean"
+          },
+          "maxResults": {
+            "type": "number"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "searchType": {
+            "default": "files",
+            "enum": [
+              "files",
+              "content"
+            ],
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "path",
+          "pattern"
+        ],
+        "type": "object"
+      },
+      "name": "start_search"
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false,
+        "title": "Stop Search"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "name": "stop_search"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Write File"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "mode": {
+            "default": "rewrite",
+            "enum": [
+              "rewrite",
+              "append"
+            ],
+            "type": "string"
+          },
+          "origin": {
+            "enum": [
+              "ui",
+              "llm"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "type": "object"
+      },
+      "name": "write_file"
+    },
+    {
+      "annotations": {
+        "destructiveHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": false,
+        "title": "Write/Modify PDF"
+      },
+      "input_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "markdown": {
+                          "type": "string"
+                        },
+                        "pageIndex": {
+                          "type": "number"
+                        },
+                        "pdfOptions": {
+                          "additionalProperties": true,
+                          "properties": {},
+                          "type": "object"
+                        },
+                        "sourcePdfPath": {
+                          "type": "string"
+                        },
+                        "type": {
+                          "const": "insert",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "pageIndex"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "pageIndexes": {
+                          "items": {
+                            "type": "number"
+                          },
+                          "type": "array"
+                        },
+                        "type": {
+                          "const": "delete",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "pageIndexes"
+                      ],
+                      "type": "object"
+                    }
+                  ]
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "options": {
+            "additionalProperties": true,
+            "properties": {},
+            "type": "object"
+          },
+          "outputPath": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "type": "object"
+      },
+      "name": "write_pdf"
+    }
+  ]
+}
