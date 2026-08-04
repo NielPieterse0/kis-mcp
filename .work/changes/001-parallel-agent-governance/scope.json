@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "001-parallel-agent-governance",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/001-parallel-agent-governance",
   "worktree": ".work/worktrees/001-parallel-agent-governance",
   "base": "main",
