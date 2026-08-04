@@ -146,7 +146,6 @@ class ResultBudgeter:
                 contracts=_summary_only(current.contracts),
                 instructions=(),
                 recommendations=(),
-                handoffs=(),
                 assumptions=(),
                 git=replace(current.git, recent_commits=(), truncated=True),
             )
@@ -162,22 +161,38 @@ class ResultBudgeter:
 
 def _referenced_evidence_ids(response: InspectProjectResponse) -> set[str]:
     values: set[str] = set()
-    for collection in (
+    for value in (
+        response.repository_atlas,
+        response.code_atlas,
+        response.verification,
+        response.contracts,
+        response.instructions,
         response.findings,
         response.recommendations,
         response.handoffs,
+        response.assumptions,
         response.unknowns,
     ):
-        for item in collection:
-            if isinstance(item, Mapping):
-                evidence_ids = item.get("evidence_ids", ())
-            else:
-                evidence_ids = getattr(item, "evidence_ids", ())
-            if isinstance(evidence_ids, Iterable) and not isinstance(
-                evidence_ids, (str, bytes)
-            ):
-                values.update(str(value) for value in evidence_ids)
+        _collect_evidence_ids(value, values)
     return values
+
+
+def _collect_evidence_ids(value: Any, values: set[str]) -> None:
+    if hasattr(value, "to_json_dict"):
+        value = value.to_json_dict()
+    if isinstance(value, Mapping):
+        evidence_ids = value.get("evidence_ids", ())
+        if isinstance(evidence_ids, Iterable) and not isinstance(
+            evidence_ids, (str, bytes)
+        ):
+            values.update(str(item) for item in evidence_ids)
+        for key, item in value.items():
+            if key != "evidence_ids":
+                _collect_evidence_ids(item, values)
+        return
+    if isinstance(value, (tuple, list)):
+        for item in value:
+            _collect_evidence_ids(item, values)
 
 
 def _reference_error(evidence_id: str) -> DiscoverError:

@@ -89,6 +89,7 @@ def test_checked_in_runtime_exposes_discover_settings() -> None:
     assert {".csproj", ".fsproj", ".vbproj", ".sln", ".gradle", ".lock"}.issubset(
         set(config.discover_settings.allowed_extensions)
     )
+    assert ".kis-mcp" in config.discover_settings.excluded_segments
 
 
 @pytest.mark.parametrize(

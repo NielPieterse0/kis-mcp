@@ -396,7 +396,8 @@ def _redact_url(value: str) -> str:
         return urlunsplit((scheme, f"{hostname}{port}", parsed.path, "", ""))
     scp = re.match(r"(?:[^@\s]+@)?([^:\s]+):(.+)$", value)
     if scp and not re.match(r"^[A-Za-z]:[\\/]", value):
-        return f"{scp.group(1)}:{scp.group(2)}"
+        path = re.split(r"[?#]", scp.group(2), maxsplit=1)[0]
+        return f"{scp.group(1)}:{path}"
     return f"local:{_safe_repo_leaf(value)}"
 
 

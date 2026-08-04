@@ -80,6 +80,26 @@ def test_reads_branch_status_tracked_files_history_and_redacted_remote(
     assert summary.diagnostics == ()
 
 
+def test_redacts_query_and_fragment_from_scp_style_remote(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _init_repository(project_root)
+    _commit(project_root, "tracked.txt", "tracked\n", "initial")
+    _git(
+        project_root,
+        "remote",
+        "add",
+        "origin",
+        "git@github.com:example/repository.git?token=hidden#fragment",
+    )
+
+    summary = _reader(discover_settings).inspect(str(project_root))
+
+    assert summary.remote == "github.com:example/repository.git"
+    assert "hidden" not in (summary.remote or "")
+
+
 def test_reads_detached_head_and_linked_worktree(
     project_root: Path,
     discover_settings,

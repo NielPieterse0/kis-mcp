@@ -54,7 +54,13 @@ Implementation, integration, review, verification, push, and draft pull-request 
 - Added donor-independent import and architecture-boundary tests.
 - Removed accidental `server.py` line-ending churn before commit.
 - Found and closed the post-Discover HTTP smoke gap by requiring a real bounded `inspect_project` call on both instances.
-- Final uncommitted integration diff review found no remaining blocking issue.
+- Independent landing review found and fixed evidence compaction that could discard evidence still referenced by manifests, verification declarations, instructions, or other nested response structures.
+- Independent landing review changed minimum-output compaction to preserve required Work handoffs or fail with `DISCOVER_OUTPUT_BUDGET_TOO_SMALL` rather than silently erase them.
+- Independent landing review fixed scp-style Git remote sanitization so query strings and fragments cannot leak through local Git evidence.
+- Independent landing review added `.kis-mcp` to the checked-in Discover exclusions so inspection of `C:\Projects` cannot traverse central generated provider, cache, tunnel, or runtime state.
+- Final full locked verification passed with the four regression tests and two expected platform skips.
+- A fresh `operation` HTTP smoke passed all 30-tool, Discover, health, representative Work, and quarantine checks. The attempted all-instance rerun stopped before `development` because port `127.0.0.1:8011` was already occupied by an external process; no process was terminated during review.
+- Final integration diff review found no remaining blocking code issue.
 
 ## Known repository limitation
 

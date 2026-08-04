@@ -71,6 +71,7 @@
       ".git",
       ".work",
       ".temp",
+      ".kis-mcp",
       ".venv",
       "venv",
       "node_modules",

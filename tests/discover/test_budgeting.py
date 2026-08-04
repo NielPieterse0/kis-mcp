@@ -167,6 +167,30 @@ def test_first_evidence_over_capacity_sets_truncation_and_keeps_references() -> 
     assert bounded.findings[0].evidence_ids == ("ev-0",)
 
 
+def test_atlas_evidence_references_are_preserved_by_budgeting() -> None:
+    from dataclasses import replace
+
+    from kis_mcp.discover.budgeting import ResultBudgeter
+
+    response = _response(evidence_count=3)
+    referenced = replace(
+        response,
+        repository_atlas={
+            **response.repository_atlas,
+            "manifests": [
+                {
+                    "path": "pyproject.toml",
+                    "evidence_ids": ["ev-2"],
+                }
+            ],
+        },
+    )
+
+    bounded = ResultBudgeter(max_evidence=2, max_output_chars=100_000).apply(referenced)
+
+    assert [item.id for item in bounded.evidence] == ["ev-0", "ev-2"]
+
+
 def test_dangling_evidence_reference_is_rejected() -> None:
     from dataclasses import replace
 
@@ -222,6 +246,20 @@ def test_output_compaction_preserves_material_envelope_and_references() -> None:
     assert payload["confidence"] == "high"
     assert bounded.truncated is True
     assert "max_output_chars" in bounded.truncation_reasons
+
+
+def test_output_compaction_never_silently_drops_required_handoffs() -> None:
+    from kis_mcp.discover.budgeting import ResultBudgeter
+
+    try:
+        bounded = ResultBudgeter(max_evidence=10, max_output_chars=2_500).apply(
+            _response(evidence_count=5, large=True)
+        )
+    except DiscoverError as exc:
+        assert exc.code == "DISCOVER_OUTPUT_BUDGET_TOO_SMALL"
+    else:
+        assert bounded.handoffs
+        assert bounded.handoffs[0].workflow == "run_verification"
 
 
 def test_minimum_contract_overflow_returns_structural_error() -> None:
