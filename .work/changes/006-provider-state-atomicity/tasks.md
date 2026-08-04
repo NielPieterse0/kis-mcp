@@ -1,0 +1,23 @@
+# Tasks: Provider State Atomicity
+
+- [x] Read repository authority and register isolated change `006-provider-state-atomicity`.
+- [x] Reproduce PR #3's `PROVIDER_STATE_INTEGRITY` failure on the unchanged commissioning branch.
+- [x] Trace the failure to interruption of Desktop Commander's non-blocking `fs/promises.writeFile` usage-statistics save.
+- [x] Approve the narrow preload-adapter design with no provider fork, policy change, or tool restriction.
+- [x] Write and observe the failing adapter test.
+- [x] Implement same-directory temporary write followed by rename for the exact configured state path.
+- [x] Write and observe the failing provider-launch shaping test.
+- [x] Integrate the preload adapter into the existing Node launch arguments and provider environment.
+- [x] Pass 21 focused provider lifecycle, readiness, and contract tests.
+- [x] Pass the unchanged PR #3 live commissioning harness against the 006 source tree once.
+- [x] Repeat the full live commissioning sequence three additional times with all nine stages passing.
+- [x] Confirm the valid provider state survives without snapshot restoration.
+- [x] Record incomplete same-directory temporary files as recoverable generated-state residue when shutdown interrupts before rename.
+- [x] Pass `pwsh -File scripts/change-workflow.ps1 check` with exactly 11 declared paths.
+- [x] Pass `pwsh -File scripts/verify.ps1` with 144 tests.
+- [x] Pass `git diff --check`.
+- [x] Pass Node syntax validation and confirm the bundled adapter is present in the offline-built wheel.
+- [x] Run bounded Python static review with zero warnings and zero errors.
+- [ ] Commit, push, and raise a draft pull request against `main`.
+- [ ] Obtain explicit approval before any merge action.
+- [ ] After merge, run safe change-worktree cleanup from clean `main`.
