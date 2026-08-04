@@ -27,16 +27,23 @@ def _write_config(tmp_path: Path, value: dict[str, object]) -> Path:
     return path
 
 
-def test_loads_checked_in_provider_configuration() -> None:
+def test_loads_checked_in_oauth_provider_configuration() -> None:
     config = load_supabase_provider_config(REPOSITORY_ROOT)
 
+    assert config.schema_version == 2
     assert config.provider_id == "supabase"
     assert config.server_name == "kis-mcp-supabase"
     assert config.source_repository == "https://github.com/supabase/mcp"
     assert config.source_revision == "5cda0672702c65fe672280ee4cf306593e643fb6"
     assert config.base_url == "https://mcp.supabase.com/mcp"
     assert config.project_ref_env == "SUPABASE_PROJECT_REF"
-    assert config.access_token_env == "SUPABASE_ACCESS_TOKEN"
+    assert config.auth_mode == "oauth-dcr"
+    assert config.client_name == "kis-mcp Supabase"
+    assert config.token_storage == "windows-keyring"
+    assert config.keyring_service == "kis-mcp/supabase"
+    assert config.legacy_pat_env == "SUPABASE_ACCESS_TOKEN"
+    assert config.callback_host == "localhost"
+    assert config.callback_timeout_seconds == 300
     assert config.read_only is False
     assert config.features == ()
     assert config.verify_tls is True
@@ -52,17 +59,32 @@ def test_rejects_unknown_root_key(tmp_path: Path) -> None:
         load_supabase_provider_config(tmp_path)
 
 
-def test_rejects_embedded_access_token_key(tmp_path: Path) -> None:
+def test_rejects_legacy_pat_transport_configuration(tmp_path: Path) -> None:
     value = _checked_in_config()
     upstream = deepcopy(value["upstream"])
     assert isinstance(upstream, dict)
-    upstream["access_token"] = "forbidden-test-value"
+    upstream["access_token_env"] = "SUPABASE_ACCESS_TOKEN"
     value["upstream"] = upstream
     _write_config(tmp_path, value)
 
     with pytest.raises(
         SupabaseProviderConfigError,
-        match="upstream has unknown keys: access_token",
+        match="upstream has unknown keys: access_token_env",
+    ):
+        load_supabase_provider_config(tmp_path)
+
+
+def test_rejects_embedded_oauth_secret_key(tmp_path: Path) -> None:
+    value = _checked_in_config()
+    authentication = deepcopy(value["authentication"])
+    assert isinstance(authentication, dict)
+    authentication["client_secret"] = "forbidden-test-value"
+    value["authentication"] = authentication
+    _write_config(tmp_path, value)
+
+    with pytest.raises(
+        SupabaseProviderConfigError,
+        match="authentication has unknown keys: client_secret",
     ):
         load_supabase_provider_config(tmp_path)
 
@@ -72,18 +94,6 @@ def test_rejects_arbitrary_external_endpoint(tmp_path: Path) -> None:
     upstream = deepcopy(value["upstream"])
     assert isinstance(upstream, dict)
     upstream["base_url"] = "https://example.com/mcp"
-    value["upstream"] = upstream
-    _write_config(tmp_path, value)
-
-    with pytest.raises(SupabaseProviderConfigError, match="official hosted endpoint"):
-        load_supabase_provider_config(tmp_path)
-
-
-def test_rejects_loopback_endpoint_that_could_receive_the_pat(tmp_path: Path) -> None:
-    value = _checked_in_config()
-    upstream = deepcopy(value["upstream"])
-    assert isinstance(upstream, dict)
-    upstream["base_url"] = "http://localhost:54321/mcp"
     value["upstream"] = upstream
     _write_config(tmp_path, value)
 
@@ -103,15 +113,63 @@ def test_rejects_disabled_tls_verification(tmp_path: Path) -> None:
         load_supabase_provider_config(tmp_path)
 
 
-def test_rejects_invalid_environment_variable_name(tmp_path: Path) -> None:
+def test_rejects_non_oauth_authentication_mode(tmp_path: Path) -> None:
     value = _checked_in_config()
-    upstream = deepcopy(value["upstream"])
-    assert isinstance(upstream, dict)
-    upstream["access_token_env"] = "not an env name"
-    value["upstream"] = upstream
+    authentication = deepcopy(value["authentication"])
+    assert isinstance(authentication, dict)
+    authentication["mode"] = "pat"
+    value["authentication"] = authentication
     _write_config(tmp_path, value)
 
-    with pytest.raises(SupabaseProviderConfigError, match="access_token_env"):
+    with pytest.raises(SupabaseProviderConfigError, match="mode must be oauth-dcr"):
+        load_supabase_provider_config(tmp_path)
+
+
+def test_rejects_non_keyring_token_storage(tmp_path: Path) -> None:
+    value = _checked_in_config()
+    authentication = deepcopy(value["authentication"])
+    assert isinstance(authentication, dict)
+    authentication["token_storage"] = "file"
+    value["authentication"] = authentication
+    _write_config(tmp_path, value)
+
+    with pytest.raises(SupabaseProviderConfigError, match="token_storage must be windows-keyring"):
+        load_supabase_provider_config(tmp_path)
+
+
+def test_rejects_invalid_environment_variable_name(tmp_path: Path) -> None:
+    value = _checked_in_config()
+    authentication = deepcopy(value["authentication"])
+    assert isinstance(authentication, dict)
+    authentication["legacy_pat_env"] = "not an env name"
+    value["authentication"] = authentication
+    _write_config(tmp_path, value)
+
+    with pytest.raises(SupabaseProviderConfigError, match="legacy_pat_env"):
+        load_supabase_provider_config(tmp_path)
+
+
+def test_rejects_non_loopback_callback_host(tmp_path: Path) -> None:
+    value = _checked_in_config()
+    authentication = deepcopy(value["authentication"])
+    assert isinstance(authentication, dict)
+    authentication["callback_host"] = "0.0.0.0"
+    value["authentication"] = authentication
+    _write_config(tmp_path, value)
+
+    with pytest.raises(SupabaseProviderConfigError, match="callback_host must be localhost"):
+        load_supabase_provider_config(tmp_path)
+
+
+def test_rejects_non_positive_callback_timeout(tmp_path: Path) -> None:
+    value = _checked_in_config()
+    authentication = deepcopy(value["authentication"])
+    assert isinstance(authentication, dict)
+    authentication["callback_timeout_seconds"] = 0
+    value["authentication"] = authentication
+    _write_config(tmp_path, value)
+
+    with pytest.raises(SupabaseProviderConfigError, match="callback_timeout_seconds"):
         load_supabase_provider_config(tmp_path)
 
 
@@ -136,16 +194,4 @@ def test_rejects_non_boolean_read_only(tmp_path: Path) -> None:
     _write_config(tmp_path, value)
 
     with pytest.raises(SupabaseProviderConfigError, match="read_only must be a boolean"):
-        load_supabase_provider_config(tmp_path)
-
-
-def test_rejects_unknown_nested_key(tmp_path: Path) -> None:
-    value = _checked_in_config()
-    provider = deepcopy(value["provider"])
-    assert isinstance(provider, dict)
-    provider["mode"] = "custom"
-    value["provider"] = provider
-    _write_config(tmp_path, value)
-
-    with pytest.raises(SupabaseProviderConfigError, match="provider has unknown keys: mode"):
         load_supabase_provider_config(tmp_path)

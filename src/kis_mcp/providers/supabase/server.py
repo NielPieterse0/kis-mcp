@@ -4,8 +4,11 @@ import argparse
 import json
 import os
 from collections.abc import Mapping, Sequence
+from typing import Any
 
+import httpx
 from fastmcp import FastMCP
+from fastmcp.client.auth import OAuth
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.server import create_proxy
 from fastmcp.server.providers.proxy import ProxyClient
@@ -25,20 +28,65 @@ from .config import (
     load_supabase_provider_config,
 )
 from .runtime import (
+    SupabaseProviderRuntimeError,
+    build_oauth_token_storage,
     build_upstream_url,
+    legacy_pat_conflict,
     provider_readiness as provider_specific_readiness,
-    require_runtime_credentials,
 )
+
+
+class SupabaseOAuth(OAuth):
+    """Adapt Supabase DCR responses that omit their required secret auth method."""
+
+    async def _exchange_token_authorization_code(
+        self,
+        auth_code: str,
+        code_verifier: str,
+        *,
+        token_data: dict[str, Any] | None = None,
+    ) -> httpx.Request:
+        client_info = self.context.client_info
+        if (
+            client_info is not None
+            and client_info.client_secret
+            and client_info.token_endpoint_auth_method in (None, "none")
+        ):
+            client_info = client_info.model_copy(
+                update={"token_endpoint_auth_method": "client_secret_post"}
+            )
+            self.context.client_info = client_info
+            await self.context.storage.set_client_info(client_info)
+        return await super()._exchange_token_authorization_code(
+            auth_code,
+            code_verifier,
+            token_data=token_data,
+        )
 
 
 def build_transport(
     config: SupabaseProviderConfig,
     environment: Mapping[str, str],
 ) -> StreamableHttpTransport:
-    _, access_token = require_runtime_credentials(config, environment)
+    if legacy_pat_conflict(config, environment):
+        raise SupabaseProviderRuntimeError(
+            "SUPABASE_LEGACY_PAT_CONFLICT: remove the legacy PAT environment "
+            "variable before starting browser OAuth"
+        )
+    upstream_url = build_upstream_url(config, environment)
+    oauth = SupabaseOAuth(
+        mcp_url=upstream_url,
+        client_name=config.client_name,
+        token_storage=build_oauth_token_storage(config),
+        additional_client_metadata={
+            "token_endpoint_auth_method": "client_secret_post"
+        },
+        callback_host=config.callback_host,
+        callback_timeout=float(config.callback_timeout_seconds),
+    )
     return StreamableHttpTransport(
-        url=build_upstream_url(config, environment),
-        auth=access_token,
+        url=upstream_url,
+        auth=oauth,
         verify=config.verify_tls,
     )
 
@@ -59,7 +107,10 @@ def build_server(
     def kis_supabase_health() -> dict[str, object]:
         """Report redacted Supabase provider identity, scope, and readiness."""
 
-        return provider_specific_readiness(runtime, runtime_environment).as_dict()
+        return provider_specific_readiness(
+            runtime,
+            runtime_environment,
+        ).as_dict()
 
     return server
 
@@ -68,16 +119,16 @@ def provider_health(
     config: SupabaseProviderConfig | None = None,
     environment: Mapping[str, str] | None = None,
 ) -> ProviderReadiness:
-    """Return provider-neutral, redacted readiness without network access."""
+    """Return provider-neutral OAuth preflight readiness without network access."""
 
     runtime = config or load_supabase_provider_config()
     runtime_environment = environment if environment is not None else os.environ
     readiness = provider_specific_readiness(runtime, runtime_environment)
     state = ProviderState.READY if readiness.ready else ProviderState.DEGRADED
     summary = (
-        "Supabase provider is ready."
+        "Supabase OAuth preflight is ready."
         if readiness.ready
-        else "Supabase provider credentials are incomplete."
+        else "Supabase OAuth preflight is incomplete."
     )
     details = readiness.as_dict()
     details.pop("provider_id")
@@ -139,7 +190,7 @@ def _argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Validate configuration and print redacted readiness without network access.",
+        help="Validate configuration and print redacted OAuth preflight readiness.",
     )
     return parser
 

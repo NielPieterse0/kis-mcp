@@ -14,6 +14,7 @@ OFFICIAL_HOSTED_ENDPOINT = "https://mcp.supabase.com/mcp"
 _ENVIRONMENT_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 _SOURCE_REVISION = re.compile(r"^[0-9a-f]{40}$")
 _FEATURE_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
+_KEYRING_SERVICE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
 
 
 class SupabaseProviderConfigError(RuntimeError):
@@ -22,6 +23,7 @@ class SupabaseProviderConfigError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class SupabaseProviderConfig:
+    schema_version: int
     provider_id: str
     server_name: str
     registry_url: str
@@ -30,10 +32,16 @@ class SupabaseProviderConfig:
     upstream_transport: str
     base_url: str
     project_ref_env: str
-    access_token_env: str
     read_only: bool
     features: tuple[str, ...]
     verify_tls: bool
+    auth_mode: str
+    client_name: str
+    token_storage: str
+    keyring_service: str
+    legacy_pat_env: str
+    callback_host: str
+    callback_timeout_seconds: int
     downstream_transport: str
 
     @property
@@ -93,6 +101,12 @@ def _boolean(value: Any, label: str) -> bool:
     return value
 
 
+def _positive_integer(value: Any, label: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise SupabaseProviderConfigError(f"{label} must be a positive integer")
+    return value
+
+
 def _environment_name(value: Any, label: str) -> str:
     name = _string(value, label)
     if _ENVIRONMENT_NAME.fullmatch(name) is None:
@@ -114,7 +128,9 @@ def _features(value: Any) -> tuple[str, ...]:
             )
         features.append(feature)
     if len(set(features)) != len(features):
-        raise SupabaseProviderConfigError("upstream.features must not contain duplicates")
+        raise SupabaseProviderConfigError(
+            "upstream.features must not contain duplicates"
+        )
     return tuple(features)
 
 
@@ -127,6 +143,15 @@ def _base_url(value: Any) -> str:
     return raw
 
 
+def _keyring_service(value: Any) -> str:
+    service = _string(value, "authentication.keyring_service")
+    if _KEYRING_SERVICE.fullmatch(service) is None:
+        raise SupabaseProviderConfigError(
+            "authentication.keyring_service must be a bounded keyring service name"
+        )
+    return service
+
+
 def load_supabase_provider_config(
     repository_root: Path | None = None,
 ) -> SupabaseProviderConfig:
@@ -135,11 +160,18 @@ def load_supabase_provider_config(
 
     _exact_keys(
         raw,
-        {"schema_version", "provider", "source", "upstream", "downstream"},
+        {
+            "schema_version",
+            "provider",
+            "source",
+            "upstream",
+            "authentication",
+            "downstream",
+        },
         "root",
     )
-    if raw["schema_version"] != 1:
-        raise SupabaseProviderConfigError("schema_version must be 1")
+    if raw["schema_version"] != 2:
+        raise SupabaseProviderConfigError("schema_version must be 2")
 
     provider = _object(raw["provider"], "provider")
     _exact_keys(provider, {"id", "server_name"}, "provider")
@@ -157,7 +189,9 @@ def load_supabase_provider_config(
         )
     source_repository = _string(source["repository"], "source.repository")
     if source_repository != OFFICIAL_SOURCE_REPOSITORY:
-        raise SupabaseProviderConfigError("source.repository must identify supabase/mcp")
+        raise SupabaseProviderConfigError(
+            "source.repository must identify supabase/mcp"
+        )
     source_revision = _string(source["revision"], "source.revision")
     if _SOURCE_REVISION.fullmatch(source_revision) is None:
         raise SupabaseProviderConfigError(
@@ -171,7 +205,6 @@ def load_supabase_provider_config(
             "transport",
             "base_url",
             "project_ref_env",
-            "access_token_env",
             "read_only",
             "features",
             "verify_tls",
@@ -180,18 +213,57 @@ def load_supabase_provider_config(
     )
     upstream_transport = _string(upstream["transport"], "upstream.transport")
     if upstream_transport != "streamable-http":
-        raise SupabaseProviderConfigError("upstream.transport must be streamable-http")
+        raise SupabaseProviderConfigError(
+            "upstream.transport must be streamable-http"
+        )
     verify_tls = _boolean(upstream["verify_tls"], "upstream.verify_tls")
     if not verify_tls:
         raise SupabaseProviderConfigError("upstream.verify_tls must remain true")
 
+    authentication = _object(raw["authentication"], "authentication")
+    _exact_keys(
+        authentication,
+        {
+            "mode",
+            "client_name",
+            "token_storage",
+            "keyring_service",
+            "legacy_pat_env",
+            "callback_host",
+            "callback_timeout_seconds",
+        },
+        "authentication",
+    )
+    auth_mode = _string(authentication["mode"], "authentication.mode")
+    if auth_mode != "oauth-dcr":
+        raise SupabaseProviderConfigError(
+            "authentication.mode must be oauth-dcr"
+        )
+    token_storage = _string(
+        authentication["token_storage"], "authentication.token_storage"
+    )
+    if token_storage != "windows-keyring":
+        raise SupabaseProviderConfigError(
+            "authentication.token_storage must be windows-keyring"
+        )
+    callback_host = _string(
+        authentication["callback_host"], "authentication.callback_host"
+    )
+    if callback_host != "localhost":
+        raise SupabaseProviderConfigError(
+            "authentication.callback_host must be localhost"
+        )
+
     downstream = _object(raw["downstream"], "downstream")
     _exact_keys(downstream, {"transport"}, "downstream")
-    downstream_transport = _string(downstream["transport"], "downstream.transport")
+    downstream_transport = _string(
+        downstream["transport"], "downstream.transport"
+    )
     if downstream_transport != "stdio":
         raise SupabaseProviderConfigError("downstream.transport must be stdio")
 
     return SupabaseProviderConfig(
+        schema_version=2,
         provider_id=provider_id,
         server_name=server_name,
         registry_url=registry_url,
@@ -202,11 +274,22 @@ def load_supabase_provider_config(
         project_ref_env=_environment_name(
             upstream["project_ref_env"], "upstream.project_ref_env"
         ),
-        access_token_env=_environment_name(
-            upstream["access_token_env"], "upstream.access_token_env"
-        ),
         read_only=_boolean(upstream["read_only"], "upstream.read_only"),
         features=_features(upstream["features"]),
         verify_tls=verify_tls,
+        auth_mode=auth_mode,
+        client_name=_string(
+            authentication["client_name"], "authentication.client_name"
+        ),
+        token_storage=token_storage,
+        keyring_service=_keyring_service(authentication["keyring_service"]),
+        legacy_pat_env=_environment_name(
+            authentication["legacy_pat_env"], "authentication.legacy_pat_env"
+        ),
+        callback_host=callback_host,
+        callback_timeout_seconds=_positive_integer(
+            authentication["callback_timeout_seconds"],
+            "authentication.callback_timeout_seconds",
+        ),
         downstream_transport=downstream_transport,
     )

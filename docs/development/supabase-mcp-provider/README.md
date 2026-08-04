@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This module exposes the official hosted Supabase MCP server through a standalone kis-mcp stdio endpoint. It is an approved external connector boundary, not a Desktop Commander Work invocation, and does not change HR-001, HR-002, or HR-003.
+This module exposes the official hosted Supabase MCP server through standalone and shared `kis-mcp` runtimes. It is an approved external connector boundary, not a Desktop Commander Work invocation, and does not change HR-001, HR-002, or HR-003.
 
-Use it only with a development or test Supabase project. The upstream provider can read and mutate database and project resources, so do not connect it to production data.
+Use it only with a development or test Supabase project. The project-scoped upstream surface includes read/write tools, so do not commission it against production data.
 
 ## Configuration
 
@@ -14,18 +14,25 @@ The checked-in configuration:
 
 - uses the official hosted streamable-HTTP endpoint;
 - requires one project reference through `SUPABASE_PROJECT_REF`;
-- requires a scoped personal access token through `SUPABASE_ACCESS_TOKEN`;
+- uses OAuth 2.1 authorization-code flow with dynamic client registration;
+- persists OAuth client and token state through Windows Credential Manager under the configured `kis-mcp/supabase` keyring service;
+- treats `SUPABASE_ACCESS_TOKEN` only as a legacy PAT conflict and never forwards it;
 - defaults to project-scoped read/write operation;
 - leaves `features` empty so the official provider controls its default feature groups;
-- stores environment-variable names only, never credentials.
+- stores configuration and environment-variable names only, never project references or credential values.
 
 To request the upstream read-only surface, set `upstream.read_only` to `true`. To select official feature groups, add their upstream feature names to `upstream.features`. Neither setting creates a local tool-name allowlist.
 
-## Runtime
+## Preflight
 
-Provide `SUPABASE_PROJECT_REF` and `SUPABASE_ACCESS_TOKEN` in the supervised operator environment. Use a development-project reference and a dedicated scoped token; do not write either value into repository files.
+Set `SUPABASE_PROJECT_REF` in the supervised operator environment and clear the legacy PAT variable:
 
-Run the non-network readiness check:
+```powershell
+$env:SUPABASE_PROJECT_REF = '<development-project-ref>'
+Remove-Item Env:SUPABASE_ACCESS_TOKEN -ErrorAction SilentlyContinue
+```
+
+Run the non-network preflight:
 
 ```powershell
 pwsh -File .\scripts\smoke-supabase-mcp.ps1
@@ -37,20 +44,60 @@ The equivalent direct command is:
 C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.providers.supabase --check
 ```
 
-The check validates settings and reports only booleans for project-reference and token presence. It never prints either value and does not contact Supabase.
+Preflight validates strict settings, project-scope presence, Windows keyring availability, and legacy PAT conflict state. It reports booleans and non-secret metadata only. It does not contact Supabase or prove authentication.
 
-Start the standalone stdio endpoint:
+## Browser OAuth commissioning
+
+Run explicit commissioning from a supervised console:
+
+```powershell
+pwsh -File .\scripts\auth-supabase-mcp.ps1
+```
+
+FastMCP performs OAuth discovery, dynamic client registration, browser authorization, token refresh, and persistent storage through Windows Credential Manager. The commissioning client discovers the project-scoped tool surface and invokes only the harmless `get_project_url` read with `{}`. It validates that the returned hostname matches the configured project reference without printing the URL or project reference.
+
+`list_projects` must remain absent in project-scoped mode. Mutating project-scoped tools may be discoverable but are not invoked by commissioning.
+
+## Shared runtime verification
+
+After browser commissioning succeeds, verify token reuse and namespaced `supabase_*` exposure through the normal root server:
+
+```powershell
+pwsh -File .\scripts\smoke-supabase-mcp.ps1 -SharedRuntime
+```
+
+The shared smoke requires `kis_provider_status` to report Supabase as mounted and invokes only `supabase_get_project_url` with `{}`. It returns boolean evidence and does not expose OAuth material, the project reference, or the project URL.
+
+For a standalone live recheck, run:
+
+```powershell
+pwsh -File .\scripts\smoke-supabase-mcp.ps1 -Live
+```
+
+## Runtime and registration
+
+The standalone endpoint remains available through:
 
 ```powershell
 C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.providers.supabase
 ```
 
-Normal startup requires both environment variables. The bearer token is supplied only to FastMCP's upstream HTTP transport, while the project reference is encoded as the official `project_ref` query parameter.
+Normal startup requires project scope but not a PAT. The project reference is encoded as the official `project_ref` query parameter. FastMCP supplies the OAuth client to the upstream HTTP transport and reuses the configured keyring state.
+
+The shared Provider foundation is the integration boundary. This adapter exposes `build_provider_descriptor`, `provider_health`, and `register_provider(registry)` through `kis_mcp.providers.supabase`. Registration remains explicit and contains invalid Supabase configuration by leaving the provider absent; importing the adapter does not register, start, or contact the provider.
 
 ## Security and recovery
 
-Use a dedicated token with the narrowest available Supabase account access and rotate it outside the repository. Never place tokens, project references, generated OAuth state, or provider logs in Git.
+OAuth grants developer-level access to the selected organization and project. Review the browser authorization target and use only a development or test project.
 
-To disable the connector, stop the standalone process and remove its client connector entry. The module performs no installation-time database migration and stores no credentials.
+Never place project references, PATs, OAuth access tokens, refresh tokens, client secrets, authorization codes, generated provider state, or logs in Git. `SUPABASE_ACCESS_TOKEN` must remain unset because PAT transport is no longer supported.
 
-The shared Provider foundation from PR #9 is the canonical integration boundary. This adapter exposes `build_provider_descriptor(config)`, `provider_health`, and `register_provider(registry)` through `kis_mcp.providers.supabase`; tests and composition code may pass an optional configuration object explicitly. Descriptor construction and registration remain explicit: importing the adapter does not load provider configuration, register, build, start, or contact the provider. Platform-wide composition of approved adapters remains a separate integration step.
+To recover from stale or invalid OAuth state:
+
+1. stop standalone and shared provider processes;
+2. revoke the Supabase authorization when appropriate;
+3. remove the `kis-mcp/supabase` entries through Windows Credential Manager;
+4. rerun `scripts\auth-supabase-mcp.ps1`;
+5. repeat the shared-runtime smoke.
+
+The commissioning and smoke workflows perform no Supabase mutation.

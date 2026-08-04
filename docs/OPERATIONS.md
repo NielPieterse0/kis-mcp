@@ -158,7 +158,52 @@ Call `kis_provider_status` to inspect the current Provider catalogue and runtime
 - `readiness` — provider-neutral local preflight evidence;
 - `commissioning` — installation, configuration, authentication, upstream connection, tool discovery, and live verification. These remain `not_verified` until dedicated authenticated commissioning proves them.
 
-`build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure; inspect the provider's offline readiness details to distinguish a missing executable from invalid configuration or other preflight failures. A mounted provider is not automatically authenticated or live verified. Do not add PATs or secrets to repository JSON to change these status values; complete the dedicated OAuth commissioning slices instead.
+`build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure; inspect the provider's offline readiness details to distinguish a missing executable from invalid configuration or other preflight failures. A mounted provider is not automatically authenticated or live verified. GitHub uses its supervised OAuth commissioning workflow. Supabase uses hosted OAuth/DCR with Windows Credential Manager persistence and requires the explicit commissioning commands below. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+
+## Commission Supabase OAuth
+
+Use only a development or test Supabase project. The project-scoped provider exposes read/write capabilities even though commissioning invokes only a harmless read.
+
+Set the project reference in the supervised operator environment and clear the legacy PAT variable:
+
+```powershell
+$env:SUPABASE_PROJECT_REF = '<development-project-ref>'
+Remove-Item Env:SUPABASE_ACCESS_TOKEN -ErrorAction SilentlyContinue
+```
+
+Run the non-network OAuth preflight:
+
+```powershell
+pwsh -File .\scripts\smoke-supabase-mcp.ps1
+```
+
+Preflight validates schema version 2, mandatory project scope, Windows Credential Manager availability, and absence of the legacy PAT conflict. It does not contact Supabase or prove authentication.
+
+Start explicit browser OAuth commissioning:
+
+```powershell
+pwsh -File .\scripts\auth-supabase-mcp.ps1
+```
+
+FastMCP performs OAuth discovery and dynamic client registration against the official project-scoped endpoint. Client and token state are persisted under the `kis-mcp/supabase` Windows Credential Manager service. The commissioning client lists the upstream surface and invokes only `get_project_url` with `{}`. It verifies the returned project hostname without printing the project URL or project reference.
+
+After authorization succeeds, prove persistent-token reuse and namespaced shared-runtime exposure:
+
+```powershell
+pwsh -File .\scripts\smoke-supabase-mcp.ps1 -SharedRuntime
+```
+
+The shared smoke requires Supabase to be mounted in `kis_provider_status` and invokes only `supabase_get_project_url`. `supabase_list_projects` must remain absent in project-scoped mode. Mutating tools may be discoverable but are not invoked.
+
+Use `-Live` for a standalone authenticated recheck:
+
+```powershell
+pwsh -File .\scripts\smoke-supabase-mcp.ps1 -Live
+```
+
+Never set `SUPABASE_ACCESS_TOKEN`; PAT transport is intentionally unsupported. Never commit project references, access tokens, refresh tokens, client secrets, authorization codes, keyring values, or returned project URLs.
+
+For recovery, stop provider processes, revoke the Supabase authorization when appropriate, remove the `kis-mcp/supabase` entries through Windows Credential Manager, rerun browser commissioning, and repeat the shared-runtime smoke.
 
 ## Verify local ChatGPT HTTP transport
 
