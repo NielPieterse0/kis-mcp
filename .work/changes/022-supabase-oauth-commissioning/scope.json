@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "022-supabase-oauth-commissioning",
-  "status": "active",
+  "status": "closed",
   "branch": "change/022-supabase-oauth-commissioning",
   "worktree": ".work/worktrees/022-supabase-oauth-commissioning",
   "base": "main",
