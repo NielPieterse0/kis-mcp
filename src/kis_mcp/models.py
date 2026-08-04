@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -44,3 +45,45 @@ class PolicyDecision:
     @property
     def allowed(self) -> bool:
         return self.kind is DecisionKind.ALLOW
+
+
+PUBLIC_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True, slots=True)
+class PolicyRuleResponse:
+    id: str
+    name: str
+    prohibited_outcome: str
+    decision: str
+
+
+@dataclass(frozen=True, slots=True)
+class HealthResponse:
+    ready: bool
+    server: str
+    project_boundary: str
+    quarantine_root: str
+    desktop_commander_entry: str
+    desktop_commander_installed: bool
+    policy_rules: tuple[PolicyRuleResponse, ...]
+    policy_fingerprint: str
+    implementation_status: Mapping[str, str]
+    schema_version: int = PUBLIC_SCHEMA_VERSION
+
+
+@dataclass(frozen=True, slots=True)
+class QuarantineResponse:
+    operation_id: str
+    original_path: str
+    payload_path: str
+    item_type: str
+    quarantined_at: str
+    restored_at: str | None
+    schema_version: int = PUBLIC_SCHEMA_VERSION
+
+
+@dataclass(frozen=True, slots=True)
+class QuarantineListResponse:
+    records: tuple[QuarantineResponse, ...]
+    schema_version: int = PUBLIC_SCHEMA_VERSION
