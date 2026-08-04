@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a standalone, project-scoped proxy for the official hosted Supabase MCP server without changing Work policy or shared composition paths.
+**Goal:** Build an independently executable, project-scoped proxy for the official hosted Supabase MCP server and conform it to the shared Provider foundation without changing Work policy or the provider-neutral core.
 
 **Architecture:** A strict JSON loader produces an immutable `SupabaseProviderConfig`. Pure helpers construct the official upstream URL and redacted readiness. A FastMCP `StreamableHttpTransport` with bearer authentication is wrapped by `create_proxy`, and a small CLI exposes stdio runtime plus non-network `--check` output.
 
@@ -14,7 +14,7 @@
 - Do not store or print access-token or project-reference values.
 - Do not add a custom Supabase tool-name allowlist.
 - Default to project-scoped read/write operation (`read_only=false`).
-- Do not edit `provider_registry.py`, Discover, Desktop Commander Work, remote runtime, global settings/config/server, policy, or quarantine.
+- Do not edit the provider-neutral core, Discover, Desktop Commander Work, remote runtime, global settings/config/server, policy, or quarantine.
 - Use source revision `5cda0672702c65fe672280ee4cf306593e643fb6` as reviewed upstream evidence.
 
 ---
@@ -224,7 +224,7 @@ Expected: all provider tests pass.
 - [x] **Step 5: Run repository scope and full verification**
 
 Run: `pwsh -File scripts/change-workflow.ps1 check`
-Expected: either pass or only the pre-existing global duplicate-claim scanner defect, recorded exactly.
+Expected: exit code 0 with every changed path inside the declared adapter scope.
 
 Run: `pwsh -File scripts/verify.ps1`
 Expected: exit code 0 and complete test suite pass.
@@ -243,4 +243,19 @@ git push -u origin change/009-supabase-mcp-provider
 
 - [x] **Step 8: Create a draft pull request without merging**
 
-Create a draft PR targeting `main` with implementation, verification, known governance limitation, security boundary, and deferred registry integration clearly stated.
+Create a draft PR targeting `main` with implementation, verification, security boundary, and remaining live-auth limitation clearly stated.
+
+### Task 5: Conform to the merged shared Provider foundation
+
+**Files:**
+- Update: `src/kis_mcp/providers/supabase/__init__.py`
+- Update: `src/kis_mcp/providers/supabase/server.py`
+- Update: `tests/providers/supabase/test_supabase_server.py`
+- Update: provider documentation and change artifacts.
+
+- [x] **Step 1: Merge current `main` containing PR #9 into the adapter branch without rewriting history.**
+- [x] **Step 2: Write failing tests for the canonical descriptor, provider-neutral readiness, explicit registration, and package exports.**
+- [x] **Step 3: Replace the private descriptor with shared Provider contracts and keep registration explicit and non-networked.**
+- [x] **Step 4: Confirm FastMCP bearer-token handling and current official Supabase endpoint, query parameters, and manual PAT authentication.**
+- [x] **Step 5: Run scope check, non-network smoke, complete repository verification, and final diff review.**
+- [x] **Step 6: Commit the conformance repair as `4454506` and update the PR evidence before landing.**
