@@ -2,7 +2,15 @@
 
 ## Status
 
-Implementation is complete in the isolated worktree. Final commit, publication, merge, and post-merge verification remain pending.
+Implementation, review, verification, commit, push, and non-draft PR creation are complete. PR #12 remains unmerged pending exact-head verification.
+
+## Delivery
+
+- Branch: `change/011-provider-composition`
+- Worktree: `C:\Projects\kis-mcp\.work\worktrees\011-provider-composition`
+- Implementation commit: `6a9539f06a707d04527eed6eb6e12145180e1587`
+- Pull request: `#12 — Compose approved provider registry`
+- Pull-request state: open, non-draft, unmerged
 
 ## Implemented
 

@@ -7,5 +7,7 @@
 - [x] Implement explicit three-provider registry and service factories.
 - [x] Add bounded composition documentation without editing the shared server root.
 - [x] Run complete repository verification.
-- [x] Run final scope and complete repository verification.
-- [ ] Run staged whitespace validation, commit, push, review, and merge.
+- [x] Run final scope and staged whitespace validation.
+- [x] Commit and push the implementation.
+- [x] Open non-draft PR #12.
+- [ ] Verify the final closeout head and merge PR #12.
