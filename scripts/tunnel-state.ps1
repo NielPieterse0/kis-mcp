@@ -55,9 +55,17 @@ function Get-KisMcpRemoteInstance {
     if (-not [string]::IsNullOrWhiteSpace($TunnelId) -and $TunnelId -notmatch '^tunnel_[0-9a-f]{32}$') {
         throw "KIS_MCP_TUNNEL_ID_INVALID: $Instance"
     }
+    if (
+        -not [string]::IsNullOrWhiteSpace($TunnelAuthenticationId) -and
+        $TunnelAuthenticationId -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{1,127}$'
+    ) {
+        throw "KIS_MCP_TUNNEL_AUTHENTICATION_ID_INVALID: $Instance"
+    }
 
     $StateRoot = [string]$Settings.paths.state_root
     $ProfileRoot = Join-Path $StateRoot 'tunnel-client\profiles'
+    $AuthenticationRoot = Join-Path $StateRoot 'tunnel-client\authentication'
+    $AuthenticationPath = Join-Path $AuthenticationRoot "$Instance.txt"
     $RuntimeRoot = Join-Path $StateRoot ("tunnel-client\runtime\$Instance")
     $Endpoint = "http://$([string]$Remote.host):$([int]$Property.Value.port)$([string]$Remote.path)"
 
@@ -72,6 +80,7 @@ function Get-KisMcpRemoteInstance {
         runtime_root = $RuntimeRoot
         tunnel_id = $TunnelId
         tunnel_authentication_id = $TunnelAuthenticationId
+        tunnel_authentication_path = $AuthenticationPath
         tunnel_client_path = [string]$Remote.tunnel_client_path
         python_environment_root = [string]$Settings.paths.python_environment_root
         state_root = $StateRoot

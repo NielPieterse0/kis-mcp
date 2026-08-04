@@ -40,17 +40,22 @@ def test_tunnel_state_helper_reads_settings_and_named_instances() -> None:
     assert "tunnel_client_path" in content
 
 
-def test_setup_script_uses_settings_without_embedding_credentials() -> None:
+def test_setup_script_materializes_authentication_identifier_without_environment_dependency() -> None:
     content = _script("setup-tunnel.ps1")
 
     assert "Get-KisMcpRemoteInstance" in content
     assert "--profile-dir" in content
     assert "--tunnel-id" in content
     assert "--mcp-server-url" in content
+    assert "--control-plane-api-key-ref" in content
+    assert '"file:$($Remote.tunnel_authentication_path)"' in content
+    assert "[System.IO.File]::WriteAllText" in content
+    assert "$Remote.tunnel_authentication_id" in content
     assert "BackupExistingProfile" in content
-    assert "tunnel_authentication_id" in content
     assert "doctor" in content
     assert "--explain" in content
+    assert "CONTROL_PLANE_API_KEY" not in content
+    assert "env:" not in content
     assert "sk-" not in content
 
 

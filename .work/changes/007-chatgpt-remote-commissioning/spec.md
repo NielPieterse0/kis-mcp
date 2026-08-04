@@ -21,7 +21,7 @@ Complete the supervised ChatGPT-facing path from a loopback FastMCP streamable H
 - **REQ-002**: Validate settings strictly, including loopback-only host, distinct ports/profile names/tunnel IDs, supported instance names, valid identifier shapes, and `/mcp` endpoint paths.
 - **REQ-003**: Add a dedicated Python HTTP entry point that reuses `build_server()` and starts FastMCP streamable HTTP for exactly one named instance without changing local stdio startup.
 - **REQ-004**: Add a PowerShell state helper that reads and validates tunnel/instance configuration from JSON.
-- **REQ-005**: Add a profile setup script that initializes either instance from settings, preserves an existing profile unless explicitly backed up/replaced, and uses only the stored non-secret identifiers.
+- **REQ-005**: Add a profile setup script that initializes either instance from settings, materializes the stored tunnel authentication ID into generated state for the tunnel client's required `file:` reference, and preserves an existing profile and authentication file unless explicitly backed up/replaced.
 - **REQ-006**: Add a supervised launcher that starts the selected HTTP server and tunnel, verifies loopback readiness, owns both processes, and terminates both together.
 - **REQ-007**: Add an explicit `-Instance operation|development` switch and default it from `active_instance`; no automatic production/development failover.
 - **REQ-008**: Add a local smoke script that proves configuration, HTTP startup, MCP initialization/tool listing, and instance separation without requiring a live external tunnel.
@@ -41,12 +41,12 @@ Complete the supervised ChatGPT-facing path from a loopback FastMCP streamable H
 - Wrong instance routing: prevented by strict named selection and distinct configuration checks.
 - Orphaned server/tunnel processes: launcher owns both and stops the peer when either exits.
 - Identifier persistence: tunnel IDs and tunnel authentication IDs are stored directly in canonical settings and reused across updates.
-- Tunnel profile replacement: refused by default; explicit backup-and-replace is recoverable.
+- Tunnel profile replacement: refused by default; explicit backup-and-replace preserves both the prior profile and generated authentication file.
 - Recovery: stop the launcher, restore prior settings/scripts from Git, and keep local stdio startup unchanged.
 
 ## Out of scope
 
 - Creating or deleting OpenAI control-plane tunnels.
-- Committing generated tunnel profile YAML.
+- Committing generated tunnel profile YAML or generated tunnel authentication files.
 - Automatic failover or load balancing between operation and development.
 - Changing HR-001, HR-002, HR-003, Desktop Commander contracts, or provider policy behavior.

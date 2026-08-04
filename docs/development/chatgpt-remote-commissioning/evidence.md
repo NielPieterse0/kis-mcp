@@ -17,6 +17,7 @@ It does not claim the external Secure MCP Tunnel or ChatGPT app hop, because the
 - Development endpoint: `http://127.0.0.1:8011/mcp`
 - Separate profile names: `kis-mcp-operation`, `kis-mcp-development`
 - Tunnel identifiers: stored directly in canonical settings
+- Tunnel authentication handoff: materialized to generated state and supplied through the tunnel client's required `file:` reference
 - Tunnel identifier values: blank pending one-time entry and commit
 
 ## Verification commands

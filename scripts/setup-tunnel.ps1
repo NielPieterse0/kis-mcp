@@ -26,7 +26,21 @@ if (Test-Path -LiteralPath $ProfilePath -PathType Leaf) {
     $BackupPath = Join-Path $BackupRoot "$($Remote.profile_name)-$Timestamp.yaml"
     [System.IO.File]::Move($ProfilePath, $BackupPath)
     Write-Host "Existing tunnel profile backed up to: $BackupPath"
+    if (Test-Path -LiteralPath $Remote.tunnel_authentication_path -PathType Leaf) {
+        $AuthenticationBackupPath = Join-Path $BackupRoot "$($Remote.profile_name)-$Timestamp.authentication-id"
+        [System.IO.File]::Move($Remote.tunnel_authentication_path, $AuthenticationBackupPath)
+        Write-Host "Existing tunnel authentication identifier backed up to: $AuthenticationBackupPath"
+    }
 }
+
+$AuthenticationRoot = Split-Path -Parent $Remote.tunnel_authentication_path
+[System.IO.Directory]::CreateDirectory($AuthenticationRoot) | Out-Null
+[System.IO.File]::WriteAllText(
+    $Remote.tunnel_authentication_path,
+    $Remote.tunnel_authentication_id,
+    [System.Text.UTF8Encoding]::new($false)
+)
+$AuthenticationReference = "file:$($Remote.tunnel_authentication_path)"
 
 & $Remote.tunnel_client_path init `
     --sample sample_mcp_remote_no_auth `
@@ -34,6 +48,7 @@ if (Test-Path -LiteralPath $ProfilePath -PathType Leaf) {
     --profile-dir $Remote.profile_root `
     --tunnel-id $Remote.tunnel_id `
     --mcp-server-url $Remote.endpoint_url `
+    --control-plane-api-key-ref $AuthenticationReference `
     --health-listen-addr '127.0.0.1:0'
 if ($LASTEXITCODE -ne 0) {
     throw "KIS_MCP_TUNNEL_PROFILE_INIT_FAILED: $($Remote.profile_name)"

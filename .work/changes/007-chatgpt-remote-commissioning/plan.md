@@ -12,7 +12,7 @@
 
 - Write only beneath `C:\Projects`.
 - Do not change the three-rule policy.
-- Store the approved tunnel IDs and tunnel authentication IDs in settings; do not commit generated tunnel profiles.
+- Store the approved tunnel IDs and tunnel authentication IDs in settings; materialize authentication IDs only into generated state and do not commit generated tunnel profiles or authentication files.
 - Keep `scripts/start.ps1` as the local stdio entry point.
 - Use `C:\Tools\openai-tunnel-client\tunnel-client.exe` from settings.
 - Support exactly `operation` and `development`; switching is explicit.
@@ -38,6 +38,7 @@
 - [x] Add `tunnel-state.ps1`, `setup-tunnel.ps1`, and `start-chatgpt.ps1`.
 - [x] Add tunnel-client doctor validation after profile creation.
 - [x] Keep tunnel identifiers in canonical settings and generated state outside the repository.
+- [x] Materialize each tunnel authentication ID to a project-local generated file and pass the tunnel client's required `file:` reference without an environment-variable dependency.
 
 ### Task 4: Behavioral smoke test
 

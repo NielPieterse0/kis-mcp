@@ -19,6 +19,8 @@ No blocking correctness, policy, secret-handling, lifecycle, or scope findings r
 
 One operational issue was found and fixed: the launcher originally allowed both ChatGPT-facing instances to run simultaneously against shared provider state. It now refuses startup while the other instance is listening.
 
+One blocking tunnel-authentication issue was found and fixed during PR review: removing the explicit API-key reference caused `tunnel-client init` to silently restore its default `env:CONTROL_PLANE_API_KEY` dependency. Setup now materializes the stored tunnel authentication ID to generated state and passes the tunnel client's validated `file:` reference, with no environment-variable dependency.
+
 One diff-quality issue was found and fixed: edits had converted three existing files to CRLF. They were restored to their original LF format before commit.
 
 ## Verification
@@ -74,7 +76,7 @@ Result: passed after removing one trailing blank line.
 ## Recovery
 
 - Stop `scripts\start-chatgpt.ps1`; its `finally` block stops both owned processes.
-- Existing tunnel profiles are never overwritten without `-BackupExistingProfile`; replacements preserve the old profile beneath the project-local backup directory.
+- Existing tunnel profiles are never overwritten without `-BackupExistingProfile`; replacements preserve the old profile and generated authentication file beneath the project-local backup directory.
 - The smoke test quarantines generated markers and attempts best-effort quarantine on failure.
 - Local `scripts\start.ps1` stdio behavior remains unchanged.
 - Before merge, the isolated branch/worktree can be removed through normal Git worktree cleanup.

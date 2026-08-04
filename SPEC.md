@@ -95,7 +95,7 @@ kis-mcp FastMCP gateway -> Desktop Commander
 
 Both instances expose the same standard mixed-purpose Desktop Commander and gateway tools. Transport, instance name, profile, catalogue metadata, approval metadata, or risk labels do not reduce the backend tool surface or create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
 
-The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel IDs and tunnel authentication IDs are stored directly in canonical settings, and generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
+The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel IDs and tunnel authentication IDs are stored directly in canonical settings. Setup materializes each authentication identifier into generated state and supplies it to the tunnel client through its required `file:` reference contract; generated profiles, authentication files, and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
 
 ## Desktop Commander integration
 
@@ -199,7 +199,7 @@ All project settings and policy declarations are JSON.
 - Each remote instance stores its port, profile name, permanent `tunnel_id`, and permanent `tunnel_authentication_id`.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
 
-Tunnel setup and launch require both permanent identifiers to be present. The identifiers are committed in canonical settings; generated tunnel profile YAML and runtime state remain outside the repository.
+Tunnel setup and launch require both permanent identifiers to be present. The identifiers are committed in canonical settings; setup writes the authentication identifier to generated state for the tunnel client's `file:` reference, and generated tunnel profile YAML, authentication files, and runtime state remain outside the repository.
 
 Configuration and implementation-status fields do not disable otherwise permitted Desktop Commander tools or create another policy decision.
 

@@ -22,6 +22,7 @@ C:\Projects\.kis-mcp\
 ├── npm-cache\
 ├── quarantine\
 ├── tunnel-client\
+│   ├── authentication\
 │   ├── profiles\
 │   └── runtime\
 │       ├── operation\
@@ -96,7 +97,7 @@ Each instance has its own loopback port, tunnel profile, `tunnel_id`, and `tunne
 C:\Tools\openai-tunnel-client\tunnel-client.exe
 ```
 
-Enter each instance's permanent `tunnel_id` and `tunnel_authentication_id` once in `settings/kis-mcp.settings.json` and commit them. Updates and reinstalls then reuse the same identifiers automatically. Generated profile YAML remains outside the repository.
+Enter each instance's permanent `tunnel_id` and `tunnel_authentication_id` once in `settings/kis-mcp.settings.json` and commit them. Updates and reinstalls then reuse the same identifiers automatically. Generated profile YAML and the tunnel-client authentication file remain outside the repository beneath `C:\Projects\.kis-mcp\tunnel-client`.
 
 `active_instance` controls the default only. Use `-Instance operation` or `-Instance development` for an explicit switch. There is no automatic failover.
 
@@ -144,7 +145,7 @@ For the selected instance:
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance development
 ```
 
-The script reads the tunnel client path, profile name, tunnel ID, tunnel authentication ID, and local MCP URL directly from JSON. It writes generated profiles only beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`. It refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement first moves the old profile into a timestamped backup.
+The script reads the tunnel client path, profile name, tunnel ID, tunnel authentication ID, and local MCP URL directly from JSON. It materializes the authentication identifier as `C:\Projects\.kis-mcp\tunnel-client\authentication\<instance>.txt` and supplies that file to the tunnel client through its required `file:` reference contract. Generated profiles remain beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`. The script refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement preserves both the previous profile and authentication file in timestamped backups.
 
 Configure the operation profile separately:
 
