@@ -3,10 +3,13 @@ Set-StrictMode -Version Latest
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
+$SkillsSettingsPath = Join-Path $RepositoryRoot 'settings\skills.settings.json'
 $PolicyPath = Join-Path $RepositoryRoot 'policy\kis-mcp.policy.json'
 $LockPath = Join-Path $RepositoryRoot 'uv.lock'
 
 $CanonicalStateRoot = 'C:\Projects\.kis-mcp'
+$CanonicalSkillsRoot = 'C:\Projects\.agents\skills'
+$CanonicalSkillsStagingRoot = 'C:\Projects\.kis-mcp\temp\skills'
 $CanonicalPaths = [ordered]@{
     state_root = $CanonicalStateRoot
     python_environment_root = Join-Path $CanonicalStateRoot 'python-env'
@@ -35,12 +38,23 @@ foreach ($Key in $CanonicalPaths.Keys) {
     }
 }
 
-$RuntimeSkillRoots = @(
-    (Join-Path $RepositoryRoot 'src\skills'),
-    (Join-Path $RepositoryRoot 'src\kis_mcp\skills')
-)
-if ($RuntimeSkillRoots | Where-Object { Test-Path -LiteralPath $_ }) {
-    throw 'Greenfield boundary violation: active runtime skills catalogue is present.'
+if (-not (Test-Path -LiteralPath $SkillsSettingsPath -PathType Leaf)) {
+    throw 'SKILLS_SETTINGS_INVALID: settings\skills.settings.json is required.'
+}
+$SkillsSettings = Get-Content -LiteralPath $SkillsSettingsPath -Raw | ConvertFrom-Json
+if (
+    [int]$SkillsSettings.schema_version -ne 1 -or
+    [string]$SkillsSettings.root -ne $CanonicalSkillsRoot -or
+    [string]$SkillsSettings.staging_root -ne $CanonicalSkillsStagingRoot
+) {
+    throw 'SKILLS_SETTINGS_INVALID: Skills settings must use schema version 1 and the approved shared roots.'
+}
+$RuntimeSkillsRoot = Join-Path $RepositoryRoot 'src\kis_mcp\skills'
+if (-not (Test-Path -LiteralPath $RuntimeSkillsRoot -PathType Container)) {
+    throw 'SKILLS_SETTINGS_INVALID: the approved runtime Skills module is missing.'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot 'contracts\skills\settings.schema.json') -PathType Leaf)) {
+    throw 'SKILLS_SETTINGS_INVALID: the Skills settings contract is missing.'
 }
 
 $RuntimeAndConfigFiles = @(
@@ -49,9 +63,28 @@ $RuntimeAndConfigFiles = @(
     Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'policy') -Recurse -File
 )
 $RuntimeSkillReferences = $RuntimeAndConfigFiles | Select-String -SimpleMatch '.agents'
-if ($RuntimeSkillReferences) {
-    $Details = ($RuntimeSkillReferences | ForEach-Object { "$($_.Path):$($_.LineNumber)" }) -join ', '
-    throw "Greenfield boundary violation: runtime or configuration references repository skills: $Details"
+$AllowedSkillsRootLiterals = @(
+    'C:\Projects\.agents\skills',
+    'C:\\Projects\\.agents\\skills'
+)
+$UnexpectedRuntimeSkillReferences = @(
+    foreach ($Match in $RuntimeSkillReferences) {
+        $Line = [string]$Match.Line
+        $Allowed = $false
+        foreach ($Literal in $AllowedSkillsRootLiterals) {
+            if ($Line.Contains($Literal)) {
+                $Allowed = $true
+                break
+            }
+        }
+        if (-not $Allowed) {
+            $Match
+        }
+    }
+)
+if ($UnexpectedRuntimeSkillReferences) {
+    $Details = ($UnexpectedRuntimeSkillReferences | ForEach-Object { "$($_.Path):$($_.LineNumber)" }) -join ', '
+    throw "SKILLS_SETTINGS_INVALID: unexpected runtime Skills root reference: $Details"
 }
 if (Test-Path -LiteralPath (Join-Path $RepositoryRoot 'node_modules')) {
     throw 'Greenfield boundary violation: Desktop Commander must not be vendored in the repository.'
@@ -131,4 +164,4 @@ finally {
     Pop-Location
 }
 
-Write-Host 'Verification passed: locked environment, greenfield boundary, and exact three-rule implementation are consistent.'
+Write-Host 'Verification passed: locked environment, approved Skills root, and exact three-rule implementation are consistent.'

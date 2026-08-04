@@ -26,6 +26,7 @@ from .policy import ThreeRulePolicy
 from .provider_lifecycle import prepare_provider_launch
 from .provider_readiness import validate_provider_offline_readiness
 from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
+from .skills import register_skills_tools
 
 
 def _ensure_state_directories(config: RuntimeConfig) -> None:
@@ -231,6 +232,7 @@ def build_server(
             quarantine_paths=quarantine_paths,
         )
     )
+    register_skills_tools(server)
     return server
 
 
