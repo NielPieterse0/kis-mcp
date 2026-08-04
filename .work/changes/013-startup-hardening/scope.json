@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "013-startup-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/013-startup-hardening",
   "worktree": ".work/worktrees/013-startup-hardening",
   "base": "main",
