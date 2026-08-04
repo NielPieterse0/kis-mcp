@@ -43,7 +43,8 @@ def test_documentation_records_scope_credentials_and_production_warning() -> Non
     assert "production" in text.casefold()
     assert "read/write" in text.casefold()
     assert "--check" in text
-    assert "provider_registry.py" in text
+    assert "shared Provider foundation" in text
+    assert "register_provider(registry)" in text
 
 
 def test_schema_is_strict_and_contains_no_secret_values() -> None:
