@@ -1,12 +1,14 @@
 [CmdletBinding()]
 param(
     [string]$Instance = '',
-    [int]$TimeoutSeconds = 60
+    [int]$TimeoutSeconds = 60,
+    [int]$ObservationSeconds = 0
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
+. (Join-Path $PSScriptRoot 'windows-credential.ps1')
 
 function Assert-KisMcpInstanceName {
     param(
@@ -21,14 +23,24 @@ function Start-OwnedProcess {
         [string]$Executable,
         [string[]]$Arguments,
         [string]$WorkingDirectory,
-        [hashtable]$Environment = @{}
+        [hashtable]$Environment = @{},
+        [string]$StandardOutputPath,
+        [string]$StandardErrorPath
     )
+
+    foreach ($Path in @($StandardOutputPath, $StandardErrorPath)) {
+        $Parent = Split-Path -Parent $Path
+        [System.IO.Directory]::CreateDirectory($Parent) | Out-Null
+        [System.IO.File]::WriteAllText($Path, '', [System.Text.UTF8Encoding]::new($false))
+    }
 
     $Info = [System.Diagnostics.ProcessStartInfo]::new()
     $Info.FileName = $Executable
     $Info.WorkingDirectory = $WorkingDirectory
     $Info.UseShellExecute = $false
-    $Info.CreateNoWindow = $false
+    $Info.CreateNoWindow = $true
+    $Info.RedirectStandardOutput = $true
+    $Info.RedirectStandardError = $true
     foreach ($Argument in $Arguments) {
         $Info.ArgumentList.Add($Argument)
     }
@@ -40,7 +52,31 @@ function Start-OwnedProcess {
     if (-not $Process.Start()) {
         throw "KIS_MCP_PROCESS_START_FAILED: $Executable"
     }
+    $Process | Add-Member -NotePropertyName KisStandardOutputPath -NotePropertyValue $StandardOutputPath
+    $Process | Add-Member -NotePropertyName KisStandardErrorPath -NotePropertyValue $StandardErrorPath
+    $Process | Add-Member -NotePropertyName KisStandardOutputTask -NotePropertyValue $Process.StandardOutput.ReadToEndAsync()
+    $Process | Add-Member -NotePropertyName KisStandardErrorTask -NotePropertyValue $Process.StandardError.ReadToEndAsync()
     return $Process
+}
+
+function Write-OwnedProcessLogs {
+    param([System.Diagnostics.Process]$Process)
+
+    if ($null -eq $Process) {
+        return
+    }
+    $StandardOutput = $Process.KisStandardOutputTask.GetAwaiter().GetResult()
+    $StandardError = $Process.KisStandardErrorTask.GetAwaiter().GetResult()
+    [System.IO.File]::WriteAllText(
+        $Process.KisStandardOutputPath,
+        $StandardOutput,
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    [System.IO.File]::WriteAllText(
+        $Process.KisStandardErrorPath,
+        $StandardError,
+        [System.Text.UTF8Encoding]::new($false)
+    )
 }
 
 function Invoke-McpJsonRpc {
@@ -95,7 +131,7 @@ function Wait-McpReady {
             Start-Sleep -Milliseconds 250
         }
     }
-    throw "KIS_MCP_HTTP_NOT_READY: $Uri"
+    throw "KIS_MCP_ENDPOINT_NOT_READY: $Uri"
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
@@ -103,12 +139,11 @@ $null = Assert-KisMcpInstanceName -Name $Remote.name
 if ($TimeoutSeconds -lt 5 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 5 and 300.'
 }
+if ($ObservationSeconds -lt 0 -or $ObservationSeconds -gt 300) {
+    throw 'KIS_MCP_OBSERVATION_SECONDS_INVALID: ObservationSeconds must be between 0 and 300.'
+}
 if (-not (Test-Path -LiteralPath $Remote.tunnel_client_path -PathType Leaf)) {
     throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $($Remote.tunnel_client_path)"
-}
-$KeyValue = [Environment]::GetEnvironmentVariable($Remote.control_plane_api_key_env)
-if ([string]::IsNullOrWhiteSpace($KeyValue)) {
-    throw "KIS_MCP_CONTROL_PLANE_API_KEY_MISSING: set $($Remote.control_plane_api_key_env)."
 }
 $ProfilePath = Join-Path $Remote.profile_root "$($Remote.profile_name).yaml"
 if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
@@ -116,6 +151,11 @@ if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
 }
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$PolicyPath = Join-Path $RepositoryRoot 'policy\kis-mcp.policy.json'
+if (-not (Test-Path -LiteralPath $PolicyPath -PathType Leaf)) {
+    throw "KIS_MCP_POLICY_MISSING: $PolicyPath"
+}
+$PolicyFingerprint = (Get-FileHash -LiteralPath $PolicyPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $Python = Join-Path $Remote.python_environment_root 'Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
     throw "KIS_MCP_PYTHON_MISSING: $Python"
@@ -143,6 +183,10 @@ if ($Listener) {
 [System.IO.Directory]::CreateDirectory($Remote.runtime_root) | Out-Null
 $RunId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
 $ProviderHealthFile = Join-Path $Remote.runtime_root "provider-health-$RunId.txt"
+$ServerStdoutLog = Join-Path $Remote.runtime_root "server-stdout-$RunId.log"
+$ServerStderrLog = Join-Path $Remote.runtime_root "server-stderr-$RunId.log"
+$TunnelStdoutLog = Join-Path $Remote.runtime_root "tunnel-stdout-$RunId.log"
+$TunnelStderrLog = Join-Path $Remote.runtime_root "tunnel-stderr-$RunId.log"
 $StateRoot = $Remote.state_root
 $ServerEnvironment = @{
     PYTHONPATH = (Join-Path $RepositoryRoot 'src')
@@ -154,6 +198,9 @@ $ServerEnvironment = @{
     NO_UPDATE_NOTIFIER = '1'
 }
 
+$CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
+$Credential = $null
+$TunnelEnvironment = @{}
 $Server = $null
 $Tunnel = $null
 try {
@@ -161,22 +208,37 @@ try {
         -Executable $Python `
         -Arguments @('-m', 'kis_mcp.remote_runtime', '--instance', $Remote.name) `
         -WorkingDirectory $RepositoryRoot `
-        -Environment $ServerEnvironment
+        -Environment $ServerEnvironment `
+        -StandardOutputPath $ServerStdoutLog `
+        -StandardErrorPath $ServerStderrLog
 
     $Deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     Wait-McpReady -Uri $Remote.endpoint_url -Deadline $Deadline -Process $Server
 
-    $Tunnel = Start-OwnedProcess `
-        -Executable $Remote.tunnel_client_path `
-        -Arguments @(
-            'run',
-            '--profile', $Remote.profile_name,
-            '--profile-dir', $Remote.profile_root,
-            '--mcp.server-url', $Remote.endpoint_url,
-            '--health.listen-addr', '127.0.0.1:0',
-            '--health.url-file', $ProviderHealthFile
-        ) `
-        -WorkingDirectory $RepositoryRoot
+    $Credential = Get-KisMcpWindowsCredential -Target $Remote.tunnel_credential_target
+    $TunnelEnvironment[$CredentialEnvironmentName] = $Credential
+    $Credential = $null
+    try {
+        $Tunnel = Start-OwnedProcess `
+            -Executable $Remote.tunnel_client_path `
+            -Arguments @(
+                'run',
+                '--profile', $Remote.profile_name,
+                '--profile-dir', $Remote.profile_root,
+                '--mcp.server-url', $Remote.endpoint_url,
+                '--health.listen-addr', '127.0.0.1:0',
+                '--health.url-file', $ProviderHealthFile
+            ) `
+            -WorkingDirectory $RepositoryRoot `
+            -Environment $TunnelEnvironment `
+            -StandardOutputPath $TunnelStdoutLog `
+            -StandardErrorPath $TunnelStderrLog
+    }
+    finally {
+        $TunnelEnvironment[$CredentialEnvironmentName] = ''
+        $TunnelEnvironment.Clear()
+        $Credential = $null
+    }
 
     $ProviderHealth = $null
     while ([DateTime]::UtcNow -lt $Deadline) {
@@ -229,12 +291,43 @@ try {
         throw "KIS_MCP_TUNNEL_NOT_READY: $ProviderHealth"
     }
 
-    Write-Host "kis-mcp '$($Remote.name)' is ready for ChatGPT."
-    Write-Host "Tunnel profile: $($Remote.profile_name)"
-    Write-Host "Tunnel ID: $($Remote.tunnel_id)"
-    Write-Host "Control-plane scope ID: $($Remote.control_plane_scope_id)"
-    Write-Host "Local MCP endpoint: $($Remote.endpoint_url)"
-    Write-Host 'Keep this window open. Press Ctrl+C to stop both owned processes.'
+    $StartupStatePath = Join-Path $Remote.runtime_root "startup-state-$RunId.json"
+    $StartupState = [ordered]@{
+        schema_version = 1
+        health = 'ready'
+        instance = $Remote.name
+        endpoint = $Remote.endpoint_url
+        policy_fingerprint = $PolicyFingerprint
+        tunnel = [ordered]@{
+            state = 'ready'
+            profile = $Remote.profile_name
+            id = $Remote.tunnel_id
+        }
+        logs = [ordered]@{
+            server_stdout = $ServerStdoutLog
+            server_stderr = $ServerStderrLog
+            tunnel_stdout = $TunnelStdoutLog
+            tunnel_stderr = $TunnelStderrLog
+        }
+    }
+    [System.IO.File]::WriteAllText(
+        $StartupStatePath,
+        ($StartupState | ConvertTo-Json -Depth 8),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    Write-Host 'health=ready'
+    Write-Host "endpoint=$($Remote.endpoint_url)"
+    Write-Host "policy_fingerprint=$PolicyFingerprint"
+    Write-Host 'tunnel_state=ready'
+    Write-Host "tunnel_profile=$($Remote.profile_name)"
+    Write-Host "tunnel_id=$($Remote.tunnel_id)"
+    Write-Host "startup_state=$StartupStatePath"
+
+    if ($ObservationSeconds -gt 0) {
+        Start-Sleep -Seconds $ObservationSeconds
+        return
+    }
 
     while (-not $Server.HasExited -and -not $Tunnel.HasExited) {
         Start-Sleep -Milliseconds 500
@@ -253,4 +346,6 @@ finally {
         $Server.Kill()
         $null = $Server.WaitForExit(5000)
     }
+    Write-OwnedProcessLogs -Process $Tunnel
+    Write-OwnedProcessLogs -Process $Server
 }

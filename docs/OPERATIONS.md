@@ -104,13 +104,13 @@ The normal approved boundary is `C:\Projects`. State and quarantine roots must r
 - `operation` — the normal ChatGPT-facing tool instance;
 - `development` — the isolated commissioning and change-validation instance.
 
-Each instance has its own loopback port, tunnel profile, `tunnel_id`, control-plane scope identifier, and credential environment-variable name. The tunnel executable is read only from:
+Each instance has its own loopback port, tunnel profile, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_credential_target`. The target names a per-user Generic Credential in Windows Credential Manager; the secret is not stored in JSON or generated state. The tunnel executable is read only from:
 
 ```text
 C:\Tools\openai-tunnel-client\tunnel-client.exe
 ```
 
-The checked-in instance records may remain `configured: false` only while both external identifiers are blank. Before tunnel setup, populate the real `tunnel_id` and `control_plane_scope_id` for that instance and change `configured` to `true`. Do not commit API keys or generated profile YAML.
+The checked-in instance records remain `configured: false` with blank tunnel IDs until commissioning. Before tunnel setup, populate the real `tunnel_id`, change `configured` to `true`, and store the secret once with `scripts\set-tunnel-credential.ps1` for that instance's configured credential target. Do not commit credential values or generated profile YAML.
 
 `active_instance` controls the default only. Use `-Instance operation` or `-Instance development` for an explicit switch. There is no automatic failover.
 
@@ -179,35 +179,35 @@ pwsh -File .\scripts\smoke-chatgpt.ps1 -Instance development -TimeoutSeconds 90
 This proves the local ChatGPT-compatible HTTP path. It does not prove the external tunnel or ChatGPT app connection.
 
 ## Configure a tunnel profile
-
 For the selected instance:
 
-1. Enter its real `tunnel_id` and `control_plane_scope_id` in `settings.remote_mcp.instances`.
+1. Enter its real `tunnel_id` in `settings.remote_mcp.instances`.
 2. Set that instance's `configured` field to `true`.
-3. Set the configured credential environment variable in the current PowerShell session. The default name is `CONTROL_PLANE_API_KEY`.
+3. Store the tunnel secret once in Windows Credential Manager.
 4. Create the project-local tunnel profile.
 
 ```powershell
-$env:CONTROL_PLANE_API_KEY = '<runtime-key-from-OpenAI-Platform>'
+pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance development
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance development
 ```
 
-The script reads the tunnel client path, profile name, tunnel ID, control-plane scope identifier, local MCP URL, and credential reference from JSON. It writes generated profiles only beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`. It refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement first moves the old profile into a timestamped backup.
+The credential script prompts through `Read-Host -AsSecureString` and stores a per-user Generic Credential at the non-secret `tunnel_credential_target` declared in JSON. The setup script retrieves that credential, exposes it only through a temporary process-scoped environment reference for `tunnel-client init`, restores the prior process environment in `finally`, and writes generated profiles only beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`.
+
+The setup script reads the tunnel client path, profile name, tunnel ID, local MCP URL, and credential target from JSON. It refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement first moves the old YAML profile into a timestamped backup. The Windows credential is not copied into profile backups or repository files.
 
 Configure the operation profile separately:
 
 ```powershell
+pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance operation
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance operation
 ```
 
-The two profiles and tunnel IDs must remain distinct. Do not point both instances at one tunnel record.
+The two profiles, tunnel IDs, and credential targets must remain distinct. Do not point both instances at one tunnel record.
 
 ## Start the ChatGPT-facing instance
-
 Start the development instance during commissioning:
 
 ```powershell
-$env:CONTROL_PLANE_API_KEY = '<runtime-key-from-OpenAI-Platform>'
 pwsh -File .\scripts\start-chatgpt.ps1 -Instance development
 ```
 
@@ -217,12 +217,13 @@ Start the operational instance after commissioning:
 pwsh -File .\scripts\start-chatgpt.ps1 -Instance operation
 ```
 
-Omit `-Instance` to use `settings.remote_mcp.active_instance`. The launcher:
+Omit `-Instance` to use `settings.remote_mcp.active_instance`. The launcher retrieves the selected instance's tunnel secret from Windows Credential Manager, passes it only in the owned tunnel process environment, and clears the temporary PowerShell value after process creation. It then:
 
-- validates the selected instance and external identifiers;
+- validates the selected instance, tunnel ID, configured state, credential target, profile, and local prerequisites;
 - refuses startup while the other ChatGPT-facing instance is listening, enforcing explicit switch-over;
 - starts `python -m kis_mcp.remote_runtime` on its loopback port;
 - proves MCP initialization locally;
+- retrieves the stored Windows credential immediately before creating the owned tunnel process;
 - starts the configured tunnel profile against the exact local `/mcp` URL;
 - waits for the tunnel client's loopback `/readyz` endpoint;
 - owns both processes and stops the peer process when either exits.
@@ -336,8 +337,9 @@ Permanent disposal is intentionally not exposed as a normal Work tool.
 
 - `KIS_MCP_OTHER_INSTANCE_ACTIVE`: stop the other ChatGPT-facing launcher before switching instances.
 
-- `KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED`: enter the real tunnel and control-plane scope identifiers for the selected instance and set `configured` to `true`.
-- `KIS_MCP_CONTROL_PLANE_API_KEY_MISSING`: set the configured credential environment variable in the current PowerShell session.
+- `KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED`: enter the real tunnel ID for the selected instance, set `configured` to `true`, and store its credential before setup or startup.
+- `KIS_MCP_TUNNEL_CREDENTIAL_MISSING`: run `scripts\set-tunnel-credential.ps1` for the selected instance.
+- `KIS_MCP_TUNNEL_CREDENTIAL_TARGET_MISSING` or `KIS_MCP_TUNNEL_CREDENTIAL_TARGET_INVALID`: restore the non-secret `tunnel_credential_target` in canonical JSON.
 - `KIS_MCP_TUNNEL_CLIENT_MISSING`: restore the executable at the settings-defined `C:\Tools\openai-tunnel-client\tunnel-client.exe` path or correct the JSON setting.
 - `KIS_MCP_TUNNEL_PROFILE_EXISTS`: rerun setup with `-BackupExistingProfile` only when replacement is intended.
 - `KIS_MCP_TUNNEL_PROFILE_INVALID`: inspect the tunnel-client doctor output; do not start the profile until all checks pass.
