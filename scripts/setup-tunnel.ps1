@@ -92,16 +92,9 @@ $RunId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
 $SetupLog = Join-Path $Remote.runtime_root "setup-$RunId.log"
 [System.IO.File]::WriteAllText($SetupLog, '', [System.Text.UTF8Encoding]::new($false))
 $ProfilePath = Join-Path $Remote.profile_root "$($Remote.profile_name).yaml"
-if (Test-Path -LiteralPath $ProfilePath -PathType Leaf) {
-    if (-not $BackupExistingProfile) {
-        throw "KIS_MCP_TUNNEL_PROFILE_EXISTS: use -BackupExistingProfile to preserve and replace $ProfilePath"
-    }
-    $BackupRoot = Join-Path $Remote.profile_root 'backups'
-    [System.IO.Directory]::CreateDirectory($BackupRoot) | Out-Null
-    $Timestamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
-    $BackupPath = Join-Path $BackupRoot "$($Remote.profile_name)-$Timestamp.yaml"
-    [System.IO.File]::Move($ProfilePath, $BackupPath)
-    Append-SetupLog -Path $SetupLog -Section 'profile-backup' -Content @($BackupPath)
+$ProfileExists = Test-Path -LiteralPath $ProfilePath -PathType Leaf
+if ($ProfileExists -and -not $BackupExistingProfile) {
+    throw "KIS_MCP_TUNNEL_PROFILE_EXISTS: use -BackupExistingProfile to preserve and replace $ProfilePath"
 }
 
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
@@ -111,6 +104,15 @@ $PreviousCredential = [Environment]::GetEnvironmentVariable(
     [EnvironmentVariableTarget]::Process
 )
 $LiveValidation = 'skipped'
+if ($ProfileExists) {
+    $BackupRoot = Join-Path $Remote.profile_root 'backups'
+    [System.IO.Directory]::CreateDirectory($BackupRoot) | Out-Null
+    $Timestamp = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
+    $BackupPath = Join-Path $BackupRoot "$($Remote.profile_name)-$Timestamp.yaml"
+    [System.IO.File]::Move($ProfilePath, $BackupPath)
+    Append-SetupLog -Path $SetupLog -Section 'profile-backup' -Content @($BackupPath)
+}
+
 try {
     [Environment]::SetEnvironmentVariable(
         $CredentialEnvironmentName,

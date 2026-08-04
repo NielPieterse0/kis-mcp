@@ -18,7 +18,7 @@ Profile generation is a static commissioning action. It does not require the loc
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance development
 ```
 
-Use `-BackupExistingProfile` to preserve and replace an existing profile.
+Use `-BackupExistingProfile` to preserve and replace an existing profile. The selected Windows credential is validated before the active profile is moved into backup, so a missing credential leaves the existing profile in place.
 
 ```powershell
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance development -BackupExistingProfile
@@ -77,30 +77,21 @@ The launcher owns both child processes. Closing or interrupting the launcher sto
 
 Desktop Commander remains the authoritative Work provider and is not modified or vendored.
 
-A kis-mcp-owned Node preload adapter is installed before the provider starts. It performs four bounded compatibility actions:
+A kis-mcp-owned Node preload adapter is installed before the provider starts. It performs three bounded compatibility actions:
 
 1. returns a deterministic local `{ "flags": {} }` response for the exact configured `DC_FLAG_URL` without opening a socket;
 2. suppresses provider `notifications/message` records before FastMCP receives them;
-3. removes provider-specific `_meta` and `meta` fields from `tools/list` responses;
-4. removes provider administration tools from `tools/list` before FastMCP constructs the public catalogue.
+3. removes provider-specific `_meta` and `meta` fields from `tools/list` responses.
 
-All other fetch requests, JSON-RPC requests, responses, errors, tools, and non-log notifications pass through unchanged.
+All other fetch requests, JSON-RPC requests, responses, errors, provider tools, and non-log notifications pass through unchanged.
 
 FastMCP starts with `show_banner=False`, so deployment promotion and update output are not part of the supervised runtime surface.
 
 ## Public Work surface
 
-The startup compatibility adapter removes these provider administration tools from the provider `tools/list` response before FastMCP receives it:
+The startup compatibility adapter preserves all normal provider tool names and schemas, including `get_config`, `set_config_value`, `get_prompts`, `get_usage_stats`, and `get_recent_tool_calls`. It removes only provider-specific presentation metadata from the `tools/list` response.
 
-- `get_config`
-- `set_config_value`
-- `get_prompts`
-- `get_usage_stats`
-- `get_recent_tool_calls`
-
-Because these tools are absent when FastMCP constructs the proxy catalogue, they are not callable through the public kis-mcp surface.
-
-Ordinary filesystem, editing, search, terminal, process, and document tools remain exposed subject only to HR-001, HR-002, and HR-003. Provider tool results are not wrapped or rewritten.
+Ordinary filesystem, editing, search, terminal, process, document, and provider-administration tools remain exposed subject only to HR-001, HR-002, and HR-003. The existing inherently network-only feedback tool and `read_file.isUrl` mode remain excluded by the established provider contract. Provider tool results are not wrapped or rewritten.
 
 ## Error classification
 

@@ -212,7 +212,12 @@ console.log(JSON.stringify({{
         {
             "name": "read_file",
             "inputSchema": {"type": "object"},
-        }
+        },
+        {"name": "get_config", "inputSchema": {"type": "object"}},
+        {"name": "set_config_value", "inputSchema": {"type": "object"}},
+        {"name": "get_prompts", "inputSchema": {"type": "object"}},
+        {"name": "get_usage_stats", "inputSchema": {"type": "object"}},
+        {"name": "get_recent_tool_calls", "inputSchema": {"type": "object"}},
     ]
 
 

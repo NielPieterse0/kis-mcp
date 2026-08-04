@@ -12,11 +12,11 @@ Remote publication is reported separately after the commit is pushed and the pul
 - Replaced file-based tunnel secret handling with per-user Windows Credential Manager storage, non-secret JSON target names, and transient owned-process injection.
 - Added `provider_startup_compat.cjs` and lifecycle preload wiring.
 - Contained the exact Desktop Commander feature-flag request locally.
-- Suppressed provider log notifications and stripped provider UI metadata.
-- Removed five provider administration tools before FastMCP constructs the public catalogue.
+- Suppressed provider log notifications and stripped provider UI metadata while preserving all normal provider tool names and schemas.
 - Kept startup compatibility behavior out of Work middleware and the Desktop Commander effect resolver.
 - Disabled the FastMCP startup banner.
 - Separated static profile generation from optional live endpoint validation.
+- Validated the selected Windows credential before moving an existing active profile into backup.
 - Classified endpoint unavailability as `KIS_MCP_ENDPOINT_NOT_READY` rather than invalid profile state.
 - Sequenced local MCP readiness before tunnel startup.
 - Added bounded observation mode and normal owned-process cleanup.

@@ -23,6 +23,18 @@ def test_tunnel_setup_separates_profile_creation_from_live_validation() -> None:
     assert "profile created and validated" not in content
 
 
+def test_tunnel_setup_validates_credential_before_moving_active_profile() -> None:
+    content = _script("setup-tunnel.ps1")
+
+    profile_exists_guard = content.index(
+        "if ($ProfileExists -and -not $BackupExistingProfile)"
+    )
+    credential_read = content.index("$Credential = Get-KisMcpWindowsCredential")
+    profile_backup = content.index("[System.IO.File]::Move($ProfilePath, $BackupPath)")
+
+    assert profile_exists_guard < credential_read < profile_backup
+
+
 def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
     content = _script("start-chatgpt.ps1")
 

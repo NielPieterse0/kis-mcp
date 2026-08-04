@@ -10,7 +10,7 @@ Make supervised ChatGPT startup deterministic and appliance-like while preservin
 2. Desktop Commander 0.2.46 emits buffered `notifications/message` records whose scalar `data` values trigger a FastMCP proxy validation defect and leak provider startup details through the gateway.
 3. Desktop Commander initializes feature flags unconditionally and attempts the configured URL even when pointed at a failing loopback endpoint.
 4. FastMCP HTTP startup intentionally displays a banner and version/deployment notices that are unnecessary for an operator-supervised appliance.
-5. Provider administration and UI-oriented tools remain visible even though kis-mcp owns provider configuration and the ChatGPT surface does not need those provider internals.
+5. Provider-specific UI metadata remains attached to `tools/list` and creates distracting ChatGPT presentation behavior even though ordinary provider tool names and schemas must remain preserved.
 
 ## Required behavior
 
@@ -35,16 +35,16 @@ Make supervised ChatGPT startup deterministic and appliance-like while preservin
 - A project-owned Node preload adapter is installed before Desktop Commander starts.
 - For the exact configured `DC_FLAG_URL`, `fetch()` returns a deterministic local `{ "flags": {} }` response without opening a socket.
 - JSON-RPC `notifications/message` emitted by Desktop Commander are suppressed before FastMCP receives them.
-- Provider-specific `_meta` and `meta` fields and the five approved provider administration tools are removed from `tools/list` before FastMCP constructs the proxy catalogue.
-- Requests, responses, errors, ordinary tools, and non-log notifications remain unchanged.
+- Provider-specific `_meta` and `meta` fields are removed from `tools/list` before FastMCP constructs the proxy catalogue.
+- Requests, responses, errors, all ordinary provider tools, and non-log notifications remain unchanged.
 - Desktop Commander remains authoritative and unmodified on disk; the adapter is a bounded compatibility layer for the pinned provider version.
 - Compatibility behavior must not be added to Work middleware or the Desktop Commander effect resolver.
 
 ### Public surface
 
-- Hide provider-only administration and UI tools: `get_config`, `set_config_value`, `get_prompts`, `get_usage_stats`, and `get_recent_tool_calls`.
-- Continue hiding `give_feedback_to_desktop_commander` and the `read_file.isUrl` mode.
-- Preserve ordinary filesystem, editing, search, terminal, process, and document tool contracts and results.
+- Preserve the provider's normal tool names and schemas, including `get_config`, `set_config_value`, `get_prompts`, `get_usage_stats`, and `get_recent_tool_calls`.
+- Continue hiding only the existing inherently network-only `give_feedback_to_desktop_commander` surface and the `read_file.isUrl` mode.
+- Preserve ordinary filesystem, editing, search, terminal, process, document, and provider-administration tool contracts and results.
 - Do not wrap every provider result in a new envelope because that would break the preserved provider contract. Gateway-owned `kis_*` tools and startup diagnostics remain kis-mcp-owned records.
 
 ### Runtime output
@@ -67,11 +67,12 @@ Make supervised ChatGPT startup deterministic and appliance-like while preservin
 3. Provider launch tests prove both the atomic state adapter and startup adapter are preloaded in deterministic order.
 4. Tunnel script tests prove setup does not call live doctor by default, optional live validation emits `KIS_MCP_ENDPOINT_NOT_READY`, and startup sequencing remains server-before-tunnel.
 5. Remote runtime tests prove `show_banner=False`.
-6. Startup-adapter tests prove the five provider administration tools and provider UI metadata are absent before FastMCP constructs the proxy, while representative ordinary tools remain unchanged.
+6. Startup-adapter tests prove provider UI metadata is absent before FastMCP constructs the proxy while all ordinary provider tools, including administration tools, remain unchanged.
 7. Architecture tests prove startup compatibility behavior is absent from Work middleware and the Desktop Commander effect resolver.
 8. Full locked verification and change-scope validation pass.
 9. Live startup is attempted with the operator-provided identifiers. Any external tunnel limitation is reported precisely without claiming profile invalidity.
 10. Credential tests prove non-secret per-instance target names, removal of superseded identifier fields, Windows Credential Manager retrieval, and no secret persistence in JSON, profile content, logs, or startup state.
+11. Setup validates the selected Windows credential before moving an existing active profile into backup.
 
 ## Exclusions
 

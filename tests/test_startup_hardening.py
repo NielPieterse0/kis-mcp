@@ -22,19 +22,20 @@ def test_provider_compatibility_behavior_is_localized_to_startup_seam() -> None:
     adapter = _source("provider_startup_compat.cjs")
     lifecycle = _source("provider_lifecycle.py")
     configuration = _source("config.py")
+    provider_contract = _source("provider_contract.py")
     middleware = _source("middleware.py")
     resolver = _source("desktop_commander.py")
 
     assert "provider_startup_compat.cjs" in lifecycle
     assert "KIS_MCP_PROVIDER_STARTUP_COMPAT" in lifecycle
-    assert "PROVIDER_ADMINISTRATION_TOOLS" in adapter
+    assert "PROVIDER_ADMINISTRATION_TOOLS" not in adapter
     assert "notifications/message" in adapter
     assert "KIS_MCP_PROVIDER_FLAG_URL" in lifecycle
     assert "tunnel_credential_target" in configuration
     assert "tunnel_authentication_id" not in configuration
 
     for tool_name in ADMINISTRATION_TOOLS:
-        assert tool_name in adapter
+        assert tool_name in provider_contract
 
     assert "PROVIDER_ADMINISTRATION_TOOLS" not in middleware
     assert "PROVIDER_ADMINISTRATION_TOOLS" not in resolver

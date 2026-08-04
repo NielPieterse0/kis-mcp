@@ -43,10 +43,9 @@ The startup compatibility adapter may:
 
 - satisfy the exact configured feature-flag request locally;
 - suppress provider log notifications;
-- strip provider-specific UI metadata from `tools/list`;
-- remove provider administration tools from the provider catalogue before FastMCP receives it.
+- strip provider-specific UI metadata from `tools/list` while preserving provider tool names and schemas.
 
-The adapter must not alter ordinary tool requests, tool results, errors, non-log notifications, or Work policy evaluation.
+The adapter must not alter ordinary tool availability, requests, results, errors, non-log notifications, or Work policy evaluation.
 
 ## Base and integration
 

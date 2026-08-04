@@ -7,7 +7,8 @@
 - [x] Resolve startup ownership from closed change `007` to active change `013` within the `013` documentation and scope only.
 - [x] Absorb the committed non-secret tunnel identifier schema required by the startup path.
 - [x] Replace file-based tunnel secret handling with per-user Windows Credential Manager storage and transient child-process injection.
-- [x] Implement and test the lifecycle-owned provider startup compatibility adapter.
+- [x] Validate the selected credential before moving an existing active profile into backup.
+- [x] Implement and test the lifecycle-owned provider startup compatibility adapter while preserving normal provider tool names and schemas.
 - [x] Keep compatibility behavior out of Work middleware and the Desktop Commander effect resolver.
 - [x] Disable the FastMCP startup banner.
 - [x] Separate static profile generation from optional live endpoint validation.

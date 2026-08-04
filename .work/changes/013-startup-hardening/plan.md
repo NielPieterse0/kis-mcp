@@ -4,7 +4,7 @@
 
 **Goal:** Deliver deterministic, quiet, correctly classified startup for the ChatGPT tunnel path while containing Desktop Commander startup internals.
 
-**Architecture:** Add one bounded Node preload compatibility adapter alongside the existing atomic-state adapter. Keep provider requests and results unchanged, suppress provider log notifications, satisfy the exact feature-flag URL locally, strip provider UI metadata and provider administration tools from `tools/list` at the transport boundary, store tunnel secrets in Windows Credential Manager, and make PowerShell setup/start scripts own sequencing, transient credential injection, and error classification. Do not modify Work middleware or the Desktop Commander effect resolver.
+**Architecture:** Add one bounded Node preload compatibility adapter alongside the existing atomic-state adapter. Keep provider requests, results, tool names, and schemas unchanged; suppress provider log notifications; satisfy the exact feature-flag URL locally; strip only provider UI metadata from `tools/list` at the transport boundary; store tunnel secrets in Windows Credential Manager; and make PowerShell setup/start scripts own sequencing, transient credential injection, and error classification. Do not modify Work middleware or the Desktop Commander effect resolver.
 
 **Tech stack:** Python 3.13, FastMCP 3.4.4, MCP Python SDK, Node.js CommonJS preload adapters, PowerShell 7, pytest.
 
@@ -30,9 +30,9 @@
 
 **Interfaces:**
 - Consumes: `KIS_MCP_PROVIDER_FLAG_URL`, Node `global.fetch`, `process.stdout.write`, and provider `tools/list` responses.
-- Produces: deterministic local feature-flag responses, JSON-RPC log-notification suppression, provider UI metadata removal, and provider administration filtering.
+- Produces: deterministic local feature-flag responses, JSON-RPC log-notification suppression, and provider UI metadata removal while preserving all provider tool names and schemas.
 
-- [x] Add failing Node-backed tests for exact feature-flag containment, unrelated fetch passthrough, notification suppression, ordinary JSON-RPC passthrough, metadata removal, and administration-tool filtering.
+- [x] Add failing Node-backed tests for exact feature-flag containment, unrelated fetch passthrough, notification suppression, ordinary JSON-RPC passthrough, metadata removal, and administration-tool preservation.
 - [x] Implement the minimal CommonJS adapter with dependency-injection hooks for tests.
 - [x] Preload startup compatibility after the atomic state adapter and set the exact flag URL environment value.
 - [x] Add a seam-locality test proving compatibility behavior is absent from Work middleware and the effect resolver.
@@ -72,6 +72,7 @@
 
 - [x] Add failing script-contract tests requiring `-ValidateLiveEndpoint`, default omission of doctor, `KIS_MCP_ENDPOINT_NOT_READY`, quiet startup fields, and no profile-invalid classification for endpoint refusal.
 - [x] Replace file and JSON secret storage with per-user Windows Credential Manager targets and transient child-process environment injection.
+- [x] Validate the selected Windows credential before moving an existing active profile into backup.
 - [x] Refactor setup so profile creation and static file checks always run, while doctor/live validation runs only when requested.
 - [x] Add bounded MCP readiness polling and classify refusal/timeout as `KIS_MCP_ENDPOINT_NOT_READY`.
 - [x] Capture tunnel setup, server, and tunnel diagnostics in local runtime logs while keeping the operator console bounded.

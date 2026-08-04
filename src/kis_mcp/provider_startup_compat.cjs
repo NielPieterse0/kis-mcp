@@ -1,13 +1,6 @@
 "use strict";
 
 const INSTALL_MARKER = Symbol.for("kis-mcp.provider-startup-compat.installed");
-const PROVIDER_ADMINISTRATION_TOOLS = new Set([
-  "get_config",
-  "set_config_value",
-  "get_prompts",
-  "get_usage_stats",
-  "get_recent_tool_calls",
-]);
 
 function requestUrl(input) {
   if (typeof input === "string") {
@@ -78,20 +71,15 @@ function sanitizeToolCatalogue(message) {
   const result = { ...message.result };
   delete result._meta;
   delete result.meta;
-  result.tools = tools
-    .filter((tool) => {
-      const name = typeof tool?.name === "string" ? tool.name : "";
-      return !PROVIDER_ADMINISTRATION_TOOLS.has(name);
-    })
-    .map((tool) => {
-      if (!tool || typeof tool !== "object" || Array.isArray(tool)) {
-        return tool;
-      }
-      const sanitized = { ...tool };
-      delete sanitized._meta;
-      delete sanitized.meta;
-      return sanitized;
-    });
+  result.tools = tools.map((tool) => {
+    if (!tool || typeof tool !== "object" || Array.isArray(tool)) {
+      return tool;
+    }
+    const sanitized = { ...tool };
+    delete sanitized._meta;
+    delete sanitized.meta;
+    return sanitized;
+  });
   return { ...message, result };
 }
 
