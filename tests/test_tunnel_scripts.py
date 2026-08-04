@@ -76,6 +76,7 @@ def test_smoke_script_checks_full_representative_tool_surface() -> None:
     assert "tools/call" in content
     for tool_name in (
         "kis_health",
+        "inspect_project",
         "read_file",
         "write_file",
         "edit_block",
@@ -84,6 +85,7 @@ def test_smoke_script_checks_full_representative_tool_surface() -> None:
         assert tool_name in content
     assert "give_feedback_to_desktop_commander" in content
     assert "KIS_MCP_SMOKE_NETWORK_ONLY_TOOL_EXPOSED" in content
+    assert "KIS_MCP_SMOKE_DISCOVER_CALL_FAILED" in content
     assert "PSObject.Properties['error']" in content
     assert "kis_quarantine_path" in content
     assert "KIS_MCP_SMOKE_WRITE_CALL_FAILED" in content

@@ -101,6 +101,9 @@ $StaleScanPaths = @(
     'settings',
     'src'
 )
+$ApprovedDonorTraceabilityFiles = @(
+    (Join-Path $RepositoryRoot 'docs\development\discover-foundation\source-harvest.md')
+)
 $CurrentFiles = @(
     foreach ($RelativePath in $StaleScanPaths) {
         $Candidate = Join-Path $RepositoryRoot $RelativePath
@@ -111,7 +114,10 @@ $CurrentFiles = @(
             Get-ChildItem -LiteralPath $Candidate -Recurse -File
         }
     }
-) | Where-Object { $_.FullName -ne $PSCommandPath }
+) | Where-Object {
+    $_.FullName -ne $PSCommandPath -and
+    $_.FullName -notin $ApprovedDonorTraceabilityFiles
+}
 $StaleMatches = $CurrentFiles | Select-String -Pattern 'sdk_tool|ki\$_mcp|C:\\Projects\\ast-tool' -CaseSensitive:$false
 if ($StaleMatches) {
     $Details = ($StaleMatches | ForEach-Object { "$($_.Path):$($_.LineNumber)" }) -join ', '

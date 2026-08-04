@@ -56,14 +56,14 @@ pwsh -NoProfile -File scripts/smoke-skills-module.ps1
 
 Observed result:
 
-- composed live server tool count: 38;
+- composed live server tool count: 39;
 - Skills operation count: 9;
 - shared catalogue count before smoke: 17;
 - `modularity-assessment` loaded and evaluated from the real shared root;
 - a temporary skill was created through Desktop Commander;
 - the skill was improved with the active SHA-256 precondition;
 - the temporary skill was moved to recoverable quarantine;
-- quarantine operation: `20260804T173108366085Z-68e85d0e9d9a`;
+- quarantine operation: `20260804T174952575845Z-3fd25703ea91`;
 - policy remained exactly HR-001, HR-002, and HR-003.
 
 Desktop Commander emitted its existing notification-validation warnings during local in-process proxy calls. They did not alter the successful tool results, and this slice does not modify provider notification handling.
@@ -101,8 +101,8 @@ python <modularity-assessment>/scripts/seams.py --repo . --since "90 days ago" -
 | E-01 | Collector measured LOC, commits, subjects, Python fan-in/fan-out, and co-change for all nine files. | M |
 | E-02 | `tests/skills/test_architecture.py` measures the allowed local-import graph and absence of direct filesystem mutation in mutation layers. | M |
 | E-03 | 30 focused Skills tests independently exercise configuration, parsing, source safety, catalogue behavior, backend routing, service mutation, fail-open registration, and public tools. | M |
-| E-04 | Full repository verification passed after integration with one existing skip. | M |
-| E-05 | Live smoke exposed 38 tools and completed create, improve, load, evaluate, quarantine, and refresh against the installed provider and real shared root. | M |
+| E-04 | Full repository verification passed after integration with two existing skips. | M |
+| E-05 | Live smoke exposed 39 tools and completed create, improve, load, evaluate, quarantine, and refresh against the installed provider and real shared root after integrating PR #13. | M |
 | E-06 | Distinct commit subjects are too new and too implementation-concentrated to classify as stable RFC kinds. | U |
 | E-07 | Long-term independent release cadence is unavailable for a new module. | U |
 
@@ -153,8 +153,8 @@ pwsh -NoProfile -File .temp/run-focused-tests.ps1 tests/skills
 30 passed
 
 pwsh -NoProfile -File scripts/smoke-skills-module.ps1
-ok=true; tool_count=38; skills_tool_count=9; catalogue_skill_count=17
+ok=true; tool_count=39; skills_tool_count=9; catalogue_skill_count=17
 
 pwsh -NoProfile -File scripts/verify.ps1
-full locked repository verification passed; one existing skip
+full locked repository verification passed; two existing skips
 ```

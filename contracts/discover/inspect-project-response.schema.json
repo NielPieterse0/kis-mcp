@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inspect-project-response.schema.json",
+  "title": "inspect_project response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "project",
+    "repository_atlas",
+    "code_atlas",
+    "verification",
+    "contracts",
+    "instructions",
+    "git",
+    "remote",
+    "providers",
+    "evidence",
+    "findings",
+    "recommendations",
+    "handoffs",
+    "assumptions",
+    "unknowns",
+    "confidence",
+    "truncated",
+    "truncation_reasons"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "inspect_project"},
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "canonical_path",
+        "repository_root",
+        "git_root",
+        "remote_identity"
+      ],
+      "properties": {
+        "project_id": {"type": "string", "minLength": 1},
+        "canonical_path": {"type": "string", "minLength": 1},
+        "repository_root": {"type": "string", "minLength": 1},
+        "git_root": {"type": ["string", "null"]},
+        "remote_identity": {"type": ["string", "null"]}
+      }
+    },
+    "repository_atlas": {"type": "object"},
+    "code_atlas": {"type": "object"},
+    "verification": {"type": "object"},
+    "contracts": {"type": "object"},
+    "instructions": {"type": "array", "items": {"type": "object"}},
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available",
+        "repository",
+        "branch",
+        "detached",
+        "head",
+        "status",
+        "tracked_files",
+        "remote",
+        "diagnostics",
+        "truncated"
+      ],
+      "properties": {
+        "available": {"type": "boolean"},
+        "repository": {"type": "boolean"},
+        "branch": {"type": ["string", "null"]},
+        "detached": {"type": "boolean"},
+        "head": {"type": ["string", "null"]},
+        "status": {"type": "string", "minLength": 1},
+        "tracked_files": {"type": "integer", "minimum": 0},
+        "remote": {"type": ["string", "null"]},
+        "diagnostics": {"type": "array", "items": {"type": "object"}},
+        "truncated": {"type": "boolean"}
+      }
+    },
+    "remote": {"type": "object"},
+    "providers": {"type": "object"},
+    "evidence": {"type": "array", "items": {"$ref": "evidence.schema.json"}},
+    "findings": {"type": "array", "items": {"type": "object"}},
+    "recommendations": {"type": "array", "items": {"type": "object"}},
+    "handoffs": {"type": "array", "items": {"type": "object"}},
+    "assumptions": {"type": "array", "items": {"type": "object"}},
+    "unknowns": {"type": "array", "items": {"type": "object"}},
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "truncated": {"type": "boolean"},
+    "truncation_reasons": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}

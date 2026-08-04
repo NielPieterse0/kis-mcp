@@ -19,7 +19,7 @@ The repository contains only:
 - recoverable quarantine support;
 - minimal JSON configuration, tests, and operational documentation.
 
-The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile framework, an analysis platform, a governance subsystem, or a fork of Desktop Commander. Repository-local `.agents/skills` material remains procedural development guidance only. The implemented runtime Skills module is separate and resolves reusable procedures exclusively from the operator-approved shared root `C:\Projects\.agents\skills` through `settings/skills.settings.json`; its mutations re-enter the existing Work middleware and Desktop Commander backend.
+The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile permission framework, a governance subsystem, or a fork of Desktop Commander. It includes one bounded, read-only Discover foundation implemented natively under `src/kis_mcp/discover`; donor repositories remain source evidence only and are not runtime dependencies. Repository-local `.agents/skills` material remains procedural development guidance. The separate runtime Skills module resolves reusable procedures exclusively from the operator-approved shared root `C:\\Projects\\.agents\\skills` through `settings/skills.settings.json`, and its mutations re-enter the existing Work middleware and Desktop Commander backend.
 
 ## Product evolution
 
@@ -33,7 +33,7 @@ Govern   → evaluate evidence against declared standards
 Work     → perform controlled change under HR-001 / HR-002 / HR-003
 ```
 
-Future phases may add repository discovery, code and symbol intelligence, bounded context brokering, governance evaluation, reviews, audits, debugging, provider orchestration, progressive capability exposure, and workflow coordination. These are target capabilities, not current implementation claims.
+The current Discover foundation provides bounded local repository discovery, deterministic evidence, local Git metadata, verification-command discovery without execution, and a pure Python structural index through one `inspect_project` tool. Future phases may add semantic providers, remote evidence, broader language intelligence, bounded context brokering, governance evaluation, reviews, audits, debugging, and workflow coordination. Those later capabilities remain targets, not current implementation claims.
 
 The future platform model does not alter the closed Work enforcement decision set. Profiles, catalogues, governance findings, evidence requirements, readiness, or workflow selection must not become additional reasons to block an otherwise permitted invocation.
 
@@ -42,7 +42,8 @@ The future platform model does not alter the closed Work enforcement decision se
 | Component | Responsibility |
 |---|---|
 | Desktop Commander | Provides ordinary filesystem, edit, search, process, testing, and local-development tools. |
-| FastMCP gateway | Mirrors provider contracts, evaluates each concrete invocation, and forwards allowed calls. |
+| FastMCP gateway | Mirrors provider contracts, exposes gateway and Discover tools, evaluates concrete Work invocations, and forwards allowed provider calls. |
+| Discover foundation | Performs bounded read-only local repository inspection through `inspect_project`, using JSON-configured evidence and output budgets. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
 | Three-rule policy | Returns only allow, block HR-001, block HR-002, quarantine HR-003, or block HR-003. |
 | Quarantine service | Moves delete targets intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>`. |
@@ -194,7 +195,8 @@ Tool breadth, arbitrary arguments, incomplete prediction of all possible side ef
 ## Configuration
 All project settings and policy declarations are JSON.
 
-- `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, the local stdio transport, and the ChatGPT remote transport.
+- `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, Discover retrieval settings, the local stdio transport, and the ChatGPT remote transport.
+- `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, and all file, directory, byte, depth, time, Git, Python-index, evidence, and output budgets.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
 - Each remote instance stores its port, profile name, `tunnel_id`, control-plane scope identifier, credential environment-variable name, and whether the external values are configured.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
@@ -215,18 +217,19 @@ Skill creation validates a complete proposed entrypoint, stages it beneath `C:\P
 
 ## Public interface
 
-Expose Desktop Commander's normal non-network-only tool surface, four small gateway operations, and nine Skills operations:
+Expose Desktop Commander's normal non-network-only tool surface, four gateway operations, one Discover operation, and nine Skills operations:
 
 - `kis_health` — report provider availability, policy fingerprint, and configured roots;
 - `kis_quarantine_path` — move one eligible path into recoverable quarantine;
 - `kis_list_quarantine` — list bounded recoverable operations;
 - `kis_restore_quarantine` — restore one intact item without overwrite;
+- `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands.
 - `list_skills`, `search_skills`, and `load_skill` — discover and load reusable procedures;
 - `search_skill_files` and `read_skill_file` — inspect bounded supporting files;
 - `refresh_skills` and `evaluate_skill` — rebuild or evaluate the immutable catalogue snapshot;
 - `create_skill` and `improve_skill` — validate and mutate shared skills through the Work backend.
 
-Do not add capability-profile permission systems, tiers, approvals, or broad replacement wrapper surfaces. The focused Skills catalogue is an approved reusable-procedure interface and does not alter Work authorization.
+Do not add capability-profile permission systems, tiers, approvals, or broad replacement wrapper surfaces. Discover and Skills are approved versioned module contracts and do not alter Work authorization.
 
 ## Errors
 
@@ -236,9 +239,10 @@ Corrective rejection codes are limited to:
 - `HR-002_EXTERNAL_NETWORK`;
 - `HR-003_QUARANTINE_REQUIRED`;
 - `HR-003_QUARANTINE_FAILED`;
-- structural input or configuration failure.
+- versioned `DISCOVER_*` structural path, limit, traversal, read, Git, parse, or output-budget failure;
+- other structural input or configuration failure.
 
-Include the prohibited intent, relevant path or mode, approved boundary where applicable, and nearest safe correction.
+HR codes remain exclusive to Work decisions. Discover failures identify the structural reason, field, accepted shape where applicable, and corrective action without being reported as policy violations.
 
 ## Verification
 
@@ -254,13 +258,16 @@ Tests must cover:
 - quarantine move, metadata, collision handling, and restoration;
 - provider version or schema changes;
 - empty provider command-denylist and directory-allowlist invariants;
-- startup containment for verified automatic external activity.
+- startup containment for verified automatic external activity;
+- Discover schemas and settings, canonical identity, unsafe links and hard links, bounded traversal and reads, deterministic detection, fixed local Git evidence, pure Python AST indexing, evidence integrity, exact output compaction, donor independence, plane boundaries, and additive tool registration.
 
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
-The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, the shared Skills catalogue and Work-backed create/improve operations, local stdio startup, and settings-driven streamable HTTP startup for separate `operation` and `development` instances.
+The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, the bounded `inspect_project` Discover capability, and the shared Skills catalogue with Work-backed create/improve operations.
 
-Fresh local composition against the installed Desktop Commander provider exposes a 38-tool catalogue: the previously commissioned 29-tool Work/gateway surface plus all nine Skills operations. The composed catalogue retains representative filesystem/edit/process tools, omits only the proven network-only feedback capability, and resolves the shared Skills root without adding a provider fork or another policy rule. The existing dual-instance commissioning evidence continues to cover startup, `kis_health`, real in-boundary write/read, and recoverable quarantine; Skills-specific live composition and catalogue loading are verified by this module's focused tests and smoke evidence.
+`inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
+
+Fresh composition is additive: the commissioned 30-tool Work/gateway/Discover surface plus nine Skills operations produces a 39-tool catalogue. The existing Discover and gateway verification remains applicable, while Skills-specific tests and live smoke evidence cover shared-root loading, create, improve, refresh, and recoverable quarantine without adding a provider fork or another policy rule.
 
 The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. This implementation-status statement does not restrict normal tools beyond HR-001, HR-002, and HR-003.
