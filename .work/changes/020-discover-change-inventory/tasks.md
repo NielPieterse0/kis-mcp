@@ -12,4 +12,4 @@
 - [x] Run focused and affected Discover tests.
 - [x] Run scope, whitespace, and full test verification.
 - [x] Review final diff and update closeout evidence.
-- [ ] Commit, push, and open a small pull request.
+- [x] Commit, push, and open a small pull request.

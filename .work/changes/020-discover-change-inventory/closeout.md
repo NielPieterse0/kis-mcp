@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete and ready for a small pull request.
+Implementation complete. Pull request #21 is open for integration.
 
 ## Delivered
 
@@ -15,20 +15,26 @@ Implementation complete and ready for a small pull request.
 - Disables external diff and text-conversion helpers and neutralizes external attributes and excludes-file configuration.
 - Rejects truncated repository-root evidence before resolving or trusting the path.
 
+## Integration
+
+- Branch: `change/020-discover-change-inventory`
+- Pull request: `#21`
+- Base reconciled with current `main` at `e9060038b941b62f61681224a15dccc882ae256a` without conflicts.
+
 ## Verification evidence
 
 - Affected Discover tests: **28 passed**.
-- Full repository suite: **460 passed, 2 skipped**.
+- Full locked repository suite: **485 passed, 2 skipped**.
 - Python syntax validation: **72 files passed**.
+- Change governance: **17 claims validated**.
 - `git diff --check`: passed.
 - `pwsh -File .\scripts\change-workflow.ps1 check`: passed; every changed path is owned by this slice.
-- Configuration, canonical interpreter, dependency versions, and the exact HR-001/HR-002/HR-003 rule set passed the locked verification wrapper.
-
-The locked `verify.ps1` wrapper stops at the repository-wide change-governance step because the pre-existing merged `015-p1-boundary-hardening` claim remains marked active and overlaps later merged scopes, including `src/kis_mcp/discover/git_reader.py`. This slice does not modify the defective registry. The complete pytest suite was run independently in the same canonical locked environment and passed as recorded above.
+- Configuration, canonical interpreter, locked dependencies, and the exact HR-001/HR-002/HR-003 rule set passed.
+- `pwsh -File .\scripts\verify.ps1`: passed on the branch after reconciling current `main`.
 
 ## Review
 
-Final behavior, architecture, security, contract, and scope review found no unresolved findings. Review-driven hardening added explicit external-diff/textconv suppression, external attributes/excludes isolation, and rejection of truncated repository-root evidence.
+Final behavior, architecture, security, contract, integration, and scope review found no unresolved findings. Review-driven hardening added explicit external-diff/textconv suppression, external attributes/excludes isolation, and rejection of truncated repository-root evidence.
 
 ## Residual boundaries
 

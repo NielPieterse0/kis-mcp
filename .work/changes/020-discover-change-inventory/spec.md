@@ -55,7 +55,7 @@ Each change record contains:
 - Existing Discover Git tests remain green.
 - Architecture tests still confine subprocess use to `git_reader.py`.
 - Change-scope and whitespace checks pass.
-- The full repository test suite passes on the final commit; any pre-existing repository-wide governance-validator limitation is recorded with independent evidence for every remaining locked verification step.
+- The full locked repository verification passes on the reconciled final branch head.
 
 ## Exclusions
 
