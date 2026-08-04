@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "change_id": "006-provider-state-atomicity",
+  "status": "active",
+  "branch": "change/006-provider-state-atomicity",
+  "worktree": ".work/worktrees/006-provider-state-atomicity",
+  "base": "main",
+  "outcome": "Prevent Desktop Commander shutdown from truncating shared provider config by atomically replacing only the configured provider state file without forking or vendoring the provider",
+  "owned_paths": [
+    ".work/changes/006-provider-state-atomicity/**",
+    "docs/development/provider-state-atomicity/**",
+    "src/kis_mcp/provider_lifecycle.py",
+    "src/kis_mcp/provider_state_atomic.cjs",
+    "tests/test_provider_lifecycle.py"
+  ],
+  "shared_paths": [
+    "src/kis_mcp/server.py"
+  ],
+  "excluded_paths": [
+    ".work/changes/004-live-proxy-commissioning/**",
+    "docs/development/live-proxy-commissioning/**",
+    "scripts/commission-live-proxy.ps1",
+    "tests/integration/test_live_proxy_commissioning.py",
+    "tests/support/live_proxy_commissioning.py",
+    "src/kis_mcp/discover/**",
+    "tests/discover/**",
+    "settings/kis-mcp.settings.json"
+  ],
+  "dependencies": [],
+  "integration_owner": "005-discover-foundation"
+}

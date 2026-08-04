@@ -71,6 +71,32 @@ Desktop Commander
 local development environment
 ```
 
+## ChatGPT remote transport
+
+The ChatGPT-facing private path uses the same `build_server()` gateway and tool catalogue as local stdio:
+
+```text
+ChatGPT developer-mode app
+        |
+        v
+OpenAI-hosted Secure MCP Tunnel endpoint
+        |
+        v
+operator-supervised tunnel-client
+        |
+        v
+127.0.0.1:<instance-port>/mcp
+        |
+        v
+kis-mcp FastMCP gateway -> Desktop Commander
+```
+
+`settings.remote_mcp` defines exactly two local instances, `operation` and `development`, with separate ports, tunnel profiles, tunnel IDs, and control-plane scope identifiers. Selection is explicit through the launcher `-Instance` argument or the JSON `active_instance`; the runtime does not perform automatic failover.
+
+Both instances expose the same standard mixed-purpose Desktop Commander and gateway tools. Transport, instance name, profile, catalogue metadata, approval metadata, or risk labels do not reduce the backend tool surface or create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
+
+The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel credentials remain environment references, and generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
+
 ## Desktop Commander integration
 
 Use `@wonderwhy-er/desktop-commander` from its authoritative source. Pin the tested package version in `settings/kis-mcp.settings.json`.
@@ -166,13 +192,16 @@ The adapter examines the concrete executable, arguments, command text, working d
 Tool breadth, arbitrary arguments, incomplete prediction of all possible side effects, or lack of a specialized parser are not independent reasons to block. Direct operator supervision is part of the trust model.
 
 ## Configuration
-
 All project settings and policy declarations are JSON.
 
-- `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, and transport.
+- `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, the local stdio transport, and the ChatGPT remote transport.
+- `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
+- Each remote instance stores its port, profile name, `tunnel_id`, control-plane scope identifier, credential environment-variable name, and whether the external values are configured.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
 
-Configuration may describe implementation status, but it may not add a restriction.
+External IDs may remain blank only while an instance is explicitly marked unconfigured. Tunnel setup and launch fail closed until the operator supplies real IDs and changes that instance to configured. API keys, tunnel profile YAML, and generated runtime state are never committed.
+
+Configuration and implementation-status fields do not disable otherwise permitted Desktop Commander tools or create another policy decision.
 
 ## Public interface
 
@@ -216,7 +245,8 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
+The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, local stdio startup, and settings-driven streamable HTTP startup for separate `operation` and `development` instances.
 
-The initial greenfield step establishes repository authority, JSON configuration, the closed three-rule policy core, a narrow Desktop Commander adapter, quarantine support, scripts, and tests.
+Fresh local commissioning proves both HTTP instances initialize through FastMCP and Desktop Commander, expose the same 29-tool catalogue, include representative filesystem/edit/process tools, omit only the proven network-only feedback capability, execute `kis_health`, perform a real write/read round trip inside the approved state temp root, and quarantine the smoke artifact recoverably.
 
-Live provider startup and end-to-end forwarding must be verified before claiming production readiness. This implementation-status statement does not restrict normal tools beyond HR-001, HR-002, and HR-003.
+The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. This implementation-status statement does not restrict normal tools beyond HR-001, HR-002, and HR-003.
