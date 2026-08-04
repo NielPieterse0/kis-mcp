@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import kis_mcp.providers.supabase as supabase_module
 import kis_mcp.providers.supabase.server as server_module
+from kis_mcp.providers import (
+    ProviderBoundary,
+    ProviderDescriptor,
+    ProviderKind,
+    ProviderRegistry,
+    ProviderState,
+)
 from kis_mcp.providers.supabase.config import load_supabase_provider_config
 
 
@@ -80,10 +88,55 @@ def test_server_builds_proxy_and_registers_redacted_health(monkeypatch) -> None:
     assert "test-project" not in str(payload)
 
 
-def test_provider_descriptor_is_immutable_and_registry_ready() -> None:
+def test_provider_descriptor_uses_shared_provider_contract() -> None:
     descriptor = server_module.SUPABASE_PROVIDER_DESCRIPTOR
 
+    assert isinstance(descriptor, ProviderDescriptor)
     assert descriptor.provider_id == "supabase"
-    assert descriptor.module == "kis_mcp.providers.supabase"
-    assert descriptor.transport == "stdio"
-    assert descriptor.external_connector is True
+    assert descriptor.display_name == "Supabase MCP"
+    assert descriptor.provider_kind is ProviderKind.CONNECTOR
+    assert descriptor.boundary is ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR
+    assert descriptor.authoritative_source == CONFIG.source_repository
+    assert descriptor.source_revision == CONFIG.source_revision
+    assert [item.capability_id for item in descriptor.capabilities] == [
+        "database.manage"
+    ]
+    assert descriptor.capabilities[0].effects == (
+        "database_read",
+        "database_write",
+        "external_network",
+    )
+    assert descriptor.builder is server_module.build_server
+    assert descriptor.readiness_probe is server_module.provider_health
+
+
+def test_provider_health_maps_redacted_local_readiness_to_shared_contract() -> None:
+    missing = server_module.provider_health(CONFIG, {})
+    ready = server_module.provider_health(CONFIG, ENVIRONMENT)
+
+    assert missing.state is ProviderState.DEGRADED
+    assert missing.ready is False
+    assert missing.details["project_ref_present"] is False
+    assert missing.details["access_token_present"] is False
+    assert ready.state is ProviderState.READY
+    assert ready.ready is True
+    assert "test-token" not in str(ready.to_json_dict())
+    assert "test-project" not in str(ready.to_json_dict())
+
+
+def test_register_provider_explicitly_adds_descriptor_to_shared_registry() -> None:
+    registry = ProviderRegistry()
+
+    descriptor = server_module.register_provider(registry)
+
+    assert descriptor is server_module.SUPABASE_PROVIDER_DESCRIPTOR
+    assert registry.get("supabase") is descriptor
+
+
+def test_package_exposes_shared_provider_registration_surface() -> None:
+    assert (
+        supabase_module.SUPABASE_PROVIDER_DESCRIPTOR
+        is server_module.SUPABASE_PROVIDER_DESCRIPTOR
+    )
+    assert supabase_module.provider_health is server_module.provider_health
+    assert supabase_module.register_provider is server_module.register_provider

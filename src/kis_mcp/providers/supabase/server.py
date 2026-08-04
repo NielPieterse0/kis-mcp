@@ -4,34 +4,26 @@ import argparse
 import json
 import os
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 
 from fastmcp import FastMCP
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.server import create_proxy
 from fastmcp.server.providers.proxy import ProxyClient
 
+from ..contracts import (
+    ProviderBoundary,
+    ProviderCapability,
+    ProviderDescriptor,
+    ProviderKind,
+    ProviderReadiness,
+    ProviderState,
+)
+from ..registry import ProviderRegistry
 from .config import SupabaseProviderConfig, load_supabase_provider_config
 from .runtime import (
     build_upstream_url,
-    provider_readiness,
+    provider_readiness as provider_specific_readiness,
     require_runtime_credentials,
-)
-
-
-@dataclass(frozen=True, slots=True)
-class SupabaseProviderDescriptor:
-    provider_id: str
-    module: str
-    transport: str
-    external_connector: bool
-
-
-SUPABASE_PROVIDER_DESCRIPTOR = SupabaseProviderDescriptor(
-    provider_id="supabase",
-    module="kis_mcp.providers.supabase",
-    transport="stdio",
-    external_connector=True,
 )
 
 
@@ -63,9 +55,64 @@ def build_server(
     def kis_supabase_health() -> dict[str, object]:
         """Report redacted Supabase provider identity, scope, and readiness."""
 
-        return provider_readiness(runtime, runtime_environment).as_dict()
+        return provider_specific_readiness(runtime, runtime_environment).as_dict()
 
     return server
+
+
+def provider_health(
+    config: SupabaseProviderConfig | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> ProviderReadiness:
+    """Return provider-neutral, redacted readiness without network access."""
+
+    runtime = config or load_supabase_provider_config()
+    runtime_environment = environment if environment is not None else os.environ
+    readiness = provider_specific_readiness(runtime, runtime_environment)
+    state = ProviderState.READY if readiness.ready else ProviderState.DEGRADED
+    summary = (
+        "Supabase provider is ready."
+        if readiness.ready
+        else "Supabase provider credentials are incomplete."
+    )
+    details = readiness.as_dict()
+    details.pop("provider_id")
+    details.pop("server_name")
+    details.pop("ready")
+    return ProviderReadiness(
+        provider_id=runtime.provider_id,
+        state=state,
+        summary=summary,
+        details=details,
+    )
+
+
+_DESCRIPTOR_CONFIG = load_supabase_provider_config()
+SUPABASE_PROVIDER_DESCRIPTOR = ProviderDescriptor(
+    provider_id=_DESCRIPTOR_CONFIG.provider_id,
+    display_name="Supabase MCP",
+    provider_kind=ProviderKind.CONNECTOR,
+    boundary=ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR,
+    authoritative_source=_DESCRIPTOR_CONFIG.source_repository,
+    source_revision=_DESCRIPTOR_CONFIG.source_revision,
+    capabilities=(
+        ProviderCapability(
+            capability_id="database.manage",
+            description=(
+                "Use the official project-scoped Supabase MCP tool surface."
+            ),
+            effects=("supabase-read", "supabase-write"),
+        ),
+    ),
+    builder=build_server,
+    readiness_probe=provider_health,
+)
+
+
+def register_provider(registry: ProviderRegistry) -> ProviderDescriptor:
+    """Explicitly register the Supabase adapter in the shared Provider registry."""
+
+    return registry.register(SUPABASE_PROVIDER_DESCRIPTOR)
 
 
 def _argument_parser() -> argparse.ArgumentParser:
@@ -91,7 +138,7 @@ def main(
     if arguments.check:
         print(
             json.dumps(
-                provider_readiness(runtime, os.environ).as_dict(),
+                provider_specific_readiness(runtime, os.environ).as_dict(),
                 sort_keys=True,
             )
         )
@@ -100,3 +147,13 @@ def main(
     server = build_server(runtime, os.environ)
     server.run(transport=runtime.downstream_transport)
     return 0
+
+
+__all__ = [
+    "SUPABASE_PROVIDER_DESCRIPTOR",
+    "build_server",
+    "build_transport",
+    "main",
+    "provider_health",
+    "register_provider",
+]
