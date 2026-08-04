@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "change_id": "024-discover-change-tool-registration",
+  "status": "active",
+  "branch": "change/024-discover-change-tool-registration",
+  "worktree": ".work/worktrees/024-discover-change-tool-registration",
+  "base": "origin/main",
+  "outcome": "Register the merged working-tree inspect_change service as a bounded read-only Discover tool through an additive binder and server composition without changing the active inspect_project hardening slice or expanding change sources",
+  "owned_paths": [
+    ".work/changes/024-discover-change-tool-registration/**",
+    "src/kis_mcp/discover/change_tools.py",
+    "src/kis_mcp/server.py",
+    "tests/discover/test_change_tool_registration.py"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/discover/contracts.py",
+    "src/kis_mcp/discover/service.py",
+    "src/kis_mcp/discover/scanner.py",
+    "src/kis_mcp/discover/python_index.py",
+    "src/kis_mcp/discover/tools.py",
+    "src/kis_mcp/discover/change_contracts.py",
+    "src/kis_mcp/discover/change_inspection_contracts.py",
+    "src/kis_mcp/discover/change_service.py",
+    "src/kis_mcp/discover/git_reader.py",
+    "settings/**",
+    "policy/**",
+    "src/kis_mcp/providers/**",
+    "src/kis_mcp/skills/**",
+    "SPEC.md",
+    "docs/OPERATIONS.md"
+  ],
+  "dependencies": [
+    "023-discover-change-service"
+  ],
+  "integration_owner": "024-discover-change-tool-registration"
+}
