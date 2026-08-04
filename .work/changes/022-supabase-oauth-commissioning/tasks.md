@@ -1,0 +1,22 @@
+# Supabase OAuth Commissioning Tasks
+
+- [x] Read repository authority and merged Slice C acceptance evidence.
+- [x] Classify the change as Complex.
+- [x] Create isolated emergency worktree from clean `origin/main` without touching dirty primary `main`.
+- [x] Record specification, plan, scope, tasks, and closeout artifacts before implementation edits.
+- [ ] Close stale merged change 009 claim and validate governance.
+- [ ] Run baseline verification.
+- [ ] Add red configuration/schema tests.
+- [ ] Implement OAuth-only configuration version 2.
+- [ ] Add red storage/readiness tests.
+- [ ] Implement Windows Credential Manager token storage and truthful readiness.
+- [ ] Add red OAuth proxy tests.
+- [ ] Implement stateful FastMCP OAuth/DCR proxy.
+- [ ] Add red standalone commissioning tests.
+- [ ] Implement browser OAuth commissioning and launcher.
+- [ ] Add red shared-runtime smoke tests.
+- [ ] Implement shared `supabase_*` live verification.
+- [ ] Update provider documentation and authoritative implementation status.
+- [ ] Review complete diff and repair findings.
+- [ ] Run focused, live, scope, JSON, whitespace, and full verification.
+- [ ] Commit, push, and open a pull request without merging.
