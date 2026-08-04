@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/module/v1",
+  "title": "kis-mcp Provider Module Contracts",
+  "oneOf": [
+    {"$ref": "#/$defs/providerDescriptor"},
+    {"$ref": "#/$defs/providerCapability"},
+    {"$ref": "#/$defs/providerReadiness"},
+    {"$ref": "#/$defs/providerCatalogueEntry"},
+    {"$ref": "#/$defs/providerHealthSummary"}
+  ],
+  "$defs": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "providerId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "providerKind": {
+      "type": "string",
+      "enum": ["connector", "local_backend", "semantic", "platform"]
+    },
+    "providerBoundary": {
+      "type": "string",
+      "enum": [
+        "work_backend",
+        "approved_external_connector",
+        "local_read_only",
+        "platform_internal"
+      ]
+    },
+    "providerState": {
+      "type": "string",
+      "enum": ["ready", "degraded", "disabled", "unavailable"]
+    },
+    "jsonValue": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "boolean"},
+        {"type": "number"},
+        {"type": "string"},
+        {
+          "type": "array",
+          "items": {"$ref": "#/$defs/jsonValue"}
+        },
+        {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/jsonValue"}
+        }
+      ]
+    },
+    "providerCapability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "capability_id",
+        "description",
+        "effects",
+        "tool_names"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/schemaVersion"},
+        "capability_id": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "effects": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "tool_names": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "providerDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "provider_id",
+        "display_name",
+        "provider_kind",
+        "boundary",
+        "authoritative_source",
+        "source_revision",
+        "enabled",
+        "capabilities"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/schemaVersion"},
+        "provider_id": {"$ref": "#/$defs/providerId"},
+        "display_name": {"type": "string", "minLength": 1},
+        "provider_kind": {"$ref": "#/$defs/providerKind"},
+        "boundary": {"$ref": "#/$defs/providerBoundary"},
+        "authoritative_source": {"type": "string", "minLength": 1},
+        "source_revision": {"type": "string", "minLength": 1},
+        "enabled": {"type": "boolean"},
+        "capabilities": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/providerCapability"}
+        }
+      }
+    },
+    "providerReadiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "provider_id",
+        "state",
+        "summary",
+        "details"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/schemaVersion"},
+        "provider_id": {"$ref": "#/$defs/providerId"},
+        "state": {"$ref": "#/$defs/providerState"},
+        "summary": {"type": "string", "minLength": 1},
+        "details": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/jsonValue"}
+        }
+      }
+    },
+    "providerCatalogueEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "provider_id",
+        "display_name",
+        "provider_kind",
+        "boundary",
+        "enabled",
+        "authoritative_source",
+        "source_revision",
+        "capabilities"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/schemaVersion"},
+        "provider_id": {"$ref": "#/$defs/providerId"},
+        "display_name": {"type": "string", "minLength": 1},
+        "provider_kind": {"$ref": "#/$defs/providerKind"},
+        "boundary": {"$ref": "#/$defs/providerBoundary"},
+        "enabled": {"type": "boolean"},
+        "authoritative_source": {"type": "string", "minLength": 1},
+        "source_revision": {"type": "string", "minLength": 1},
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "providerHealthSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "state",
+        "ready_count",
+        "degraded_count",
+        "disabled_count",
+        "unavailable_count",
+        "providers"
+      ],
+      "properties": {
+        "schema_version": {"$ref": "#/$defs/schemaVersion"},
+        "state": {"$ref": "#/$defs/providerState"},
+        "ready_count": {"type": "integer", "minimum": 0},
+        "degraded_count": {"type": "integer", "minimum": 0},
+        "disabled_count": {"type": "integer", "minimum": 0},
+        "unavailable_count": {"type": "integer", "minimum": 0},
+        "providers": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/providerReadiness"}
+        }
+      }
+    }
+  }
+}
