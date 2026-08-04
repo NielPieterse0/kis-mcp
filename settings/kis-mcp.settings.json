@@ -54,6 +54,34 @@
     "quarantine": "diagnostic_unit_verified",
     "dependency_lock": "verified",
     "desktop_commander_installation": "verified_offline_install_and_stdio_startup",
-    "live_proxy": "not_verified"
+    "live_proxy": "verified_stdio_and_dual_streamable_http",
+    "remote_mcp": "local_http_write_read_quarantine_verified_external_tunnel_pending_configuration"
+  },
+  "remote_mcp": {
+    "transport": "http",
+    "host": "127.0.0.1",
+    "path": "/mcp",
+    "stateless_http": true,
+    "json_response": true,
+    "tunnel_client_path": "C:\\Tools\\openai-tunnel-client\\tunnel-client.exe",
+    "active_instance": "operation",
+    "instances": {
+      "operation": {
+        "port": 8010,
+        "profile_name": "kis-mcp-operation",
+        "configured": false,
+        "tunnel_id": "",
+        "control_plane_scope_id": "",
+        "control_plane_api_key_env": "CONTROL_PLANE_API_KEY"
+      },
+      "development": {
+        "port": 8011,
+        "profile_name": "kis-mcp-development",
+        "configured": false,
+        "tunnel_id": "",
+        "control_plane_scope_id": "",
+        "control_plane_api_key_env": "CONTROL_PLANE_API_KEY"
+      }
+    }
   }
 }
