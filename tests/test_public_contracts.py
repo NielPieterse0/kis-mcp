@@ -18,11 +18,16 @@ from kis_mcp.server import _quarantine_response
 
 def test_quarantine_response_is_explicit_and_versioned() -> None:
     internal = QuarantineRecord(
+        schema_version=2,
         operation_id="20260804T000000000000Z-000000000000",
         original_path=r"C:\Projects\kis-mcp\old.txt",
+        original_relative_path=r"kis-mcp\old.txt",
         payload_path=r"C:\Projects\.kis-mcp\quarantine\op\payload\old.txt",
         item_type="file",
+        payload_digest="0" * 64,
         quarantined_at="2026-08-04T00:00:00+00:00",
+        restored_at=None,
+        integrity_digest="1" * 64,
     )
 
     public = _quarantine_response(internal)

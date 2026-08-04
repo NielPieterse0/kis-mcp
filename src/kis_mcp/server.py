@@ -172,7 +172,10 @@ def build_server(
     )
 
     def quarantine_paths(paths: Sequence[str]) -> list[dict[str, Any]]:
-        return [_quarantine_payload(quarantine.quarantine(path)) for path in paths]
+        return [
+            _quarantine_payload(record)
+            for record in quarantine.quarantine_many(paths)
+        ]
 
     def quarantine_or_tool_error(path: str) -> QuarantineResponse:
         try:

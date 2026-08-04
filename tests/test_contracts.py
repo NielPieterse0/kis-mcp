@@ -47,11 +47,16 @@ class FakePolicy:
 class FakeQuarantine:
     def quarantine(self, path: str) -> QuarantineRecord:
         return QuarantineRecord(
+            schema_version=2,
             operation_id="20260804T000000000000Z-000000000000",
             original_path=path,
+            original_relative_path="fake-record",
             payload_path=path + ".quarantine",
             item_type="file",
+            payload_digest="0" * 64,
             quarantined_at="2026-08-04T00:00:00+00:00",
+            restored_at=None,
+            integrity_digest="1" * 64,
         )
 
     def restore(self, operation_id: str) -> QuarantineRecord:
