@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "017-p2-operational-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/017-p2-operational-hardening",
   "worktree": ".work/worktrees/017-p2-operational-hardening",
   "base": "origin/main",

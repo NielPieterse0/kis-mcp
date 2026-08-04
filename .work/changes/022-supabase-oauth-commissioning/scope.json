@@ -11,6 +11,7 @@
     ".work/changes/009-supabase-mcp-provider/scope.json",
     ".work/changes/013-startup-hardening/scope.json",
     ".work/changes/015-p1-boundary-hardening/scope.json",
+    ".work/changes/017-p2-operational-hardening/scope.json",
     ".work/changes/018-github-oauth-commissioning/scope.json",
     "src/kis_mcp/providers/supabase/**",
     "settings/providers/supabase-mcp.provider.json",

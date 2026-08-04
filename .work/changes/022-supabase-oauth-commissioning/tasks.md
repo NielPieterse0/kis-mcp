@@ -2,21 +2,22 @@
 
 - [x] Read repository authority and merged Slice C acceptance evidence.
 - [x] Classify the change as Complex.
-- [x] Create isolated emergency worktree from clean `origin/main` without touching dirty primary `main`.
-- [x] Record specification, plan, scope, tasks, and closeout artifacts before implementation edits.
-- [ ] Close stale merged change 009 claim and validate governance.
-- [ ] Run baseline verification.
-- [ ] Add red configuration/schema tests.
-- [ ] Implement OAuth-only configuration version 2.
-- [ ] Add red storage/readiness tests.
-- [ ] Implement Windows Credential Manager token storage and truthful readiness.
-- [ ] Add red OAuth proxy tests.
-- [ ] Implement stateful FastMCP OAuth/DCR proxy.
-- [ ] Add red standalone commissioning tests.
-- [ ] Implement browser OAuth commissioning and launcher.
-- [ ] Add red shared-runtime smoke tests.
-- [ ] Implement shared `supabase_*` live verification.
-- [ ] Update provider documentation and authoritative implementation status.
-- [ ] Review complete diff and repair findings.
-- [ ] Run focused, live, scope, JSON, whitespace, and full verification.
+- [x] Create an isolated worktree without modifying primary `main`.
+- [x] Record specification, plan, scope, tasks, and closeout artifacts.
+- [x] Close stale merged Supabase and P2 governance claims required for validation.
+- [x] Add configuration/schema RED coverage.
+- [x] Implement strict OAuth-only configuration schema version 2.
+- [x] Add storage/readiness RED coverage.
+- [x] Implement Windows Credential Manager token storage and redacted readiness.
+- [x] Add OAuth proxy RED coverage.
+- [x] Implement stateful FastMCP OAuth/DCR transport.
+- [x] Add standalone commissioning RED coverage.
+- [x] Implement browser OAuth commissioning and launcher.
+- [x] Add shared-runtime smoke RED coverage.
+- [x] Implement shared `supabase_*` verification.
+- [x] Enforce project-scoped tool-surface invariants while invoking only `get_project_url`.
+- [x] Update provider documentation and authoritative implementation status.
+- [x] Review the complete diff and remove temporary PAT-runtime compatibility.
+- [x] Pass focused tests, scope validation, strict JSON validation, whitespace validation, preflight, and full repository verification.
+- [ ] Complete operator browser authorization and live project-scoped/shared-runtime evidence after `SUPABASE_PROJECT_REF` is supplied.
 - [ ] Commit, push, and open a pull request without merging.

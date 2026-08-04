@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import kis_mcp.providers.supabase.runtime as runtime_module
 import kis_mcp.providers.supabase.server as server_module
 from kis_mcp.providers.supabase.config import load_supabase_provider_config
 from kis_mcp.providers.supabase.runtime import SupabaseProviderRuntimeError
@@ -14,9 +15,13 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CONFIG = load_supabase_provider_config(REPOSITORY_ROOT)
 
 
-def test_check_mode_is_non_network_and_redacted(monkeypatch, capsys) -> None:
+def test_check_mode_is_non_network_redacted_oauth_preflight(
+    monkeypatch,
+    capsys,
+) -> None:
     monkeypatch.setenv("SUPABASE_PROJECT_REF", "test-project")
-    monkeypatch.setenv("SUPABASE_ACCESS_TOKEN", "test-token")
+    monkeypatch.delenv("SUPABASE_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(runtime_module, "windows_keyring_available", lambda: True)
     monkeypatch.setattr(
         server_module,
         "build_transport",
@@ -31,13 +36,19 @@ def test_check_mode_is_non_network_and_redacted(monkeypatch, capsys) -> None:
     assert result == 0
     assert payload["ready"] is True
     assert payload["project_scoped"] is True
-    assert "test-token" not in json.dumps(payload)
-    assert "test-project" not in json.dumps(payload)
+    assert payload["authentication_mode"] == "oauth-dcr"
+    assert payload["token_storage"] == "windows-keyring"
+    assert payload["legacy_pat_conflict"] is False
+    rendered = json.dumps(payload)
+    assert "test-project" not in rendered
+    assert "SUPABASE_PROJECT_REF" not in rendered
+    assert "SUPABASE_ACCESS_TOKEN" not in rendered
 
 
-def test_check_mode_reports_not_ready_without_credentials(monkeypatch, capsys) -> None:
+def test_check_mode_reports_missing_scope_without_values(monkeypatch, capsys) -> None:
     monkeypatch.delenv("SUPABASE_PROJECT_REF", raising=False)
     monkeypatch.delenv("SUPABASE_ACCESS_TOKEN", raising=False)
+    monkeypatch.setattr(runtime_module, "windows_keyring_available", lambda: True)
 
     result = server_module.main(["--check"], config=CONFIG)
     payload = json.loads(capsys.readouterr().out)
@@ -45,12 +56,26 @@ def test_check_mode_reports_not_ready_without_credentials(monkeypatch, capsys) -
     assert result == 0
     assert payload["ready"] is False
     assert payload["project_ref_present"] is False
-    assert payload["access_token_present"] is False
+    assert payload["token_storage_available"] is True
 
 
-def test_normal_mode_runs_configured_stdio_server(monkeypatch) -> None:
+def test_check_mode_reports_legacy_pat_conflict(monkeypatch, capsys) -> None:
     monkeypatch.setenv("SUPABASE_PROJECT_REF", "test-project")
-    monkeypatch.setenv("SUPABASE_ACCESS_TOKEN", "test-token")
+    monkeypatch.setenv("SUPABASE_ACCESS_TOKEN", "forbidden-test-token")
+    monkeypatch.setattr(runtime_module, "windows_keyring_available", lambda: True)
+
+    result = server_module.main(["--check"], config=CONFIG)
+    payload = json.loads(capsys.readouterr().out)
+
+    assert result == 0
+    assert payload["ready"] is False
+    assert payload["legacy_pat_conflict"] is True
+    assert "forbidden-test-token" not in json.dumps(payload)
+
+
+def test_normal_mode_runs_configured_stdio_server_without_pat(monkeypatch) -> None:
+    monkeypatch.setenv("SUPABASE_PROJECT_REF", "test-project")
+    monkeypatch.delenv("SUPABASE_ACCESS_TOKEN", raising=False)
     captured: dict[str, object] = {}
 
     class FakeServer:
@@ -69,7 +94,7 @@ def test_normal_mode_runs_configured_stdio_server(monkeypatch) -> None:
     assert captured == {"transport": "stdio"}
 
 
-def test_normal_mode_rejects_missing_credentials(monkeypatch) -> None:
+def test_normal_mode_rejects_missing_project_scope(monkeypatch) -> None:
     monkeypatch.delenv("SUPABASE_PROJECT_REF", raising=False)
     monkeypatch.delenv("SUPABASE_ACCESS_TOKEN", raising=False)
 
