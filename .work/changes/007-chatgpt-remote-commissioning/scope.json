@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "007-chatgpt-remote-commissioning",
-  "status": "active",
+  "status": "closed",
   "branch": "change/007-chatgpt-remote-commissioning",
   "worktree": ".work/worktrees/007-chatgpt-remote-commissioning",
   "base": "main",

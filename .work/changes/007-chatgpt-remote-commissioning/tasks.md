@@ -18,5 +18,5 @@
 - [x] Run both-instance write/read/quarantine smoke successfully.
 - [x] Run the governed current-change scope check successfully.
 - [x] Complete final diff, secret, and policy review.
-- [ ] Commit and push branch.
-- [ ] Open draft PR; do not merge.
+- [x] Commit and push branch.
+- [x] Open draft PR; do not merge.

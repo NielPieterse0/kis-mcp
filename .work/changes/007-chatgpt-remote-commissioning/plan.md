@@ -60,5 +60,5 @@
 - [x] Run both-instance behavioral smoke with write/read/quarantine success.
 - [x] Run the current-change scope check.
 - [x] Review the final diff, secret exposure, and policy drift.
-- [ ] Commit and push the branch.
-- [ ] Open a draft PR and leave it unmerged.
+- [x] Commit and push the branch.
+- [x] Open a draft PR and leave it unmerged.
