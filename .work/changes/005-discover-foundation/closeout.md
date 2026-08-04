@@ -60,7 +60,9 @@ Implementation, integration, review, verification, push, and draft pull-request 
 - Independent landing review added `.kis-mcp` to the checked-in Discover exclusions so inspection of `C:\Projects` cannot traverse central generated provider, cache, tunnel, or runtime state.
 - Final full locked verification passed with the four regression tests and two expected platform skips.
 - A fresh `operation` HTTP smoke passed all 30-tool, Discover, health, representative Work, and quarantine checks. The attempted all-instance rerun stopped before `development` because port `127.0.0.1:8011` was already occupied by an external process; no process was terminated during review.
-- Final integration diff review found no remaining blocking code issue.
+- A final adversarial resilience probe found that recursive Python import-cycle detection could exceed the interpreter call stack on a valid deep module graph and escape the stable Discover result contract with `RecursionError`.
+- Replaced recursive strongly connected component traversal with deterministic iterative traversal and added a 1,500-module regression proving bounded completion beyond the Python call stack.
+- Final integration diff review after the repair found no remaining blocking code issue.
 
 ## Known repository limitation
 

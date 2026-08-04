@@ -153,6 +153,31 @@ def duplicate():
     assert result.truncated is False
 
 
+def test_cycle_detection_handles_graphs_deeper_than_python_call_stack() -> None:
+    from kis_mcp.discover.python_index import (
+        PythonImportRecord,
+        _cycle_diagnostics,
+    )
+
+    module_count = 1_500
+    modules = frozenset(f"module_{index}" for index in range(module_count))
+    imports = [
+        PythonImportRecord(
+            source_module=f"module_{index}",
+            target_module=f"module_{index + 1}",
+            imported_name=None,
+            alias=None,
+            level=0,
+            internal=True,
+            path=f"module_{index}.py",
+            line=1,
+        )
+        for index in range(module_count - 1)
+    ]
+
+    assert _cycle_diagnostics(imports, modules) == []
+
+
 def test_syntax_error_returns_partial_result_without_source_excerpt(
     project_root: Path,
     discover_settings,

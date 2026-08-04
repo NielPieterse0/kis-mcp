@@ -508,41 +508,48 @@ def _cycle_diagnostics(
         if item.internal and item.target_module in graph:
             graph[item.source_module].add(item.target_module)
 
-    index = 0
-    indices: dict[str, int] = {}
-    lowlinks: dict[str, int] = {}
-    stack: list[str] = []
-    on_stack: set[str] = set()
+    reverse_graph = {name: set() for name in module_names}
+    for source, targets in graph.items():
+        for target in targets:
+            reverse_graph[target].add(source)
+
+    visited: set[str] = set()
+    finish_order: list[str] = []
+    for root in sorted(graph):
+        if root in visited:
+            continue
+        frames: list[tuple[str, bool]] = [(root, False)]
+        while frames:
+            node, expanded = frames.pop()
+            if expanded:
+                finish_order.append(node)
+                continue
+            if node in visited:
+                continue
+            visited.add(node)
+            frames.append((node, True))
+            for neighbor in reversed(sorted(graph[node])):
+                if neighbor not in visited:
+                    frames.append((neighbor, False))
+
+    assigned: set[str] = set()
     components: list[tuple[str, ...]] = []
-
-    def visit(node: str) -> None:
-        nonlocal index
-        indices[node] = index
-        lowlinks[node] = index
-        index += 1
-        stack.append(node)
-        on_stack.add(node)
-        for neighbor in sorted(graph[node]):
-            if neighbor not in indices:
-                visit(neighbor)
-                lowlinks[node] = min(lowlinks[node], lowlinks[neighbor])
-            elif neighbor in on_stack:
-                lowlinks[node] = min(lowlinks[node], indices[neighbor])
-        if lowlinks[node] != indices[node]:
-            return
+    for root in reversed(finish_order):
+        if root in assigned:
+            continue
         component: list[str] = []
-        while stack:
-            member = stack.pop()
-            on_stack.remove(member)
-            component.append(member)
-            if member == node:
-                break
-        if len(component) > 1 or (len(component) == 1 and node in graph[node]):
-            components.append(tuple(sorted(component)))
-
-    for node in sorted(graph):
-        if node not in indices:
-            visit(node)
+        pending = [root]
+        assigned.add(root)
+        while pending:
+            node = pending.pop()
+            component.append(node)
+            for neighbor in reversed(sorted(reverse_graph[node])):
+                if neighbor not in assigned:
+                    assigned.add(neighbor)
+                    pending.append(neighbor)
+        ordered = tuple(sorted(component))
+        if len(ordered) > 1 or root in graph[root]:
+            components.append(ordered)
 
     return [
         ProjectDiagnostic(
