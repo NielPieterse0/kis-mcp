@@ -28,7 +28,9 @@
     "README.md",
     "docs/PLATFORM-CONCEPT.md",
     "docs/OPERATIONS.md",
-    "scripts/verify.ps1"
+    "scripts/verify.ps1",
+    "scripts/smoke-chatgpt.ps1",
+    "tests/test_tunnel_scripts.py"
   ],
   "excluded_paths": [
     "src/kis_mcp/desktop_commander.py",

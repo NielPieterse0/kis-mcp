@@ -173,7 +173,8 @@
     "dependency_lock": "verified",
     "desktop_commander_installation": "verified_offline_install_and_stdio_startup",
     "live_proxy": "verified_stdio_and_dual_streamable_http",
-    "remote_mcp": "local_http_write_read_quarantine_verified_external_tunnel_pending_configuration"
+    "remote_mcp": "local_http_discover_write_read_quarantine_verified_external_tunnel_pending_configuration",
+    "discover": "bounded_local_inspect_project_integrated_unit_and_dual_http_verified"
   },
   "remote_mcp": {
     "transport": "http",

@@ -70,14 +70,14 @@
 
 ## Task 9 — Documentation, review, verification, and PR
 
-- [ ] Update current implementation claims only after verification.
-- [ ] Complete source-harvest parity traceability.
-- [ ] Review the final diff against authority, scope, donors, and security boundaries.
-- [ ] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 validate`.
-- [ ] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
-- [ ] Run the focused Discover suite through the locked `C:\Projects\.kis-mcp\python-env` environment.
-- [ ] Run `pwsh -File scripts/verify.ps1`.
-- [ ] Run Git whitespace and declared-scope checks.
+- [x] Update current implementation claims only after verification.
+- [x] Complete source-harvest parity traceability.
+- [x] Review the final diff against authority, scope, donors, and security boundaries.
+- [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 validate`; record the known unrelated recursive historical-claim defect.
+- [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
+- [x] Run the focused Discover suite through the locked `C:\Projects\.kis-mcp\python-env` environment during implementation and the full locked suite at closeout.
+- [x] Run `pwsh -File scripts/verify.ps1`.
+- [x] Run Git whitespace and declared-scope checks.
 - [ ] Commit and push without force.
 - [ ] Create a draft pull request for review.
 - [ ] Do not merge until reviewed.

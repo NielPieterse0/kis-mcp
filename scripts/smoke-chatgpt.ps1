@@ -152,6 +152,7 @@ function Invoke-KisMcpInstanceSmoke {
         $ToolNames = @($ToolsResponse.result.tools | ForEach-Object { [string]$_.name })
         $ExpectedTools = @(
             'kis_health',
+            'inspect_project',
             'read_file',
             'write_file',
             'edit_block',
@@ -178,6 +179,32 @@ function Invoke-KisMcpInstanceSmoke {
             }
         if (Test-McpToolCallFailed -Response $HealthResponse) {
             throw 'KIS_MCP_SMOKE_HEALTH_CALL_FAILED'
+        }
+
+        $DiscoverResponse = Invoke-McpJsonRpc `
+            -Uri $Remote.endpoint_url `
+            -RequestTimeoutSeconds 60 `
+            -Payload @{
+                jsonrpc = '2.0'
+                id = 31
+                method = 'tools/call'
+                params = @{
+                    name = 'inspect_project'
+                    arguments = @{
+                        path = $RepositoryRoot
+                        limits = @{
+                            max_files = 100
+                            max_directories = 100
+                            max_total_bytes = 2000000
+                            max_evidence = 100
+                            max_output_chars = 200000
+                            max_depth = 8
+                        }
+                    }
+                }
+            }
+        if (Test-McpToolCallFailed -Response $DiscoverResponse) {
+            throw 'KIS_MCP_SMOKE_DISCOVER_CALL_FAILED'
         }
 
         $Marker = "kis-mcp-remote-http-smoke-$($Remote.name)-$([Guid]::NewGuid().ToString('N'))"
@@ -249,6 +276,7 @@ function Invoke-KisMcpInstanceSmoke {
             representative_tools = $ExpectedTools
             network_only_feedback_exposed = $false
             health_call_ok = $true
+            discover_call_ok = $true
             write_read_quarantine_ok = $true
         }
     }
