@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "023-discover-change-service",
-  "status": "active",
+  "status": "closed",
   "branch": "change/023-discover-change-service",
   "worktree": ".work/worktrees/023-discover-change-service",
   "base": "main",
