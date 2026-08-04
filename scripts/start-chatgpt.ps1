@@ -98,17 +98,13 @@ function Wait-McpReady {
     throw "KIS_MCP_HTTP_NOT_READY: $Uri"
 }
 
-$Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
+$Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireIdentifiers
 $null = Assert-KisMcpInstanceName -Name $Remote.name
 if ($TimeoutSeconds -lt 5 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 5 and 300.'
 }
 if (-not (Test-Path -LiteralPath $Remote.tunnel_client_path -PathType Leaf)) {
     throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $($Remote.tunnel_client_path)"
-}
-$KeyValue = [Environment]::GetEnvironmentVariable($Remote.control_plane_api_key_env)
-if ([string]::IsNullOrWhiteSpace($KeyValue)) {
-    throw "KIS_MCP_CONTROL_PLANE_API_KEY_MISSING: set $($Remote.control_plane_api_key_env)."
 }
 $ProfilePath = Join-Path $Remote.profile_root "$($Remote.profile_name).yaml"
 if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
@@ -232,7 +228,7 @@ try {
     Write-Host "kis-mcp '$($Remote.name)' is ready for ChatGPT."
     Write-Host "Tunnel profile: $($Remote.profile_name)"
     Write-Host "Tunnel ID: $($Remote.tunnel_id)"
-    Write-Host "Control-plane scope ID: $($Remote.control_plane_scope_id)"
+    Write-Host "Tunnel authentication ID: $($Remote.tunnel_authentication_id)"
     Write-Host "Local MCP endpoint: $($Remote.endpoint_url)"
     Write-Host 'Keep this window open. Press Ctrl+C to stop both owned processes.'
 

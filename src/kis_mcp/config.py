@@ -41,9 +41,7 @@ class RemoteMcpInstance:
     path: str
     profile_name: str
     tunnel_id: str
-    control_plane_scope_id: str
-    control_plane_api_key_env: str
-    configured: bool
+    tunnel_authentication_id: str
 
     @property
     def endpoint_url(self) -> str:
@@ -167,9 +165,7 @@ class RuntimeConfig:
             path=str(remote["path"]),
             profile_name=str(instance["profile_name"]),
             tunnel_id=str(instance.get("tunnel_id", "")),
-            control_plane_scope_id=str(instance.get("control_plane_scope_id", "")),
-            control_plane_api_key_env=str(instance["control_plane_api_key_env"]),
-            configured=bool(instance.get("configured", False)),
+            tunnel_authentication_id=str(instance.get("tunnel_authentication_id", "")),
         )
 
     @property
@@ -343,8 +339,8 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
 
     ports: set[int] = set()
     profiles: set[str] = set()
-    configured_tunnels: set[str] = set()
-    configured_scopes: set[str] = set()
+    tunnel_ids: set[str] = set()
+    authentication_ids: set[str] = set()
     for name in ("operation", "development"):
         instance = _object(instances[name], f"settings.remote_mcp.instances.{name}")
         port = instance.get("port")
@@ -364,30 +360,20 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
             raise RuntimeError("remote MCP profile names must be distinct")
         profiles.add(profile)
 
-        key_env = _string(
-            instance.get("control_plane_api_key_env"),
-            f"settings.remote_mcp.instances.{name}.control_plane_api_key_env",
-        )
-        if re.fullmatch(r"[A-Z][A-Z0-9_]{2,63}", key_env) is None:
-            raise RuntimeError(f"remote MCP control-plane key environment is invalid: {name}")
-
-        configured = instance.get("configured")
-        if not isinstance(configured, bool):
-            raise RuntimeError(f"settings.remote_mcp.instances.{name}.configured must be boolean")
         tunnel_id = str(instance.get("tunnel_id", "")).strip()
-        scope_id = str(instance.get("control_plane_scope_id", "")).strip()
-        if not configured:
-            if tunnel_id or scope_id:
-                raise RuntimeError(f"unconfigured remote MCP instance {name} must have blank external IDs")
-            continue
-        if re.fullmatch(r"tunnel_[0-9a-f]{32}", tunnel_id) is None:
+        authentication_id = str(instance.get("tunnel_authentication_id", "")).strip()
+        if tunnel_id and re.fullmatch(r"tunnel_[0-9a-f]{32}", tunnel_id) is None:
             raise RuntimeError(f"remote MCP tunnel ID is invalid: {name}")
-        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", scope_id) is None:
-            raise RuntimeError(f"remote MCP control-plane scope ID is invalid: {name}")
-        if tunnel_id in configured_tunnels or scope_id in configured_scopes:
-            raise RuntimeError("configured remote MCP external IDs must be distinct")
-        configured_tunnels.add(tunnel_id)
-        configured_scopes.add(scope_id)
+        if authentication_id and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", authentication_id) is None:
+            raise RuntimeError(f"remote MCP tunnel authentication ID is invalid: {name}")
+        if tunnel_id and tunnel_id in tunnel_ids:
+            raise RuntimeError("remote MCP tunnel IDs must be distinct")
+        if authentication_id and authentication_id in authentication_ids:
+            raise RuntimeError("remote MCP tunnel authentication IDs must be distinct")
+        if tunnel_id:
+            tunnel_ids.add(tunnel_id)
+        if authentication_id:
+            authentication_ids.add(authentication_id)
 
 
 def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:

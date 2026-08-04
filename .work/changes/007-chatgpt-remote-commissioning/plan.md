@@ -12,7 +12,7 @@
 
 - Write only beneath `C:\Projects`.
 - Do not change the three-rule policy.
-- Do not commit credentials, real operator IDs, or generated tunnel profiles.
+- Store the approved tunnel IDs and tunnel authentication IDs in settings; do not commit generated tunnel profiles.
 - Keep `scripts/start.ps1` as the local stdio entry point.
 - Use `C:\Tools\openai-tunnel-client\tunnel-client.exe` from settings.
 - Support exactly `operation` and `development`; switching is explicit.
@@ -28,7 +28,7 @@
 
 - [x] Write failing tests for dual instances, loopback/path validation, instance selection, and HTTP run arguments.
 - [x] Add strict `remote_mcp` validation and immutable instance configuration.
-- [x] Add separate `operation` and `development` settings with blank external IDs and `configured: false`.
+- [x] Add separate `operation` and `development` settings with permanent tunnel ID and tunnel authentication ID fields.
 - [x] Add `kis_mcp.remote_runtime` using the same `build_server()` gateway as stdio.
 - [x] Verify the cycle: 153 passed, 1 skipped.
 
@@ -37,7 +37,7 @@
 - [x] Write failing tests for canonical settings sourcing, profile protection, instance switching, readiness, and paired cleanup.
 - [x] Add `tunnel-state.ps1`, `setup-tunnel.ps1`, and `start-chatgpt.ps1`.
 - [x] Add tunnel-client doctor validation after profile creation.
-- [x] Keep credentials as environment references and generated state outside the repository.
+- [x] Keep tunnel identifiers in canonical settings and generated state outside the repository.
 
 ### Task 4: Behavioral smoke test
 

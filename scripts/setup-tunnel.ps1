@@ -9,11 +9,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
 
-$Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
-$KeyValue = [Environment]::GetEnvironmentVariable($Remote.control_plane_api_key_env)
-if ([string]::IsNullOrWhiteSpace($KeyValue)) {
-    throw "KIS_MCP_CONTROL_PLANE_API_KEY_MISSING: set $($Remote.control_plane_api_key_env) in this PowerShell session."
-}
+$Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireIdentifiers
 if (-not (Test-Path -LiteralPath $Remote.tunnel_client_path -PathType Leaf)) {
     throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $($Remote.tunnel_client_path)"
 }
@@ -32,14 +28,12 @@ if (Test-Path -LiteralPath $ProfilePath -PathType Leaf) {
     Write-Host "Existing tunnel profile backed up to: $BackupPath"
 }
 
-$ApiKeyReference = "env:$($Remote.control_plane_api_key_env)"
 & $Remote.tunnel_client_path init `
     --sample sample_mcp_remote_no_auth `
     --profile $Remote.profile_name `
     --profile-dir $Remote.profile_root `
     --tunnel-id $Remote.tunnel_id `
     --mcp-server-url $Remote.endpoint_url `
-    --control-plane-api-key-ref $ApiKeyReference `
     --health-listen-addr '127.0.0.1:0'
 if ($LASTEXITCODE -ne 0) {
     throw "KIS_MCP_TUNNEL_PROFILE_INIT_FAILED: $($Remote.profile_name)"
@@ -58,5 +52,5 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "Tunnel profile created and validated for instance '$($Remote.name)'."
 Write-Host "Tunnel ID: $($Remote.tunnel_id)"
-Write-Host "Control-plane scope ID: $($Remote.control_plane_scope_id)"
+Write-Host "Tunnel authentication ID: $($Remote.tunnel_authentication_id)"
 Write-Host "Local MCP endpoint: $($Remote.endpoint_url)"

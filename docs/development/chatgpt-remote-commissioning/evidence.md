@@ -8,7 +8,7 @@ This record covers the local ChatGPT-compatible transport path:
 streamable HTTP -> kis-mcp FastMCP gateway -> Desktop Commander
 ```
 
-It does not claim the external Secure MCP Tunnel or ChatGPT app hop, because the repository does not contain the real `operation` and `development` tunnel/control-plane identifiers.
+It does not claim the external Secure MCP Tunnel or ChatGPT app hop, because the repository does not contain the real `operation` and `development` tunnel identifiers.
 
 ## Verified configuration
 
@@ -16,8 +16,8 @@ It does not claim the external Secure MCP Tunnel or ChatGPT app hop, because the
 - Operation endpoint: `http://127.0.0.1:8010/mcp`
 - Development endpoint: `http://127.0.0.1:8011/mcp`
 - Separate profile names: `kis-mcp-operation`, `kis-mcp-development`
-- External credentials: environment references only
-- External instance IDs: blank with `configured: false` until supplied by the operator
+- Tunnel identifiers: stored directly in canonical settings
+- Tunnel identifier values: blank pending one-time entry and commit
 
 ## Verification commands
 
@@ -68,13 +68,11 @@ Only provider functionality whose every supported invocation is external-network
 
 For each instance, the operator must:
 
-1. supply its real `tunnel_id` and `control_plane_scope_id` in settings;
-2. set `configured` to `true`;
-3. provide the configured control-plane API key environment variable;
-4. create and validate the tunnel profile;
-5. start the supervised launcher;
-6. scan the tool catalogue from ChatGPT;
-7. call `kis_health` and perform a supervised write/read/quarantine smoke from ChatGPT.
+1. enter and commit its permanent `tunnel_id` and `tunnel_authentication_id` in settings;
+2. create and validate the tunnel profile;
+3. start the supervised launcher;
+4. scan the tool catalogue from ChatGPT;
+5. call `kis_health` and perform a supervised write/read/quarantine smoke from ChatGPT.
 
 Until those steps are completed, the correct status is local HTTP commissioned and external ChatGPT tunnel pending configuration.
 

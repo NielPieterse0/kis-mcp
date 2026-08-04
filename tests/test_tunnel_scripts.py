@@ -26,8 +26,8 @@ def test_tunnel_configuration_is_canonical_json() -> None:
     assert set(remote["instances"]) == {"operation", "development"}
     for instance in remote["instances"].values():
         assert "tunnel_id" in instance
-        assert "control_plane_scope_id" in instance
-        assert "control_plane_api_key_env" in instance
+        assert "tunnel_authentication_id" in instance
+        assert "configured" not in instance
 
 
 def test_tunnel_state_helper_reads_settings_and_named_instances() -> None:
@@ -36,7 +36,7 @@ def test_tunnel_state_helper_reads_settings_and_named_instances() -> None:
     assert "settings\\kis-mcp.settings.json" in content
     assert "Get-KisMcpRemoteInstance" in content
     assert "operation" in content and "development" in content
-    assert "configured" in content
+    assert "tunnel_authentication_id" in content
     assert "tunnel_client_path" in content
 
 
@@ -47,9 +47,8 @@ def test_setup_script_uses_settings_without_embedding_credentials() -> None:
     assert "--profile-dir" in content
     assert "--tunnel-id" in content
     assert "--mcp-server-url" in content
-    assert "--control-plane-api-key-ref" in content
     assert "BackupExistingProfile" in content
-    assert "control_plane_scope_id" in content
+    assert "tunnel_authentication_id" in content
     assert "doctor" in content
     assert "--explain" in content
     assert "sk-" not in content
@@ -64,7 +63,7 @@ def test_chatgpt_launcher_owns_http_and_tunnel_processes() -> None:
     assert "--health.url-file" in content
     assert "readyz" in content
     assert "Kill()" in content
-    assert "control_plane_scope_id" in content
+    assert "tunnel_authentication_id" in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" in content
 
 

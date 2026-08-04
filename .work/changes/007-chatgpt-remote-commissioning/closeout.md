@@ -6,7 +6,7 @@
 ## Implemented scope
 
 - Added canonical `remote_mcp` JSON settings for `operation` and `development`.
-- Added strict loopback, endpoint, profile, port, credential-reference, and external-ID validation.
+- Added strict loopback, endpoint, profile, port, tunnel-identifier validation.
 - Added `kis_mcp.remote_runtime`, reusing the same `build_server()` gateway and three-rule middleware as stdio.
 - Added settings-backed tunnel state, profile setup, doctor validation, supervised launch, readiness, paired shutdown, and exclusive instance switch-over.
 - Added a local behavioral smoke test covering MCP initialization, tool discovery, `kis_health`, real write/read execution, and recoverable quarantine.
@@ -81,6 +81,6 @@ Result: passed after removing one trailing blank line.
 
 ## Residual risks and deferred evidence
 
-- The repository does not contain the real `operation` and `development` tunnel IDs or control-plane scope identifiers. Both instances remain `configured: false` with blank external IDs.
+- The four permanent identifier values were not available in repository-readable state during this correction, so the settings fields remain blank pending one-time entry and commit.
 - A live tunnel-client run, ChatGPT custom-app tool scan, and ChatGPT-originated write/read/quarantine smoke were not performed and are not claimed.
 - Desktop Commander emits pre-existing FastMCP notification-validation warnings for some string logging payloads. They did not affect initialization, discovery, health, or file/quarantine execution.

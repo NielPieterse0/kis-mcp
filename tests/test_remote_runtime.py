@@ -34,9 +34,8 @@ def test_remote_instances_are_distinct_and_settings_driven() -> None:
     assert operation.path == development.path == "/mcp"
     assert operation.port != development.port
     assert operation.profile_name != development.profile_name
-    assert not operation.configured and not development.configured
     assert operation.tunnel_id == development.tunnel_id == ""
-    assert operation.control_plane_scope_id == development.control_plane_scope_id == ""
+    assert operation.tunnel_authentication_id == development.tunnel_authentication_id == ""
     assert config.tunnel_client_path == r"C:\Tools\openai-tunnel-client\tunnel-client.exe"
 
 

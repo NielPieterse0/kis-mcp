@@ -22,7 +22,7 @@ function Get-KisMcpRemoteInstance {
     [CmdletBinding()]
     param(
         [string]$Instance = '',
-        [switch]$RequireConfigured
+        [switch]$RequireIdentifiers
     )
 
     $Settings = Get-KisMcpSettings
@@ -42,22 +42,18 @@ function Get-KisMcpRemoteInstance {
     if ($null -eq $Property) {
         throw "KIS_MCP_REMOTE_INSTANCE_MISSING: $Instance"
     }
-    $Configured = [bool]$Property.Value.configured
     $TunnelId = [string]$Property.Value.tunnel_id
-    $ControlPlaneScopeId = [string]$Property.Value.control_plane_scope_id
-    if ($RequireConfigured -and -not $Configured) {
-        throw (
-            "KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED: set settings.remote_mcp.instances.$Instance" +
-            '.tunnel_id and .control_plane_scope_id, then set .configured to true.'
-        )
+    $TunnelAuthenticationId = [string]$Property.Value.tunnel_authentication_id
+    if ($RequireIdentifiers) {
+        if ([string]::IsNullOrWhiteSpace($TunnelId)) {
+            throw "KIS_MCP_TUNNEL_ID_MISSING: $Instance"
+        }
+        if ([string]::IsNullOrWhiteSpace($TunnelAuthenticationId)) {
+            throw "KIS_MCP_TUNNEL_AUTHENTICATION_ID_MISSING: $Instance"
+        }
     }
-    if ($Configured) {
-        if ($TunnelId -notmatch '^tunnel_[0-9a-f]{32}$') {
-            throw "KIS_MCP_TUNNEL_ID_INVALID: $Instance"
-        }
-        if ([string]::IsNullOrWhiteSpace($ControlPlaneScopeId)) {
-            throw "KIS_MCP_CONTROL_PLANE_SCOPE_ID_MISSING: $Instance"
-        }
+    if (-not [string]::IsNullOrWhiteSpace($TunnelId) -and $TunnelId -notmatch '^tunnel_[0-9a-f]{32}$') {
+        throw "KIS_MCP_TUNNEL_ID_INVALID: $Instance"
     }
 
     $StateRoot = [string]$Settings.paths.state_root
@@ -74,10 +70,8 @@ function Get-KisMcpRemoteInstance {
         profile_name = [string]$Property.Value.profile_name
         profile_root = $ProfileRoot
         runtime_root = $RuntimeRoot
-        configured = $Configured
         tunnel_id = $TunnelId
-        control_plane_scope_id = $ControlPlaneScopeId
-        control_plane_api_key_env = [string]$Property.Value.control_plane_api_key_env
+        tunnel_authentication_id = $TunnelAuthenticationId
         tunnel_client_path = [string]$Remote.tunnel_client_path
         python_environment_root = [string]$Settings.paths.python_environment_root
         state_root = $StateRoot
