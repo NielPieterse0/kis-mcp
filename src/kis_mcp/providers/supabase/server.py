@@ -19,7 +19,11 @@ from ..contracts import (
     ProviderState,
 )
 from ..registry import ProviderRegistry
-from .config import SupabaseProviderConfig, load_supabase_provider_config
+from .config import (
+    SupabaseProviderConfig,
+    SupabaseProviderConfigError,
+    load_supabase_provider_config,
+)
 from .runtime import (
     build_upstream_url,
     provider_readiness as provider_specific_readiness,
@@ -87,32 +91,44 @@ def provider_health(
     )
 
 
-_DESCRIPTOR_CONFIG = load_supabase_provider_config()
-SUPABASE_PROVIDER_DESCRIPTOR = ProviderDescriptor(
-    provider_id=_DESCRIPTOR_CONFIG.provider_id,
-    display_name="Supabase MCP",
-    provider_kind=ProviderKind.CONNECTOR,
-    boundary=ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR,
-    authoritative_source=_DESCRIPTOR_CONFIG.source_repository,
-    source_revision=_DESCRIPTOR_CONFIG.source_revision,
-    capabilities=(
-        ProviderCapability(
-            capability_id="database.manage",
-            description=(
-                "Use the official project-scoped Supabase MCP tool surface."
+def build_provider_descriptor(
+    config: SupabaseProviderConfig | None = None,
+) -> ProviderDescriptor:
+    """Build the shared descriptor without loading configuration at import time."""
+
+    runtime = config or load_supabase_provider_config()
+    return ProviderDescriptor(
+        provider_id=runtime.provider_id,
+        display_name="Supabase MCP",
+        provider_kind=ProviderKind.CONNECTOR,
+        boundary=ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR,
+        authoritative_source=runtime.source_repository,
+        source_revision=runtime.source_revision,
+        capabilities=(
+            ProviderCapability(
+                capability_id="database.manage",
+                description=(
+                    "Use the official project-scoped Supabase MCP tool surface."
+                ),
+                effects=("database_read", "database_write", "external_network"),
             ),
-            effects=("database_read", "database_write", "external_network"),
         ),
-    ),
-    builder=build_server,
-    readiness_probe=provider_health,
-)
+        builder=build_server,
+        readiness_probe=provider_health,
+    )
 
 
-def register_provider(registry: ProviderRegistry) -> ProviderDescriptor:
-    """Explicitly register the Supabase adapter in the shared Provider registry."""
+def register_provider(
+    registry: ProviderRegistry,
+    config: SupabaseProviderConfig | None = None,
+) -> ProviderDescriptor | None:
+    """Register Supabase when configuration is valid; otherwise leave it absent."""
 
-    return registry.register(SUPABASE_PROVIDER_DESCRIPTOR)
+    try:
+        descriptor = build_provider_descriptor(config)
+    except SupabaseProviderConfigError:
+        return None
+    return registry.register(descriptor)
 
 
 def _argument_parser() -> argparse.ArgumentParser:
@@ -150,7 +166,7 @@ def main(
 
 
 __all__ = [
-    "SUPABASE_PROVIDER_DESCRIPTOR",
+    "build_provider_descriptor",
     "build_server",
     "build_transport",
     "main",

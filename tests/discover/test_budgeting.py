@@ -262,6 +262,49 @@ def test_output_compaction_never_silently_drops_required_handoffs() -> None:
         assert bounded.handoffs[0].workflow == "run_verification"
 
 
+def test_verification_compaction_keeps_declarations_and_handoffs_paired() -> None:
+    from dataclasses import replace
+
+    from kis_mcp.discover.budgeting import ResultBudgeter
+
+    response = _response(evidence_count=5, large=True)
+    declarations = [
+        {
+            "id": f"verify-{index}",
+            "category": "test",
+            "title": f"Verification {index}",
+            "profile": "x" * 2_000,
+        }
+        for index in range(4)
+    ]
+    handoffs = tuple(
+        replace(
+            response.handoffs[0],
+            handoff_id=f"handoff-{index}",
+            inputs={"verification_id": f"verify-{index}"},
+        )
+        for index in range(3)
+    )
+    compacted = ResultBudgeter(max_evidence=10, max_output_chars=11_000).apply(
+        replace(
+            response,
+            verification={"declarations": declarations},
+            handoffs=handoffs,
+        )
+    )
+
+    retained_ids = {
+        declaration["id"]
+        for declaration in compacted.verification.get("declarations", [])
+    }
+    assert retained_ids
+    assert {
+        handoff.inputs["verification_id"]
+        for handoff in compacted.handoffs
+        if handoff.workflow == "run_verification"
+    } <= retained_ids
+
+
 def test_minimum_contract_overflow_returns_structural_error() -> None:
     from kis_mcp.discover.budgeting import ResultBudgeter
 

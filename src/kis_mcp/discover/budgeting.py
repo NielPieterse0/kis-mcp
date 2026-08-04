@@ -4,7 +4,7 @@ import json
 from dataclasses import replace
 from typing import Any, Iterable, Mapping
 
-from .contracts import EvidenceItem, InspectProjectResponse
+from .contracts import InspectProjectResponse
 from .errors import DiscoverError
 
 
@@ -28,6 +28,7 @@ class ResultBudgeter:
                 reason="The response contained duplicate evidence identifiers.",
                 field="evidence",
             )
+        _validate_verification_handoffs(response)
         if len(referenced) > self.max_evidence:
             raise DiscoverError(
                 code="DISCOVER_EVIDENCE_BUDGET_TOO_SMALL",
@@ -90,7 +91,6 @@ class ResultBudgeter:
             )
 
         while _encoded_length(current) > self.max_output_chars:
-            changed = False
             code_atlas, code_changed = _halve_mapping_lists(
                 current.code_atlas,
                 preferred=("symbols", "calls", "imports", "inheritance", "modules", "diagnostics"),
@@ -98,9 +98,9 @@ class ResultBudgeter:
             repository_atlas, repository_changed = _halve_repository_atlas(
                 current.repository_atlas
             )
-            verification, verification_changed = _halve_mapping_lists(
+            verification, verification_changed = _halve_verification_lists(
                 current.verification,
-                preferred=("declarations", "diagnostics", "evidence_sources"),
+                current.handoffs,
             )
             contracts, contracts_changed = _halve_mapping_lists(
                 current.contracts,
@@ -142,7 +142,10 @@ class ResultBudgeter:
                 current,
                 code_atlas=_summary_only(current.code_atlas),
                 repository_atlas=_repository_summary_only(current.repository_atlas),
-                verification=_summary_only(current.verification),
+                verification=_verification_summary_only(
+                    current.verification,
+                    current.handoffs,
+                ),
                 contracts=_summary_only(current.contracts),
                 instructions=(),
                 recommendations=(),
@@ -157,6 +160,7 @@ class ResultBudgeter:
         missing = sorted(_referenced_evidence_ids(response) - available)
         if missing:
             raise _reference_error(missing[0])
+        _validate_verification_handoffs(response)
 
 
 def _referenced_evidence_ids(response: InspectProjectResponse) -> set[str]:
@@ -195,6 +199,61 @@ def _collect_evidence_ids(value: Any, values: set[str]) -> None:
             _collect_evidence_ids(item, values)
 
 
+def _validate_verification_handoffs(response: InspectProjectResponse) -> None:
+    declarations = response.verification.get("declarations", ())
+    declaration_ids = {
+        verification_id
+        for declaration in declarations
+        if (verification_id := _verification_declaration_id(declaration)) is not None
+    }
+    for handoff in response.handoffs:
+        verification_id = _handoff_verification_id(handoff)
+        if verification_id is None:
+            continue
+        if verification_id not in declaration_ids:
+            raise DiscoverError(
+                code="DISCOVER_VERIFICATION_HANDOFF_INVALID",
+                message="A verification handoff references an unavailable declaration.",
+                reason=(
+                    f"Verification declaration {verification_id} is not present in the response."
+                ),
+                field="handoffs.inputs.verification_id",
+            )
+
+
+def _required_verification_ids(handoffs: Iterable[Any]) -> set[str]:
+    return {
+        verification_id
+        for handoff in handoffs
+        if (verification_id := _handoff_verification_id(handoff)) is not None
+    }
+
+
+def _handoff_verification_id(handoff: Any) -> str | None:
+    if hasattr(handoff, "to_json_dict"):
+        handoff = handoff.to_json_dict()
+    if not isinstance(handoff, Mapping) or handoff.get("workflow") != "run_verification":
+        return None
+    inputs = handoff.get("inputs")
+    if not isinstance(inputs, Mapping):
+        return None
+    value = inputs.get("verification_id")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value
+
+
+def _verification_declaration_id(declaration: Any) -> str | None:
+    if hasattr(declaration, "to_json_dict"):
+        declaration = declaration.to_json_dict()
+    if not isinstance(declaration, Mapping):
+        return None
+    value = declaration.get("id")
+    if not isinstance(value, str) or not value.strip():
+        return None
+    return value
+
+
 def _reference_error(evidence_id: str) -> DiscoverError:
     return DiscoverError(
         code="DISCOVER_EVIDENCE_REFERENCE_INVALID",
@@ -223,6 +282,42 @@ def _halve_mapping_lists(
     result = dict(value)
     keys = [*preferred, *(key for key in sorted(result) if key not in preferred)]
     for key in keys:
+        item = result.get(key)
+        if isinstance(item, (list, tuple)) and len(item) > 1:
+            result[key] = list(item[: max(1, len(item) // 2)])
+            result[f"{key}_truncated"] = True
+            return result, True
+    return result, False
+
+
+def _halve_verification_lists(
+    value: Mapping[str, Any],
+    handoffs: Iterable[Any],
+) -> tuple[dict[str, Any], bool]:
+    result = dict(value)
+    declarations = result.get("declarations")
+    if isinstance(declarations, (list, tuple)) and len(declarations) > 1:
+        required_ids = _required_verification_ids(handoffs)
+        required_count = sum(
+            1
+            for declaration in declarations
+            if _verification_declaration_id(declaration) in required_ids
+        )
+        target = max(required_count, max(1, len(declarations) // 2))
+        optional_slots = target - required_count
+        retained: list[Any] = []
+        for declaration in declarations:
+            verification_id = _verification_declaration_id(declaration)
+            if verification_id in required_ids:
+                retained.append(declaration)
+            elif optional_slots > 0:
+                retained.append(declaration)
+                optional_slots -= 1
+        if len(retained) < len(declarations):
+            result["declarations"] = retained
+            result["declarations_truncated"] = True
+            return result, True
+    for key in ("diagnostics", "evidence_sources"):
         item = result.get(key)
         if isinstance(item, (list, tuple)) and len(item) > 1:
             result[key] = list(item[: max(1, len(item) // 2)])
@@ -264,6 +359,22 @@ def _summary_only(value: Mapping[str, Any]) -> dict[str, Any]:
     for key in ("language", "project_name", "status"):
         if key in value:
             result[key] = value[key]
+    return result
+
+
+def _verification_summary_only(
+    value: Mapping[str, Any],
+    handoffs: Iterable[Any],
+) -> dict[str, Any]:
+    result = _summary_only(value)
+    required_ids = _required_verification_ids(handoffs)
+    declarations = value.get("declarations")
+    if isinstance(declarations, (list, tuple)) and required_ids:
+        result["declarations"] = [
+            declaration
+            for declaration in declarations
+            if _verification_declaration_id(declaration) in required_ids
+        ]
     return result
 
 

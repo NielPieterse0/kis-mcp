@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "009-supabase-mcp-provider",
-  "status": "active",
+  "status": "closed",
   "branch": "change/009-supabase-mcp-provider",
   "worktree": ".work/worktrees/009-supabase-mcp-provider",
   "base": "main",

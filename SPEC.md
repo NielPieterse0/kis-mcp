@@ -74,7 +74,6 @@ local development environment
 ```
 
 ## ChatGPT remote transport
-
 The ChatGPT-facing private path uses the same `build_server()` gateway and tool catalogue as local stdio:
 
 ```text
@@ -93,11 +92,11 @@ operator-supervised tunnel-client
 kis-mcp FastMCP gateway -> Desktop Commander
 ```
 
-`settings.remote_mcp` defines exactly two local instances, `operation` and `development`, with separate ports, tunnel profiles, tunnel IDs, and control-plane scope identifiers. Selection is explicit through the launcher `-Instance` argument or the JSON `active_instance`; the runtime does not perform automatic failover.
+`settings.remote_mcp` defines exactly two local instances, `operation` and `development`, with separate ports, profile names, tunnel IDs, Windows Credential Manager target names, and explicit `configured` states. Selection is explicit through the launcher `-Instance` argument or the JSON `active_instance`; the runtime does not perform automatic failover.
 
 Both instances expose the same standard mixed-purpose Desktop Commander and gateway tools. Transport, instance name, profile, catalogue metadata, approval metadata, or risk labels do not reduce the backend tool surface or create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
 
-The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel credentials remain environment references, and generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
+The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel secrets are stored as per-user Generic Credentials in Windows Credential Manager. Checked-in JSON stores only a non-secret credential target name; setup and startup read the secret into a process-scoped environment variable used by the tunnel client and do not persist the value in repository files, generated profiles, or runtime state. Generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
 
 ## Desktop Commander integration
 
@@ -200,10 +199,10 @@ All project settings and policy declarations are JSON.
 - `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, and all file, directory, byte, depth, time, Git, Python-index, evidence, and output budgets.
 - `settings/providers/platform-runtime.provider.json` selects exactly the approved external provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
-- Each remote instance stores its port, profile name, `tunnel_id`, control-plane scope identifier, credential environment-variable name, and whether the external values are configured.
+- Each remote instance stores its port, profile name, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_credential_target` used to retrieve its per-user Generic Credential from Windows Credential Manager.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
 
-External IDs may remain blank only while an instance is explicitly marked unconfigured. Tunnel setup and launch fail closed until the operator supplies real IDs and changes that instance to configured. API keys, tunnel profile YAML, and generated runtime state are never committed.
+A remote instance may have a blank tunnel ID only while `configured` is `false`. Before profile setup or startup, the operator supplies the real tunnel ID, changes `configured` to `true`, and stores the secret once with `scripts\set-tunnel-credential.ps1`. Profile setup and startup fail closed when the instance is unconfigured or the named Windows credential is missing. API keys, credential values, tunnel profile YAML, and generated runtime state are never committed.
 
 Configuration and implementation-status fields do not disable otherwise permitted Desktop Commander tools or create another policy decision.
 
@@ -270,7 +269,7 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
-The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander Work adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, the bounded Discover foundation, the shared Skills catalogue with Work-backed create/improve operations, and provider runtime composition.
+The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander Work adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, Windows Credential Manager-backed tunnel credential retrieval, the bounded Discover foundation, the shared Skills catalogue with Work-backed create/improve operations, and provider runtime composition.
 
 `inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
 
@@ -278,4 +277,4 @@ The verified Skills merge established an additive Work/gateway/Discover/Skills c
 
 This slice does not commission GitHub or Supabase authentication. The GitHub official binary, interactive OAuth/device flow, authenticated private-repository read, Supabase hosted OAuth/DCR, token persistence, project-scoped read, upstream tool discovery, and main ChatGPT endpoint live verification remain dedicated follow-up work.
 
-The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. These implementation-status statements do not restrict normal tools beyond HR-001, HR-002, and HR-003.
+The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id`, stores the corresponding Windows Credential Manager secret for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. These implementation-status statements do not restrict normal tools beyond HR-001, HR-002, and HR-003.

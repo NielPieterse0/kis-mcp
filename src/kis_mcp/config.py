@@ -21,6 +21,11 @@ from .paths import (
 EXPECTED_RULE_IDS = ("HR-001", "HR-002", "HR-003")
 APPROVED_PROJECT_BOUNDARY = r"C:\Projects"
 APPROVED_STATE_ROOT = r"C:\Projects\.kis-mcp"
+SOURCE_CHECKOUT_REQUIRED_CODE = "KIS_MCP_SOURCE_CHECKOUT_REQUIRED"
+_REQUIRED_CONFIGURATION_PATHS = (
+    Path("settings/kis-mcp.settings.json"),
+    Path("policy/kis-mcp.policy.json"),
+)
 GENERATED_PATH_KEYS = (
     "state_root",
     "desktop_commander_root",
@@ -44,8 +49,7 @@ class RemoteMcpInstance:
     path: str
     profile_name: str
     tunnel_id: str
-    control_plane_scope_id: str
-    control_plane_api_key_env: str
+    tunnel_credential_target: str
     configured: bool
 
     @property
@@ -170,8 +174,7 @@ class RuntimeConfig:
             path=str(remote["path"]),
             profile_name=str(instance["profile_name"]),
             tunnel_id=str(instance.get("tunnel_id", "")),
-            control_plane_scope_id=str(instance.get("control_plane_scope_id", "")),
-            control_plane_api_key_env=str(instance["control_plane_api_key_env"]),
+            tunnel_credential_target=str(instance["tunnel_credential_target"]),
             configured=bool(instance.get("configured", False)),
         )
 
@@ -352,8 +355,8 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
 
     ports: set[int] = set()
     profiles: set[str] = set()
-    configured_tunnels: set[str] = set()
-    configured_scopes: set[str] = set()
+    tunnel_ids: set[str] = set()
+    credential_targets: set[str] = set()
     for name in ("operation", "development"):
         instance = _object(instances[name], f"settings.remote_mcp.instances.{name}")
         port = instance.get("port")
@@ -373,34 +376,55 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
             raise RuntimeError("remote MCP profile names must be distinct")
         profiles.add(profile)
 
-        key_env = _string(
-            instance.get("control_plane_api_key_env"),
-            f"settings.remote_mcp.instances.{name}.control_plane_api_key_env",
-        )
-        if re.fullmatch(r"[A-Z][A-Z0-9_]{2,63}", key_env) is None:
-            raise RuntimeError(f"remote MCP control-plane key environment is invalid: {name}")
-
         configured = instance.get("configured")
         if not isinstance(configured, bool):
-            raise RuntimeError(f"settings.remote_mcp.instances.{name}.configured must be boolean")
+            raise RuntimeError(
+                f"settings.remote_mcp.instances.{name}.configured must be boolean"
+            )
         tunnel_id = str(instance.get("tunnel_id", "")).strip()
-        scope_id = str(instance.get("control_plane_scope_id", "")).strip()
+        credential_target = _string(
+            instance.get("tunnel_credential_target"),
+            f"settings.remote_mcp.instances.{name}.tunnel_credential_target",
+        )
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{2,127}", credential_target) is None:
+            raise RuntimeError(f"remote MCP tunnel credential target is invalid: {name}")
+        if credential_target in credential_targets:
+            raise RuntimeError("remote MCP tunnel credential targets must be distinct")
+        credential_targets.add(credential_target)
+
         if not configured:
-            if tunnel_id or scope_id:
-                raise RuntimeError(f"unconfigured remote MCP instance {name} must have blank external IDs")
+            if tunnel_id:
+                raise RuntimeError(
+                    f"unconfigured remote MCP instance {name} must have a blank tunnel ID"
+                )
             continue
         if re.fullmatch(r"tunnel_[0-9a-f]{32}", tunnel_id) is None:
             raise RuntimeError(f"remote MCP tunnel ID is invalid: {name}")
-        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", scope_id) is None:
-            raise RuntimeError(f"remote MCP control-plane scope ID is invalid: {name}")
-        if tunnel_id in configured_tunnels or scope_id in configured_scopes:
-            raise RuntimeError("configured remote MCP external IDs must be distinct")
-        configured_tunnels.add(tunnel_id)
-        configured_scopes.add(scope_id)
+        if tunnel_id in tunnel_ids:
+            raise RuntimeError("configured remote MCP tunnel IDs must be distinct")
+        tunnel_ids.add(tunnel_id)
+
+
+def _require_source_checkout(repository_root: Path | None) -> Path:
+    root = (repository_root or Path(__file__).resolve().parents[2]).resolve()
+    missing = [
+        relative
+        for relative in _REQUIRED_CONFIGURATION_PATHS
+        if not (root / relative).is_file()
+    ]
+    if missing:
+        missing_paths = ", ".join(relative.as_posix() for relative in missing)
+        raise RuntimeError(
+            f"{SOURCE_CHECKOUT_REQUIRED_CODE}: kis-mcp is a supervised "
+            "source-checkout application. Run it from a checkout containing "
+            f"the canonical JSON configuration files; missing: {missing_paths}; "
+            f"resolved root: {root}"
+        )
+    return root
 
 
 def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
-    root = (repository_root or Path(__file__).resolve().parents[2]).resolve()
+    root = _require_source_checkout(repository_root)
     settings = _read_json(root / "settings" / "kis-mcp.settings.json")
     policy = _read_json(root / "policy" / "kis-mcp.policy.json")
 
