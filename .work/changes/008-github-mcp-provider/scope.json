@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "change_id": "008-github-mcp-provider",
+  "status": "active",
+  "branch": "change/008-github-mcp-provider",
+  "worktree": ".work/worktrees/008-github-mcp-provider",
+  "base": "main",
+  "outcome": "Integrate the official GitHub MCP server as an isolated provider with configuration, authentication indirection, approved private-repository scoping, readiness, read/write passthrough, tests, and no Discover changes",
+  "owned_paths": [
+    ".work/changes/008-github-mcp-provider/**",
+    "src/kis_mcp/providers/github/**",
+    "src/kis_mcp/provider_registry.py",
+    "settings/providers/github-mcp.provider.json",
+    "contracts/providers/github/**",
+    "tests/providers/github/**",
+    "scripts/install-github-mcp.ps1",
+    "scripts/smoke-github-mcp.ps1",
+    "docs/development/github-mcp-provider/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/discover/**",
+    "contracts/discover/**",
+    "tests/discover/**",
+    "src/kis_mcp/remote_runtime.py",
+    "scripts/tunnel-state.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/smoke-chatgpt.ps1",
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/config.py",
+    "src/kis_mcp/server.py"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
