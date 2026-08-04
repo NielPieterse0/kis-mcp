@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, review, and local verification are complete. Remote branch delivery and draft pull-request creation remain pending.
+Implementation, review, verification, and remote delivery are complete. Draft PR #15 is open and remains intentionally blocked from landing by the Skills-slice reconciliation and separate OAuth commissioning work.
 
 ## Requirement Evidence
 
