@@ -4,30 +4,56 @@ from pathlib import Path
 
 
 INSTALL = Path("scripts/install-github-mcp.ps1")
+AUTH = Path("scripts/auth-github-mcp.ps1")
 SMOKE = Path("scripts/smoke-github-mcp.ps1")
 
 
-def test_install_script_is_hash_verified_and_never_downloads() -> None:
+def test_install_script_downloads_only_the_pinned_immutable_release() -> None:
     source = INSTALL.read_text(encoding="utf-8")
 
     assert "Set-StrictMode -Version Latest" in source
-    assert "SourceBinary" in source
-    assert "ExpectedSha256" in source
+    assert "github-mcp.provider.json" in source
+    assert "api.github.com/repos/github/github-mcp-server/releases/tags" in source
+    assert "api.github.com/repos/github/github-mcp-server/git/ref/tags" in source
+    assert "immutable" in source
+    assert "source_revision" in source
+    assert "browser_download_url" in source
+    assert "digest" in source
+    assert "sha256:" in source
+    assert "Invoke-WebRequest" in source
     assert "Get-FileHash" in source
+    assert "Expand-Archive" in source
+    assert "github-mcp-server.exe" in source
     assert r"C:\Projects\.kis-mcp\github-mcp" in source
-    assert "Invoke-WebRequest" not in source
-    assert "curl" not in source.casefold()
-    assert "wget" not in source.casefold()
+    assert "backup.exe" in source
+    assert "Remove-Item" not in source
 
 
-def test_smoke_script_never_prints_token_and_supports_conditional_live_check() -> None:
+def test_auth_script_runs_interactive_oauth_without_printing_or_forwarding_pat() -> None:
+    source = AUTH.read_text(encoding="utf-8")
+
+    assert "Set-StrictMode -Version Latest" in source
+    assert "github-mcp.provider.json" in source
+    assert "pat_env" in source
+    assert "GITHUB_OAUTH_PAT_CONFLICT" in source
+    assert "kis_mcp.providers.github.commission" in source
+    assert "UV_PROJECT_ENVIRONMENT" in source
+    assert "PYTHONPATH" in source
+    assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
+    assert "GITHUB_PERSONAL_ACCESS_TOKEN=" not in source
+
+
+def test_smoke_script_supports_offline_tests_and_explicit_shared_runtime_live_check() -> None:
     source = SMOKE.read_text(encoding="utf-8")
 
     assert "Set-StrictMode -Version Latest" in source
     assert "RequireLive" in source
-    assert "GITHUB_PERSONAL_ACCESS_TOKEN" in source
-    assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
-    assert "scripts\\verify.ps1" not in source
+    assert "auth_mode" in source
+    assert "pat_env" in source
+    assert "GITHUB_OAUTH_PAT_CONFLICT" in source
     assert "tests/providers/github" in source
     assert "kis_mcp.providers.github.smoke" in source
+    assert "live_mounted" in source
+    assert "live_repository_scope" in source
+    assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
     assert "--help" not in source

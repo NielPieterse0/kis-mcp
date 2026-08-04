@@ -12,18 +12,20 @@ from kis_mcp.providers.github.settings import (
 )
 
 
-REVISION = "3778a41476e31a072430cfee7c5d31c5f72def60"
+REVISION = "ca8ab52dcc45b86fae190398178fd22edb7b1362"
 
 
 def _document() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "provider_id": "github-mcp",
         "authoritative_source": OFFICIAL_GITHUB_MCP_SOURCE,
+        "release_tag": "v1.8.0",
         "source_revision": REVISION,
         "transport": "stdio",
         "executable": r"C:\Projects\.kis-mcp\github-mcp\github-mcp-server.exe",
-        "token_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "auth_mode": "oauth",
+        "pat_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
         "toolsets": ["all"],
         "approved_repositories": ["NielPieterse0/kis-mcp"],
         "unscoped_tools": ["get_me"],
@@ -36,14 +38,18 @@ def _write(root: Path, document: dict[str, object]) -> None:
     path.write_text(json.dumps(document), encoding="utf-8")
 
 
-def test_loads_immutable_official_provider_settings(tmp_path: Path) -> None:
+def test_loads_pinned_official_oauth_provider_settings(tmp_path: Path) -> None:
     _write(tmp_path, _document())
 
     settings = load_github_provider_settings(tmp_path)
 
     assert isinstance(settings, GitHubProviderSettings)
+    assert settings.schema_version == 2
     assert settings.provider_id == "github-mcp"
+    assert settings.release_tag == "v1.8.0"
     assert settings.source_revision == REVISION
+    assert settings.auth_mode == "oauth"
+    assert settings.pat_env == "GITHUB_PERSONAL_ACCESS_TOKEN"
     assert settings.toolsets == ("all",)
     assert settings.approved_repositories == ("nielpieterse0/kis-mcp",)
     assert settings.launch_args() == ("stdio", "--toolsets=all")
@@ -60,11 +66,31 @@ def test_rejects_unknown_keys_and_secret_values(tmp_path: Path) -> None:
         load_github_provider_settings(tmp_path)
 
 
-def test_rejects_non_official_source_and_unpinned_revision(tmp_path: Path) -> None:
+def test_rejects_pat_mode_and_legacy_token_configuration(tmp_path: Path) -> None:
+    document = _document()
+    document["auth_mode"] = "pat"
+    _write(tmp_path, document)
+    with pytest.raises(RuntimeError, match="auth_mode must be oauth"):
+        load_github_provider_settings(tmp_path)
+
+    document = _document()
+    document["token_env"] = "GITHUB_PERSONAL_ACCESS_TOKEN"
+    _write(tmp_path, document)
+    with pytest.raises(RuntimeError, match="unknown keys"):
+        load_github_provider_settings(tmp_path)
+
+
+def test_rejects_non_official_source_unpinned_release_and_revision(tmp_path: Path) -> None:
     document = _document()
     document["authoritative_source"] = "https://example.com/fork"
     _write(tmp_path, document)
     with pytest.raises(RuntimeError, match="official GitHub MCP source"):
+        load_github_provider_settings(tmp_path)
+
+    document = _document()
+    document["release_tag"] = "latest"
+    _write(tmp_path, document)
+    with pytest.raises(RuntimeError, match="release_tag"):
         load_github_provider_settings(tmp_path)
 
     document = _document()

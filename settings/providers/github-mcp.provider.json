@@ -1,11 +1,13 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "provider_id": "github-mcp",
   "authoritative_source": "https://github.com/github/github-mcp-server",
-  "source_revision": "3778a41476e31a072430cfee7c5d31c5f72def60",
+  "release_tag": "v1.8.0",
+  "source_revision": "ca8ab52dcc45b86fae190398178fd22edb7b1362",
   "transport": "stdio",
   "executable": "C:\\Projects\\.kis-mcp\\github-mcp\\github-mcp-server.exe",
-  "token_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "auth_mode": "oauth",
+  "pat_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
   "toolsets": [
     "all"
   ],

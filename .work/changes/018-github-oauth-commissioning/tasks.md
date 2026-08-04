@@ -1,0 +1,25 @@
+# GitHub OAuth Commissioning Tasks
+
+- [x] Read repository authority and attached Slice B requirements.
+- [x] Establish isolated worktree `change/018-github-oauth-commissioning`.
+- [x] Record the initial governance conflict and register explicit Slice B scope.
+- [x] Pin official GitHub MCP Server `v1.8.0` and exact commit `ca8ab52dcc45b86fae190398178fd22edb7b1362`.
+- [x] Add failing configuration and schema tests.
+- [x] Implement OAuth-only provider settings.
+- [x] Add failing environment and readiness tests.
+- [x] Implement token-free stdio environment and truthful readiness.
+- [x] Add failing installer provenance tests.
+- [x] Implement immutable-release metadata validation, digest verification, extraction, quarantine, and recoverable replacement.
+- [x] Add failing commissioning tests.
+- [x] Implement interactive OAuth commissioning and auth launcher.
+- [x] Add failing shared-runtime live-smoke tests.
+- [x] Implement stateful upstream sessions and namespaced shared-runtime verification.
+- [x] Require explicit `GITHUB_REPOSITORY_SCOPE` evidence for containment proof.
+- [x] Close the stale merged `008-github-mcp-provider` governance claim.
+- [x] Update provider-specific operations and verification documentation.
+- [x] Review the complete diff and fix discovered lifecycle and trustworthiness defects.
+- [x] Install and hash-verify the official Windows release.
+- [x] Complete standalone browser OAuth commissioning.
+- [x] Complete shared-runtime live smoke through `github_*` tools.
+- [x] Run focused and full repository verification.
+- [x] Record closeout evidence and residual limitations.

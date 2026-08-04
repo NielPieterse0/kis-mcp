@@ -2,50 +2,39 @@
 
 ## Status
 
-This module integrates the official `github/github-mcp-server` as a separate, operator-supervised connector provider.
+The official `github/github-mcp-server` is integrated as an operator-supervised external connector and mounted into the shared `kis-mcp` runtime under the `github_*` namespace.
 
-Implemented and locally verified:
+Implemented and live verified:
 
-- strict JSON provider configuration;
-- pinned official source revision;
-- standalone stdio proxy endpoint;
-- all configured official toolsets, currently `all`;
-- environment-only token injection;
-- approved private-repository scope enforcement for reads and writes;
-- redacted health/readiness;
-- generic provider registration;
-- hash-verified operator installation;
-- focused static smoke testing.
+- pinned official immutable release `v1.8.0` at commit `ca8ab52dcc45b86fae190398178fd22edb7b1362`;
+- published release-asset SHA-256 verification and bounded Windows installation;
+- official built-in browser OAuth with no PAT forwarded by KIS;
+- stateful upstream stdio session for process-lifetime OAuth tokens;
+- approved private-repository read and write surface;
+- local repository-scope rejection for unapproved repositories;
+- shared-runtime mounting and namespaced tool exposure;
+- redacted installation, PAT-conflict, and unverified-authentication health states.
 
-Not yet live-verified:
-
-- launch of an installed official GitHub MCP executable;
-- authenticated calls to GitHub;
-- ChatGPT remote/tunnel composition.
-
-The provider is intentionally independent of Discover. Discover may later consume normalized GitHub evidence through a separate adapter.
+OAuth tokens remain in the official provider process. Restarting the provider normally requires another interactive authorization. No token, authorization code, client secret, or OAuth state is stored in repository JSON.
 
 ## Boundary
 
 ```text
-ChatGPT or future platform composition
+ChatGPT / shared kis-mcp runtime
+                |
+                +-- github_* namespace
+                +-- GitHubRepositoryScopeMiddleware
                 |
                 v
-python -m kis_mcp.providers.github
+stateful official GitHub MCP stdio process
                 |
-                +-- repository-scope middleware
-                +-- kis_github_health
-                |
-                v
-official github-mcp-server over stdio
+                +-- browser OAuth / device fallback
                 |
                 v
 approved GitHub repository
 ```
 
-This is an approved external connector boundary. It does not run through Desktop Commander or `ThreeRuleMiddleware`, and it does not change HR-001, HR-002, or HR-003.
-
-Repository scoping is connector authorization. It is not a fourth Work policy rule.
+This connector does not run through Desktop Commander Work networking and does not change HR-001, HR-002, or HR-003. Repository scope is connector authorization, not a fourth Work policy rule.
 
 ## Configuration
 
@@ -55,75 +44,80 @@ Canonical configuration:
 settings/providers/github-mcp.provider.json
 ```
 
-The current configuration pins:
+Pinned values:
 
 - source: `https://github.com/github/github-mcp-server`;
-- source revision: `3778a41476e31a072430cfee7c5d31c5f72def60`;
+- release: `v1.8.0`;
+- commit: `ca8ab52dcc45b86fae190398178fd22edb7b1362`;
 - executable: `C:\Projects\.kis-mcp\github-mcp\github-mcp-server.exe`;
-- token environment: `GITHUB_PERSONAL_ACCESS_TOKEN`;
+- authentication mode: `oauth`;
+- PAT conflict variable: `GITHUB_PERSONAL_ACCESS_TOKEN`;
 - toolsets: `all`;
 - approved repository: `NielPieterse0/kis-mcp`;
 - unscoped identity tool: `get_me`.
 
-The configuration must not contain a token, OAuth credential, private key, or GitHub App secret.
+`pat_env` identifies a conflicting environment override. KIS deliberately removes that variable from the provider process so the official OAuth flow cannot be silently replaced by PAT authentication. Live auth and smoke scripts fail with `GITHUB_OAUTH_PAT_CONFLICT` when it is set.
 
-## Authentication
+## Install
 
-Use a fine-grained personal access token or GitHub App installation token whose GitHub-side resource access is limited to `NielPieterse0/kis-mcp` and whose permissions match the required operations.
-
-Set the token only in the supervised process environment:
+Run the supervised bootstrap installer:
 
 ```powershell
-$env:GITHUB_PERSONAL_ACCESS_TOKEN = '<operator-supplied-token>'
-```
-
-The provider forwards only basic process environment variables and the configured token variable. Health output reports only whether the token is present.
-
-GitHub-side resource scoping remains required even with local middleware. Some official provider operations have no repository argument, so the token or App installation is the authoritative backstop against access to other repositories.
-
-## Install the official executable
-
-Acquire or build the official executable from the pinned upstream revision outside the normal Work path. Record its SHA-256, then install it without network access:
-
-```powershell
-pwsh -NoProfile -File .\scripts\install-github-mcp.ps1 `
-    -SourceBinary 'C:\Projects\staging\github-mcp-server.exe' `
-    -ExpectedSha256 '<64-character-sha256>'
+pwsh -NoProfile -File .\scripts\install-github-mcp.ps1
 ```
 
 The installer:
 
-- performs no download;
-- verifies the supplied executable before copying;
-- installs only beneath `C:\Projects\.kis-mcp\github-mcp`;
-- moves an existing executable to a timestamped recoverable backup;
-- verifies the installed copy again.
+1. loads the pinned release tag and commit from strict JSON;
+2. fetches the exact GitHub release and tag metadata;
+3. requires a stable immutable release;
+4. resolves annotated tags to the pinned commit;
+5. selects exactly one Windows x86-64 ZIP asset;
+6. requires and verifies the release asset's published `sha256:` digest;
+7. extracts exactly one `github-mcp-server.exe`;
+8. stages the binary under `C:\Projects\.kis-mcp\github-mcp`;
+9. moves an existing executable to a timestamped `.backup.exe` file before replacement;
+10. moves installation workspace artifacts into recoverable quarantine rather than permanently deleting them.
 
-The operator is responsible for establishing that the supplied executable came from the configured official source revision. SHA-256 verification proves consistency with the operator-approved artifact; it does not independently establish provenance.
+The installer reports release, commit, asset, published digest, archive hash, binary hash, destination, and backup path. It never prints credentials.
 
-## Start the standalone provider
+## Authenticate
 
-After installing the official executable and setting the token:
+Clear any PAT override, then run:
 
 ```powershell
-$env:UV_PROJECT_ENVIRONMENT = 'C:\Projects\.kis-mcp\python-env'
-$env:UV_CACHE_DIR = 'C:\Projects\.kis-mcp\uv-cache'
-uv run --offline --no-sync python -m kis_mcp.providers.github
+Remove-Item Env:GITHUB_PERSONAL_ACCESS_TOKEN -ErrorAction SilentlyContinue
+pwsh -NoProfile -File .\scripts\auth-github-mcp.ps1
 ```
 
-The wrapper launches the official provider as:
+The official provider opens GitHub authorization in the browser and can fall back to device authorization. The commissioning command then proves:
 
-```text
-github-mcp-server.exe stdio --toolsets=all
+- required `get_me`, `get_file_contents`, and `create_or_update_file` tools exist;
+- OAuth identity succeeds through `get_me`;
+- `README.md` can be read from `NielPieterse0/kis-mcp`;
+- `github/github-mcp-server` is rejected by local repository-scope middleware.
+
+No write mutation is performed by commissioning.
+
+## Shared-runtime smoke
+
+Offline provider tests and preflight:
+
+```powershell
+pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
 ```
 
-This endpoint is not yet mounted into the main Desktop Commander gateway or the concurrent ChatGPT remote-commissioning runtime.
+Authenticated shared-runtime verification:
 
-## Repository scope behavior
+```powershell
+pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1 -RequireLive
+```
 
-Calls are allowed only when all explicit repository targets normalize to an approved `owner/repo` identity.
+The live path builds the normal shared `kis-mcp` server, verifies `kis_provider_status` reports GitHub mounted, then exercises `github_get_me` and `github_get_file_contents` through the namespaced catalogue. It also proves local out-of-scope rejection.
 
-Supported identity shapes include:
+## Repository scope
+
+Explicit repository targets normalize to approved `owner/repo` identities. Supported forms include:
 
 ```text
 owner/repo
@@ -132,46 +126,13 @@ https://api.github.com/repos/owner/repo
 git@github.com:owner/repo.git
 ```
 
-Repository search calls require an explicit qualifier:
+Repository search requires an explicit approved `repo:` qualifier. Calls targeting another repository, unqualified searches, and unknown unscoped operations fail with `GITHUB_REPOSITORY_SCOPE`.
 
-```text
-repo:NielPieterse0/kis-mcp
-```
+The middleware does not remove official read or write tools. The same approved-repository boundary applies to both.
 
-Calls targeting another repository, unqualified repository searches, and unknown unscoped operations fail with `GITHUB_REPOSITORY_SCOPE`.
+## Recovery and upgrade
 
-The middleware does not remove official read or write tools from the catalogue. The same repository boundary applies to both.
-
-## Verify
-
-Static/focused verification:
-
-```powershell
-pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
-```
-
-Require the executable and token to be present and validate executable startup:
-
-```powershell
-pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1 -RequireLive
-```
-
-`-RequireLive` performs a bounded live MCP commissioning pass. It initializes the wrapper and official provider, verifies the pinned `get_me`, `get_file_contents`, and `create_or_update_file` surface, calls `kis_github_health`, authenticates with `get_me`, and reads `README.md` from the first approved repository. It reports booleans only and does not print repository content or perform a write mutation.
-
-Full repository verification remains:
-
-```powershell
-pwsh -NoProfile -File .\scripts\verify.ps1
-```
-
-## Upgrade
-
-1. Review the official upstream change.
-2. Update `source_revision` in the provider JSON.
-3. Build or acquire the official executable for that revision.
-4. Install it with the new operator-approved SHA-256.
-5. Run focused and full verification.
-6. Run live authenticated smoke tests against the approved private repository.
-7. Review tool schema changes and repository-target argument forms before claiming the upgrade ready.
-
-Do not use an unpinned branch or silently replace the executable during normal startup.
+- Roll back an installation by moving the timestamped `.backup.exe` to the configured executable path after preserving the current binary.
+- Installation workspaces are retained beneath `C:\Projects\.kis-mcp\quarantine\github-mcp-install`.
+- To upgrade, review the official release, update the exact tag and commit in both JSON and schema, rerun the installer, focused tests, full verification, OAuth commissioning, and shared-runtime smoke.
+- Do not use `latest`, an unpinned branch, a PAT fallback, or silent startup installation.
