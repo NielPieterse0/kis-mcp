@@ -253,7 +253,7 @@ Create a draft PR targeting `main` with implementation, verification, security b
 - Update: `tests/providers/supabase/test_supabase_server.py`
 - Update: provider documentation and change artifacts.
 
-- [x] **Step 1: Merge current `main` containing PR #9 into the adapter branch without rewriting history.**
+- [x] **Step 1: Merge current `main` containing the shared Provider foundation and integrated GitHub adapter into the branch without rewriting history.**
 - [x] **Step 2: Write failing tests for the canonical descriptor, provider-neutral readiness, explicit registration, and package exports.**
 - [x] **Step 3: Replace the private descriptor with shared Provider contracts and keep registration explicit and non-networked.**
 - [x] **Step 4: Confirm FastMCP bearer-token handling and current official Supabase endpoint, query parameters, and manual PAT authentication.**
