@@ -14,6 +14,7 @@ from kis_mcp.config import RuntimeConfig, load_runtime_config
 from kis_mcp.discover.contracts import InspectProjectRequest
 from kis_mcp.discover.errors import DiscoverError
 from kis_mcp.server import build_server
+from kis_mcp.skills import SKILLS_TOOL_NAMES
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -111,4 +112,5 @@ def test_build_server_adds_discover_without_changing_existing_local_tools() -> N
         "kis_list_quarantine",
         "kis_quarantine_path",
         "kis_restore_quarantine",
+        *SKILLS_TOOL_NAMES,
     }

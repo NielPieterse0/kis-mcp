@@ -35,6 +35,7 @@ from .providers.runtime_settings import (
 )
 from .providers.service import ProviderService
 from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
+from .skills import register_skills_tools
 
 
 def _ensure_state_directories(config: RuntimeConfig) -> None:
@@ -273,6 +274,7 @@ def build_server(
             quarantine_paths=quarantine_paths,
         )
     )
+    register_skills_tools(server)
     return server
 
 
