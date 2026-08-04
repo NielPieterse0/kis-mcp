@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "change_id": "007-chatgpt-remote-commissioning",
+  "status": "active",
+  "branch": "change/007-chatgpt-remote-commissioning",
+  "worktree": ".work/worktrees/007-chatgpt-remote-commissioning",
+  "base": "main",
+  "outcome": "Complete the supervised ChatGPT remote MCP commissioning path with streamable HTTP, settings-driven dual tunnel instances, lifecycle scripts, and local smoke-test evidence while preserving the three-rule Work boundary",
+  "owned_paths": [
+    ".work/changes/007-chatgpt-remote-commissioning/**",
+    "src/kis_mcp/remote_runtime.py",
+    "scripts/tunnel-state.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/smoke-chatgpt.ps1",
+    "tests/test_remote_runtime.py",
+    "tests/test_tunnel_scripts.py",
+    "docs/development/chatgpt-remote-commissioning/**"
+  ],
+  "shared_paths": [
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/config.py",
+    "tests/test_config.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md"
+  ],
+  "excluded_paths": [
+    "src/kis_mcp/discover/**",
+    "tests/discover/**",
+    "contracts/discover/**",
+    "policy/**",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/desktop_commander.py",
+    "src/kis_mcp/quarantine.py"
+  ],
+  "dependencies": [],
+  "integration_owner": "005-discover-foundation"
+}

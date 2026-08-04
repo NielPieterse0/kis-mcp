@@ -1,0 +1,22 @@
+# Tasks: ChatGPT Remote Commissioning
+
+- [x] Read repository authorities and current implementation.
+- [x] Inspect active worktrees and claims.
+- [x] Harvest the minimal SDK Tool tunnel pattern.
+- [x] Create and register isolated change `007-chatgpt-remote-commissioning`.
+- [x] Establish clean baseline verification.
+- [x] Add failing configuration/runtime tests and observe expected failures.
+- [x] Implement dual-instance settings validation and remote HTTP runtime.
+- [x] Add failing operational-script tests and observe expected failures.
+- [x] Implement tunnel state, setup, supervised launcher, and doctor validation.
+- [x] Implement full-surface local smoke with health, write, read, and quarantine.
+- [x] Verify both instances expose 29 tools with representative filesystem/edit/process tools.
+- [x] Confirm the necessarily network-only feedback tool remains absent.
+- [x] Update authoritative specification and operations documentation.
+- [x] Record exact local evidence and external tunnel limitation.
+- [x] Run authoritative verification: 158 passed, 1 skipped.
+- [x] Run both-instance write/read/quarantine smoke successfully.
+- [x] Run the governed current-change scope check successfully.
+- [x] Complete final diff, secret, and policy review.
+- [ ] Commit and push branch.
+- [ ] Open draft PR; do not merge.
