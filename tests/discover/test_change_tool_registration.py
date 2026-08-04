@@ -12,7 +12,7 @@ from fastmcp.exceptions import ToolError
 
 from kis_mcp.config import RuntimeConfig, load_runtime_config
 from kis_mcp.discover.change_inspection_contracts import InspectChangeRequest
-from kis_mcp.discover.change_tools import register_change_tools
+from kis_mcp.discover.tools import register_change_tools
 from kis_mcp.server import build_server
 
 

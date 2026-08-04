@@ -4,7 +4,7 @@
 
 **Goal:** Expose the merged working-tree change inspection service as one bounded read-only FastMCP tool.
 
-**Architecture:** Add a focused `change_tools.py` adapter with an injected service protocol and deterministic structural error payload. Compose the existing `ReadAuthority`, `GitReader`, and `InspectChangeService` in `build_server()`, register the binder on a dedicated Discover change subserver, and mount it additively without modifying the active `inspect_project` implementation or binder.
+**Architecture:** Extend the approved `discover/tools.py` adapter with a separate injected change-service protocol and deterministic structural error payload. Compose the existing `ReadAuthority`, `GitReader`, and `InspectChangeService` in `build_server()`, register the change binder on a dedicated Discover subserver, and mount it additively without changing `inspect_project` behavior.
 
 **Tech Stack:** Python 3.11+, FastMCP 3.4.4, immutable Discover contracts, pytest.
 
@@ -22,7 +22,7 @@
 ### Task 1: Public change-tool binder
 
 **Files:**
-- Create: `src/kis_mcp/discover/change_tools.py`
+- Modify: `src/kis_mcp/discover/tools.py`
 - Test: `tests/discover/test_change_tool_registration.py`
 
 **Interfaces:**
@@ -42,7 +42,7 @@ $env:PYTHONPATH = (Resolve-Path .\src)
 & C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m pytest tests\discover\test_change_tool_registration.py -q --no-header
 ```
 
-Expected: collection fails because `kis_mcp.discover.change_tools` does not exist.
+Expected: collection fails because `register_change_tools` is not yet exported from `kis_mcp.discover.tools`.
 
 - [ ] **Step 3: Implement the minimal binder.**
 

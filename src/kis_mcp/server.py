@@ -16,11 +16,10 @@ from fastmcp.server.providers.proxy import ProxyClient
 from .config import RuntimeConfig, load_runtime_config
 from .desktop_commander import DesktopCommanderEffectResolver
 from .discover.change_service import InspectChangeService
-from .discover.change_tools import register_change_tools
 from .discover.git_reader import GitReader
 from .discover.read_authority import ReadAuthority
 from .discover.service import InspectProjectService
-from .discover.tools import register_discover_tools
+from .discover.tools import register_change_tools, register_discover_tools
 from .middleware import ThreeRuleMiddleware
 from .models import (
     HealthResponse,

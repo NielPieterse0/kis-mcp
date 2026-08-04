@@ -10,7 +10,7 @@ Expose the merged internal working-tree `InspectChangeService` through one publi
 
 ## Design decision
 
-Use a dedicated `change_tools.py` binder rather than extending `discover/tools.py` or creating a combined Discover facade. The binder accepts an injected `InspectChangePort`; `build_server()` constructs the existing `GitReader`, `ReadAuthority`, and `InspectChangeService`, then registers the new tool additively.
+Extend the existing approved `discover/tools.py` FastMCP adapter with a separate `InspectChangePort` and `register_change_tools()` function. `build_server()` constructs the existing `GitReader`, `ReadAuthority`, and `InspectChangeService`, registers the change binder on a focused mounted subserver, and leaves the `inspect_project` binder behavior unchanged.
 
 ## Requirements
 
