@@ -90,6 +90,14 @@ def test_desktop_commander_is_not_vendored() -> None:
     assert not (REPOSITORY_ROOT / "DesktopCommanderMCP").exists()
 
 
+def test_provider_contract_capture_and_artifacts_are_repository_managed() -> None:
+    contract_root = REPOSITORY_ROOT / "contracts" / "desktop-commander"
+    assert (contract_root / "0.2.46.tools.json").is_file()
+    assert (contract_root / "0.2.46.schema.sha256").is_file()
+    assert (REPOSITORY_ROOT / "scripts" / "capture-provider-contract.py").is_file()
+    assert (REPOSITORY_ROOT / "scripts" / "capture-provider-contract.ps1").is_file()
+
+
 def test_no_predecessor_runtime_package_is_present() -> None:
     assert not (REPOSITORY_ROOT / "src" / "sdk_tool").exists()
     assert not (REPOSITORY_ROOT / "src" / "mcp_tool").exists()
