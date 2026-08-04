@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "change_id": "020-discover-change-inventory",
+  "status": "active",
+  "branch": "change/020-discover-change-inventory",
+  "worktree": ".work/worktrees/020-discover-change-inventory",
+  "base": "main",
+  "outcome": "Add the first bounded D2 Discover change-intelligence foundation by returning deterministic local staged, unstaged, untracked, rename, copy, delete, type-change, and conflict inventory through the hardened local Git reader without public tool registration",
+  "owned_paths": [
+    ".work/changes/020-discover-change-inventory/**",
+    "src/kis_mcp/discover/change_contracts.py",
+    "src/kis_mcp/discover/git_reader.py",
+    "tests/discover/test_local_change_inventory.py",
+    "contracts/discover/local-change-inventory.schema.json"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/discover/contracts.py",
+    "src/kis_mcp/discover/service.py",
+    "src/kis_mcp/discover/scanner.py",
+    "src/kis_mcp/discover/python_index.py",
+    "src/kis_mcp/discover/budgeting.py",
+    "src/kis_mcp/discover/git_metadata.py",
+    "src/kis_mcp/discover/tools.py",
+    "src/kis_mcp/server.py",
+    "settings/**",
+    "policy/**",
+    "src/kis_mcp/providers/**",
+    "src/kis_mcp/skills/**",
+    "tests/providers/**",
+    "tests/skills/**"
+  ],
+  "dependencies": [
+    "015-p1-boundary-hardening"
+  ],
+  "integration_owner": "020-discover-change-inventory"
+}
