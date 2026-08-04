@@ -19,7 +19,11 @@ from ..contracts import (
     ProviderState,
 )
 from ..registry import ProviderRegistry
-from .config import SupabaseProviderConfig, load_supabase_provider_config
+from .config import (
+    SupabaseProviderConfig,
+    SupabaseProviderConfigError,
+    load_supabase_provider_config,
+)
 from .runtime import (
     build_upstream_url,
     provider_readiness as provider_specific_readiness,
@@ -117,10 +121,14 @@ def build_provider_descriptor(
 def register_provider(
     registry: ProviderRegistry,
     config: SupabaseProviderConfig | None = None,
-) -> ProviderDescriptor:
-    """Explicitly build and register the Supabase adapter descriptor."""
+) -> ProviderDescriptor | None:
+    """Register Supabase when configuration is valid; otherwise leave it absent."""
 
-    return registry.register(build_provider_descriptor(config))
+    try:
+        descriptor = build_provider_descriptor(config)
+    except SupabaseProviderConfigError:
+        return None
+    return registry.register(descriptor)
 
 
 def _argument_parser() -> argparse.ArgumentParser:

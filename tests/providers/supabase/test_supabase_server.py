@@ -131,9 +131,24 @@ def test_register_provider_explicitly_builds_descriptor_for_registry() -> None:
 
     descriptor = server_module.register_provider(registry, CONFIG)
 
+    assert descriptor is not None
     assert registry.get("supabase") is descriptor
     assert descriptor.authoritative_source == CONFIG.source_repository
     assert descriptor.source_revision == CONFIG.source_revision
+
+
+def test_register_provider_contains_invalid_configuration(monkeypatch) -> None:
+    registry = ProviderRegistry()
+
+    def fail_load():
+        raise config_module.SupabaseProviderConfigError("invalid provider config")
+
+    monkeypatch.setattr(server_module, "load_supabase_provider_config", fail_load)
+
+    descriptor = server_module.register_provider(registry)
+
+    assert descriptor is None
+    assert registry.contains("supabase") is False
 
 
 def test_package_exposes_shared_provider_registration_surface() -> None:
