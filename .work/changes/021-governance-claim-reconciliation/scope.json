@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "021-governance-claim-reconciliation",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/021-governance-claim-reconciliation",
   "worktree": ".work/worktrees/021-governance-claim-reconciliation",
   "base": "origin/main",
