@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete and verified. Operator browser commissioning remains pending because `SUPABASE_PROJECT_REF` is not present in the current process environment.
+Implementation complete and verified. Pull request #23 is open and cleanly mergeable. Operator browser commissioning remains pending because `SUPABASE_PROJECT_REF` is not present in the current process environment.
 
 ## Outcome
 

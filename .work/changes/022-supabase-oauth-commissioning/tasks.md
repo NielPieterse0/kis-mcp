@@ -20,4 +20,4 @@
 - [x] Review the complete diff and remove temporary PAT-runtime compatibility.
 - [x] Pass focused tests, scope validation, strict JSON validation, whitespace validation, preflight, and full repository verification.
 - [ ] Complete operator browser authorization and live project-scoped/shared-runtime evidence after `SUPABASE_PROJECT_REF` is supplied.
-- [ ] Commit, push, and open a pull request without merging.
+- [x] Commit, push, and open pull request #23 without merging.
