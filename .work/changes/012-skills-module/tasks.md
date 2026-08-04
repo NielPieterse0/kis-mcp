@@ -6,13 +6,17 @@
 - [x] Inspect Work tool Skills capability and Desktop Commander contracts as donor evidence.
 - [x] Create isolated worktree from clean `origin/main` without touching dirty primary state.
 - [x] Register manual emergency change artifacts before production edits.
-- [ ] Validate change registration.
-- [ ] Implement and verify configuration and public contracts using TDD.
-- [ ] Implement and verify deterministic catalogue using TDD.
-- [ ] Implement and verify Work backend and mutation service using TDD.
-- [ ] Implement and verify public FastMCP tool registration using TDD.
-- [ ] Update authority and module documentation.
-- [ ] Run modularity assessment and address findings.
-- [ ] Run change-scope check, focused tests, full verification, and whitespace check.
-- [ ] Review final diff and record closeout.
-- [ ] Commit, push, and open a draft PR.
+- [x] Validate the current-slice claim and document the repository-wide recursive validator defect.
+- [x] Implement and verify configuration and public contracts using TDD.
+- [x] Implement and verify deterministic catalogue using TDD.
+- [x] Implement and verify Work backend and mutation service using TDD.
+- [x] Implement and verify public FastMCP tool registration using TDD.
+- [x] Make Skills initialization fail-open for the wider Work/gateway server.
+- [x] Update authority and module documentation.
+- [x] Run modularity assessment and extract frontmatter/source responsibilities.
+- [x] Integrate `origin/main` at PR #13 merge commit `0915bfa`.
+- [x] Close the stale merged change-005 claim required for additive integration.
+- [x] Update the shared Discover tool-registration test for the additive Skills surface.
+- [x] Run change-scope check, 30 focused Skills tests, live 39-tool smoke, full verification, and whitespace check.
+- [x] Review final diff and record closeout.
+- [ ] Push the branch and open the draft pull request.
