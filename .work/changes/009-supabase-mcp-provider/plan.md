@@ -32,7 +32,7 @@
 - Produces: `SupabaseProviderConfig`, `SupabaseProviderConfigError`, `load_supabase_provider_config(repository_root: Path | None = None) -> SupabaseProviderConfig`.
 - Configuration properties: `provider_id`, `server_name`, `source_repository`, `source_revision`, `base_url`, `project_ref_env`, `access_token_env`, `read_only`, `features`, `verify_tls`, `downstream_transport`.
 
-- [ ] **Step 1: Write failing strict-loader tests**
+- [x] **Step 1: Write failing strict-loader tests**
 
 ```python
 def test_loads_checked_in_provider_configuration() -> None:
@@ -48,12 +48,12 @@ def test_rejects_unknown_root_key(tmp_path: Path) -> None:
         load_supabase_provider_config(tmp_path)
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run: `python -m pytest tests/providers/supabase/test_supabase_config.py -q`
 Expected: collection/import failure because the module does not exist.
 
-- [ ] **Step 3: Add the checked-in JSON, JSON Schema, immutable dataclass, and exact-key validation**
+- [x] **Step 3: Add the checked-in JSON, JSON Schema, immutable dataclass, and exact-key validation**
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -73,7 +73,7 @@ class SupabaseProviderConfig:
 
 Validation must reject embedded credential keys/values, invalid environment-variable names, arbitrary external hosts, duplicate features, wrong types, and unknown keys.
 
-- [ ] **Step 4: Run focused tests and confirm GREEN**
+- [x] **Step 4: Run focused tests and confirm GREEN**
 
 Run: `python -m pytest tests/providers/supabase/test_supabase_config.py -q`
 Expected: all tests pass.
@@ -82,13 +82,13 @@ Expected: all tests pass.
 
 **Files:**
 - Create: `src/kis_mcp/providers/supabase/runtime.py`
-- Create: `tests/providers/supabase/test_runtime.py`
+- Create: `tests/providers/supabase/test_supabase_runtime.py`
 
 **Interfaces:**
 - Consumes: `SupabaseProviderConfig`.
 - Produces: `SupabaseProviderReadiness`, `build_upstream_url(config, environment) -> str`, `provider_readiness(config, environment) -> SupabaseProviderReadiness`, `require_runtime_credentials(config, environment) -> tuple[str, str]`.
 
-- [ ] **Step 1: Write failing URL and redaction tests**
+- [x] **Step 1: Write failing URL and redaction tests**
 
 ```python
 def test_default_url_is_project_scoped_read_write() -> None:
@@ -105,12 +105,12 @@ def test_readiness_does_not_expose_runtime_values() -> None:
     assert "test-project" not in rendered
 ```
 
-- [ ] **Step 2: Run focused tests and confirm RED**
+- [x] **Step 2: Run focused tests and confirm RED**
 
-Run: `python -m pytest tests/providers/supabase/test_runtime.py -q`
+Run: `python -m pytest tests/providers/supabase/test_supabase_runtime.py -q`
 Expected: import failure because runtime helpers do not exist.
 
-- [ ] **Step 3: Implement URL encoding, credential checks, and redacted readiness**
+- [x] **Step 3: Implement URL encoding, credential checks, and redacted readiness**
 
 ```python
 def build_upstream_url(config: SupabaseProviderConfig, environment: Mapping[str, str]) -> str:
@@ -125,9 +125,9 @@ def build_upstream_url(config: SupabaseProviderConfig, environment: Mapping[str,
 
 Readiness must contain booleans for token/project-ref presence, never their values.
 
-- [ ] **Step 4: Run focused tests and confirm GREEN**
+- [x] **Step 4: Run focused tests and confirm GREEN**
 
-Run: `python -m pytest tests/providers/supabase/test_runtime.py -q`
+Run: `python -m pytest tests/providers/supabase/test_supabase_runtime.py -q`
 Expected: all tests pass.
 
 ### Task 3: FastMCP proxy and standalone CLI
@@ -135,14 +135,14 @@ Expected: all tests pass.
 **Files:**
 - Create: `src/kis_mcp/providers/supabase/server.py`
 - Create: `src/kis_mcp/providers/supabase/__main__.py`
-- Create: `tests/providers/supabase/test_server.py`
-- Create: `tests/providers/supabase/test_cli.py`
+- Create: `tests/providers/supabase/test_supabase_server.py`
+- Create: `tests/providers/supabase/test_supabase_cli.py`
 
 **Interfaces:**
 - Consumes: config and runtime helpers.
 - Produces: `build_transport(config, environment) -> StreamableHttpTransport`, `build_server(config=None, environment=None) -> FastMCP`, `main(argv: Sequence[str] | None = None) -> int`.
 
-- [ ] **Step 1: Write failing transport, server, and CLI tests**
+- [x] **Step 1: Write failing transport, server, and CLI tests**
 
 ```python
 def test_transport_uses_bearer_auth_without_exposing_token(monkeypatch) -> None:
@@ -159,12 +159,12 @@ def test_check_mode_is_non_network_and_redacted(capsys) -> None:
     assert "access_token" not in output
 ```
 
-- [ ] **Step 2: Run focused tests and confirm RED**
+- [x] **Step 2: Run focused tests and confirm RED**
 
-Run: `python -m pytest tests/providers/supabase/test_server.py tests/providers/supabase/test_cli.py -q`
+Run: `python -m pytest tests/providers/supabase/test_supabase_server.py tests/providers/supabase/test_supabase_cli.py -q`
 Expected: import failure because server/CLI modules do not exist.
 
-- [ ] **Step 3: Implement transport, proxy, health tool, and CLI**
+- [x] **Step 3: Implement transport, proxy, health tool, and CLI**
 
 ```python
 transport = StreamableHttpTransport(
@@ -177,9 +177,9 @@ server = create_proxy(ProxyClient(transport), name=config.server_name)
 
 Register `kis_supabase_health` on the proxy. `--check` loads config and prints readiness JSON without constructing a transport. Normal mode requires credentials and runs the configured stdio transport.
 
-- [ ] **Step 4: Run focused tests and confirm GREEN**
+- [x] **Step 4: Run focused tests and confirm GREEN**
 
-Run: `python -m pytest tests/providers/supabase/test_server.py tests/providers/supabase/test_cli.py -q`
+Run: `python -m pytest tests/providers/supabase/test_supabase_server.py tests/providers/supabase/test_supabase_cli.py -q`
 Expected: all tests pass without external network access.
 
 ### Task 4: Smoke workflow, documentation, scope review, and complete verification
@@ -187,14 +187,14 @@ Expected: all tests pass without external network access.
 **Files:**
 - Create: `scripts/smoke-supabase-mcp.ps1`
 - Create: `docs/development/supabase-mcp-provider/README.md`
-- Create: `tests/providers/supabase/test_artifacts.py`
+- Create: `tests/providers/supabase/test_supabase_artifacts.py`
 - Update: `.work/changes/009-supabase-mcp-provider/tasks.md`
 - Update: `.work/changes/009-supabase-mcp-provider/closeout.md`
 
 **Interfaces:**
-- Smoke script invokes the exact project interpreter with `-m kis_mcp.providers.supabase --check` and optionally performs a live tool listing only behind `-Live`.
+- Smoke script invokes the exact project interpreter with `-m kis_mcp.providers.supabase --check`. Live authentication and tool listing are explicitly deferred until operator credentials are supplied.
 
-- [ ] **Step 1: Write failing artifact and boundary tests**
+- [x] **Step 1: Write failing artifact and boundary tests**
 
 ```python
 def test_smoke_script_uses_exact_project_interpreter() -> None:
@@ -207,21 +207,21 @@ def test_slice_does_not_modify_excluded_paths() -> None:
     assert excluded_paths_are_unchanged()
 ```
 
-- [ ] **Step 2: Run focused tests and confirm RED**
+- [x] **Step 2: Run focused tests and confirm RED**
 
-Run: `python -m pytest tests/providers/supabase/test_artifacts.py -q`
+Run: `python -m pytest tests/providers/supabase/test_supabase_artifacts.py -q`
 Expected: failure because smoke/documentation artifacts do not exist.
 
-- [ ] **Step 3: Implement smoke script and concise operator documentation**
+- [x] **Step 3: Implement smoke script and concise operator documentation**
 
-Document environment variables, development/test-only use, project scoping, read/write default, `--check`, optional live smoke, credential rotation, and removal/recovery.
+Document environment variables, development/test-only use, project scoping, read/write default, non-network `--check`, deferred live verification, credential rotation, and removal/recovery.
 
-- [ ] **Step 4: Run focused provider tests**
+- [x] **Step 4: Run focused provider tests**
 
 Run: `python -m pytest tests/providers/supabase -q`
 Expected: all provider tests pass.
 
-- [ ] **Step 5: Run repository scope and full verification**
+- [x] **Step 5: Run repository scope and full verification**
 
 Run: `pwsh -File scripts/change-workflow.ps1 check`
 Expected: either pass or only the pre-existing global duplicate-claim scanner defect, recorded exactly.
@@ -229,11 +229,11 @@ Expected: either pass or only the pre-existing global duplicate-claim scanner de
 Run: `pwsh -File scripts/verify.ps1`
 Expected: exit code 0 and complete test suite pass.
 
-- [ ] **Step 6: Review final diff against all requirements**
+- [x] **Step 6: Review final diff against all requirements**
 
 Confirm every changed path is owned, no credential values exist, no excluded path changed, no custom tool allowlist exists, and all requirements map to tests or documentation.
 
-- [ ] **Step 7: Commit and push the branch**
+- [x] **Step 7: Commit and push the branch**
 
 ```powershell
 git add .work/changes/009-supabase-mcp-provider src/kis_mcp/providers/supabase settings/providers/supabase-mcp.provider.json contracts/providers/supabase tests/providers/supabase scripts/smoke-supabase-mcp.ps1 docs/development/supabase-mcp-provider
@@ -241,6 +241,6 @@ git commit -m "feat: add Supabase MCP provider"
 git push -u origin change/009-supabase-mcp-provider
 ```
 
-- [ ] **Step 8: Create a draft pull request without merging**
+- [x] **Step 8: Create a draft pull request without merging**
 
 Create a draft PR targeting `main` with implementation, verification, known governance limitation, security boundary, and deferred registry integration clearly stated.
