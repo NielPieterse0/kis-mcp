@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "011-provider-composition",
-  "status": "active",
+  "status": "closed",
   "branch": "change/011-provider-composition",
   "worktree": ".work/worktrees/011-provider-composition",
   "base": "f9e0c16fbe2789a63b2f5e158f2fe8ee22fc96f2",
