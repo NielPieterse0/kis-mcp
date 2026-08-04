@@ -64,4 +64,4 @@
 - [x] Run the script and preserve its exact outcome.
 - [x] Run normal repository verification and change-governance checks.
 - [x] Review the diff for excluded-path or production changes.
-- [ ] Commit the branch; do not merge.
+- [x] Commit the branch and open draft PR `#3`; do not merge.

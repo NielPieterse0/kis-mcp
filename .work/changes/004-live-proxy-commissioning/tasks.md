@@ -8,7 +8,7 @@
 - [x] Add the locked PowerShell commissioning entry point.
 - [x] Add provider-state integrity detection and automatic snapshot restoration.
 - [x] Run final change check, repository verification, diff review, and closeout.
-- [ ] Commit and raise an unmerged draft pull request.
+- [x] Commit and raise an unmerged draft pull request.
 
 ## Blocking result
 

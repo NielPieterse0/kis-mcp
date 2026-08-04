@@ -14,7 +14,7 @@ Prove the installed Desktop Commander `0.2.46` and the real `kis-mcp` stdio gate
 - Owned paths: commissioning change artifacts, commissioning documentation, one PowerShell entry point, one integration test, and one test-support module.
 - Shared paths: none.
 - Excluded paths: all `src/kis_mcp/**`, runtime settings, `docs/OPERATIONS.md`, and files claimed by changes `002` and `003`.
-- Dependencies: merge after `002-modularity-contracts` and `003-quarantine-integrity`; dependency metadata cannot be registered because `002` predates the active claim registry.
+- Dependencies: changes `002-modularity-contracts` and `003-quarantine-integrity` are integrated into the current `origin/main` baseline; no branch dependency remains.
 - Integration owner: none.
 
 ## Requirements
@@ -38,16 +38,16 @@ Prove the installed Desktop Commander `0.2.46` and the real `kis-mcp` stdio gate
 
 ## Commissioning result
 
-The functional proxy stages pass: live provider startup and surface import, hidden feedback and URL mode, local read, in-boundary write, HR-001 rejection, gateway quarantine and restoration, and local process execution.
+The functional proxy stages pass on the integrated `origin/main` baseline: live provider startup and surface import, hidden feedback and URL mode, local read, in-boundary write, HR-001 rejection, gateway quarantine and restoration, and local process execution.
 
-The slice is not commissioned because the provider shutdown path repeatedly leaves `C:\Projects\.kis-mcp\.claude-server-commander\config.json` empty. The harness now detects this as `PROVIDER_STATE_INTEGRITY`, atomically restores the pre-run valid snapshot, and exits nonzero. Production remediation is deferred to a non-overlapping follow-up after the active provider and server changes are integrated.
+The slice is not commissioned because the provider shutdown path repeatedly leaves `C:\Projects\.kis-mcp\.claude-server-commander\config.json` empty. The harness detects this as `PROVIDER_STATE_INTEGRITY`, atomically restores the pre-run valid snapshot, and exits nonzero. Production lifecycle remediation is deferred to a dedicated follow-up because this commissioning-only slice excludes production gateway changes.
 
 ## Risks and recovery
 
 - Risk: nested stdio startup may expose provider or FastMCP compatibility defects.
 - Recovery: the branch changes only tests, scripts, and documentation; discard or revert the branch. Temporary files remain inside the approved state root and quarantined content is restored during the test.
-- Risk: legacy active worktree `002` has no governance claim and overlaps `003` in `server.py`.
-- Recovery: keep this branch outside all production paths and block merge until those changes are integrated and this branch is rebased and reverified.
+- Risk: the provider lifecycle defect requires a production change outside this slice.
+- Recovery: keep draft PR `#3` unmerged until a dedicated remediation is integrated and the live commissioning script exits successfully without restoring provider state.
 
 ## Out of scope
 
