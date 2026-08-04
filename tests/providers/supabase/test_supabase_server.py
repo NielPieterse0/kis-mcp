@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from mcp.shared.auth import OAuthClientInformationFull
 
 import kis_mcp.providers.supabase as supabase_module
 import kis_mcp.providers.supabase.config as config_module
@@ -14,34 +19,145 @@ from kis_mcp.providers import (
     ProviderState,
 )
 from kis_mcp.providers.supabase.config import load_supabase_provider_config
+from kis_mcp.providers.supabase.runtime import (
+    SupabaseProviderRuntimeError,
+    provider_readiness,
+)
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CONFIG = load_supabase_provider_config(REPOSITORY_ROOT)
-ENVIRONMENT = {
-    "SUPABASE_PROJECT_REF": "test-project",
-    "SUPABASE_ACCESS_TOKEN": "test-token",
-}
+ENVIRONMENT = {"SUPABASE_PROJECT_REF": "test-project"}
 
 
-def test_transport_uses_project_scope_bearer_auth_and_tls(monkeypatch) -> None:
-    captured: dict[str, object] = {}
-    sentinel = object()
+def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> None:
+    captured_oauth: dict[str, object] = {}
+    captured_transport: dict[str, object] = {}
+    storage = object()
+    oauth = object()
+    transport = object()
+
+    monkeypatch.setattr(
+        server_module,
+        "build_oauth_token_storage",
+        lambda config: storage,
+    )
+
+    def fake_oauth(**kwargs: object) -> object:
+        captured_oauth.update(kwargs)
+        return oauth
 
     def fake_transport(**kwargs: object) -> object:
-        captured.update(kwargs)
-        return sentinel
+        captured_transport.update(kwargs)
+        return transport
 
+    monkeypatch.setattr(server_module, "SupabaseOAuth", fake_oauth)
     monkeypatch.setattr(server_module, "StreamableHttpTransport", fake_transport)
 
-    transport = server_module.build_transport(CONFIG, ENVIRONMENT)
+    result = server_module.build_transport(CONFIG, ENVIRONMENT)
 
-    assert transport is sentinel
-    assert captured == {
+    assert result is transport
+    assert captured_oauth == {
+        "mcp_url": "https://mcp.supabase.com/mcp?project_ref=test-project",
+        "client_name": "kis-mcp Supabase",
+        "token_storage": storage,
+        "additional_client_metadata": {
+            "token_endpoint_auth_method": "client_secret_post"
+        },
+        "callback_host": "localhost",
+        "callback_timeout": 300.0,
+    }
+    assert captured_transport == {
         "url": "https://mcp.supabase.com/mcp?project_ref=test-project",
-        "auth": "test-token",
+        "auth": oauth,
         "verify": True,
     }
+
+
+def test_supabase_oauth_normalizes_secret_bearing_dcr_client(monkeypatch) -> None:
+    stored_client_info: list[OAuthClientInformationFull] = []
+    observed: dict[str, object] = {}
+    response = object()
+
+    class FakeStorage:
+        async def set_client_info(
+            self,
+            client_info: OAuthClientInformationFull,
+        ) -> None:
+            stored_client_info.append(client_info)
+
+    async def fake_exchange(
+        self,
+        auth_code: str,
+        code_verifier: str,
+        *,
+        token_data=None,
+    ) -> object:
+        observed["auth_method"] = (
+            self.context.client_info.token_endpoint_auth_method
+        )
+        observed["auth_code"] = auth_code
+        observed["code_verifier"] = code_verifier
+        observed["token_data"] = token_data
+        return response
+
+    monkeypatch.setattr(
+        server_module.OAuth,
+        "_exchange_token_authorization_code",
+        fake_exchange,
+    )
+    oauth = object.__new__(server_module.SupabaseOAuth)
+    oauth.context = SimpleNamespace(
+        client_info=OAuthClientInformationFull(
+            client_id="client-id",
+            client_secret="client-secret",
+            redirect_uris=["http://localhost/callback"],
+            token_endpoint_auth_method=None,
+        ),
+        storage=FakeStorage(),
+    )
+
+    result = asyncio.run(
+        oauth._exchange_token_authorization_code(
+            "authorization-code",
+            "code-verifier",
+            token_data={"resource": "project"},
+        )
+    )
+
+    assert result is response
+    assert observed == {
+        "auth_method": "client_secret_post",
+        "auth_code": "authorization-code",
+        "code_verifier": "code-verifier",
+        "token_data": {"resource": "project"},
+    }
+    assert len(stored_client_info) == 1
+    assert stored_client_info[0].client_secret == "client-secret"
+    assert (
+        stored_client_info[0].token_endpoint_auth_method
+        == "client_secret_post"
+    )
+
+
+def test_transport_rejects_legacy_pat_conflict_before_oauth(monkeypatch) -> None:
+    monkeypatch.setattr(
+        server_module,
+        "StreamableHttpTransport",
+        lambda **kwargs: pytest.fail("transport must not be built"),
+    )
+
+    with pytest.raises(
+        SupabaseProviderRuntimeError,
+        match="SUPABASE_LEGACY_PAT_CONFLICT",
+    ):
+        server_module.build_transport(
+            CONFIG,
+            {
+                "SUPABASE_PROJECT_REF": "test-project",
+                "SUPABASE_ACCESS_TOKEN": "forbidden-test-token",
+            },
+        )
 
 
 def test_server_builds_proxy_and_registers_redacted_health(monkeypatch) -> None:
@@ -66,6 +182,15 @@ def test_server_builds_proxy_and_registers_redacted_health(monkeypatch) -> None:
         "build_transport",
         lambda config, environment: upstream_transport,
     )
+    monkeypatch.setattr(
+        server_module,
+        "provider_specific_readiness",
+        lambda config, environment: provider_readiness(
+            config,
+            environment,
+            keyring_available=True,
+        ),
+    )
 
     def fake_proxy_client(transport: object) -> object:
         assert transport is upstream_transport
@@ -86,7 +211,8 @@ def test_server_builds_proxy_and_registers_redacted_health(monkeypatch) -> None:
     payload = health()
     assert payload["ready"] is True
     assert payload["project_scoped"] is True
-    assert "test-token" not in str(payload)
+    assert payload["authentication_mode"] == "oauth-dcr"
+    assert payload["token_storage"] == "windows-keyring"
     assert "test-project" not in str(payload)
 
 
@@ -112,17 +238,27 @@ def test_provider_descriptor_uses_shared_provider_contract() -> None:
     assert descriptor.readiness_probe is server_module.provider_health
 
 
-def test_provider_health_maps_redacted_local_readiness_to_shared_contract() -> None:
+def test_provider_health_maps_oauth_preflight_to_shared_contract(monkeypatch) -> None:
+    monkeypatch.setattr(
+        server_module,
+        "provider_specific_readiness",
+        lambda config, environment: provider_readiness(
+            config,
+            environment,
+            keyring_available=True,
+        ),
+    )
+
     missing = server_module.provider_health(CONFIG, {})
     ready = server_module.provider_health(CONFIG, ENVIRONMENT)
 
     assert missing.state is ProviderState.DEGRADED
     assert missing.ready is False
     assert missing.details["project_ref_present"] is False
-    assert missing.details["access_token_present"] is False
+    assert missing.details["authentication_mode"] == "oauth-dcr"
     assert ready.state is ProviderState.READY
     assert ready.ready is True
-    assert "test-token" not in str(ready.to_json_dict())
+    assert ready.details["token_storage"] == "windows-keyring"
     assert "test-project" not in str(ready.to_json_dict())
 
 

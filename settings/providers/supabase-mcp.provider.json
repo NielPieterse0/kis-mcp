@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "provider": {
     "id": "supabase",
     "server_name": "kis-mcp-supabase"
@@ -13,10 +13,18 @@
     "transport": "streamable-http",
     "base_url": "https://mcp.supabase.com/mcp",
     "project_ref_env": "SUPABASE_PROJECT_REF",
-    "access_token_env": "SUPABASE_ACCESS_TOKEN",
     "read_only": false,
     "features": [],
     "verify_tls": true
+  },
+  "authentication": {
+    "mode": "oauth-dcr",
+    "client_name": "kis-mcp Supabase",
+    "token_storage": "windows-keyring",
+    "keyring_service": "kis-mcp/supabase",
+    "legacy_pat_env": "SUPABASE_ACCESS_TOKEN",
+    "callback_host": "localhost",
+    "callback_timeout_seconds": 300
   },
   "downstream": {
     "transport": "stdio"
