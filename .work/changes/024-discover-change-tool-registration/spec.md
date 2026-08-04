@@ -27,12 +27,12 @@ Extend the existing approved `discover/tools.py` FastMCP adapter with a separate
 
 - Test-first binder tests prove exact tool registration, annotations, request delegation, exact response passthrough, and structural error normalization.
 - Server composition tests prove `inspect_change` appears additively beside the existing local tools.
-- Scope validation proves no overlap with active change `016-discover-response-hardening` or provider change `022-supabase-oauth-commissioning`.
+- Scope validation proves no overlap with active change `016-discover-response-hardening`; the merged Supabase commissioning changes are integrated before documentation edits.
 - Focused Discover tests, architecture checks, whitespace checks, and serialized full verification pass on the final branch state.
 
-## Documentation integration constraint
+## Documentation integration
 
-`SPEC.md` and `docs/OPERATIONS.md` are currently owned by active change `022-supabase-oauth-commissioning`. This slice must not edit those files concurrently. Before merge, ownership must be released and the current public-interface documentation must be reconciled, or the branch must remain unmerged.
+Change `022-supabase-oauth-commissioning` was merged and closed before this slice claimed `SPEC.md` and `docs/OPERATIONS.md`. The public-interface and operator documentation are reconciled on the integrated base.
 
 ## Recovery
 

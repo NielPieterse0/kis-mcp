@@ -13,7 +13,7 @@
 - Write only within `C:\Projects`.
 - Discover remains read-only and must not execute repository code or use the network.
 - Work policy remains exactly HR-001, HR-002, and HR-003.
-- Do not modify files owned by active changes `016-discover-response-hardening` or `022-supabase-oauth-commissioning`.
+- Do not modify implementation files owned by active change `016-discover-response-hardening`.
 - Public support remains limited to the current working tree.
 - Full `verify.ps1` runs must be serialized because the repository uses one shared editable Python environment.
 
@@ -138,11 +138,12 @@ Run the complete `tests\discover` suite with the worktree `PYTHONPATH` and `--no
 **Files:**
 - Modify: `.work/changes/024-discover-change-tool-registration/tasks.md`
 - Modify: `.work/changes/024-discover-change-tool-registration/closeout.md`
-- Potential later integration after ownership release: `SPEC.md`, `docs/OPERATIONS.md`
+- Modify: `SPEC.md`
+- Modify: `docs/OPERATIONS.md`
 
 **Interfaces:**
 - Consumes: final diff, test evidence, active claim state, and authoritative public-interface documentation.
-- Produces: merge-ready evidence only after documentation ownership is released and current claims are reconciled.
+- Produces: merge-ready evidence after current claims, public-interface documentation, and verification are reconciled.
 
 - [ ] **Step 1: Validate scope immediately after the first implementation edit.**
 
@@ -161,9 +162,9 @@ Check exact request/response passthrough, annotations, exception boundaries, no 
 
 Run `git diff --check` and compile the changed Python modules with the locked interpreter.
 
-- [ ] **Step 4: Reconcile current public-interface documentation after ownership release.**
+- [x] **Step 4: Reconcile current public-interface documentation on the integrated base.**
 
-Before merge, revise the scope claim and update `SPEC.md` and applicable operations documentation to state that working-tree `inspect_change` is public while other D2 targets remain unimplemented. Do not perform this step while change `022` owns those paths.
+After change `022` merged and closed, revise the scope claim and update `SPEC.md` and `docs/OPERATIONS.md` to state that working-tree `inspect_change` is public while other D2 targets remain unimplemented.
 
 - [ ] **Step 5: Run serialized full verification and close out.**
 

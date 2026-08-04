@@ -11,7 +11,9 @@
     "src/kis_mcp/discover/change_tools.py",
     "src/kis_mcp/discover/tools.py",
     "src/kis_mcp/server.py",
-    "tests/discover/test_change_tool_registration.py"
+    "tests/discover/test_change_tool_registration.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md"
   ],
   "shared_paths": [],
   "excluded_paths": [
@@ -26,9 +28,7 @@
     "settings/**",
     "policy/**",
     "src/kis_mcp/providers/**",
-    "src/kis_mcp/skills/**",
-    "SPEC.md",
-    "docs/OPERATIONS.md"
+    "src/kis_mcp/skills/**"
   ],
   "dependencies": [
     "023-discover-change-service"
