@@ -2,7 +2,12 @@
 
 ## Status
 
-Implementation and local verification are complete. Branch commit, push, and draft pull request are pending.
+Implementation, local verification, branch push, and draft pull request are complete.
+
+- **Branch:** `change/009-supabase-mcp-provider`
+- **Implementation commit:** `590178ed9868046f76c634ea5c63207872c8f669`
+- **Draft PR:** `#6 — feat: add Supabase MCP provider`
+- **PR state:** Open, draft, unmerged
 
 ## Implemented
 

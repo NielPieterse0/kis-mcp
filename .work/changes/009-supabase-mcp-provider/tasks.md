@@ -9,5 +9,5 @@
 - [x] Task 2: upstream URL construction and redacted readiness.
 - [x] Task 3: FastMCP proxy and standalone CLI.
 - [x] Task 4: smoke workflow, documentation, review, and complete verification.
-- [ ] Commit and push branch.
-- [ ] Open draft pull request; do not merge.
+- [x] Commit and push branch.
+- [x] Open draft pull request; do not merge.
