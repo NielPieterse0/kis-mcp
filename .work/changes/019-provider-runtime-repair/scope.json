@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "change_id": "019-provider-runtime-repair",
+  "status": "closed",
+  "branch": "change/019-provider-runtime-repair",
+  "worktree": ".work/worktrees/019-provider-runtime-repair",
+  "base": "main",
+  "outcome": "Repair PR 15 provider runtime startup containment and align the published provider runtime JSON Schema with runtime namespace validation without changing provider authentication or Work policy",
+  "owned_paths": [
+    ".work/changes/019-provider-runtime-repair/**",
+    ".work/changes/011-provider-composition/scope.json",
+    ".work/changes/014-provider-runtime-composition/scope.json",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/providers/runtime_settings.py",
+    "tests/providers/test_platform_composition.py",
+    "contracts/providers/runtime/platform-runtime.schema.json",
+    "tests/providers/test_runtime_composition.py"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/providers/github/**",
+    "src/kis_mcp/providers/supabase/**",
+    "settings/providers/github-mcp.provider.json",
+    "settings/providers/supabase-mcp.provider.json",
+    "settings/providers/platform-runtime.provider.json",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/providers/runtime.py",
+    "src/kis_mcp/desktop_commander.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/quarantine.py",
+    "policy/**",
+    "docs/OPERATIONS.md"
+  ],
+  "dependencies": [
+    "014-provider-runtime-composition"
+  ],
+  "integration_owner": "019-provider-runtime-repair"
+}

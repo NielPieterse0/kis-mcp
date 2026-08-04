@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import builtins
+import json
+import os
+import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -252,3 +257,103 @@ def test_platform_health_probes_all_providers_but_builds_none(
     assert health.state is ProviderState.READY
     assert probes == ["desktop-commander", "github-mcp", "supabase"]
     assert builders == 0
+
+
+def test_supabase_registration_reraises_unexpected_import_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = builtins.__import__
+
+    def fail_supabase_import(
+        name: str,
+        globals: dict[str, Any] | None = None,
+        locals: dict[str, Any] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> Any:
+        if name == "supabase" and level == 1:
+            raise RuntimeError("unexpected provider defect")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fail_supabase_import)
+
+    with pytest.raises(RuntimeError, match="unexpected provider defect"):
+        platform_module.register_supabase_provider(ProviderRegistry())
+
+
+@pytest.mark.parametrize("config_mode", ["missing", "malformed"])
+def test_core_server_contains_invalid_supabase_configuration(config_mode: str) -> None:
+    script = r'''
+import asyncio
+import json
+import os
+from pathlib import Path
+
+from fastmcp import FastMCP
+
+original_read_text = Path.read_text
+
+
+def patched_read_text(path, *args, **kwargs):
+    if path.name == "supabase-mcp.provider.json":
+        if os.environ["SUPABASE_CONFIG_MODE"] == "missing":
+            raise FileNotFoundError(str(path))
+        return "{"
+    return original_read_text(path, *args, **kwargs)
+
+
+Path.read_text = patched_read_text
+
+from kis_mcp import server as server_module
+from kis_mcp.providers.runtime_settings import (
+    ProviderMountSetting,
+    ProviderRuntimeSettings,
+)
+
+server_module.create_proxy = lambda *_args, **_kwargs: FastMCP("test-root")
+runtime_settings = ProviderRuntimeSettings(
+    schema_version=1,
+    providers=(
+        ProviderMountSetting(
+            provider_id="github-mcp",
+            enabled=False,
+            namespace="github",
+        ),
+        ProviderMountSetting(
+            provider_id="supabase",
+            enabled=False,
+            namespace="supabase",
+        ),
+    ),
+)
+server = server_module.build_server(
+    validate_provider=False,
+    provider_runtime_settings=runtime_settings,
+)
+names = sorted(tool.name for tool in asyncio.run(server.list_tools()))
+status_result = asyncio.run(server.call_tool("kis_provider_status", {}))
+status = status_result.structured_content
+supabase = next(
+    item for item in status["external_providers"] if item["provider_id"] == "supabase"
+)
+print(json.dumps({"names": names, "supabase": supabase}, sort_keys=True))
+'''
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(REPOSITORY_ROOT / "src")
+    environment["SUPABASE_CONFIG_MODE"] = config_mode
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=REPOSITORY_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout.strip().splitlines()[-1])
+    assert "kis_health" in payload["names"]
+    assert "kis_provider_status" in payload["names"]
+    assert payload["supabase"]["registered"] is False
+    assert payload["supabase"]["state"] == "unregistered"
