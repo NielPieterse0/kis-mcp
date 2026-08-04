@@ -2,13 +2,15 @@
 
 ## Status
 
-Implementation complete and verified. Pull request #23 is open and cleanly mergeable. Operator browser commissioning remains pending because `SUPABASE_PROJECT_REF` is not present in the current process environment.
+Implementation, operator browser commissioning, and shared-runtime verification are complete. Pull request #23 remains open and unmerged pending final review and exact-head authorization.
 
 ## Outcome
 
-The Supabase provider now uses the official hosted endpoint through OAuth 2.1 dynamic client registration. OAuth client and token state use Windows Credential Manager through the configured `kis-mcp/supabase` keyring service. Runtime no longer accepts or forwards a PAT.
+The Supabase provider uses the official hosted endpoint through OAuth 2.1 dynamic client registration. OAuth client and token state use Windows Credential Manager through the configured `kis-mcp/supabase` keyring service. Runtime does not accept or forward a PAT.
 
 The adapter preserves mandatory project scoping, constructs the official project-scoped URL, reports redacted OAuth preflight state, and mounts through the existing shared provider runtime. Explicit commissioning and shared smoke verify the expected project-scoped surface and invoke only `get_project_url`; account-level tools are rejected, and read-only/read-write surface differences are checked without invoking mutations.
+
+Live commissioning exposed a Supabase DCR interoperability defect: the registration response returned a client secret but omitted `token_endpoint_auth_method`, causing the generic MCP client to omit the required secret during token exchange. The Supabase-specific OAuth adapter now requests `client_secret_post`, normalizes secret-bearing responses that return `null` or `none`, persists the corrected client record, and performs the token exchange with the secret.
 
 ## Governance
 
@@ -18,29 +20,23 @@ The primary `main` worktree was not modified. Slice C remained confined to its d
 
 Completed evidence:
 
-- 60 focused Supabase tests passed with `uv run --offline --no-sync` and the Slice C `PYTHONPATH`.
+- 61 focused Supabase tests passed with the locked project interpreter and Slice C `PYTHONPATH`.
+- The OAuth interoperability regression was observed failing before the adapter repair and passing afterward.
 - Strict JSON validation passed for provider settings, provider schema, and Slice C scope.
 - `scripts/change-workflow.ps1 check` passed for all changed paths.
-- `git diff --check` passed after normalizing changed files to LF.
-- Local preflight passed as a command and reported `token_storage_available=true`, `legacy_pat_conflict=false`, and `project_ref_present=false`.
-- Full `scripts/verify.ps1` passed: 510 tests passed, 2 expected skips, 74 Python files passed syntax validation, 18 governance claims validated, FastMCP 3.4.4 and pytest 8.4.2 matched the lock.
+- `git diff --check` passed.
+- Local preflight reports Windows keyring availability and rejects missing project scope or a legacy PAT before network use.
+- Live browser commissioning for an operator-supplied development/test project returned `authentication=true`, `project_scoped_read=true`, and `surface=true`.
+- Live shared-runtime smoke returned `mounted=true`, `ready=true`, `authentication=true`, `project_scoped_read=true`, and `surface=true`.
+- Full `scripts/verify.ps1` passed: 511 tests passed, 2 expected skips, 74 Python files passed syntax validation, 18 governance claims validated, and FastMCP 3.4.4 / pytest 8.4.2 matched the lock.
 
-The full verifier synchronized the shared editable Python environment to this worktree; no concurrent verification was run.
+The full verifier synchronized the shared editable Python environment from the Discover worktree to this worktree; no concurrent verification was run.
 
 ## Live commissioning
 
-Not executed. The current process has no `SUPABASE_PROJECT_REF`, so the implementation correctly reports preflight as incomplete and prevents browser/live modes from starting without an explicit development or test project scope.
+Commissioning used an operator-supplied development/test project reference. The operator completed the browser authorization. Credentials are retained only in Windows Credential Manager; the project reference is process-scoped for launcher use and no key, password, connection string, PAT, OAuth token, client ID, or client secret was written to repository files.
 
-Required operator sequence:
-
-```powershell
-$env:SUPABASE_PROJECT_REF = '<development-project-ref>'
-Remove-Item Env:SUPABASE_ACCESS_TOKEN -ErrorAction SilentlyContinue
-pwsh -File .\scripts\auth-supabase-mcp.ps1
-pwsh -File .\scripts\smoke-supabase-mcp.ps1 -SharedRuntime
-```
-
-These workflows perform no Supabase mutation.
+The commissioning and shared-runtime workflows performed no Supabase mutation. FastMCP emitted upstream session-termination `404` cleanup warnings after successful calls, but both commands returned exit code 0 with complete positive evidence.
 
 ## Recovery
 

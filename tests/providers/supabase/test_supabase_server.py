@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from mcp.shared.auth import OAuthClientInformationFull
 
 import kis_mcp.providers.supabase as supabase_module
 import kis_mcp.providers.supabase.config as config_module
@@ -48,7 +51,7 @@ def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> Non
         captured_transport.update(kwargs)
         return transport
 
-    monkeypatch.setattr(server_module, "OAuth", fake_oauth)
+    monkeypatch.setattr(server_module, "SupabaseOAuth", fake_oauth)
     monkeypatch.setattr(server_module, "StreamableHttpTransport", fake_transport)
 
     result = server_module.build_transport(CONFIG, ENVIRONMENT)
@@ -58,6 +61,9 @@ def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> Non
         "mcp_url": "https://mcp.supabase.com/mcp?project_ref=test-project",
         "client_name": "kis-mcp Supabase",
         "token_storage": storage,
+        "additional_client_metadata": {
+            "token_endpoint_auth_method": "client_secret_post"
+        },
         "callback_host": "localhost",
         "callback_timeout": 300.0,
     }
@@ -66,6 +72,72 @@ def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> Non
         "auth": oauth,
         "verify": True,
     }
+
+
+def test_supabase_oauth_normalizes_secret_bearing_dcr_client(monkeypatch) -> None:
+    stored_client_info: list[OAuthClientInformationFull] = []
+    observed: dict[str, object] = {}
+    response = object()
+
+    class FakeStorage:
+        async def set_client_info(
+            self,
+            client_info: OAuthClientInformationFull,
+        ) -> None:
+            stored_client_info.append(client_info)
+
+    async def fake_exchange(
+        self,
+        auth_code: str,
+        code_verifier: str,
+        *,
+        token_data=None,
+    ) -> object:
+        observed["auth_method"] = (
+            self.context.client_info.token_endpoint_auth_method
+        )
+        observed["auth_code"] = auth_code
+        observed["code_verifier"] = code_verifier
+        observed["token_data"] = token_data
+        return response
+
+    monkeypatch.setattr(
+        server_module.OAuth,
+        "_exchange_token_authorization_code",
+        fake_exchange,
+    )
+    oauth = object.__new__(server_module.SupabaseOAuth)
+    oauth.context = SimpleNamespace(
+        client_info=OAuthClientInformationFull(
+            client_id="client-id",
+            client_secret="client-secret",
+            redirect_uris=["http://localhost/callback"],
+            token_endpoint_auth_method=None,
+        ),
+        storage=FakeStorage(),
+    )
+
+    result = asyncio.run(
+        oauth._exchange_token_authorization_code(
+            "authorization-code",
+            "code-verifier",
+            token_data={"resource": "project"},
+        )
+    )
+
+    assert result is response
+    assert observed == {
+        "auth_method": "client_secret_post",
+        "auth_code": "authorization-code",
+        "code_verifier": "code-verifier",
+        "token_data": {"resource": "project"},
+    }
+    assert len(stored_client_info) == 1
+    assert stored_client_info[0].client_secret == "client-secret"
+    assert (
+        stored_client_info[0].token_endpoint_auth_method
+        == "client_secret_post"
+    )
 
 
 def test_transport_rejects_legacy_pat_conflict_before_oauth(monkeypatch) -> None:
