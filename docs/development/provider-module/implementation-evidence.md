@@ -181,10 +181,14 @@ Review checks confirmed:
 
 The simplification review found no safe reduction with material maintenance value. Combining registry, catalogue, health, and service would remove useful test and dependency seams; further extraction would create navigation overhead.
 
-## Pending completion evidence
+## Delivery evidence
 
-The following evidence must be appended before closeout:
+The implementation was committed as:
 
-- final commit and branch head;
-- pushed branch and pull-request URL;
-- confirmation that the pull request remains unmerged.
+```text
+49a230175dd212cbf7a6d3881ad56e42c0f0103d
+```
+
+Branch `change/010-provider-module` was pushed to `origin` and pull request [#9 — Add modular Provider module foundation](https://github.com/NielPieterse0/kis-mcp/pull/9) was created against `main`.
+
+At creation, PR #9 was open, non-draft, and unmerged. The branch and worktree remain active for review feedback.
