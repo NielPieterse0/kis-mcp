@@ -40,6 +40,7 @@ class ThreeRuleMiddleware(Middleware):
         capabilities = self.resolver.capabilities
         hidden_tools = set(capabilities.network_only_tools)
         hidden_arguments = capabilities.unexposed_tool_arguments
+        configuration_tool = capabilities.configuration_tool_name
         visible: list[Any] = []
         for tool in tools:
             name = str(getattr(tool, "name", ""))
@@ -47,7 +48,7 @@ class ThreeRuleMiddleware(Middleware):
                 continue
             arguments = hidden_arguments.get(name.casefold())
             visible_tool = self._without_arguments(tool, arguments) if arguments else tool
-            if name.casefold() == "set_config_value":
+            if configuration_tool and name.casefold() == configuration_tool.casefold():
                 visible_tool = self._without_config_keys(
                     visible_tool, capabilities.unexposed_config_keys
                 )
@@ -58,12 +59,13 @@ class ThreeRuleMiddleware(Middleware):
         tool_name = str(context.message.name)
         arguments = dict(context.message.arguments or {})
         capabilities = self.resolver.capabilities
+        configuration_tool = capabilities.configuration_tool_name
         if tool_name.casefold() in capabilities.network_only_tools:
             raise ToolError(
                 "UNSUPPORTED_PROVIDER_TOOL: This provider-only network capability is "
                 "not exposed through Work."
             )
-        if tool_name.casefold() == "set_config_value":
+        if configuration_tool and tool_name.casefold() == configuration_tool.casefold():
             key = str(arguments.get("key", ""))
             hidden_keys = {
                 value.casefold() for value in capabilities.unexposed_config_keys

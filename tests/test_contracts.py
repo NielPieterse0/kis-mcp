@@ -24,6 +24,7 @@ class FakeResolver:
         direct_delete_tools=frozenset(),
         unexposed_tool_arguments={},
         unexposed_config_keys=frozenset(),
+        configuration_tool_name=None,
     )
 
     def resolve(

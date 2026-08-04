@@ -14,6 +14,7 @@ UNEXPOSED_TOOL_ARGUMENTS: dict[str, frozenset[str]] = {
     "read_file": frozenset({"isUrl"}),
 }
 UNEXPOSED_CONFIG_KEYS = frozenset({"blockedCommands", "allowedDirectories"})
+CONFIGURATION_TOOL_NAME = "set_config_value"
 COMMAND_TOOLS = frozenset(
     {"start_process", "execute_command", "interact_with_process"}
 )
@@ -46,6 +47,7 @@ class DesktopCommanderEffectResolver:
             direct_delete_tools=frozenset(DELETE_PATH_KEYS),
             unexposed_tool_arguments=UNEXPOSED_TOOL_ARGUMENTS,
             unexposed_config_keys=UNEXPOSED_CONFIG_KEYS,
+            configuration_tool_name=CONFIGURATION_TOOL_NAME,
         )
 
     @property

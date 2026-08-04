@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 from .models import InvocationEffects, PolicyDecision
-from .quarantine import QuarantineRecord
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +15,7 @@ class ProviderCapabilities:
     direct_delete_tools: frozenset[str]
     unexposed_tool_arguments: Mapping[str, frozenset[str]]
     unexposed_config_keys: frozenset[str]
+    configuration_tool_name: str | None
 
 
 @runtime_checkable
@@ -36,9 +36,19 @@ class PolicyEvaluator(Protocol):
 
 
 @runtime_checkable
+class QuarantineRecordView(Protocol):
+    operation_id: str
+    original_path: str
+    payload_path: str
+    item_type: str
+    quarantined_at: str
+    restored_at: str | None
+
+
+@runtime_checkable
 class QuarantinePort(Protocol):
-    def quarantine(self, path: str) -> QuarantineRecord: ...
+    def quarantine(self, path: str) -> QuarantineRecordView: ...
 
-    def restore(self, operation_id: str) -> QuarantineRecord: ...
+    def restore(self, operation_id: str) -> QuarantineRecordView: ...
 
-    def list_records(self, *, limit: int = 50) -> list[QuarantineRecord]: ...
+    def list_records(self, *, limit: int = 50) -> list[QuarantineRecordView]: ...
