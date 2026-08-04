@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "provider_id": "github-mcp",
+  "authoritative_source": "https://github.com/github/github-mcp-server",
+  "source_revision": "3778a41476e31a072430cfee7c5d31c5f72def60",
+  "transport": "stdio",
+  "executable": "C:\\Projects\\.kis-mcp\\github-mcp\\github-mcp-server.exe",
+  "token_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "toolsets": [
+    "all"
+  ],
+  "approved_repositories": [
+    "NielPieterse0/kis-mcp"
+  ],
+  "unscoped_tools": [
+    "get_me"
+  ]
+}
