@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "change_id": "004-live-proxy-commissioning",
+  "status": "active",
+  "branch": "change/004-live-proxy-commissioning",
+  "worktree": ".work/worktrees/004-live-proxy-commissioning",
+  "base": "main",
+  "outcome": "Prove the installed Desktop Commander 0.2.46 and kis-mcp stdio gateway work end to end without changing policy or production behavior",
+  "owned_paths": [
+    ".work/changes/004-live-proxy-commissioning/**",
+    "docs/development/live-proxy-commissioning/**",
+    "scripts/commission-live-proxy.ps1",
+    "tests/integration/test_live_proxy_commissioning.py",
+    "tests/support/live_proxy_commissioning.py"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/**",
+    "settings/kis-mcp.settings.json",
+    "docs/OPERATIONS.md",
+    "tests/test_provider_contract.py",
+    "tests/test_quarantine.py",
+    "docs/development/modularity-contracts/**",
+    "docs/development/quarantine-integrity/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
