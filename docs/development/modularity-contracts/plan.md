@@ -114,5 +114,5 @@
 - [x] Review the complete diff for correctness, scope, security, public compatibility, unnecessary complexity, and three-rule preservation.
 - [x] Run `git diff --check`.
 - [x] Run `pwsh -NoProfile -File .\scripts\verify.ps1`.
-- [ ] Record final evidence and residual risks in the PR body.
-- [ ] Push `change/002-modularity-contracts` and open an unmerged PR against `main`.
+- [x] Record final evidence and residual risks in PR #1.
+- [x] Push `change/002-modularity-contracts` and open unmerged PR #1 against `main`.
