@@ -19,4 +19,4 @@
 - [x] Update the shared Discover tool-registration test for the additive Skills surface.
 - [x] Run change-scope check, 30 focused Skills tests, live 39-tool smoke, full verification, and whitespace check.
 - [x] Review final diff and record closeout.
-- [ ] Push the branch and open the draft pull request.
+- [x] Push the branch and open draft pull request #14.

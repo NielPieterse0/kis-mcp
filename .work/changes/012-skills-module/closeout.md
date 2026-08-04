@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete and locally verified. Branch preparation is ready for push and draft pull-request creation.
+Implementation complete, locally verified, pushed, and opened as draft PR #14: `https://github.com/NielPieterse0/kis-mcp/pull/14`.
 
 ## Implemented scope
 
