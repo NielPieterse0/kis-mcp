@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
@@ -20,6 +22,8 @@ from .models import (
 from .service import SkillsService
 
 
+LOGGER = logging.getLogger(__name__)
+
 SKILLS_TOOL_NAMES = (
     "list_skills",
     "search_skills",
@@ -33,21 +37,98 @@ SKILLS_TOOL_NAMES = (
 )
 
 
+class _UnavailableSkillsService:
+    """Keep the server available while returning one corrective Skills failure."""
+
+    def __init__(self, failure: SkillsError) -> None:
+        self._code = failure.code
+        self._message = failure.message
+        self._subject = failure.subject
+
+    def _raise(self) -> None:
+        raise SkillsError(self._code, self._message, subject=self._subject)
+
+    def list_skills(
+        self, limit: int | None = None, cursor: str | None = None
+    ) -> SkillListResponse:
+        del limit, cursor
+        self._raise()
+
+    def search_skills(
+        self, query: str, limit: int | None = None
+    ) -> SkillSearchResponse:
+        del query, limit
+        self._raise()
+
+    def load_skill(self, skill_id: str) -> SkillLoadResponse:
+        del skill_id
+        self._raise()
+
+    def search_skill_files(
+        self, skill_id: str, query: str, limit: int | None = None
+    ) -> SkillFileSearchResponse:
+        del skill_id, query, limit
+        self._raise()
+
+    def read_skill_file(self, skill_id: str, relative_path: str) -> SkillFileResponse:
+        del skill_id, relative_path
+        self._raise()
+
+    def refresh_skills(self) -> SkillRefreshResponse:
+        self._raise()
+
+    def evaluate_skill(self, skill_id: str) -> SkillEvaluationResponse:
+        del skill_id
+        self._raise()
+
+    async def create_skill(
+        self, skill_id: str, skill_md: str
+    ) -> SkillMutationResponse:
+        del skill_id, skill_md
+        self._raise()
+
+    async def improve_skill(
+        self,
+        skill_id: str,
+        relative_path: str,
+        expected_sha256: str,
+        content: str,
+    ) -> SkillMutationResponse:
+        del skill_id, relative_path, expected_sha256, content
+        self._raise()
+
+
+def _build_service(
+    server: FastMCP, config: SkillsConfig | None
+) -> SkillsService | _UnavailableSkillsService:
+    try:
+        selected = config or load_skills_config()
+        return SkillsService(
+            SkillCatalogue(selected),
+            FastMcpWorkBackend(server),
+        )
+    except SkillsError as exc:
+        failure = exc
+    except (FileNotFoundError, OSError, RuntimeError) as exc:
+        failure = SkillsError(
+            "SKILLS_UNAVAILABLE",
+            f"Skills initialization failed: {exc}",
+        )
+    LOGGER.warning("Skills catalogue unavailable: %s", failure)
+    return _UnavailableSkillsService(failure)
+
+
 def register_skills_tools(
     server: FastMCP,
     *,
     config: SkillsConfig | None = None,
     service: SkillsService | None = None,
-) -> SkillsService:
-    """Register the versioned Skills interface on one existing kis-mcp server."""
+) -> SkillsService | _UnavailableSkillsService:
+    """Register the versioned Skills interface without blocking server startup."""
 
-    active = service
-    if active is None:
-        selected = config or load_skills_config()
-        active = SkillsService(
-            SkillCatalogue(selected),
-            FastMcpWorkBackend(server),
-        )
+    active: SkillsService | _UnavailableSkillsService = service or _build_service(
+        server, config
+    )
 
     @server.tool(
         name="list_skills",

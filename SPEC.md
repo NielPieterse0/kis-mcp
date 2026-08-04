@@ -19,7 +19,7 @@ The repository contains only:
 - recoverable quarantine support;
 - minimal JSON configuration, tests, and operational documentation.
 
-The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile framework, an analysis platform, an active runtime skills catalogue, a governance subsystem, or a fork of Desktop Commander. Repository-local `.agents/skills` material is procedural development guidance only and is excluded from runtime and configuration.
+The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile framework, an analysis platform, a governance subsystem, or a fork of Desktop Commander. Repository-local `.agents/skills` material remains procedural development guidance only. The implemented runtime Skills module is separate and resolves reusable procedures exclusively from the operator-approved shared root `C:\Projects\.agents\skills` through `settings/skills.settings.json`; its mutations re-enter the existing Work middleware and Desktop Commander backend.
 
 ## Product evolution
 
@@ -203,16 +203,30 @@ External IDs may remain blank only while an instance is explicitly marked unconf
 
 Configuration and implementation-status fields do not disable otherwise permitted Desktop Commander tools or create another policy decision.
 
+## Skills module
+
+The implemented Skills module resolves one reusable procedure catalogue from `C:\Projects\.agents\skills`. It builds a deterministic immutable snapshot after validating `SKILL.md` frontmatter, file paths, configured suffixes, encodings, links, sizes, and limits. Repository-local `.agents/skills` is not part of this runtime catalogue.
+
+The module exposes bounded list, search, load, file-search, file-read, refresh, and structural-evaluation operations. ChatGPT loads the returned instructions and executes their workflows through ordinary kis-mcp Work tools; the server does not import or automatically execute arbitrary skill code.
+
+Skill creation validates a complete proposed entrypoint, stages it beneath `C:\Projects\.kis-mcp\temp\skills`, and publishes it with Desktop Commander `create_directory`, `write_file`, and `move_file`. Skill improvement requires the active file SHA-256 and uses Desktop Commander `edit_block` with one exact expected replacement. Every mutation calls `FastMCP.call_tool(..., run_middleware=True)`, so the existing three-rule middleware evaluates the concrete Work effects.
+
+`settings/skills.settings.json` and `contracts/skills/settings.schema.json` define the exact roots, limits, supported suffixes, and traversal controls. Initial catalogue failure does not prevent ordinary Work/gateway startup; Skills calls return a corrective `SKILLS_*` error until the source is repaired and the server is restarted. `SKILLS_*` failures are structural or application errors and do not expand the closed Work policy decision set.
+
 ## Public interface
 
-Expose Desktop Commander's normal non-network-only tool surface plus four small gateway operations:
+Expose Desktop Commander's normal non-network-only tool surface, four small gateway operations, and nine Skills operations:
 
 - `kis_health` — report provider availability, policy fingerprint, and configured roots;
 - `kis_quarantine_path` — move one eligible path into recoverable quarantine;
 - `kis_list_quarantine` — list bounded recoverable operations;
-- `kis_restore_quarantine` — restore one intact item without overwrite.
+- `kis_restore_quarantine` — restore one intact item without overwrite;
+- `list_skills`, `search_skills`, and `load_skill` — discover and load reusable procedures;
+- `search_skill_files` and `read_skill_file` — inspect bounded supporting files;
+- `refresh_skills` and `evaluate_skill` — rebuild or evaluate the immutable catalogue snapshot;
+- `create_skill` and `improve_skill` — validate and mutate shared skills through the Work backend.
 
-Do not add capability catalogues, profiles, tiers, approvals, or wrapper tools unless required by the three-rule boundary or basic operation.
+Do not add capability-profile permission systems, tiers, approvals, or broad replacement wrapper surfaces. The focused Skills catalogue is an approved reusable-procedure interface and does not alter Work authorization.
 
 ## Errors
 
@@ -245,8 +259,8 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
-The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, local stdio startup, and settings-driven streamable HTTP startup for separate `operation` and `development` instances.
+The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, the shared Skills catalogue and Work-backed create/improve operations, local stdio startup, and settings-driven streamable HTTP startup for separate `operation` and `development` instances.
 
-Fresh local commissioning proves both HTTP instances initialize through FastMCP and Desktop Commander, expose the same 29-tool catalogue, include representative filesystem/edit/process tools, omit only the proven network-only feedback capability, execute `kis_health`, perform a real write/read round trip inside the approved state temp root, and quarantine the smoke artifact recoverably.
+Fresh local composition against the installed Desktop Commander provider exposes a 38-tool catalogue: the previously commissioned 29-tool Work/gateway surface plus all nine Skills operations. The composed catalogue retains representative filesystem/edit/process tools, omits only the proven network-only feedback capability, and resolves the shared Skills root without adding a provider fork or another policy rule. The existing dual-instance commissioning evidence continues to cover startup, `kis_health`, real in-boundary write/read, and recoverable quarantine; Skills-specific live composition and catalogue loading are verified by this module's focused tests and smoke evidence.
 
 The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. This implementation-status statement does not restrict normal tools beyond HR-001, HR-002, and HR-003.

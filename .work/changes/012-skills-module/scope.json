@@ -13,6 +13,8 @@
     "settings/skills.settings.json",
     "docs/SKILLS-MODULE-PRODUCT-SPEC.md",
     "docs/development/skills-module/**",
+    "scripts/smoke-skills-module.py",
+    "scripts/smoke-skills-module.ps1",
     ".work/changes/012-skills-module/**"
   ],
   "shared_paths": [

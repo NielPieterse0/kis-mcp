@@ -71,6 +71,22 @@ def test_register_skills_tools_exposes_exact_nine_operation_names(
     }
 
 
+def test_invalid_catalogue_does_not_block_server_construction(
+    skills_config: SkillsConfig,
+) -> None:
+    broken = skills_config.root / "broken-skill"
+    broken.mkdir()
+    (broken / "SKILL.md").write_text("# missing frontmatter\n", encoding="utf-8")
+    server = FastMCP("skills-unavailable-test")
+
+    register_skills_tools(server, config=skills_config)
+    tools = asyncio.run(server.list_tools())
+
+    assert {tool.name for tool in tools} == set(SKILLS_TOOL_NAMES)
+    with pytest.raises(Exception, match="SKILLS_REFRESH_REJECTED"):
+        asyncio.run(server.call_tool("list_skills", {}))
+
+
 def test_registered_read_tools_return_structured_versioned_records(
     skills_config: SkillsConfig, make_skill
 ) -> None:
