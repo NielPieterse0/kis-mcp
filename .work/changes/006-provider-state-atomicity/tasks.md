@@ -18,6 +18,6 @@
 - [x] Pass `git diff --check`.
 - [x] Pass Node syntax validation and confirm the bundled adapter is present in the offline-built wheel.
 - [x] Run bounded Python static review with zero warnings and zero errors.
-- [ ] Commit, push, and raise a draft pull request against `main`.
+- [x] Commit, push, and raise draft PR #4 against `main`.
 - [ ] Obtain explicit approval before any merge action.
 - [ ] After merge, run safe change-worktree cleanup from clean `main`.

@@ -52,8 +52,9 @@
 - Branch: `change/006-provider-state-atomicity`
 - Worktree: `.work/worktrees/006-provider-state-atomicity`
 - Base: `main`
-- Commit: pending
-- Pull request: pending
+- Implementation commit: `5eb72a60d9dff4d18904205b74b281d38c667ee3`
+- Pull request: `#4` — `https://github.com/NielPieterse0/kis-mcp/pull/4`
+- Pull request state: open, draft, and unmerged.
 - Merge: not authorized; explicit confirmation is required for the final current PR head.
 - Cleanup: deferred until the branch is merged and the primary `main` worktree is clean.
 
