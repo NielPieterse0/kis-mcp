@@ -12,8 +12,8 @@
 
 - Worktree: `C:\Projects\kis-mcp\.work\worktrees\014-provider-runtime-composition`
 - Branch: `change/014-provider-runtime-composition`
-- Dependency requiring final reconciliation: `012-skills-module`
+- Dependency integrated: PR #14 / `012-skills-module` merged at `656228491345a2e24be195d3c492d0670bc745ae`; merge commit `91c0534` preserves `register_skills_tools(server)` alongside Provider runtime composition.
 - Emergency registration reason: the governed `new` command initially failed while repository-wide active-claim discovery recursively included stale historical claims. Complete scope, specification, plan, tasks, and closeout records were created before implementation edits.
 - Historical overlap adjustment: paths still claimed by changes 005 and 010 were removed from this slice; current change-governance validation now passes.
-- Latest focused result before remote delivery: 26 passed.
-- Final pre-commit suite: 363 passed, 2 expected skips; repository verification, change-scope check, and whitespace check passed.
+- Integrated focused result: 37 passed across Provider, Skills, Discover registration, and public contracts.
+- Post-integration suite: 395 passed, 2 expected skips; 66 Python files and 11 governance claims passed; repository verification, change-scope check, and whitespace check passed.

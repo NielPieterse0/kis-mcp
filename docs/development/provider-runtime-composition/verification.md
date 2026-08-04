@@ -34,16 +34,18 @@ GitHub OAuth commissioning and Supabase OAuth/DCR commissioning remain outside t
 5. `build_server()` integration and public-contract tests were added first and produced four targeted failures.
 6. Shared-server composition and `kis_provider_status` implementation made the focused integration set pass.
 
-Latest focused command:
+Post-PR14 integration focused command:
 
 ```powershell
 pwsh -NoProfile -File .\.work\changes\014-provider-runtime-composition\run-focused-tests.ps1 `
   tests/providers/test_runtime_composition.py `
+  tests/skills/test_tools.py `
+  tests/skills/test_service.py `
   tests/discover/test_tool_registration.py `
   tests/test_public_contracts.py -q
 ```
 
-Result: exit code `0`; 26 tests passed.
+Result: exit code `0`; 37 tests passed.
 
 ## Full Repository Verification
 
@@ -53,16 +55,16 @@ Command:
 pwsh -NoProfile -File .\scripts\verify.ps1
 ```
 
-Final pre-commit result after closeout artifacts:
+Post-PR14 integration result:
 
 - configuration: passed;
 - canonical locked interpreter: passed;
 - FastMCP `3.4.4` and pytest `8.4.2`: passed;
-- Python syntax: 55 files passed;
-- change governance: 10 claims passed;
-- complete pytest suite: 363 passed, 2 expected skips;
+- Python syntax: 66 files passed;
+- change governance: 11 claims passed;
+- complete pytest suite: 395 passed, 2 expected skips;
 - repository verification: passed;
-- change-scope check: passed;
+- change-scope check: passed after completing merge commit `91c0534`;
 - `git diff --check`: passed.
 
 ## Review Findings
@@ -74,6 +76,7 @@ Final pre-commit result after closeout artifacts:
 3. **Unicode restoration encoding:** A temporary PowerShell restore rendered box-drawing characters incorrectly. The file was restored again from Git with stdout explicitly decoded as UTF-8; its final diff is zero.
 4. **Whitespace:** `git diff --check` found one trailing blank line at the end of `SPEC.md`; it was removed.
 5. **Lazy upstream availability concern:** FastMCP source inspection confirmed aggregate provider list failures use the default `warn` strategy and are skipped, while ProxyProvider uses an empty lifespan and connects per request. An unavailable upstream therefore does not invalidate root startup merely because its proxy is mounted.
+6. **Skills dependency reconciliation:** PR #14 merged at `656228491345a2e24be195d3c492d0670bc745ae`. The branch merged current `main` in `91c0534`, retained `register_skills_tools(server)` after `ThreeRuleMiddleware` registration, retained Provider composition and `kis_provider_status`, and passed the integrated focused and full suites.
 
 ### Blocking findings
 
@@ -89,9 +92,8 @@ None after the resolved items above.
 
 ## Residual Work and Dependencies
 
-- Final reconciliation must preserve the active Skills slice integration (`012-skills-module`) in `src/kis_mcp/server.py`.
-- GitHub still requires official-binary installation, interactive OAuth/device authorization, scoped repository reads, and main-endpoint live verification.
-- Supabase still requires hosted OAuth/DCR, approved persistent token storage, a harmless project-scoped read, and main-endpoint live verification.
+- GitHub still requires official-binary installation, interactive OAuth/device authorization, scoped repository reads, and main-endpoint live verification in a dedicated follow-up slice.
+- Supabase still requires hosted OAuth/DCR, approved persistent token storage, a harmless project-scoped read, and main-endpoint live verification in a dedicated follow-up slice.
 - `docs/PROVIDER-MODULE-PRODUCT-SPEC.md` remains unchanged because historical change 010 still owns that path; current implementation status is authoritative in `SPEC.md`, `docs/OPERATIONS.md`, and this evidence record.
 
 ## Rollback

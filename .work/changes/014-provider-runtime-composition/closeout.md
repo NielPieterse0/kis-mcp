@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, review, verification, and remote delivery are complete. Draft PR #15 is open and remains intentionally blocked from landing by the Skills-slice reconciliation and separate OAuth commissioning work.
+Implementation, review, verification, and remote delivery are complete. PR #14 merged at `656228491345a2e24be195d3c492d0670bc745ae` and was reconciled into this branch in merge commit `91c0534`. PR #15 may move from draft to review after the final evidence update is pushed. GitHub and Supabase OAuth commissioning remains separate follow-up work and is not a landing dependency for this failure-contained runtime-composition slice.
 
 ## Requirement Evidence
 
@@ -31,7 +31,7 @@ Resolved during review:
 
 ## Verification
 
-Focused runtime and public-contract command: exit code `0`, 26 passed.
+Integrated focused command covering Provider runtime, Skills tools/service, Discover registration, and public contracts: exit code `0`, 37 passed.
 
 Repository command:
 
@@ -39,13 +39,14 @@ Repository command:
 pwsh -NoProfile -File .\scripts\verify.ps1
 ```
 
-Final pre-commit result after closeout artifacts:
+Post-PR14 integration result:
 
-- configuration, interpreter, dependencies, and Python syntax passed;
-- change governance passed with 10 claims;
-- complete pytest suite: 363 passed, 2 expected skips;
+- configuration, locked interpreter, and dependencies passed;
+- Python syntax passed for 66 files;
+- change governance passed with 11 claims;
+- complete pytest suite: 395 passed, 2 expected skips;
 - final repository verification reported `ok: true`;
-- change-scope check passed;
+- change-scope check passed after completing the merge commit;
 - `git diff --check` passed.
 
 Detailed evidence: `docs/development/provider-runtime-composition/verification.md`.
@@ -56,7 +57,6 @@ Revert the slice commit or set both external provider entries to `enabled: false
 
 ## Residual Work
 
-- Reconcile `src/kis_mcp/server.py` with `012-skills-module` and preserve `register_skills_tools(server)` before landing.
-- Install and commission the official GitHub MCP binary with interactive OAuth/device flow and live scoped repository verification.
-- Commission Supabase hosted OAuth/DCR, approved token persistence, and a harmless project-scoped live read.
+- Install and commission the official GitHub MCP binary with interactive OAuth/device flow and live scoped repository verification in its dedicated follow-up slice.
+- Commission Supabase hosted OAuth/DCR, approved token persistence, and a harmless project-scoped live read in its dedicated follow-up slice.
 - Keep `docs/PROVIDER-MODULE-PRODUCT-SPEC.md` unchanged until its historical change-010 ownership is resolved; current behavior is documented in `SPEC.md`, `docs/OPERATIONS.md`, and the verification record.
