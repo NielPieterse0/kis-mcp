@@ -3,8 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from collections.abc import Sequence
-from dataclasses import asdict
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -17,9 +16,15 @@ from fastmcp.server.providers.proxy import ProxyClient
 from .config import RuntimeConfig, load_runtime_config
 from .desktop_commander import DesktopCommanderEffectResolver
 from .middleware import ThreeRuleMiddleware
+from .models import (
+    HealthResponse,
+    PolicyRuleResponse,
+    QuarantineListResponse,
+    QuarantineResponse,
+)
 from .policy import ThreeRulePolicy
 from .provider_readiness import validate_provider_offline_readiness
-from .quarantine import QuarantineError, QuarantineService
+from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
 
 
 def _ensure_state_directories(config: RuntimeConfig) -> None:
@@ -78,6 +83,59 @@ def _policy_fingerprint(config: RuntimeConfig) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _policy_rule_response(rule: Mapping[str, Any]) -> PolicyRuleResponse:
+    return PolicyRuleResponse(
+        id=str(rule["id"]),
+        name=str(rule["name"]),
+        prohibited_outcome=str(rule["prohibited_outcome"]),
+        decision=str(rule["decision"]),
+    )
+
+
+def _quarantine_response(record: QuarantineRecord) -> QuarantineResponse:
+    return QuarantineResponse(
+        operation_id=record.operation_id,
+        original_path=record.original_path,
+        payload_path=record.payload_path,
+        item_type=record.item_type,
+        quarantined_at=record.quarantined_at,
+        restored_at=record.restored_at,
+    )
+
+
+def _quarantine_payload(record: QuarantineRecord) -> dict[str, Any]:
+    response = _quarantine_response(record)
+    return {
+        "operation_id": response.operation_id,
+        "original_path": response.original_path,
+        "payload_path": response.payload_path,
+        "item_type": response.item_type,
+        "quarantined_at": response.quarantined_at,
+        "restored_at": response.restored_at,
+        "schema_version": response.schema_version,
+    }
+
+
+def _health_response(
+    runtime: RuntimeConfig,
+    launch: Mapping[str, Any],
+) -> HealthResponse:
+    entry = Path(str(launch.get("args", [""])[0]))
+    return HealthResponse(
+        ready=entry.is_file(),
+        server=runtime.server_name,
+        project_boundary=runtime.project_boundary,
+        quarantine_root=runtime.quarantine_root,
+        desktop_commander_entry=str(entry),
+        desktop_commander_installed=entry.is_file(),
+        policy_rules=tuple(
+            _policy_rule_response(rule) for rule in runtime.raw_policy["rules"]
+        ),
+        policy_fingerprint=_policy_fingerprint(runtime),
+        implementation_status=dict(runtime.implementation_status),
+    )
+
+
 def build_server(
     config: RuntimeConfig | None = None,
     *,
@@ -114,51 +172,45 @@ def build_server(
     )
 
     def quarantine_paths(paths: Sequence[str]) -> list[dict[str, Any]]:
-        return [asdict(quarantine.quarantine(path)) for path in paths]
+        return [_quarantine_payload(quarantine.quarantine(path)) for path in paths]
 
-    def quarantine_or_tool_error(path: str) -> dict[str, Any]:
+    def quarantine_or_tool_error(path: str) -> QuarantineResponse:
         try:
-            return asdict(quarantine.quarantine(path))
+            return _quarantine_response(quarantine.quarantine(path))
         except QuarantineError as exc:
             raise ToolError(f"HR-003_QUARANTINE_FAILED: {exc}") from exc
 
-    def restore_or_tool_error(operation_id: str) -> dict[str, Any]:
+    def restore_or_tool_error(operation_id: str) -> QuarantineResponse:
         try:
-            return asdict(quarantine.restore(operation_id))
+            return _quarantine_response(quarantine.restore(operation_id))
         except QuarantineError as exc:
             raise ToolError(f"HR-003_QUARANTINE_FAILED: {exc}") from exc
 
     @server.tool
-    def kis_health() -> dict[str, Any]:
+    def kis_health() -> HealthResponse:
         """Report local provider, policy, and generated-state readiness."""
 
-        entry = Path(str(launch.get("args", [""])[0]))
-        return {
-            "ready": entry.is_file(),
-            "server": runtime.server_name,
-            "project_boundary": runtime.project_boundary,
-            "quarantine_root": runtime.quarantine_root,
-            "desktop_commander_entry": str(entry),
-            "desktop_commander_installed": entry.is_file(),
-            "policy_rules": list(runtime.raw_policy["rules"]),
-            "policy_fingerprint": _policy_fingerprint(runtime),
-            "implementation_status": runtime.implementation_status,
-        }
+        return _health_response(runtime, launch)
 
     @server.tool
-    def kis_quarantine_path(path: str) -> dict[str, Any]:
+    def kis_quarantine_path(path: str) -> QuarantineResponse:
         """Move one path into recoverable local quarantine."""
 
         return quarantine_or_tool_error(path)
 
     @server.tool
-    def kis_list_quarantine(limit: int = 50) -> list[dict[str, Any]]:
+    def kis_list_quarantine(limit: int = 50) -> QuarantineListResponse:
         """List bounded recoverable quarantine records."""
 
-        return [asdict(record) for record in quarantine.list_records(limit=limit)]
+        return QuarantineListResponse(
+            records=tuple(
+                _quarantine_response(record)
+                for record in quarantine.list_records(limit=limit)
+            )
+        )
 
     @server.tool
-    def kis_restore_quarantine(operation_id: str) -> dict[str, Any]:
+    def kis_restore_quarantine(operation_id: str) -> QuarantineResponse:
         """Restore one quarantine record without overwriting its original path."""
 
         return restore_or_tool_error(operation_id)
