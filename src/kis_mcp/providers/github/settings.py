@@ -18,16 +18,19 @@ _SETTINGS_KEYS = {
     "schema_version",
     "provider_id",
     "authoritative_source",
+    "release_tag",
     "source_revision",
     "transport",
     "executable",
-    "token_env",
+    "auth_mode",
+    "pat_env",
     "toolsets",
     "approved_repositories",
     "unscoped_tools",
 }
 _ENV_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 _REVISION = re.compile(r"^[0-9a-fA-F]{40}$")
+_RELEASE_TAG = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 _NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
@@ -36,10 +39,12 @@ class GitHubProviderSettings:
     schema_version: int
     provider_id: str
     authoritative_source: str
+    release_tag: str
     source_revision: str
     transport: str
     executable: str
-    token_env: str
+    auth_mode: str
+    pat_env: str
     toolsets: tuple[str, ...]
     approved_repositories: tuple[str, ...]
     unscoped_tools: tuple[str, ...]
@@ -89,14 +94,17 @@ def load_github_provider_settings(
     if missing:
         raise RuntimeError(f"GitHub provider settings are missing keys: {missing}")
 
-    if document.get("schema_version") != 1:
-        raise RuntimeError("GitHub provider schema_version must be 1")
+    if document.get("schema_version") != 2:
+        raise RuntimeError("GitHub provider schema_version must be 2")
     provider_id = _string(document.get("provider_id"), "provider_id")
     if provider_id != "github-mcp":
         raise RuntimeError("GitHub provider_id must be github-mcp")
     source = _string(document.get("authoritative_source"), "authoritative_source")
     if source != OFFICIAL_GITHUB_MCP_SOURCE:
         raise RuntimeError("Provider must use the official GitHub MCP source")
+    release_tag = _string(document.get("release_tag"), "release_tag")
+    if _RELEASE_TAG.fullmatch(release_tag) is None:
+        raise RuntimeError("release_tag must be a pinned semantic version such as v1.8.0")
     revision = _string(document.get("source_revision"), "source_revision")
     if _REVISION.fullmatch(revision) is None:
         raise RuntimeError("source_revision must be a 40-character Git commit SHA")
@@ -108,32 +116,26 @@ def load_github_provider_settings(
         _string(document.get("executable"), "executable"),
         base=APPROVED_PROJECT_BOUNDARY,
     )
-    if not is_within_windows_boundary(
-        executable,
-        boundary=APPROVED_PROJECT_BOUNDARY,
-    ):
+    if not is_within_windows_boundary(executable, boundary=APPROVED_PROJECT_BOUNDARY):
         raise RuntimeError("GitHub provider executable must remain beneath C:\\Projects")
 
-    token_env = _string(document.get("token_env"), "token_env")
-    if _ENV_NAME.fullmatch(token_env) is None:
-        raise RuntimeError("token_env must be an uppercase environment-variable name")
+    auth_mode = _string(document.get("auth_mode"), "auth_mode").casefold()
+    if auth_mode != "oauth":
+        raise RuntimeError("auth_mode must be oauth")
+    pat_env = _string(document.get("pat_env"), "pat_env")
+    if _ENV_NAME.fullmatch(pat_env) is None:
+        raise RuntimeError("pat_env must be an uppercase environment-variable name")
 
     toolsets = _strings(document.get("toolsets"), "toolsets")
     if any(_NAME.fullmatch(value) is None for value in toolsets):
         raise RuntimeError("toolsets contain an invalid name")
 
-    raw_repositories = _strings(
-        document.get("approved_repositories"),
-        "approved_repositories",
-    )
+    raw_repositories = _strings(document.get("approved_repositories"), "approved_repositories")
     try:
-        repositories = tuple(
-            normalize_repository(value) for value in raw_repositories
-        )
+        repositories = tuple(normalize_repository(value) for value in raw_repositories)
     except ValueError as exc:
         raise RuntimeError(
-            "approved_repositories must contain owner/repo identities: "
-            f"{exc}"
+            "approved_repositories must contain owner/repo identities: " f"{exc}"
         ) from exc
     if len(set(repositories)) != len(repositories):
         raise RuntimeError("approved_repositories contains duplicate repositories")
@@ -146,13 +148,15 @@ def load_github_provider_settings(
         raise RuntimeError("unscoped_tools contain an invalid tool name")
 
     return GitHubProviderSettings(
-        schema_version=1,
+        schema_version=2,
         provider_id=provider_id,
         authoritative_source=source,
+        release_tag=release_tag,
         source_revision=revision.casefold(),
         transport=transport,
         executable=executable,
-        token_env=token_env,
+        auth_mode=auth_mode,
+        pat_env=pat_env,
         toolsets=toolsets,
         approved_repositories=repositories,
         unscoped_tools=unscoped_tools,

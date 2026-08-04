@@ -1,96 +1,152 @@
-# GitHub MCP Provider Verification
+# GitHub MCP OAuth Commissioning Verification
 
 ## Scope
 
-Verified branch: `change/008-github-mcp-provider`
+Verified branch: `change/018-github-oauth-commissioning`
 
-Verified module boundary:
+Verified boundary:
 
-- `src/kis_mcp/providers/github/**`;
-- `src/kis_mcp/provider_registry.py`;
-- provider JSON and schema;
-- operator install and smoke scripts;
-- focused tests and development documentation.
+- strict GitHub provider JSON and schema;
+- official release installer;
+- OAuth-only environment and readiness behavior;
+- stateful official stdio process integration;
+- standalone OAuth commissioning;
+- approved private-repository read;
+- explicit local out-of-scope rejection;
+- shared `kis-mcp` runtime mount and `github_*` namespace;
+- provider-specific tests and operations documentation.
 
-The branch does not modify Discover, the Desktop Commander Work gateway, policy, quarantine, remote tunnel commissioning, or the active main server composition.
+The change does not modify Work policy, Desktop Commander enforcement, Discover, Skills, Supabase, shared runtime composition, or tunnel configuration.
 
-## Upstream evidence
+## Upstream release evidence
 
-The implementation uses the official source identity:
+Official source:
 
 ```text
 https://github.com/github/github-mcp-server
 ```
 
-Configured source revision:
+Pinned release and commit:
 
 ```text
-3778a41476e31a072430cfee7c5d31c5f72def60
+v1.8.0
+ca8ab52dcc45b86fae190398178fd22edb7b1362
 ```
 
-The official provider documentation and source at that revision confirm local stdio operation, toolset configuration through `--toolsets`, token-based authentication, and repository tools using explicit `owner` and `repo` inputs.
+The installer resolved the exact release tag through the GitHub REST API, required stable immutable release metadata, resolved the tag to the configured commit, selected `github-mcp-server_Windows_x86_64.zip`, and verified its published digest.
+
+Observed artifact evidence:
+
+```text
+published/archive SHA-256: C91ECA7FFD5492C2B273DFCC8747D4B54AFDDCDE342704572A6917C73757F608
+installed binary SHA-256:   E8CF444BC58DD3A47938504D4D85E338D76BF558AF463D252CBC554CCAC4C256
+installation path:          C:\Projects\.kis-mcp\github-mcp\github-mcp-server.exe
+```
+
+The installation workspace was moved into recoverable quarantine. No permanent-delete operation was used.
 
 ## TDD evidence
 
-### Initial red
+Initial and staged red tests established the following missing behavior before implementation:
 
-After writing the first provider tests, `scripts/verify.ps1` failed during test collection because these production modules did not exist:
+- schema version 2, release tag, OAuth mode, and PAT-conflict configuration;
+- no PAT forwarding to the official process;
+- local readiness separated from authenticated state;
+- immutable release and published digest installer structure;
+- interactive commissioning module and PowerShell launcher;
+- shared-runtime mount and namespaced tool verification;
+- explicit scope-error evidence rather than treating arbitrary failures as containment.
 
-- `kis_mcp.provider_registry`;
-- `kis_mcp.providers.github.settings`;
-- `kis_mcp.providers.github.scope`;
-- `kis_mcp.providers.github.server`.
+The final focused suite reports:
 
-This established that the tests exercised the new behavior rather than existing implementation.
+```text
+37 GitHub provider tests passed
+```
 
-### Boundary regression red
+The suite includes a regression ensuring unrelated network/upstream failures cannot be mistaken for `GITHUB_REPOSITORY_SCOPE` evidence.
 
-A later review added tests for:
-
-- `owner` plus `repository_name` identity;
-- full `owner/repo` supplied through `repo`;
-- stable `GITHUB_REPOSITORY_SCOPE` errors for malformed targets.
-
-The focused suite failed in `scope.py` before the extraction and error-normalization fix, then passed after the minimal change.
-
-### Live commissioning regression red
-
-The staged review found that `-RequireLive` only invoked the executable with `--help`. A script regression test was added requiring the dedicated MCP smoke module and prohibiting the shallow `--help` check. The focused suite failed before the script was updated.
-
-The replacement live smoke now initializes the MCP proxy, verifies the pinned `get_me`, `get_file_contents`, and `create_or_update_file` surface, calls redacted health, authenticates with `get_me`, and reads `README.md` from the approved private repository without printing content or performing a write mutation.
-
-### Green
+## Installer verification
 
 Command:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
+pwsh -NoProfile -File .\scripts\install-github-mcp.ps1
 ```
 
-Result:
+Result: exit code `0`.
+
+Verified:
+
+- exact release `v1.8.0`;
+- exact commit `ca8ab52dcc45b86fae190398178fd22edb7b1362`;
+- immutable stable release;
+- one Windows x86-64 ZIP asset;
+- published SHA-256 equals downloaded archive SHA-256;
+- one extracted `github-mcp-server.exe`;
+- installation beneath `C:\Projects`;
+- recoverable backup path supported;
+- no credentials printed or persisted.
+
+## Standalone OAuth commissioning
+
+Command:
+
+```powershell
+pwsh -NoProfile -File .\scripts\auth-github-mcp.ps1
+```
+
+Result: exit code `0`.
+
+The official provider reported browser authorization opened and GitHub authorization completed. The commissioning report returned:
+
+```json
+{
+  "approved_repository": "nielpieterse0/kis-mcp",
+  "authentication": true,
+  "private_repository_read": true,
+  "rejected_repository": "github/github-mcp-server",
+  "repository_scope": true,
+  "surface": true
+}
+```
+
+No write mutation was performed.
+
+## Shared-runtime live smoke
+
+Command:
+
+```powershell
+pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1 -RequireLive
+```
+
+Result: exit code `0`.
+
+Observed report:
 
 ```text
-34 tests passed
-provider: github-mcp
-source_revision: 3778a41476e31a072430cfee7c5d31c5f72def60
-executable_present: False
-token_present: False
-focused_tests: passed
-live_required: False
+release_tag:                  v1.8.0
+source_revision:              ca8ab52dcc45b86fae190398178fd22edb7b1362
+auth_mode:                    oauth
+executable_present:           True
+pat_override_present:         False
+focused_tests:                passed
+live_ready:                   True
+live_mounted:                 True
+live_surface:                 True
+live_authentication:          True
+live_private_repository_read: True
+live_repository_scope:        True
 ```
 
-The absent executable and token are expected in static verification and are reported without secret material.
+The live path built the normal shared server, verified `kis_provider_status`, and exercised `github_get_me` and `github_get_file_contents` through the mounted namespace. The rejected repository produced explicit `GITHUB_REPOSITORY_SCOPE` evidence.
 
-## JSON validation
+Expected non-blocking stderr:
 
-Validated successfully:
+- Desktop Commander emits string-form logging notifications that the current FastMCP notification validator warns about.
+- The expected rejected `github_get_file_contents` call is logged as an error by FastMCP before commissioning classifies the explicit scope marker.
 
-```text
-settings/providers/github-mcp.provider.json
-contracts/providers/github/provider-settings.schema.json
-```
-
-Both documents parsed as valid JSON. Tests also verify exact-key loading, bounded schema structure, official source identity, pinned revision shape, path boundary, token indirection, toolsets, repository normalization, duplicate rejection, and unknown-key rejection.
+Neither warning changed the smoke exit code or result booleans.
 
 ## Full repository verification
 
@@ -100,59 +156,36 @@ Command:
 pwsh -NoProfile -File .\scripts\verify.ps1
 ```
 
-Result: exit code `0`.
+Final result: exit code `0`.
 
-Verified checks reported:
+Verified checks:
 
-- canonical configuration and exact HR-001/HR-002/HR-003 rule set;
-- locked external Python interpreter;
-- pinned FastMCP and pytest dependencies;
-- Python syntax for 26 files;
-- repository change-governance implementation check;
-- complete pytest suite;
-- final repository verification result.
+- canonical configuration and exact HR-001, HR-002, and HR-003 rule set;
+- locked external Python interpreter and dependencies;
+- 67 Python files passed syntax validation;
+- 12 change-governance claims passed;
+- complete pytest suite passed with two expected skips;
+- final repository verification returned `ok: true`.
 
-## Change-governance status
+The final run was performed after the implementation and closeout documentation were complete.
 
-`change-workflow new` and global `change-workflow validate` remain blocked by a pre-existing repository workflow defect: merged changes `004-live-proxy-commissioning` and `006-provider-state-atomicity` are copied as active records into linked worktrees, producing duplicate change ID, branch, worktree, outcome, and path findings.
+## Governance repair
 
-This branch used the documented emergency path:
+The merged `008-github-mcp-provider` claim remained incorrectly marked `active`, creating a real overlap with its successor Slice B. Slice 018 explicitly owns the one-line claim repair and changes its status to `closed`. This restored normal repository claim validation without weakening the validator or changing unrelated active claims.
 
-1. create an isolated worktree manually from clean `main`;
-2. register `008-github-mcp-provider` locally before implementation;
-3. declare exclusive owned and excluded paths;
-4. run baseline verification;
-5. preserve the governance failure as explicit evidence.
+## Credential handling
 
-No `008` versus `005`, `007`, or `009` owned-path overlap was identified. The concurrent `009-supabase-mcp-provider` scope explicitly excludes the GitHub provider and central registry paths.
+Verified properties:
 
-## Review
+- repository JSON contains no token, authorization code, OAuth state, client secret, or private key;
+- `GITHUB_PERSONAL_ACCESS_TOKEN` is treated only as a conflicting override;
+- KIS does not forward the PAT environment variable to the official process;
+- live scripts refuse commissioning while the PAT override is present;
+- OAuth tokens remain inside the official provider process and are not reported by health or smoke output;
+- restarting the provider normally requires interactive authorization again.
 
-A dedicated reviewer subagent was not available in this execution environment. A direct whole-change review covered:
+## Residual limitations
 
-- specification and acceptance criteria;
-- official-provider launch shape;
-- credential handling and output redaction;
-- repository identity normalization;
-- read/write repository scope symmetry;
-- malformed input and corrective errors;
-- architecture independence;
-- operator bootstrap and recovery;
-- tests, documentation, and scope discipline.
-
-Finding resolved during review:
-
-- **Important — unstable scope error and alternate field incompatibility.** `repository_name` with `owner`, a full identity in `repo`, or a malformed explicit repository could produce an incorrect raw `ValueError`. Regression tests were added and extraction now supports the alternate forms while normalizing malformed input to `GITHUB_REPOSITORY_SCOPE`.
-
-No unresolved critical or important code finding remains in the reviewed scope.
-
-## Live verification not performed
-
-The following evidence is intentionally absent:
-
-- official executable installed at `C:\Projects\.kis-mcp\github-mcp\github-mcp-server.exe`;
-- operator-provided `GITHUB_PERSONAL_ACCESS_TOKEN`;
-- authenticated read and write calls against `NielPieterse0/kis-mcp`;
-- ChatGPT tunnel/control-plane composition.
-
-Therefore this branch establishes the provider module and static commissioning path, but does not claim live GitHub MCP readiness. Live commissioning requires an operator-approved official binary, repository-scoped credential, `smoke-github-mcp.ps1 -RequireLive`, and authenticated MCP call evidence.
+- OAuth is process-lifetime and requires operator interaction after provider restart.
+- The official OAuth scope request is broad because the configured toolset is `all`; local repository middleware restricts explicit repository targets, but GitHub-side least-privilege configuration remains limited by the official built-in OAuth application.
+- Desktop Commander string-form notification warnings are pre-existing shared-runtime noise and are outside this Slice B boundary.
