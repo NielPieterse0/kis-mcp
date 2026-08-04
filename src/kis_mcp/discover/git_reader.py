@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import BinaryIO
 from urllib.parse import urlsplit, urlunsplit
 
+from .change_contracts import ChangePathRecord, ChangeSummary, LocalChangeInventory
 from .contracts import GitSummary
 from .git_metadata import GitMetadataValidationError, validate_git_metadata_graph
 from .read_authority import ReadAuthority, is_within_boundary
@@ -26,6 +27,24 @@ class _GitCommandResult:
     stderr: bytes
     truncated: bool
     nul_items: int
+
+
+@dataclass(slots=True)
+class _MutableChange:
+    path: str
+    previous_path: str | None = None
+    staged_status: str | None = None
+    worktree_status: str | None = None
+    untracked: bool = False
+
+    def freeze(self) -> ChangePathRecord:
+        return ChangePathRecord(
+            path=self.path,
+            previous_path=self.previous_path,
+            staged_status=self.staged_status,
+            worktree_status=self.worktree_status,
+            untracked=self.untracked,
+        )
 
 
 class GitReader:
@@ -124,6 +143,128 @@ class GitReader:
             truncated=bool(diagnostics),
         )
 
+    def inspect_local_changes(self, project_path: str) -> LocalChangeInventory:
+        project = self._authority.resolve_project(project_path)
+        root = Path(project.canonical_path)
+        metadata_error = self._validate_metadata(root)
+        if metadata_error is not None:
+            return _change_unavailable(project.canonical_path, metadata_error)
+        if self._executable is None:
+            return _change_unavailable(project.canonical_path, "GIT_UNAVAILABLE")
+
+        deadline = time.monotonic() + self._settings.limits.git_timeout_seconds
+        try:
+            root_result = self._run(root, ("rev-parse", "--show-toplevel"), deadline)
+            if root_result.returncode != 0:
+                return _change_unavailable(project.canonical_path, "GIT_NOT_REPOSITORY")
+            if root_result.truncated:
+                return _change_unavailable(
+                    project.canonical_path,
+                    "GIT_CHANGE_OUTPUT_TRUNCATED",
+                    truncated=True,
+                )
+            repository_root = Path(_decode(root_result.stdout).strip()).resolve(strict=True)
+            if not is_within_boundary(self._authority.boundary, repository_root):
+                return _change_unavailable(
+                    project.canonical_path,
+                    "GIT_REPOSITORY_OUTSIDE_BOUNDARY",
+                )
+
+            staged_result = self._run(
+                root,
+                (
+                    "diff",
+                    "--no-ext-diff",
+                    "--no-textconv",
+                    "--cached",
+                    "--name-status",
+                    "-z",
+                    "--find-renames",
+                    "--find-copies",
+                ),
+                deadline,
+            )
+            worktree_result = self._run(
+                root,
+                (
+                    "diff",
+                    "--no-ext-diff",
+                    "--no-textconv",
+                    "--name-status",
+                    "-z",
+                    "--find-renames",
+                    "--find-copies",
+                ),
+                deadline,
+            )
+            untracked_result = self._run(
+                root,
+                ("ls-files", "--others", "--exclude-standard", "-z"),
+                deadline,
+            )
+        except subprocess.TimeoutExpired:
+            return _change_unavailable(project.canonical_path, "GIT_TIMEOUT")
+        except (OSError, ValueError):
+            return _change_unavailable(project.canonical_path, "GIT_EXECUTION_FAILED")
+
+        if any(
+            result.returncode != 0
+            for result in (staged_result, worktree_result, untracked_result)
+        ):
+            return _change_unavailable(
+                project.canonical_path,
+                "GIT_CHANGE_READ_FAILED",
+                repository_root=repository_root,
+            )
+
+        changes: dict[str, _MutableChange] = {}
+        for status, path, previous_path in _parse_name_status(staged_result.stdout):
+            change = changes.setdefault(path, _MutableChange(path=path))
+            change.staged_status = status
+            if previous_path is not None and change.previous_path is None:
+                change.previous_path = previous_path
+        for status, path, previous_path in _parse_name_status(worktree_result.stdout):
+            change = changes.setdefault(path, _MutableChange(path=path))
+            change.worktree_status = status
+            if previous_path is not None and change.previous_path is None:
+                change.previous_path = previous_path
+        for path in _parse_nul_paths(untracked_result.stdout):
+            change = changes.setdefault(path, _MutableChange(path=path))
+            change.untracked = True
+
+        ordered_paths = sorted(changes, key=lambda value: (value.casefold(), value))
+        diagnostics: list[dict[str, str]] = []
+        truncated = any(
+            result.truncated
+            for result in (staged_result, worktree_result, untracked_result)
+        )
+        if truncated:
+            diagnostics.append(
+                {
+                    "code": "GIT_CHANGE_OUTPUT_TRUNCATED",
+                    "message": "Local Git change output exceeded the configured byte limit.",
+                }
+            )
+        if len(ordered_paths) > self._settings.limits.max_files:
+            ordered_paths = ordered_paths[: self._settings.limits.max_files]
+            diagnostics.append(
+                {
+                    "code": "CHANGE_ENTRY_LIMIT_REACHED",
+                    "message": "Local Git changes exceeded the configured file limit.",
+                }
+            )
+            truncated = True
+
+        records = tuple(changes[path].freeze() for path in ordered_paths)
+        return LocalChangeInventory(
+            project_path=project.canonical_path,
+            repository_root=str(repository_root),
+            changes=records,
+            summary=_summarize_changes(records),
+            diagnostics=tuple(diagnostics),
+            truncated=truncated,
+        )
+
     def _validate_metadata(self, root: Path) -> str | None:
         try:
             validate_git_metadata_graph(
@@ -156,6 +297,10 @@ class GitReader:
             "-c",
             "core.untrackedCache=false",
             "-c",
+            "core.attributesFile=",
+            "-c",
+            "core.excludesFile=",
+            "-c",
             "core.pager=cat",
             "-c",
             "pager.status=false",
@@ -176,6 +321,101 @@ class GitReader:
             timeout_seconds=max(0.001, remaining),
             max_output_bytes=self._settings.limits.git_max_output_bytes,
         )
+
+
+def _parse_name_status(
+    output: bytes,
+) -> tuple[tuple[str, str, str | None], ...]:
+    fields = _complete_nul_fields(output)
+    parsed: list[tuple[str, str, str | None]] = []
+    index = 0
+    while index < len(fields):
+        raw_status = fields[index]
+        index += 1
+        status = _normalize_change_status(raw_status)
+        if raw_status[:1].upper() in {"C", "R"}:
+            if index + 1 >= len(fields):
+                break
+            previous_path = fields[index]
+            path = fields[index + 1]
+            index += 2
+        else:
+            if index >= len(fields):
+                break
+            previous_path = None
+            path = fields[index]
+            index += 1
+        if path:
+            parsed.append((status, path, previous_path))
+    return tuple(parsed)
+
+
+def _parse_nul_paths(output: bytes) -> tuple[str, ...]:
+    return tuple(path for path in _complete_nul_fields(output) if path)
+
+
+def _complete_nul_fields(output: bytes) -> tuple[str, ...]:
+    if not output:
+        return ()
+    fields = output.split(b"\x00")
+    fields.pop()
+    return tuple(_decode(field) for field in fields)
+
+
+def _normalize_change_status(raw_status: str) -> str:
+    return {
+        "A": "added",
+        "C": "copied",
+        "D": "deleted",
+        "M": "modified",
+        "R": "renamed",
+        "T": "type_changed",
+        "U": "unmerged",
+    }.get(raw_status[:1].upper(), "unknown")
+
+
+def _summarize_changes(records: tuple[ChangePathRecord, ...]) -> ChangeSummary:
+    return ChangeSummary(
+        total=len(records),
+        staged=sum(record.staged_status is not None for record in records),
+        unstaged=sum(record.worktree_status is not None for record in records),
+        untracked=sum(record.untracked for record in records),
+        renamed=sum("renamed" in (record.staged_status, record.worktree_status) for record in records),
+        copied=sum("copied" in (record.staged_status, record.worktree_status) for record in records),
+        deleted=sum("deleted" in (record.staged_status, record.worktree_status) for record in records),
+        conflicted=sum("unmerged" in (record.staged_status, record.worktree_status) for record in records),
+    )
+
+
+def _change_unavailable(
+    project_path: str,
+    code: str,
+    *,
+    repository_root: Path | None = None,
+    truncated: bool = False,
+) -> LocalChangeInventory:
+    messages = {
+        "GIT_CHANGE_OUTPUT_TRUNCATED": "Local Git change output exceeded the configured byte limit.",
+        "GIT_CHANGE_READ_FAILED": "Local Git change evidence could not be read safely.",
+        "GIT_EXECUTION_FAILED": "Local Git evidence could not be read safely.",
+        "GIT_METADATA_ENCODING_INVALID": "Linked-worktree metadata is not valid UTF-8.",
+        "GIT_METADATA_INVALID": "The .git metadata shape is invalid.",
+        "GIT_METADATA_OUTSIDE_BOUNDARY": "Linked-worktree metadata points outside the configured project boundary.",
+        "GIT_METADATA_TARGET_MISSING": "Linked-worktree metadata target does not exist.",
+        "GIT_METADATA_TARGET_NOT_DIRECTORY": "Linked-worktree metadata target is not a directory.",
+        "GIT_METADATA_TOO_LARGE": "Linked-worktree metadata exceeds the configured byte limit.",
+        "GIT_METADATA_UNSAFE": "Git metadata is linked, replaced, or otherwise unsafe.",
+        "GIT_NOT_REPOSITORY": "No local Git repository metadata was found.",
+        "GIT_REPOSITORY_OUTSIDE_BOUNDARY": "Git resolved a repository outside the configured project boundary.",
+        "GIT_TIMEOUT": "Local Git evidence exceeded the configured time limit.",
+        "GIT_UNAVAILABLE": "The Git executable is unavailable.",
+    }
+    return LocalChangeInventory(
+        project_path=project_path,
+        repository_root=str(repository_root) if repository_root is not None else None,
+        diagnostics=({"code": code, "message": messages.get(code, code)},),
+        truncated=truncated,
+    )
 
 
 def _run_bounded(

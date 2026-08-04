@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/local-change-inventory.schema.json",
+  "title": "Discover local change inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "project_path",
+    "repository_root",
+    "changes",
+    "summary",
+    "diagnostics",
+    "truncated"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "source": {
+      "const": "local_git"
+    },
+    "project_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository_root": {
+      "type": ["string", "null"]
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/change"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "added",
+        "copied",
+        "deleted",
+        "modified",
+        "renamed",
+        "type_changed",
+        "unmerged",
+        "unknown"
+      ]
+    },
+    "nullable_status": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/status"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "previous_path",
+        "staged_status",
+        "worktree_status",
+        "untracked"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "previous_path": {
+          "type": ["string", "null"]
+        },
+        "staged_status": {
+          "$ref": "#/$defs/nullable_status"
+        },
+        "worktree_status": {
+          "$ref": "#/$defs/nullable_status"
+        },
+        "untracked": {
+          "type": "boolean"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "staged",
+        "unstaged",
+        "untracked",
+        "renamed",
+        "copied",
+        "deleted",
+        "conflicted"
+      ],
+      "properties": {
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "staged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unstaged": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "untracked": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "renamed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "copied": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deleted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "conflicted": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
