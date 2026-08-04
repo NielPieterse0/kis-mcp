@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/runtime/platform-runtime.schema.json",
+  "title": "kis-mcp Provider Runtime Composition Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "providers"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider_id",
+          "enabled",
+          "namespace"
+        ],
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "enum": [
+              "github-mcp",
+              "supabase"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "namespace": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "provider_id"
+            ],
+            "properties": {
+              "provider_id": {
+                "const": "github-mcp"
+              }
+            }
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "required": [
+              "provider_id"
+            ],
+            "properties": {
+              "provider_id": {
+                "const": "supabase"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

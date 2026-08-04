@@ -44,6 +44,7 @@ The future platform model does not alter the closed Work enforcement decision se
 | Desktop Commander | Provides ordinary filesystem, edit, search, process, testing, and local-development tools. |
 | FastMCP gateway | Mirrors provider contracts, exposes gateway and Discover tools, evaluates concrete Work invocations, and forwards allowed provider calls. |
 | Discover foundation | Performs bounded read-only local repository inspection through `inspect_project`, using JSON-configured evidence and output budgets. |
+| Provider runtime | Explicitly registers approved providers, builds enabled GitHub and Supabase adapters, mounts successful FastMCP adapters under unique namespaces, contains adapter build/mount failures, and reports truthful runtime status. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
 | Three-rule policy | Returns only allow, block HR-001, block HR-002, quarantine HR-003, or block HR-003. |
 | Quarantine service | Moves delete targets intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>`. |
@@ -197,6 +198,7 @@ All project settings and policy declarations are JSON.
 
 - `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, Discover retrieval settings, the local stdio transport, and the ChatGPT remote transport.
 - `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, and all file, directory, byte, depth, time, Git, Python-index, evidence, and output budgets.
+- `settings/providers/platform-runtime.provider.json` selects exactly the approved external provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
 - Each remote instance stores its port, profile name, `tunnel_id`, control-plane scope identifier, credential environment-variable name, and whether the external values are configured.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
@@ -207,13 +209,17 @@ Configuration and implementation-status fields do not disable otherwise permitte
 
 ## Public interface
 
-Expose Desktop Commander's normal non-network-only tool surface plus four gateway operations and one Discover operation:
+Expose Desktop Commander's normal non-network-only tool surface, approved namespaced provider tools, five gateway operations, and one Discover operation:
 
-- `kis_health` — report provider availability, policy fingerprint, and configured roots;
+- `kis_health` — report Desktop Commander availability, policy fingerprint, and configured roots;
+- `kis_provider_status` — report provider registration, runtime enablement, build and mount results, provider-neutral readiness, and explicitly unverified commissioning states;
 - `kis_quarantine_path` — move one eligible path into recoverable quarantine;
 - `kis_list_quarantine` — list bounded recoverable operations;
 - `kis_restore_quarantine` — restore one intact item without overwrite;
-- `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands.
+- `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands;
+- `github_*` and `supabase_*` — namespaced upstream provider tools only when the corresponding adapter builds and mounts successfully.
+
+Provider catalogue membership or mount success does not prove authentication, upstream connectivity, tool discovery, or live verification.
 
 Do not add capability catalogues, profiles, tiers, approvals, or wrapper tools unless required by the three-rule boundary, basic operation, or an approved versioned module contract.
 
@@ -250,10 +256,12 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
-The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, and the first bounded Discover capability.
+The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander Work adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, the bounded Discover foundation, and provider runtime composition.
 
 `inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
 
-Fresh integrated verification proves additive `inspect_project` registration and the Discover contracts, scanner, detectors, Git reader, Python index, service budgeting, architecture boundaries, and donor independence while preserving existing gateway tests. Fresh local HTTP smoke verification proves both `operation` and `development` instances expose 30 tools, execute `inspect_project`, `kis_health`, representative filesystem/edit/process operations, and recoverable quarantine successfully, while the proven network-only feedback tool remains absent.
+The Provider registry contains Desktop Commander, GitHub MCP, and Supabase descriptors. `build_server()` selects the approved external GitHub and Supabase providers from strict JSON runtime settings, builds enabled adapters in deterministic order, mounts successful FastMCP adapters under `github_*` and `supabase_*`, and contains unavailable or invalid adapters without preventing core server startup. `kis_provider_status` reports registration, readiness, build, mount, and explicitly unverified commissioning states.
 
-The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. This implementation-status statement does not restrict normal tools beyond HR-001, HR-002, and HR-003.
+This slice does not commission GitHub or Supabase authentication. The GitHub official binary, interactive OAuth/device flow, authenticated private-repository read, Supabase hosted OAuth/DCR, token persistence, project-scoped read, upstream tool discovery, and main ChatGPT endpoint live verification remain dedicated follow-up work.
+
+The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. These implementation-status statements do not restrict normal tools beyond HR-001, HR-002, and HR-003.

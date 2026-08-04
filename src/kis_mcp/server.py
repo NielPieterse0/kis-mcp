@@ -27,6 +27,13 @@ from .models import (
 from .policy import ThreeRulePolicy
 from .provider_lifecycle import prepare_provider_launch
 from .provider_readiness import validate_provider_offline_readiness
+from .providers.platform import build_platform_provider_service
+from .providers.runtime import compose_provider_runtime, provider_runtime_status
+from .providers.runtime_settings import (
+    ProviderRuntimeSettings,
+    load_provider_runtime_settings,
+)
+from .providers.service import ProviderService
 from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
 
 
@@ -143,6 +150,8 @@ def build_server(
     config: RuntimeConfig | None = None,
     *,
     validate_provider: bool = True,
+    provider_service: ProviderService | None = None,
+    provider_runtime_settings: ProviderRuntimeSettings | None = None,
 ) -> FastMCP:
     runtime = config or load_runtime_config()
     if validate_provider:
@@ -171,6 +180,18 @@ def build_server(
             boundary=Path(runtime.project_boundary),
             settings=runtime.discover_settings,
         ),
+    )
+
+    external_provider_service = provider_service or build_platform_provider_service(
+        runtime_config=runtime
+    )
+    external_provider_settings = (
+        provider_runtime_settings or load_provider_runtime_settings()
+    )
+    external_provider_composition = compose_provider_runtime(
+        server,
+        external_provider_service,
+        external_provider_settings,
     )
 
     quarantine = QuarantineService(
@@ -233,6 +254,18 @@ def build_server(
 
         return restore_or_tool_error(operation_id)
 
+    provider_status_server = FastMCP("kis-mcp-provider-status")
+
+    @provider_status_server.tool
+    def kis_provider_status() -> dict[str, Any]:
+        """Report provider registration, mount state, readiness, and commissioning gaps."""
+
+        return provider_runtime_status(
+            external_provider_service,
+            external_provider_composition,
+        )
+
+    server.mount(provider_status_server)
     server.add_middleware(
         ThreeRuleMiddleware(
             resolver=resolver,
