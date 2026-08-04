@@ -23,6 +23,7 @@ from .models import (
     QuarantineResponse,
 )
 from .policy import ThreeRulePolicy
+from .provider_lifecycle import prepare_provider_launch
 from .provider_readiness import validate_provider_offline_readiness
 from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
 
@@ -147,11 +148,16 @@ def build_server(
     _ensure_state_directories(runtime)
 
     launch = runtime.desktop_commander_launch
+    provider_args, provider_environment = prepare_provider_launch(
+        args=launch.get("args", []),
+        environment=_provider_environment(runtime),
+        provider_state_file=runtime.provider_state_file,
+    )
     transport = StdioTransport(
         command=str(launch["command"]),
-        args=[str(value) for value in launch.get("args", [])],
+        args=provider_args,
         cwd=str(launch["cwd"]),
-        env=_provider_environment(runtime),
+        env=provider_environment,
     )
     server = create_proxy(
         ProxyClient(transport),
