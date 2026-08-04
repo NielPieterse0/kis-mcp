@@ -7,9 +7,13 @@
 - [x] Implement and run the live stdio commissioning scenario.
 - [x] Add the locked PowerShell commissioning entry point.
 - [x] Add provider-state integrity detection and automatic snapshot restoration.
-- [x] Run final change check, repository verification, diff review, and closeout.
-- [x] Commit and raise an unmerged draft pull request.
+- [x] Raise draft pull request `#3` without merging.
+- [x] Integrate current `main` containing the provider-state atomicity fix.
+- [x] Rerun normal repository verification on the integrated head.
+- [x] Rerun live commissioning successfully without provider-state restoration.
+- [x] Pass final scope, whitespace, and diff review.
+- [x] Reconcile closeout and specification evidence.
 
-## Blocking result
+## Completion result
 
-The functional proxy stages pass, but Desktop Commander `0.2.46` truncates its shared `config.json` during shutdown. The harness detects the invalid state, restores the pre-run snapshot atomically, and fails commissioning with `PROVIDER_STATE_INTEGRITY`.
+All functional proxy stages and provider-state integrity validation pass on current `main`. The commissioning command exits successfully without invoking snapshot restoration. No production gateway files are changed by this commissioning slice, and no merge blocker remains.
