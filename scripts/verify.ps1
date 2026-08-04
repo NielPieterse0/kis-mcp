@@ -7,6 +7,8 @@ $SkillsSettingsPath = Join-Path $RepositoryRoot 'settings\skills.settings.json'
 $PolicyPath = Join-Path $RepositoryRoot 'policy\kis-mcp.policy.json'
 $LockPath = Join-Path $RepositoryRoot 'uv.lock'
 
+& (Join-Path $PSScriptRoot 'configure-repository.ps1')
+
 $CanonicalStateRoot = 'C:\Projects\.kis-mcp'
 $CanonicalSkillsRoot = 'C:\Projects\.agents\skills'
 $CanonicalSkillsStagingRoot = 'C:\Projects\.kis-mcp\temp\skills'
