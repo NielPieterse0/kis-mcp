@@ -8,6 +8,7 @@ import pytest
 from kis_mcp.config import load_runtime_config
 from kis_mcp.provider_contract import (
     ProviderContractError,
+    build_provider_contract,
     contract_fingerprint,
     load_provider_contract,
     verify_adapter_contract,
@@ -46,6 +47,45 @@ def test_every_provider_tool_has_one_explicit_effect_classification() -> None:
 
     assert set(classifications) == tool_names
     assert all(isinstance(value, str) and value for value in classifications.values())
+
+
+def test_provider_addition_requires_explicit_effect_review() -> None:
+    document = load_provider_contract(CONTRACT_PATH)
+    tools = deepcopy(document["tools"])
+    tools.append(
+        {
+            "annotations": {"openWorldHint": True},
+            "input_schema": {"properties": {}, "type": "object"},
+            "name": "future_provider_tool",
+        }
+    )
+
+    with pytest.raises(
+        ProviderContractError,
+        match=r"provider tool surface drift.*added: future_provider_tool",
+    ):
+        build_provider_contract(
+            package=document["provider"]["package"],
+            version=document["provider"]["version"],
+            tools=tools,
+        )
+
+
+def test_provider_removal_requires_explicit_effect_review() -> None:
+    document = load_provider_contract(CONTRACT_PATH)
+    tools = [
+        tool for tool in deepcopy(document["tools"]) if tool["name"] != "get_config"
+    ]
+
+    with pytest.raises(
+        ProviderContractError,
+        match=r"provider tool surface drift.*removed: get_config",
+    ):
+        build_provider_contract(
+            package=document["provider"]["package"],
+            version=document["provider"]["version"],
+            tools=tools,
+        )
 
 
 def test_schema_mutation_changes_fingerprint_and_reports_provider_version() -> None:

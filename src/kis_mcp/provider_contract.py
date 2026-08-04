@@ -33,6 +33,41 @@ ALLOWED_EFFECT_CLASSIFICATIONS = frozenset(
         "provider_configuration",
     }
 )
+NO_PROVEN_PROHIBITED_EFFECT_TOOLS = frozenset(
+    {
+        "force_terminate",
+        "get_config",
+        "get_file_info",
+        "get_more_search_results",
+        "get_prompts",
+        "get_recent_tool_calls",
+        "get_usage_stats",
+        "kill_process",
+        "list_directory",
+        "list_processes",
+        "list_searches",
+        "list_sessions",
+        "read_multiple_files",
+        "read_process_output",
+        "start_search",
+        "stop_search",
+    }
+)
+EXPECTED_PROVIDER_TOOLS = frozenset(
+    {
+        *NO_PROVEN_PROHIBITED_EFFECT_TOOLS,
+        "create_directory",
+        "edit_block",
+        "give_feedback_to_desktop_commander",
+        "interact_with_process",
+        "move_file",
+        "read_file",
+        "set_config_value",
+        "start_process",
+        "write_file",
+        "write_pdf",
+    }
+)
 
 
 class ProviderContractError(RuntimeError):
@@ -86,7 +121,27 @@ def classify_provider_tool(tool_name: str) -> str:
         return "direct_write"
     if normalized in DELETE_PATH_KEYS:
         return "direct_delete"
-    return "no_proven_prohibited_effect"
+    if normalized in NO_PROVEN_PROHIBITED_EFFECT_TOOLS:
+        return "no_proven_prohibited_effect"
+    raise ProviderContractError(
+        f"Unclassified Desktop Commander provider tool: {tool_name}"
+    )
+
+
+def _verify_provider_tool_surface(tool_names: set[str]) -> None:
+    added = tool_names - EXPECTED_PROVIDER_TOOLS
+    removed = EXPECTED_PROVIDER_TOOLS - tool_names
+    if not added and not removed:
+        return
+
+    details: list[str] = []
+    if added:
+        details.append(f"added: {', '.join(sorted(added))}")
+    if removed:
+        details.append(f"removed: {', '.join(sorted(removed))}")
+    raise ProviderContractError(
+        "Desktop Commander provider tool surface drift: " + "; ".join(details)
+    )
 
 
 def build_provider_contract(
@@ -114,6 +169,7 @@ def build_provider_contract(
     names = [tool["name"] for tool in normalized_tools]
     if len(names) != len(set(names)):
         raise ProviderContractError("Provider contract contains duplicate tool names")
+    _verify_provider_tool_surface(set(names))
     return {
         "adapter_contract": adapter_contract_snapshot(),
         "effect_classifications": {
@@ -200,6 +256,7 @@ def verify_adapter_contract(document: Mapping[str, Any]) -> None:
     tools = {str(tool.get("name", "")): tool for tool in raw_tools}
     if "" in tools or len(tools) != len(raw_tools):
         raise ProviderContractError("Provider contract tool names must be unique and non-empty")
+    _verify_provider_tool_surface(set(tools))
 
     classifications = document.get("effect_classifications")
     if not isinstance(classifications, Mapping):
