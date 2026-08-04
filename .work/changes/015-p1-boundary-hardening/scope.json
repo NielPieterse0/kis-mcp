@@ -10,6 +10,7 @@
     ".work/changes/015-p1-boundary-hardening/**",
     ".work/changes/005-discover-foundation/scope.json",
     ".work/changes/008-github-mcp-provider/scope.json",
+    ".work/changes/012-skills-module/scope.json",
     "src/kis_mcp/command_intent.py",
     "src/kis_mcp/git_context.py",
     "src/kis_mcp/shell_parser.py",
@@ -55,7 +56,8 @@
   ],
   "dependencies": [
     "005-discover-foundation",
-    "008-github-mcp-provider"
+    "008-github-mcp-provider",
+    "012-skills-module"
   ],
   "integration_owner": "015-p1-boundary-hardening"
 }

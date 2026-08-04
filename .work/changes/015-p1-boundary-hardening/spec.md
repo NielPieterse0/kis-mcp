@@ -2,7 +2,7 @@
 
 ## Status
 
-Approved and implemented. Awaiting pull-request review; not approved for merge.
+Approved, implemented, integrated with current `main`, and reverified after pull-request review repair. Awaiting exact-head landing approval.
 
 ## Operator-approved hard-coded enforcement
 
@@ -39,6 +39,7 @@ Close all six P1 findings without adding a fourth policy rule, reducing ordinary
 - Track effective working directory and a bounded push-directory stack for supported directory-changing commands.
 - Resolve subsequent `interact_with_process` commands against the stored working directory.
 - Update state only after successful provider calls and remove state on explicit process exit/termination evidence.
+- For statically recognized persistent startup shells, including `cmd /k` and PowerShell `-NoExit -Command`, retain the final startup working directory before later interactions are evaluated.
 - Unknown or missing process identifiers must retain the existing allow-on-uncertainty behavior.
 
 ### R3 — Parse supported shell control syntax narrowly

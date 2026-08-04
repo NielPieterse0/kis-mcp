@@ -6,7 +6,10 @@ import re
 from threading import RLock
 from typing import Any
 
-from .command_intent import resolve_command_effects_with_state
+from .command_intent import (
+    resolve_command_effects_with_state,
+    resolve_persistent_shell_startup_state,
+)
 from .models import InvocationEffects
 from .shell_parser import ShellState, shell_from_command
 
@@ -62,8 +65,16 @@ class ProcessStateRegistry:
                 cwd=cwd,
                 shell=shell_from_command(command, _shell_argument(arguments)),
             )
+            state = resolve_persistent_shell_startup_state(
+                command,
+                state=state,
+                project_boundary=project_boundary,
+            )
             with self._lock:
-                self._states[pid] = state
+                if state.terminated:
+                    self._states.pop(pid, None)
+                else:
+                    self._states[pid] = state
             return
 
         if normalized == "interact_with_process":

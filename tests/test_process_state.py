@@ -72,6 +72,51 @@ def test_successful_interactive_process_calls_reuse_effective_working_directory(
     ]
 
 
+@pytest.mark.parametrize(
+    "startup_command",
+    [
+        r"cmd /k cd C:\Projects-old",
+        r'powershell -NoExit -Command "Set-Location C:\Projects-old"',
+    ],
+)
+def test_persistent_startup_shell_retains_its_final_working_directory(
+    startup_command: str,
+) -> None:
+    server = FastMCP("process-startup-state-test")
+    calls: list[tuple[object, ...]] = []
+    resolver = DesktopCommanderEffectResolver(
+        project_boundary=PROJECT_BOUNDARY,
+        provider_state_file=r"C:\Projects\.kis-mcp\desktop-commander.json",
+    )
+
+    @server.tool
+    def start_process(command: str) -> str:
+        calls.append(("start", command))
+        return "Process started with PID 51"
+
+    @server.tool
+    def interact_with_process(pid: int, input: str) -> str:
+        calls.append(("interact", pid, input))
+        return "input accepted"
+
+    server.add_middleware(_middleware(resolver))
+
+    async def run() -> None:
+        async with Client(server) as client:
+            await client.call_tool(
+                "start_process",
+                {"command": startup_command},
+            )
+            with pytest.raises(Exception, match="HR-001"):
+                await client.call_tool(
+                    "interact_with_process",
+                    {"pid": 51, "input": "echo data > output.txt"},
+                )
+
+    asyncio.run(run())
+    assert calls == [("start", startup_command)]
+
+
 def test_pushd_popd_and_process_termination_update_or_clear_state() -> None:
     server = FastMCP("process-stack-test")
     calls: list[tuple[object, ...]] = []

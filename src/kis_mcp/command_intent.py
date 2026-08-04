@@ -266,6 +266,29 @@ def _wrapped_command_payload(tokens: list[str]) -> str | None:
     return None
 
 
+def _persistent_shell_payload(tokens: list[str]) -> tuple[str, str] | None:
+    if not tokens:
+        return None
+    program = _program_name(tokens[0])
+    arguments = [_strip_outer_quotes(token) for token in tokens[1:]]
+    lowered = [argument.casefold() for argument in arguments]
+
+    if program == "cmd":
+        markers = {"/k"}
+        nested_shell = "cmd"
+    elif program in {"powershell", "pwsh"} and "-noexit" in lowered:
+        markers = {"-command", "-c"}
+        nested_shell = "powershell"
+    else:
+        return None
+
+    for index, argument in enumerate(lowered):
+        if argument in markers:
+            payload = " ".join(arguments[index + 1 :]).strip()
+            return nested_shell, payload
+    return nested_shell, ""
+
+
 def _program_name(token: str) -> str:
     clean = _clean_token(token).replace("/", "\\")
     clean = clean.rsplit("\\", 1)[-1].casefold()
@@ -747,6 +770,29 @@ def _resolve_command_recursive(
         effects.append(nested)
 
     return _merge_effects(effects), final_state
+
+
+def resolve_persistent_shell_startup_state(
+    command: str,
+    *,
+    state: ShellState,
+    project_boundary: str,
+) -> ShellState:
+    """Return the final state of a statically recognized persistent shell."""
+
+    persistent = _persistent_shell_payload(_tokens(command))
+    if persistent is None:
+        return state
+    nested_shell, payload = persistent
+    nested_state = ShellState(cwd=state.cwd, shell=nested_shell)
+    if not payload:
+        return nested_state
+    _effects, final_state = resolve_command_effects_with_state(
+        payload,
+        state=nested_state,
+        project_boundary=project_boundary,
+    )
+    return final_state
 
 
 def resolve_command_effects_with_state(

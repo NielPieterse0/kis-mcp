@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "012-skills-module",
-  "status": "active",
+  "status": "closed",
   "branch": "change/012-skills-module",
   "worktree": ".work/worktrees/012-skills-module",
   "base": "main",
