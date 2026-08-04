@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/inspect-change-working-tree-response.schema.json",
+  "title": "Discover working-tree inspect change response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "source",
+    "available",
+    "project_path",
+    "repository_root",
+    "change",
+    "changed_files",
+    "affected_scopes",
+    "changed_tests",
+    "contract_paths",
+    "documentation_paths",
+    "configuration_paths",
+    "policy_paths",
+    "impact_summary",
+    "diagnostics",
+    "unknowns",
+    "confidence",
+    "truncated"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "inspect_change"},
+    "source": {"const": "working_tree"},
+    "available": {"type": "boolean"},
+    "project_path": {"type": "string", "minLength": 1},
+    "repository_root": {"type": ["string", "null"]},
+    "change": {"$ref": "#/$defs/change_identity"},
+    "changed_files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/changed_file"}
+    },
+    "affected_scopes": {"$ref": "#/$defs/path_list"},
+    "changed_tests": {"$ref": "#/$defs/path_list"},
+    "contract_paths": {"$ref": "#/$defs/path_list"},
+    "documentation_paths": {"$ref": "#/$defs/path_list"},
+    "configuration_paths": {"$ref": "#/$defs/path_list"},
+    "policy_paths": {"$ref": "#/$defs/path_list"},
+    "impact_summary": {"$ref": "#/$defs/impact_summary"},
+    "diagnostics": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/diagnostic"}
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "truncated": {"type": "boolean"}
+  },
+  "$defs": {
+    "path_list": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "change_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "fingerprint"],
+      "properties": {
+        "source": {"const": "working_tree"},
+        "fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "added",
+        "copied",
+        "deleted",
+        "modified",
+        "renamed",
+        "type_changed",
+        "unmerged",
+        "unknown"
+      ]
+    },
+    "nullable_status": {
+      "oneOf": [
+        {"$ref": "#/$defs/status"},
+        {"type": "null"}
+      ]
+    },
+    "changed_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "previous_path",
+        "staged_status",
+        "worktree_status",
+        "untracked",
+        "categories"
+      ],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "previous_path": {"type": ["string", "null"]},
+        "staged_status": {"$ref": "#/$defs/nullable_status"},
+        "worktree_status": {"$ref": "#/$defs/nullable_status"},
+        "untracked": {"type": "boolean"},
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "source",
+              "test",
+              "contract",
+              "documentation",
+              "configuration",
+              "policy",
+              "other"
+            ]
+          }
+        }
+      }
+    },
+    "impact_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_files",
+        "source_files",
+        "test_files",
+        "contract_files",
+        "documentation_files",
+        "configuration_files",
+        "policy_files",
+        "other_files"
+      ],
+      "properties": {
+        "total_files": {"type": "integer", "minimum": 0},
+        "source_files": {"type": "integer", "minimum": 0},
+        "test_files": {"type": "integer", "minimum": 0},
+        "contract_files": {"type": "integer", "minimum": 0},
+        "documentation_files": {"type": "integer", "minimum": 0},
+        "configuration_files": {"type": "integer", "minimum": 0},
+        "policy_files": {"type": "integer", "minimum": 0},
+        "other_files": {"type": "integer", "minimum": 0}
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1}
+      }
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "reason"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
