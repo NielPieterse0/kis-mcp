@@ -54,7 +54,9 @@
   "dependencies": [
     "005-discover-foundation",
     "006-provider-state-atomicity",
-    "007-chatgpt-remote-commissioning"
+    "007-chatgpt-remote-commissioning",
+    "012-skills-module",
+    "014-provider-runtime-composition"
   ],
   "integration_owner": "013-startup-hardening"
 }

@@ -1,0 +1,22 @@
+# Tasks: 012-skills-module
+
+- [x] Read repository authority and approved platform direction.
+- [x] Load Superpowers development workflow and modularity-assessment skill.
+- [x] Verify Skills is not already exposed by kis-mcp.
+- [x] Inspect Work tool Skills capability and Desktop Commander contracts as donor evidence.
+- [x] Create isolated worktree from clean `origin/main` without touching dirty primary state.
+- [x] Register manual emergency change artifacts before production edits.
+- [x] Validate the current-slice claim and document the repository-wide recursive validator defect.
+- [x] Implement and verify configuration and public contracts using TDD.
+- [x] Implement and verify deterministic catalogue using TDD.
+- [x] Implement and verify Work backend and mutation service using TDD.
+- [x] Implement and verify public FastMCP tool registration using TDD.
+- [x] Make Skills initialization fail-open for the wider Work/gateway server.
+- [x] Update authority and module documentation.
+- [x] Run modularity assessment and extract frontmatter/source responsibilities.
+- [x] Integrate `origin/main` at PR #13 merge commit `0915bfa`.
+- [x] Close the stale merged change-005 claim required for additive integration.
+- [x] Update the shared Discover tool-registration test for the additive Skills surface.
+- [x] Run change-scope check, 30 focused Skills tests, live 39-tool smoke, full verification, and whitespace check.
+- [x] Review final diff and record closeout.
+- [x] Push the branch and open draft pull request #14.

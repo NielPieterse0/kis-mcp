@@ -1,24 +1,37 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_repository_skills_are_not_runtime_catalogue() -> None:
+def test_repository_skills_use_only_approved_runtime_catalogue() -> None:
     runtime_root = REPOSITORY_ROOT / "src"
-    assert not any(path.name == "skills" for path in runtime_root.rglob("skills"))
+    assert (runtime_root / "kis_mcp" / "skills").is_dir()
+    assert not (runtime_root / "skills").exists()
+
+    skills_settings = json.loads(
+        (REPOSITORY_ROOT / "settings" / "skills.settings.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert skills_settings["schema_version"] == 1
+    assert skills_settings["root"] == r"C:\Projects\.agents\skills"
+    assert skills_settings["staging_root"] == r"C:\Projects\.kis-mcp\temp\skills"
 
     runtime_and_config_files = [
         *runtime_root.rglob("*.py"),
         *(REPOSITORY_ROOT / "settings").rglob("*.json"),
         *(REPOSITORY_ROOT / "policy").rglob("*.json"),
     ]
-    runtime_text = "\n".join(
-        path.read_text(encoding="utf-8") for path in runtime_and_config_files
-    )
-    assert ".agents" not in runtime_text
+    for path in runtime_and_config_files:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if ".agents" in line:
+                assert "C:\\Projects\\.agents\\skills" in line or (
+                    "C:\\\\Projects\\\\.agents\\\\skills" in line
+                )
 
 
 def test_verification_uses_locked_external_interpreter() -> None:

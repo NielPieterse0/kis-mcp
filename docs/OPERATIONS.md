@@ -78,7 +78,8 @@ Normal startup uses the installed package without downloading or updating it.
 
 Edit only the canonical JSON files:
 
-- `settings/kis-mcp.settings.json` for identity, paths, provider version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
+- `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
+- `settings/providers/platform-runtime.provider.json` for the exact approved external provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
 
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
@@ -115,6 +116,8 @@ Startup does not install or update packages. It requires the external locked Pyt
 
 Provider readiness rejects enabled telemetry, a missing or non-loopback feature-flag URL, and missing local Chrome when configured as required because the pinned provider source proves those states cause automatic external activity. It also requires Desktop Commander's persisted `blockedCommands` and `allowedDirectories` fields to remain empty so the provider cannot add independent command or directory restrictions beneath FastMCP.
 
+After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub and Supabase adapter builds in stable provider-ID order. Successful adapters mount as `github_*` and `supabase_*`. Missing binaries, credentials, invalid builder results, or mount failures are recorded by type and do not prevent the Work, Discover, Skills, or gateway surfaces from starting. Invalid runtime JSON remains a startup configuration error.
+
 The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
 ## Use Discover
@@ -134,6 +137,17 @@ The feedback tool and `read_file.isUrl` mode are absent from the exposed Work co
 Request limits are optional and may only narrow values in `settings.discover.limits`. The result contains versioned repository, evidence, local Git, verification-discovery, Python-structure, confidence, truncation, and handoff records. Verification declarations are evidence only: Discover does not execute repository code, tests, builds, or discovered commands.
 
 `DISCOVER_*` errors are structural and corrective. They are not HR policy decisions. Resolve the reported path, unsafe link/reparse condition, unsupported or excessive request limit, unreadable text, Git metadata condition, or configured budget rather than changing `policy/kis-mcp.policy.json`.
+
+## Inspect provider runtime status
+
+Call `kis_provider_status` to inspect the current Provider catalogue and runtime composition. For each approved external provider, read these fields separately:
+
+- `registered` and `enabled` — descriptor and runtime selection state;
+- `build_attempted`, `built`, `mounted`, and `state` — this process's composition result;
+- `readiness` — provider-neutral local preflight evidence;
+- `commissioning` — installation, configuration, authentication, upstream connection, tool discovery, and live verification. These remain `not_verified` until dedicated authenticated commissioning proves them.
+
+`build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure; inspect the provider's offline readiness details to distinguish a missing executable from invalid configuration or other preflight failures. A mounted provider is not automatically authenticated or live verified. Do not add PATs or secrets to repository JSON to change these status values; complete the dedicated OAuth commissioning slices instead.
 
 ## Verify local ChatGPT HTTP transport
 
@@ -275,7 +289,8 @@ The repository checks also confirm:
 4. generated-state paths remain canonical and outside the repository;
 5. predecessor runtime identities are absent from authoritative and runtime files;
 6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass;
-7. Discover contracts, JSON settings, path identity, link/reparse and hard-link handling, traversal budgets, deterministic detection, fixed local Git reads, pure Python AST indexing, output compaction, evidence integrity, donor independence, architecture boundaries, and tool registration pass.
+7. Discover contracts, JSON settings, path identity, link/reparse and hard-link handling, traversal budgets, deterministic detection, fixed local Git reads, pure Python AST indexing, output compaction, evidence integrity, donor independence, architecture boundaries, and tool registration pass;
+8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and additive public-tool registration pass.
 
 Verification also checks the pinned provider surface under `contracts/desktop-commander/`, including provider identity, all exposed tool schemas and annotations, effect classification coverage, adapter mappings, and the recorded SHA-256 fingerprint. These checks are release evidence only; they do not add a runtime allowlist or a fourth policy rule.
 

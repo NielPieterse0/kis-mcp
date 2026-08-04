@@ -6,7 +6,7 @@ Remote publication is reported separately after the commit is pushed and the pul
 
 ## Implemented
 
-- Rebased the complete Startup Hardening tree into one linear commit from exact base `0915bfa67e4452240d2c5fef677670c0c68386c7`.
+- Built the complete Startup Hardening delta as one commit from exact base `0915bfa67e4452240d2c5fef677670c0c68386c7`, then merged current `origin/main` after PRs #14 and #15 advanced the integration base.
 - Transferred further startup correction ownership from closed change `007` to change `013` without editing the preserved `007` worktree.
 - Absorbed the committed non-secret tunnel identifier schema required by commissioning.
 - Replaced file-based tunnel secret handling with per-user Windows Credential Manager storage, non-secret JSON target names, and transient owned-process injection.
@@ -26,7 +26,7 @@ Remote publication is reported separately after the commit is pushed and the pul
 
 ## Verification
 
-Fresh verification on August 4, 2026:
+Fresh integrated verification on August 4, 2026 after merging current `origin/main`:
 
 ```powershell
 pwsh -NoProfile -File scripts/verify.ps1
@@ -39,7 +39,7 @@ Verified:
 - exact three-rule configuration;
 - locked interpreter and dependencies;
 - Python syntax;
-- governance across ten claims;
+- governance across twelve coordinated claims;
 - complete pytest suite with two expected skips.
 
 Live bounded observation:
@@ -70,7 +70,7 @@ An independent subagent reviewer was not available in this chat runtime. Final r
 
 ## Recovery
 
-Revert the single Startup Hardening commit. Generated profile YAML is never permanently deleted: replacement requires `-BackupExistingProfile`, which moves the previous profile beneath the profile backup directory. The Windows Credential Manager entry remains operator-owned and is not copied, logged, or deleted by rollback.
+Revert the Startup Hardening feature commit or the merged pull request. Generated profile YAML is never permanently deleted: replacement requires `-BackupExistingProfile`, which moves the previous profile beneath the profile backup directory. The Windows Credential Manager entry remains operator-owned and is not copied, logged, or deleted by rollback.
 
 ## Residual risks
 

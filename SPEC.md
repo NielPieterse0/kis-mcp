@@ -19,7 +19,7 @@ The repository contains only:
 - recoverable quarantine support;
 - minimal JSON configuration, tests, and operational documentation.
 
-The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile framework, an active runtime skills catalogue, a governance subsystem, or a fork of Desktop Commander. It now includes one bounded, read-only Discover foundation implemented natively under `src/kis_mcp/discover`; donor repositories are source evidence only and are not runtime dependencies. Repository-local `.agents/skills` material is procedural development guidance only and is excluded from runtime and configuration.
+The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile permission framework, a governance subsystem, or a fork of Desktop Commander. It includes one bounded, read-only Discover foundation implemented natively under `src/kis_mcp/discover`; donor repositories remain source evidence only and are not runtime dependencies. Repository-local `.agents/skills` material remains procedural development guidance. The separate runtime Skills module resolves reusable procedures exclusively from the operator-approved shared root `C:\\Projects\\.agents\\skills` through `settings/skills.settings.json`, and its mutations re-enter the existing Work middleware and Desktop Commander backend.
 
 ## Product evolution
 
@@ -44,6 +44,7 @@ The future platform model does not alter the closed Work enforcement decision se
 | Desktop Commander | Provides ordinary filesystem, edit, search, process, testing, and local-development tools. |
 | FastMCP gateway | Mirrors provider contracts, exposes gateway and Discover tools, evaluates concrete Work invocations, and forwards allowed provider calls. |
 | Discover foundation | Performs bounded read-only local repository inspection through `inspect_project`, using JSON-configured evidence and output budgets. |
+| Provider runtime | Explicitly registers approved providers, builds enabled GitHub and Supabase adapters, mounts successful FastMCP adapters under unique namespaces, contains adapter build/mount failures, and reports truthful runtime status. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
 | Three-rule policy | Returns only allow, block HR-001, block HR-002, quarantine HR-003, or block HR-003. |
 | Quarantine service | Moves delete targets intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>`. |
@@ -196,6 +197,7 @@ All project settings and policy declarations are JSON.
 
 - `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, Discover retrieval settings, the local stdio transport, and the ChatGPT remote transport.
 - `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, and all file, directory, byte, depth, time, Git, Python-index, evidence, and output budgets.
+- `settings/providers/platform-runtime.provider.json` selects exactly the approved external provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
 - Each remote instance stores its port, profile name, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_credential_target` used to retrieve its per-user Generic Credential from Windows Credential Manager.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
@@ -204,17 +206,35 @@ A remote instance may have a blank tunnel ID only while `configured` is `false`.
 
 Configuration and implementation-status fields do not disable otherwise permitted Desktop Commander tools or create another policy decision.
 
+## Skills module
+
+The implemented Skills module resolves one reusable procedure catalogue from `C:\Projects\.agents\skills`. It builds a deterministic immutable snapshot after validating `SKILL.md` frontmatter, file paths, configured suffixes, encodings, links, sizes, and limits. Repository-local `.agents/skills` is not part of this runtime catalogue.
+
+The module exposes bounded list, search, load, file-search, file-read, refresh, and structural-evaluation operations. ChatGPT loads the returned instructions and executes their workflows through ordinary kis-mcp Work tools; the server does not import or automatically execute arbitrary skill code.
+
+Skill creation validates a complete proposed entrypoint, stages it beneath `C:\Projects\.kis-mcp\temp\skills`, and publishes it with Desktop Commander `create_directory`, `write_file`, and `move_file`. Skill improvement requires the active file SHA-256 and uses Desktop Commander `edit_block` with one exact expected replacement. Every mutation calls `FastMCP.call_tool(..., run_middleware=True)`, so the existing three-rule middleware evaluates the concrete Work effects.
+
+`settings/skills.settings.json` and `contracts/skills/settings.schema.json` define the exact roots, limits, supported suffixes, and traversal controls. Initial catalogue failure does not prevent ordinary Work/gateway startup; Skills calls return a corrective `SKILLS_*` error until the source is repaired and the server is restarted. `SKILLS_*` failures are structural or application errors and do not expand the closed Work policy decision set.
+
 ## Public interface
 
-Expose Desktop Commander's normal non-network-only tool surface plus four gateway operations and one Discover operation:
+Expose Desktop Commander's normal non-network-only tool surface, approved namespaced provider tools, five gateway operations, one Discover operation, and nine Skills operations:
 
-- `kis_health` — report provider availability, policy fingerprint, and configured roots;
+- `kis_health` — report Desktop Commander availability, policy fingerprint, and configured roots;
+- `kis_provider_status` — report provider registration, runtime enablement, build and mount results, provider-neutral readiness, and explicitly unverified commissioning states;
 - `kis_quarantine_path` — move one eligible path into recoverable quarantine;
 - `kis_list_quarantine` — list bounded recoverable operations;
 - `kis_restore_quarantine` — restore one intact item without overwrite;
-- `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands.
+- `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands;
+- `list_skills`, `search_skills`, and `load_skill` — discover and load reusable procedures;
+- `search_skill_files` and `read_skill_file` — inspect bounded supporting files;
+- `refresh_skills` and `evaluate_skill` — rebuild or evaluate the immutable catalogue snapshot;
+- `create_skill` and `improve_skill` — validate and mutate shared skills through the Work backend;
+- `github_*` and `supabase_*` — namespaced upstream provider tools only when the corresponding adapter builds and mounts successfully.
 
-Do not add capability catalogues, profiles, tiers, approvals, or wrapper tools unless required by the three-rule boundary, basic operation, or an approved versioned module contract.
+Provider catalogue membership or mount success does not prove authentication, upstream connectivity, tool discovery, or live verification.
+
+Do not add capability-profile permission systems, tiers, approvals, or broad replacement wrapper surfaces. Discover and Skills are approved versioned module contracts and do not alter Work authorization.
 
 ## Errors
 
@@ -249,10 +269,12 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
-The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, Windows Credential Manager-backed tunnel credential retrieval, and the first bounded Discover capability.
+The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander Work adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, Windows Credential Manager-backed tunnel credential retrieval, the bounded Discover foundation, the shared Skills catalogue with Work-backed create/improve operations, and provider runtime composition.
 
-`inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
+`inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
 
-Fresh integrated verification proves additive `inspect_project` registration and the Discover contracts, scanner, detectors, Git reader, Python index, service budgeting, architecture boundaries, and donor independence while preserving existing gateway tests. Fresh local HTTP smoke verification proves both `operation` and `development` instances expose 30 tools, execute `inspect_project`, `kis_health`, representative filesystem/edit/process operations, and recoverable quarantine successfully, while the proven network-only feedback tool remains absent.
+The verified Skills merge established an additive Work/gateway/Discover/Skills catalogue and preserved fail-open Skills registration. The Provider registry contains Desktop Commander, GitHub MCP, and Supabase descriptors. `build_server()` selects the approved external GitHub and Supabase providers from strict JSON runtime settings, builds enabled adapters in deterministic order, mounts successful FastMCP adapters under `github_*` and `supabase_*`, and contains unavailable or invalid adapters without preventing Work, Discover, Skills, or gateway startup. `kis_provider_status` reports registration, readiness, build, mount, and explicitly unverified commissioning states. Successfully mounted upstream tools extend the core catalogue dynamically and do not alter the three-rule Work policy.
 
-The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. This implementation-status statement does not restrict normal tools beyond HR-001, HR-002, and HR-003.
+This slice does not commission GitHub or Supabase authentication. The GitHub official binary, interactive OAuth/device flow, authenticated private-repository read, Supabase hosted OAuth/DCR, token persistence, project-scoped read, upstream tool discovery, and main ChatGPT endpoint live verification remain dedicated follow-up work.
+
+The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id` and control-plane scope association for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. These implementation-status statements do not restrict normal tools beyond HR-001, HR-002, and HR-003.

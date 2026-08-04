@@ -13,7 +13,7 @@ from kis_mcp.models import (
     QuarantineResponse,
 )
 from kis_mcp.quarantine import QuarantineRecord
-from kis_mcp.server import _quarantine_response
+from kis_mcp.server import _quarantine_response, build_server
 
 
 def test_quarantine_response_is_explicit_and_versioned() -> None:
@@ -90,3 +90,19 @@ def test_server_public_boundaries_do_not_use_internal_asdict() -> None:
     assert "from dataclasses import asdict" not in source
     assert "asdict(quarantine" not in source
     assert "asdict(record)" not in source
+
+
+def test_build_server_exposes_provider_runtime_injection_contract() -> None:
+    parameters = inspect.signature(build_server).parameters
+
+    assert list(parameters) == [
+        "config",
+        "validate_provider",
+        "provider_service",
+        "provider_runtime_settings",
+    ]
+    assert parameters["provider_service"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert (
+        parameters["provider_runtime_settings"].kind
+        is inspect.Parameter.KEYWORD_ONLY
+    )
