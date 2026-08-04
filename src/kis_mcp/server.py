@@ -114,7 +114,7 @@ def build_server(
     )
 
     def quarantine_paths(paths: Sequence[str]) -> list[dict[str, Any]]:
-        return [asdict(quarantine.quarantine(path)) for path in paths]
+        return [asdict(record) for record in quarantine.quarantine_many(paths)]
 
     def quarantine_or_tool_error(path: str) -> dict[str, Any]:
         try:
