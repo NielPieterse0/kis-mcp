@@ -266,20 +266,25 @@ def discover_worktrees(repository: Path) -> list[WorktreeEntry]:
 
 
 def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
-    claims: list[ChangeClaim] = []
-    seen_sources: set[Path] = set()
-    for entry in discover_worktrees(repository):
-        changes_root = entry.path / ".work" / "changes"
-        if not changes_root.is_dir():
+    worktrees = discover_worktrees(repository)
+    if not worktrees:
+        return []
+
+    current_root = repository_root(repository)
+    claims = _claims_in_checkout(current_root)
+    known_change_ids = {claim.change_id for claim in claims}
+
+    for entry in worktrees:
+        if not entry.branch or not entry.branch.startswith("change/"):
             continue
-        for scope_path in sorted(changes_root.glob("*/scope.json")):
-            if scope_path.parent.name.startswith("_"):
-                continue
-            resolved = scope_path.resolve()
-            if resolved in seen_sources:
-                continue
-            seen_sources.add(resolved)
-            claims.append(load_claim(scope_path))
+        change_id = entry.branch.removeprefix("change/")
+        if change_id in known_change_ids:
+            continue
+        scope_path = entry.path / ".work" / "changes" / change_id / "scope.json"
+        if not scope_path.is_file():
+            continue
+        claims.append(load_claim(scope_path))
+        known_change_ids.add(change_id)
     return claims
 
 
@@ -372,7 +377,7 @@ def validate_repository(repository: Path) -> list[ChangeClaim]:
         else primary_root
     )
     _require_template(template_root)
-    claims = load_worktree_claims(primary_root)
+    claims = load_worktree_claims(current_root)
     conflicts = find_claim_conflicts(claims)
     if conflicts:
         raise ClaimError("\n".join(conflicts))

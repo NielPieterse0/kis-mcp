@@ -177,6 +177,54 @@ def initialize_repository(tmp_path: Path) -> Path:
     return repository
 
 
+def test_claim_discovery_ignores_underscore_template_directories(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_root = repository / ".work" / "changes" / "001-alpha"
+    change_root.mkdir(parents=True)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(claim(module, "001-alpha", status="closed").to_mapping()),
+        encoding="utf-8",
+    )
+
+    worktree_claims = module.load_worktree_claims(repository)
+    checkout_claims = module._claims_in_checkout(repository)
+
+    assert [item.change_id for item in worktree_claims] == ["001-alpha"]
+    assert [item.change_id for item in checkout_claims] == ["001-alpha"]
+
+
+def test_primary_claim_overrides_stale_copies_in_other_worktrees(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_id = "004-live-proxy-commissioning"
+    change_root = repository / ".work" / "changes" / change_id
+    change_root.mkdir(parents=True)
+    active_claim = claim(module, change_id)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(active_claim.to_mapping()),
+        encoding="utf-8",
+    )
+    run_git(repository, "add", ".work/changes/004-live-proxy-commissioning")
+    run_git(repository, "commit", "-m", "test: register active historical claim")
+
+    unrelated = repository / ".work" / "worktrees" / "001-alpha"
+    run_git(repository, "worktree", "add", str(unrelated), "-b", "change/001-alpha", "main")
+
+    closed_mapping = active_claim.to_mapping()
+    closed_mapping["status"] = "closed"
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(closed_mapping),
+        encoding="utf-8",
+    )
+
+    claims = module.load_worktree_claims(repository)
+    matches = [item for item in claims if item.change_id == change_id]
+
+    assert len(matches) == 1
+    assert matches[0].status == "closed"
+
+
 def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)

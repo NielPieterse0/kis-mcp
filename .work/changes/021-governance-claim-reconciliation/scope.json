@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "change_id": "021-governance-claim-reconciliation",
+  "status": "ready",
+  "branch": "change/021-governance-claim-reconciliation",
+  "worktree": ".work/worktrees/021-governance-claim-reconciliation",
+  "base": "origin/main",
+  "outcome": "Reconcile stale merged governance claims and preserve explicit template exclusion coverage",
+  "owned_paths": [
+    ".work/changes/021-governance-claim-reconciliation/**",
+    ".work/changes/004-live-proxy-commissioning/scope.json",
+    ".work/changes/010-provider-module/scope.json",
+    ".work/changes/017-p2-operational-hardening/scope.json",
+    ".work/changes/020-discover-change-inventory/scope.json",
+    "scripts/change-governance.py",
+    "tests/test_change_governance.py"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "settings/**",
+    "policy/**",
+    "src/**",
+    ".work/changes/007-chatgpt-remote-commissioning/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
