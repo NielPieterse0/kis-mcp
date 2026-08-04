@@ -21,6 +21,11 @@ C:\Projects\.kis-mcp\
 ├── pytest-cache\
 ├── npm-cache\
 ├── quarantine\
+├── tunnel-client\
+│   ├── profiles\
+│   └── runtime\
+│       ├── operation\
+│       └── development\
 ├── temp\
 └── logs\
 ```
@@ -73,16 +78,31 @@ Normal startup uses the installed package without downloading or updating it.
 
 Edit only the canonical JSON files:
 
-- `settings/kis-mcp.settings.json` for identity, paths, provider version and launch settings, transport, and informational implementation status.
+- `settings/kis-mcp.settings.json` for identity, paths, provider version and launch settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
 
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
 
 The normal approved boundary is `C:\Projects`. State and quarantine roots must remain true descendants of it.
 
-Configuration status fields report what has been verified; they do not disable otherwise permitted Desktop Commander tools.
+`settings.remote_mcp` contains two named instances:
 
-## Start
+- `operation` — the normal ChatGPT-facing tool instance;
+- `development` — the isolated commissioning and change-validation instance.
+
+Each instance has its own loopback port, tunnel profile, `tunnel_id`, control-plane scope identifier, and credential environment-variable name. The tunnel executable is read only from:
+
+```text
+C:\Tools\openai-tunnel-client\tunnel-client.exe
+```
+
+The checked-in instance records may remain `configured: false` only while both external identifiers are blank. Before tunnel setup, populate the real `tunnel_id` and `control_plane_scope_id` for that instance and change `configured` to `true`. Do not commit API keys or generated profile YAML.
+
+`active_instance` controls the default only. Use `-Instance operation` or `-Instance development` for an explicit switch. There is no automatic failover.
+
+Configuration, instance selection, catalogue metadata, profiles, and status fields do not disable otherwise permitted Desktop Commander tools. Both instances expose the same mixed-purpose tool surface and apply only HR-001, HR-002, and HR-003 to concrete invocations.
+
+## Start local stdio
 Run:
 
 ```powershell
@@ -94,6 +114,89 @@ Startup does not install or update packages. It requires the external locked Pyt
 Provider readiness rejects enabled telemetry, a missing or non-loopback feature-flag URL, and missing local Chrome when configured as required because the pinned provider source proves those states cause automatic external activity. It also requires Desktop Commander's persisted `blockedCommands` and `allowedDirectories` fields to remain empty so the provider cannot add independent command or directory restrictions beneath FastMCP.
 
 The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
+
+## Verify local ChatGPT HTTP transport
+
+Run the local no-external-network smoke test before configuring a tunnel:
+
+```powershell
+pwsh -File .\scripts\smoke-chatgpt.ps1 -AllInstances -TimeoutSeconds 90
+```
+
+For each instance, the script starts the settings-defined loopback streamable HTTP endpoint, initializes MCP, lists tools, calls `kis_health`, verifies representative read/write/edit/process tools, writes and reads a unique marker beneath `C:\Projects\.kis-mcp\temp`, and quarantines the marker recoverably. The expected catalogue currently contains 29 tools. `give_feedback_to_desktop_commander` remains absent because every invocation is external-network-only; ordinary mixed-purpose tools remain exposed.
+
+Use one instance when diagnosing a specific port or profile:
+
+```powershell
+pwsh -File .\scripts\smoke-chatgpt.ps1 -Instance development -TimeoutSeconds 90
+```
+
+This proves the local ChatGPT-compatible HTTP path. It does not prove the external tunnel or ChatGPT app connection.
+
+## Configure a tunnel profile
+
+For the selected instance:
+
+1. Enter its real `tunnel_id` and `control_plane_scope_id` in `settings.remote_mcp.instances`.
+2. Set that instance's `configured` field to `true`.
+3. Set the configured credential environment variable in the current PowerShell session. The default name is `CONTROL_PLANE_API_KEY`.
+4. Create the project-local tunnel profile.
+
+```powershell
+$env:CONTROL_PLANE_API_KEY = '<runtime-key-from-OpenAI-Platform>'
+pwsh -File .\scripts\setup-tunnel.ps1 -Instance development
+```
+
+The script reads the tunnel client path, profile name, tunnel ID, control-plane scope identifier, local MCP URL, and credential reference from JSON. It writes generated profiles only beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`. It refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement first moves the old profile into a timestamped backup.
+
+Configure the operation profile separately:
+
+```powershell
+pwsh -File .\scripts\setup-tunnel.ps1 -Instance operation
+```
+
+The two profiles and tunnel IDs must remain distinct. Do not point both instances at one tunnel record.
+
+## Start the ChatGPT-facing instance
+
+Start the development instance during commissioning:
+
+```powershell
+$env:CONTROL_PLANE_API_KEY = '<runtime-key-from-OpenAI-Platform>'
+pwsh -File .\scripts\start-chatgpt.ps1 -Instance development
+```
+
+Start the operational instance after commissioning:
+
+```powershell
+pwsh -File .\scripts\start-chatgpt.ps1 -Instance operation
+```
+
+Omit `-Instance` to use `settings.remote_mcp.active_instance`. The launcher:
+
+- validates the selected instance and external identifiers;
+- refuses startup while the other ChatGPT-facing instance is listening, enforcing explicit switch-over;
+- starts `python -m kis_mcp.remote_runtime` on its loopback port;
+- proves MCP initialization locally;
+- starts the configured tunnel profile against the exact local `/mcp` URL;
+- waits for the tunnel client's loopback `/readyz` endpoint;
+- owns both processes and stops the peer process when either exits.
+
+Keep the launcher window open while ChatGPT uses the tool.
+
+## Create or switch the ChatGPT app
+
+In ChatGPT developer-mode app settings, create a custom app using the Secure MCP Tunnel connection. Select the available tunnel or paste the instance's configured tunnel ID, then scan the tools. Confirm that the scanned catalogue includes representative filesystem, editing, terminal/process, and gateway operations. Do not accept a reduced profile-based catalogue.
+
+The tunnel must be associated with the same ChatGPT workspace or organization that will use the app. Keep separate custom apps or explicit app configurations for `operation` and `development`; switch by stopping one launcher and starting the other, then selecting the corresponding ChatGPT app. Do not run both against the same tunnel identity.
+
+A complete external commissioning record requires:
+
+1. tunnel client readiness;
+2. successful ChatGPT tool scan;
+3. `kis_health` called from ChatGPT;
+4. a supervised write/read/quarantine smoke operation beneath `C:\Projects`;
+5. confirmation that the network-only feedback tool is absent while mixed-purpose tools remain available.
 
 ## Parallel change worktrees
 
@@ -183,6 +286,21 @@ Restore only when the original path is absent. A restore operation fails rather 
 Permanent disposal is intentionally not exposed as a normal Work tool.
 
 ## Troubleshooting
+
+- `KIS_MCP_OTHER_INSTANCE_ACTIVE`: stop the other ChatGPT-facing launcher before switching instances.
+
+- `KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED`: enter the real tunnel and control-plane scope identifiers for the selected instance and set `configured` to `true`.
+- `KIS_MCP_CONTROL_PLANE_API_KEY_MISSING`: set the configured credential environment variable in the current PowerShell session.
+- `KIS_MCP_TUNNEL_CLIENT_MISSING`: restore the executable at the settings-defined `C:\Tools\openai-tunnel-client\tunnel-client.exe` path or correct the JSON setting.
+- `KIS_MCP_TUNNEL_PROFILE_EXISTS`: rerun setup with `-BackupExistingProfile` only when replacement is intended.
+- `KIS_MCP_TUNNEL_PROFILE_INVALID`: inspect the tunnel-client doctor output; do not start the profile until all checks pass.
+- `KIS_MCP_TUNNEL_PROFILE_MISSING`: run `scripts\setup-tunnel.ps1` for the selected instance.
+- `KIS_MCP_PORT_IN_USE` or `KIS_MCP_SMOKE_PORT_IN_USE`: stop the existing listener or correct the instance port in settings.
+- `KIS_MCP_HTTP_NOT_READY` or `KIS_MCP_SMOKE_INITIALIZE_FAILED`: inspect Desktop Commander readiness, the Python environment, and the selected loopback endpoint.
+- `KIS_MCP_TUNNEL_NOT_READY`: inspect tunnel-client output, the configured tunnel association, runtime key, and control-plane scope.
+- `KIS_MCP_SMOKE_TOOLS_MISSING`: stop commissioning; the remote catalogue is reduced or the provider contract changed.
+- `KIS_MCP_SMOKE_NETWORK_ONLY_TOOL_EXPOSED`: stop commissioning; the proven network-only feedback tool must not be exposed.
+- `KIS_MCP_SMOKE_WRITE_CALL_FAILED`, `KIS_MCP_SMOKE_READ_CALL_FAILED`, or `KIS_MCP_SMOKE_QUARANTINE_CALL_FAILED`: inspect the corresponding MCP tool result and quarantine state before retrying.
 
 - `DESKTOP_COMMANDER_ARCHIVE_NOT_FOUND`: place the configured scanned `.tgz` in the current user's `Downloads` directory.
 - `DESKTOP_COMMANDER_ARCHIVE_HASH_MISMATCH`: stop; the archive differs from the recorded scanned digest.

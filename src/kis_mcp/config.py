@@ -34,6 +34,23 @@ GENERATED_PATH_KEYS = (
 
 
 @dataclass(frozen=True, slots=True)
+class RemoteMcpInstance:
+    name: str
+    host: str
+    port: int
+    path: str
+    profile_name: str
+    tunnel_id: str
+    control_plane_scope_id: str
+    control_plane_api_key_env: str
+    configured: bool
+
+    @property
+    def endpoint_url(self) -> str:
+        return f"http://{self.host}:{self.port}{self.path}"
+
+
+@dataclass(frozen=True, slots=True)
 class RuntimeConfig:
     raw_settings: dict[str, Any]
     raw_policy: dict[str, Any]
@@ -126,6 +143,33 @@ class RuntimeConfig:
             / "node_modules"
             / Path(*package_parts)
             / "package.json"
+        )
+
+    @property
+    def active_remote_instance(self) -> str:
+        return str(self.raw_settings["remote_mcp"]["active_instance"])
+
+    @property
+    def tunnel_client_path(self) -> str:
+        return str(self.raw_settings["remote_mcp"]["tunnel_client_path"])
+
+    def remote_instance(self, name: str | None = None) -> RemoteMcpInstance:
+        selected = (name or self.active_remote_instance).strip().casefold()
+        instances = self.raw_settings["remote_mcp"]["instances"]
+        if selected not in instances:
+            raise RuntimeError(f"Unknown remote MCP instance: {selected}")
+        remote = self.raw_settings["remote_mcp"]
+        instance = instances[selected]
+        return RemoteMcpInstance(
+            name=selected,
+            host=str(remote["host"]),
+            port=int(instance["port"]),
+            path=str(remote["path"]),
+            profile_name=str(instance["profile_name"]),
+            tunnel_id=str(instance.get("tunnel_id", "")),
+            control_plane_scope_id=str(instance.get("control_plane_scope_id", "")),
+            control_plane_api_key_env=str(instance["control_plane_api_key_env"]),
+            configured=bool(instance.get("configured", False)),
         )
 
     @property
@@ -272,6 +316,80 @@ def _validate_provider(settings: Mapping[str, Any]) -> None:
         raise RuntimeError("Desktop Commander entry point must remain beneath its install root")
 
 
+def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
+    remote = _object(settings.get("remote_mcp"), "settings.remote_mcp")
+    if _string(remote.get("transport"), "settings.remote_mcp.transport") != "http":
+        raise RuntimeError("settings.remote_mcp.transport must be http")
+    host = _string(remote.get("host"), "settings.remote_mcp.host")
+    if host.casefold() not in {"127.0.0.1", "localhost"}:
+        raise RuntimeError("settings.remote_mcp.host must be a loopback host")
+    if _string(remote.get("path"), "settings.remote_mcp.path") != "/mcp":
+        raise RuntimeError("settings.remote_mcp.path must be /mcp")
+    if remote.get("stateless_http") is not True or remote.get("json_response") is not True:
+        raise RuntimeError("remote MCP must use stateless HTTP with JSON responses")
+
+    client_path = _string(
+        remote.get("tunnel_client_path"), "settings.remote_mcp.tunnel_client_path"
+    )
+    if not re.fullmatch(r"[A-Za-z]:\\.+\\tunnel-client\.exe", client_path, re.IGNORECASE):
+        raise RuntimeError("settings.remote_mcp.tunnel_client_path must be an absolute tunnel-client.exe path")
+
+    instances = _object(remote.get("instances"), "settings.remote_mcp.instances")
+    if set(instances) != {"operation", "development"}:
+        raise RuntimeError("settings.remote_mcp.instances must contain operation and development")
+    active = _string(remote.get("active_instance"), "settings.remote_mcp.active_instance")
+    if active not in instances:
+        raise RuntimeError("settings.remote_mcp.active_instance must name a defined instance")
+
+    ports: set[int] = set()
+    profiles: set[str] = set()
+    configured_tunnels: set[str] = set()
+    configured_scopes: set[str] = set()
+    for name in ("operation", "development"):
+        instance = _object(instances[name], f"settings.remote_mcp.instances.{name}")
+        port = instance.get("port")
+        if isinstance(port, bool) or not isinstance(port, int) or not 1 <= port <= 65535:
+            raise RuntimeError(f"settings.remote_mcp.instances.{name}.port must be 1-65535")
+        if port in ports:
+            raise RuntimeError("remote MCP instance ports must be distinct")
+        ports.add(port)
+
+        profile = _string(
+            instance.get("profile_name"),
+            f"settings.remote_mcp.instances.{name}.profile_name",
+        )
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", profile) is None:
+            raise RuntimeError(f"remote MCP profile name is invalid: {name}")
+        if profile in profiles:
+            raise RuntimeError("remote MCP profile names must be distinct")
+        profiles.add(profile)
+
+        key_env = _string(
+            instance.get("control_plane_api_key_env"),
+            f"settings.remote_mcp.instances.{name}.control_plane_api_key_env",
+        )
+        if re.fullmatch(r"[A-Z][A-Z0-9_]{2,63}", key_env) is None:
+            raise RuntimeError(f"remote MCP control-plane key environment is invalid: {name}")
+
+        configured = instance.get("configured")
+        if not isinstance(configured, bool):
+            raise RuntimeError(f"settings.remote_mcp.instances.{name}.configured must be boolean")
+        tunnel_id = str(instance.get("tunnel_id", "")).strip()
+        scope_id = str(instance.get("control_plane_scope_id", "")).strip()
+        if not configured:
+            if tunnel_id or scope_id:
+                raise RuntimeError(f"unconfigured remote MCP instance {name} must have blank external IDs")
+            continue
+        if re.fullmatch(r"tunnel_[0-9a-f]{32}", tunnel_id) is None:
+            raise RuntimeError(f"remote MCP tunnel ID is invalid: {name}")
+        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{1,127}", scope_id) is None:
+            raise RuntimeError(f"remote MCP control-plane scope ID is invalid: {name}")
+        if tunnel_id in configured_tunnels or scope_id in configured_scopes:
+            raise RuntimeError("configured remote MCP external IDs must be distinct")
+        configured_tunnels.add(tunnel_id)
+        configured_scopes.add(scope_id)
+
+
 def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
     root = (repository_root or Path(__file__).resolve().parents[2]).resolve()
     settings = _read_json(root / "settings" / "kis-mcp.settings.json")
@@ -287,6 +405,7 @@ def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
 
     _validate_path_layout(settings, policy, repository_root=root)
     _validate_provider(settings)
+    _validate_remote_mcp(settings)
 
     fastmcp = _object(settings.get("fastmcp"), "settings.fastmcp")
     if _string(fastmcp.get("transport"), "settings.fastmcp.transport") != "stdio":

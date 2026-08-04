@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "change_id": "010-provider-module",
+  "status": "active",
+  "branch": "change/010-provider-module",
+  "worktree": ".work/worktrees/010-provider-module",
+  "base": "main",
+  "outcome": "Create a modular Provider module that owns provider contracts, registry, catalogue, readiness aggregation, architecture documentation, and stable extension seams for GitHub, Supabase, and future MCP providers without changing connector-specific active slices or Work policy",
+  "owned_paths": [
+    "src/kis_mcp/providers/__init__.py",
+    "src/kis_mcp/providers/contracts.py",
+    "src/kis_mcp/providers/registry.py",
+    "src/kis_mcp/providers/catalogue.py",
+    "src/kis_mcp/providers/health.py",
+    "src/kis_mcp/providers/service.py",
+    "tests/providers/test_provider_module.py",
+    "contracts/providers/module/**",
+    "docs/PROVIDER-MODULE-PRODUCT-SPEC.md",
+    "docs/development/provider-module/**",
+    ".work/changes/010-provider-module/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/providers/github/**",
+    "src/kis_mcp/providers/supabase/**",
+    "src/kis_mcp/provider_registry.py",
+    "src/kis_mcp/discover/**",
+    "contracts/discover/**",
+    "tests/discover/**",
+    "src/kis_mcp/desktop_commander.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/quarantine.py",
+    "settings/**"
+  ],
+  "dependencies": [
+    "005-discover-foundation",
+    "008-github-mcp-provider",
+    "009-supabase-mcp-provider"
+  ],
+  "integration_owner": null
+}
