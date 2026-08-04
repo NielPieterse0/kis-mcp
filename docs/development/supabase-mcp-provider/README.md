@@ -53,4 +53,4 @@ Use a dedicated token with the narrowest available Supabase account access and r
 
 To disable the connector, stop the standalone process and remove its client connector entry. The module performs no installation-time database migration and stores no credentials.
 
-Central registry composition is intentionally deferred because the concurrent GitHub-provider slice owns `src/kis_mcp/provider_registry.py`. This module exposes an immutable descriptor for later registration after that slice lands.
+The shared Provider foundation from PR #9 is the canonical integration boundary. This adapter exposes `SUPABASE_PROVIDER_DESCRIPTOR`, `provider_health`, and `register_provider(registry)` through `kis_mcp.providers.supabase`. Registration remains explicit: importing the adapter does not register, build, start, or contact the provider. Platform-wide composition of approved adapters remains a separate integration step.

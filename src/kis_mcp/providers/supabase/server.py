@@ -101,7 +101,7 @@ SUPABASE_PROVIDER_DESCRIPTOR = ProviderDescriptor(
             description=(
                 "Use the official project-scoped Supabase MCP tool surface."
             ),
-            effects=("supabase-read", "supabase-write"),
+            effects=("database_read", "database_write", "external_network"),
         ),
     ),
     builder=build_server,

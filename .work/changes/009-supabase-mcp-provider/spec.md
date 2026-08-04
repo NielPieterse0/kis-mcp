@@ -6,7 +6,7 @@
 
 ## Outcome
 
-Integrate the official hosted Supabase MCP server as a standalone provider module. The module must proxy the official streamable-HTTP endpoint through a dedicated stdio MCP endpoint, scope the connection to one operator-configured Supabase project, expose the upstream configured read/write tool surface without a custom tool allowlist, keep credentials out of the repository, report redacted readiness, and remain independent of Discover, Desktop Commander Work enforcement, ChatGPT remote commissioning, and the concurrently developed central provider registry.
+Integrate the official hosted Supabase MCP server as an independently executable adapter beneath the shared Provider module. The adapter must proxy the official streamable-HTTP endpoint through a dedicated stdio MCP endpoint, scope the connection to one operator-configured Supabase project, expose the upstream configured read/write tool surface without a custom tool allowlist, keep credentials out of the repository, report redacted provider-specific and provider-neutral readiness, and remain independent of Discover, Desktop Commander Work enforcement, and ChatGPT remote commissioning.
 
 ## Authority and upstream evidence
 
@@ -25,7 +25,7 @@ The default checked-in configuration is project-scoped and read/write (`read_onl
 
 This provider is an approved external connector boundary, not a Desktop Commander Work invocation. It does not pass through `ThreeRuleMiddleware`, and it does not change HR-001, HR-002, or HR-003. Project scoping and credential requirements are connector authorization and provider identity controls, not additional Work policy rules.
 
-The central `ProviderRegistry` is excluded because change `008-github-mcp-provider` owns that file. This slice exposes a standalone module and immutable provider descriptor suitable for later registry composition after `008` lands.
+The shared Provider foundation from PR #9 is authoritative. This adapter uses the canonical `ProviderDescriptor`, `ProviderReadiness`, and `ProviderRegistry` contracts, exposes an explicit `register_provider(registry)` function, and does not modify or auto-populate the provider-neutral core. Platform-wide composition remains a separate integration step.
 
 ## Requirements
 
@@ -41,7 +41,8 @@ The central `ProviderRegistry` is excluded because change `008-github-mcp-provid
 - **REQ-010 — Standalone execution**: support `python -m kis_mcp.providers.supabase` and a non-network `--check` mode that prints redacted readiness JSON.
 - **REQ-011 — Smoke script**: provide a bounded PowerShell script that runs `--check`; live upstream listing is optional and only runs when explicitly requested with credentials present.
 - **REQ-012 — Contracts and tests**: publish JSON Schema and test strict loading, URL encoding, credential redaction, transport construction, server construction, CLI checking, architecture boundaries, and smoke-script content.
-- **REQ-013 — Independence**: do not modify Discover, Work policy, Desktop Commander, quarantine, remote runtime, global settings/config/server, GitHub provider paths, or `provider_registry.py`.
+- **REQ-013 — Independence**: do not modify Discover, Work policy, Desktop Commander, quarantine, remote runtime, global settings/config/server, GitHub provider paths, or the provider-neutral core.
+- **REQ-014 — Shared Provider conformance**: expose the canonical shared descriptor, provider-neutral redacted readiness probe, and explicit registry function without import-time registration, provider construction, startup, or network access.
 
 ## Acceptance
 
@@ -51,7 +52,8 @@ The central `ProviderRegistry` is excluded because change `008-github-mcp-provid
 4. Missing credentials cause readiness to report false and normal server startup to fail with a corrective structural error; `--check` remains non-network and redacted.
 5. Health and CLI output never contain the token or project-ref values.
 6. Unknown configuration keys, embedded secrets, unsupported external endpoints, and malformed environment-variable names fail before transport construction.
-7. Focused tests, scope checks subject to the known global-claim scanner defect, and `scripts/verify.ps1` pass on the final branch.
+7. Focused tests, scope checks, the non-network smoke command, and `scripts/verify.ps1` pass on the final branch.
+8. The shared descriptor declares an approved external connector and `database.manage` capability; provider-neutral health remains redacted; explicit registration adds exactly one Supabase descriptor without building or starting it.
 
 ## Risks and recovery
 
@@ -59,7 +61,7 @@ The central `ProviderRegistry` is excluded because change `008-github-mcp-provid
 - **Production data**: upstream documentation warns against production use. Mitigation: document development/test-only operation and require explicit project reference.
 - **Upstream schema drift**: remote tools may change. Mitigation: do not hardcode tool names; record reviewed source revision and require smoke verification when upstream behavior changes.
 - **Remote outage/auth failure**: the standalone endpoint may be unavailable. Recovery: stop the provider process and remove its connector configuration; no local or remote schema migration is performed by installation.
-- **Registry concurrency**: central registration is deferred because `008` owns the registry path. Recovery: no integration rollback is needed in this slice.
+- **Shared-contract drift**: adapter metadata could diverge from the Provider foundation. Mitigation: use the canonical shared record types directly and cover descriptor, health, registration, and package exports with adapter tests.
 
 ## Out of scope
 

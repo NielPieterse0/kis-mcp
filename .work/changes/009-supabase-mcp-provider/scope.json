@@ -39,6 +39,8 @@
     "src/kis_mcp/desktop_commander.py",
     "src/kis_mcp/quarantine.py"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "010-provider-module"
+  ],
   "integration_owner": null
 }

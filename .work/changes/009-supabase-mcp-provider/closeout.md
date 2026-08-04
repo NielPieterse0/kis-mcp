@@ -17,7 +17,7 @@ Implementation, local verification, branch push, and draft pull request are comp
 - Project-scoped read/write default with optional official `read_only` and `features` query parameters; no local tool-name allowlist.
 - FastMCP 3.4.4 streamable-HTTP proxy exposed as a standalone stdio provider.
 - Redacted `kis_supabase_health` tool and non-network `--check` command.
-- Immutable provider descriptor for later shared-registry composition.
+- Shared `kis_mcp.providers` descriptor, provider-neutral database/network capability metadata, redacted readiness adapter, and explicit registry registration.
 - Non-network PowerShell smoke script and operator documentation.
 
 ## Verification evidence
@@ -32,7 +32,7 @@ Implementation, local verification, branch push, and draft pull request are comp
 ## Limitations and deferred integration
 
 - Live authentication and upstream tool listing were not executed because no operator Supabase credentials were supplied. The proxy construction and credential handling are covered with isolated tests.
-- Shared `provider_registry.py` composition is deferred because change `008-github-mcp-provider` exclusively owns that path. This slice is independently executable and exposes a descriptor for later composition.
+- Shared Provider conformance is complete through the merged change 010 contracts. Platform-wide composition remains a separate bounded slice and does not belong inside the Supabase adapter.
 - The official `change-workflow.ps1 new/validate` path was blocked at registration by the known recursive duplicate historical-claim scan across active worktrees. The documented emergency worktree path was used, the claim was registered before implementation edits, and the final per-change scope check passes.
 
 ## Recovery
