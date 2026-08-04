@@ -271,10 +271,12 @@ def test_explicit_remote_git_and_package_targets_are_blocked() -> None:
         assert effects.external_network is True
 
 
-def test_git_pull_without_resolved_remote_is_not_blocked_by_category() -> None:
+def test_git_pull_without_resolved_remote_is_not_blocked_by_category(
+    tmp_path: Path,
+) -> None:
     effects = RESOLVER.resolve(
         "start_process",
-        {"command": "git pull", "cwd": r"C:\Projects\kis-mcp"},
+        {"command": "git pull", "cwd": str(tmp_path)},
     )
     assert effects.external_network is False
 
