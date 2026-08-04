@@ -95,6 +95,45 @@ Provider readiness rejects enabled telemetry, a missing or non-loopback feature-
 
 The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
+## Parallel change worktrees
+
+Create implementation worktrees only from a clean primary `main` checkout. The workflow supports any number of parallel agents; it rejects duplicate outcomes and conflicting scope claims rather than imposing a concurrency limit.
+
+Create a change:
+
+```powershell
+pwsh -File .\scripts\change-workflow.ps1 new 002-example-change `
+    --outcome "Implement one bounded result" `
+    --owned "src/example/**" `
+    --owned "tests/test_example.py" `
+    --exclude "policy/**"
+```
+
+The command creates branch `change/002-example-change`, worktree `.work/worktrees/002-example-change`, and the five required artifacts beneath `.work/changes/002-example-change/`.
+
+List or validate active claims:
+
+```powershell
+pwsh -File .\scripts\change-workflow.ps1 list
+pwsh -File .\scripts\change-workflow.ps1 validate
+```
+
+Before committing or requesting review, run the scope check from the change worktree:
+
+```powershell
+pwsh -File .\scripts\change-workflow.ps1 check
+```
+
+The check compares committed, staged, unstaged, and untracked paths with `owned_paths`, `shared_paths`, and `excluded_paths`. Exact paths and recursive `/**` claims are supported; other glob forms are rejected.
+
+After the branch is merged into its declared base, return to the clean primary checkout and run:
+
+```powershell
+pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change
+```
+
+Cleanup refuses a dirty worktree or an unmerged branch. It performs only normal `git worktree remove`, `git branch -d`, and `git worktree prune` operations; it never forces deletion.
+
 ## Verify
 Run:
 
