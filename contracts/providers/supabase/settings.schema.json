@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/supabase/settings.schema.json",
+  "title": "kis-mcp Supabase MCP provider settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "source", "upstream", "downstream"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "server_name"],
+      "properties": {
+        "id": {"const": "supabase"},
+        "server_name": {"type": "string", "minLength": 1}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry_url", "repository", "revision"],
+      "properties": {
+        "registry_url": {"const": "https://github.com/mcp/com.supabase/mcp"},
+        "repository": {"const": "https://github.com/supabase/mcp"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transport",
+        "base_url",
+        "project_ref_env",
+        "access_token_env",
+        "read_only",
+        "features",
+        "verify_tls"
+      ],
+      "properties": {
+        "transport": {"const": "streamable-http"},
+        "base_url": {"const": "https://mcp.supabase.com/mcp"},
+        "project_ref_env": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"},
+        "access_token_env": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"},
+        "read_only": {"type": "boolean"},
+        "features": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_-]*$"}
+        },
+        "verify_tls": {"const": true}
+      }
+    },
+    "downstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport"],
+      "properties": {
+        "transport": {"const": "stdio"}
+      }
+    }
+  }
+}
