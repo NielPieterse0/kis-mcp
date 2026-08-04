@@ -40,7 +40,47 @@
             "type": "string",
             "pattern": "^[a-z][a-z0-9]*$"
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "provider_id"
+              ],
+              "properties": {
+                "provider_id": {
+                  "const": "github-mcp"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "namespace": {
+                  "const": "github"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "provider_id"
+              ],
+              "properties": {
+                "provider_id": {
+                  "const": "supabase"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "namespace": {
+                  "const": "supabase"
+                }
+              }
+            }
+          }
+        ]
       },
       "allOf": [
         {

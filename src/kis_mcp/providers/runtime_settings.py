@@ -5,10 +5,17 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 
-APPROVED_EXTERNAL_PROVIDER_IDS = frozenset({"github-mcp", "supabase"})
+_APPROVED_EXTERNAL_PROVIDER_NAMESPACES = MappingProxyType(
+    {
+        "github-mcp": "github",
+        "supabase": "supabase",
+    }
+)
+APPROVED_EXTERNAL_PROVIDER_IDS = frozenset(_APPROVED_EXTERNAL_PROVIDER_NAMESPACES)
 _SETTINGS_KEYS = frozenset({"schema_version", "providers"})
 _PROVIDER_KEYS = frozenset({"provider_id", "enabled", "namespace"})
 _NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9]*$")
@@ -36,6 +43,11 @@ class ProviderMountSetting:
         if _NAMESPACE_PATTERN.fullmatch(namespace) is None:
             raise ProviderRuntimeSettingsError(
                 "namespace must use lower-case alphanumeric namespace syntax"
+            )
+        expected_namespace = _APPROVED_EXTERNAL_PROVIDER_NAMESPACES[provider_id]
+        if namespace != expected_namespace:
+            raise ProviderRuntimeSettingsError(
+                f"namespace must be {expected_namespace} for provider_id {provider_id}"
             )
         object.__setattr__(self, "provider_id", provider_id)
         object.__setattr__(self, "namespace", namespace)

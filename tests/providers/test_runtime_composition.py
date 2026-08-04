@@ -4,11 +4,13 @@ import asyncio
 import importlib
 import json
 from collections.abc import Callable
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastmcp import FastMCP
+from jsonschema import Draft202012Validator
 
 from kis_mcp.providers import (
     ProviderBoundary,
@@ -165,6 +167,18 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
     }
     assert settings_document == _valid_document()
 
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+    assert list(validator.iter_errors(settings_document)) == []
+
+    duplicate_namespace = deepcopy(settings_document)
+    duplicate_namespace["providers"][1]["namespace"] = "github"
+    assert list(validator.iter_errors(duplicate_namespace))
+
+    mismatched_namespace = deepcopy(settings_document)
+    mismatched_namespace["providers"][0]["namespace"] = "git"
+    assert list(validator.iter_errors(mismatched_namespace))
+
 
 @pytest.mark.parametrize(
     ("mutate", "message"),
@@ -188,7 +202,7 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
                 {
                     "provider_id": "github-mcp",
                     "enabled": False,
-                    "namespace": "githubtwo",
+                    "namespace": "github",
                 }
             ),
             "duplicate provider_id",
@@ -197,13 +211,19 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
             lambda document: document["providers"][1].update(
                 {"namespace": "github"}
             ),
-            "duplicate namespace",
+            "must be supabase",
         ),
         (
             lambda document: document["providers"][0].update(
                 {"namespace": "GitHub"}
             ),
             "namespace",
+        ),
+        (
+            lambda document: document["providers"][0].update(
+                {"namespace": "git"}
+            ),
+            "must be github",
         ),
         (
             lambda document: document["providers"][0].update(

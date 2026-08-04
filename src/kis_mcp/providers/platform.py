@@ -7,7 +7,22 @@ from .desktop_commander import register_desktop_commander_provider
 from .github import GitHubProviderSettings, register_github_provider
 from .registry import ProviderRegistry
 from .service import ProviderService
-from .supabase import register_provider as register_supabase_provider
+
+
+def register_supabase_provider(registry: ProviderRegistry) -> None:
+    """Register Supabase lazily so invalid optional config cannot break core startup."""
+
+    try:
+        from .supabase import register_provider
+    except Exception as exc:
+        is_configuration_error = (
+            type(exc).__module__ == "kis_mcp.providers.supabase.config"
+            and type(exc).__name__ == "SupabaseProviderConfigError"
+        )
+        if not is_configuration_error:
+            raise
+        return
+    register_provider(registry)
 
 
 def build_platform_provider_registry(
