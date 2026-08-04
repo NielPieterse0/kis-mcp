@@ -184,6 +184,25 @@ def test_provider_readiness_copies_and_freezes_details() -> None:
         readiness.details["tool_count"] = 13  # type: ignore[index]
 
 
+def test_provider_readiness_deeply_freezes_nested_details() -> None:
+    readiness = ProviderReadiness(
+        provider_id="github",
+        state=ProviderState.READY,
+        summary="Ready.",
+        details={"nested": {"value": 1}, "items": [1, 2]},
+    )
+
+    with pytest.raises(TypeError):
+        readiness.details["nested"]["value"] = 2  # type: ignore[index]
+    with pytest.raises(TypeError):
+        readiness.details["items"][0] = 9  # type: ignore[index]
+
+    assert readiness.to_json_dict()["details"] == {
+        "nested": {"value": 1},
+        "items": [1, 2],
+    }
+
+
 def test_provider_readiness_rejects_non_json_details() -> None:
     with pytest.raises(ValueError, match="JSON-compatible"):
         ProviderReadiness(
@@ -374,6 +393,24 @@ def test_health_rejects_mismatched_probe_identity_as_unavailable() -> None:
         "Provider readiness probe returned mismatched identity."
     )
     assert summary.providers[0].details == {"reported_provider_id": "supabase"}
+
+
+def test_health_contains_malformed_probe_results() -> None:
+    summary = aggregate_provider_health(
+        (
+            _descriptor(
+                "github",
+                "repository.remote_read",
+                readiness_probe=lambda: None,
+            ),
+        )
+    )
+
+    assert summary.state is ProviderState.UNAVAILABLE
+    assert summary.providers[0].summary == (
+        "Provider readiness probe returned an invalid result."
+    )
+    assert summary.providers[0].details == {"reported_type": "NoneType"}
 
 
 def test_service_builds_only_when_explicitly_requested() -> None:

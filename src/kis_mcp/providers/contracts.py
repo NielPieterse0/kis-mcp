@@ -66,11 +66,28 @@ def _unique_text(values: tuple[str, ...], label: str) -> tuple[str, ...]:
     return tuple(sorted(normalized))
 
 
+def _freeze_json_value(value: Any) -> Any:
+    if isinstance(value, StrEnum):
+        return value.value
+    if hasattr(value, "to_json_dict"):
+        return _freeze_json_value(value.to_json_dict())
+    if isinstance(value, Mapping):
+        normalized = {
+            str(key): _freeze_json_value(item) for key, item in value.items()
+        }
+        return MappingProxyType(normalized)
+    if isinstance(value, (tuple, list)):
+        return tuple(_freeze_json_value(item) for item in value)
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise ValueError(f"value is not JSON-compatible: {type(value).__name__}")
+
+
 def _json_value(value: Any) -> Any:
     if isinstance(value, StrEnum):
         return value.value
     if hasattr(value, "to_json_dict"):
-        return value.to_json_dict()
+        return _json_value(value.to_json_dict())
     if isinstance(value, Mapping):
         return {str(key): _json_value(item) for key, item in value.items()}
     if isinstance(value, (tuple, list)):
@@ -134,12 +151,8 @@ class ProviderReadiness:
         object.__setattr__(self, "summary", _required_text(self.summary, "summary"))
         if not isinstance(self.details, Mapping):
             raise ValueError("details must be a mapping")
-        normalized_details = _json_value(self.details)
-        object.__setattr__(
-            self,
-            "details",
-            MappingProxyType(normalized_details),
-        )
+        normalized_details = _freeze_json_value(self.details)
+        object.__setattr__(self, "details", normalized_details)
 
     @property
     def ready(self) -> bool:

@@ -23,7 +23,7 @@ Implementation, review, verification, push, and pull-request creation are comple
 - Added readiness aggregation that never builds providers and contains probe failures.
 - Added an explicit provider service facade with no provider-specific branches.
 - Added a versioned closed JSON schema.
-- Added 20 focused provider-module tests.
+- Added 22 focused provider-module tests, including review regressions for deep readiness-detail immutability and malformed probe containment.
 - Captured the approved platform architecture diagram in `docs/PROVIDER-MODULE-PRODUCT-SPEC.md`.
 - Applied and recorded the approved modularity-assessment procedure.
 - Preserved GitHub, Supabase, Discover, Work, settings, policy, and dependency-owned paths without edits.

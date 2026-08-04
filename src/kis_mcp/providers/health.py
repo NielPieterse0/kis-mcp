@@ -85,6 +85,14 @@ def _probe_provider(descriptor: ProviderDescriptor) -> ProviderReadiness:
             details={"error_type": type(exc).__name__},
         )
 
+    if not isinstance(readiness, ProviderReadiness):
+        return ProviderReadiness(
+            provider_id=descriptor.provider_id,
+            state=ProviderState.UNAVAILABLE,
+            summary="Provider readiness probe returned an invalid result.",
+            details={"reported_type": type(readiness).__name__},
+        )
+
     if readiness.provider_id != descriptor.provider_id:
         return ProviderReadiness(
             provider_id=descriptor.provider_id,

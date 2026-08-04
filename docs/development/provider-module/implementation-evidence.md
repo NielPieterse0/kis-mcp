@@ -79,10 +79,10 @@ ImportError: cannot import name 'ProviderService' from 'kis_mcp.providers'
 **GREEN:** explicit enum, boolean, and capability-member validation now raises bounded `ValueError` results. The focused suite passed with:
 
 ```text
-....................                                                     [100%]
+......................                                                   [100%]
 ```
 
-Result: **20 focused tests passed**.
+Result: **22 focused tests passed**, including regression coverage for deep readiness-detail immutability and malformed probe-result containment.
 
 ## Contract validation
 
@@ -174,7 +174,7 @@ Review checks confirmed:
 - catalogue and health paths never invoke provider builders;
 - readiness probe errors do not expose raw exception messages;
 - public runtime records validate their declared enum, boolean, collection, and JSON shapes;
-- readiness detail mappings are copied and top-level immutable;
+- readiness detail mappings are copied and recursively immutable while JSON projection returns ordinary dictionaries and lists;
 - the source and documentation create no new Work hard rule;
 - GitHub, Supabase, Discover, Work, settings, policy, and dependency-owned paths remain unchanged;
 - the six-file decomposition preserves distinct contracts and side-effect seams without adding provider-specific wrappers.
