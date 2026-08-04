@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "014-provider-runtime-composition",
-  "status": "active",
+  "status": "closed",
   "branch": "change/014-provider-runtime-composition",
   "worktree": ".work/worktrees/014-provider-runtime-composition",
   "base": "main",

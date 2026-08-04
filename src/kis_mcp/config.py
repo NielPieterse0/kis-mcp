@@ -21,6 +21,11 @@ from .paths import (
 EXPECTED_RULE_IDS = ("HR-001", "HR-002", "HR-003")
 APPROVED_PROJECT_BOUNDARY = r"C:\Projects"
 APPROVED_STATE_ROOT = r"C:\Projects\.kis-mcp"
+SOURCE_CHECKOUT_REQUIRED_CODE = "KIS_MCP_SOURCE_CHECKOUT_REQUIRED"
+_REQUIRED_CONFIGURATION_PATHS = (
+    Path("settings/kis-mcp.settings.json"),
+    Path("policy/kis-mcp.policy.json"),
+)
 GENERATED_PATH_KEYS = (
     "state_root",
     "desktop_commander_root",
@@ -399,8 +404,26 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
         configured_scopes.add(scope_id)
 
 
-def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
+def _require_source_checkout(repository_root: Path | None) -> Path:
     root = (repository_root or Path(__file__).resolve().parents[2]).resolve()
+    missing = [
+        relative
+        for relative in _REQUIRED_CONFIGURATION_PATHS
+        if not (root / relative).is_file()
+    ]
+    if missing:
+        missing_paths = ", ".join(relative.as_posix() for relative in missing)
+        raise RuntimeError(
+            f"{SOURCE_CHECKOUT_REQUIRED_CODE}: kis-mcp is a supervised "
+            "source-checkout application. Run it from a checkout containing "
+            f"the canonical JSON configuration files; missing: {missing_paths}; "
+            f"resolved root: {root}"
+        )
+    return root
+
+
+def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
+    root = _require_source_checkout(repository_root)
     settings = _read_json(root / "settings" / "kis-mcp.settings.json")
     policy = _read_json(root / "policy" / "kis-mcp.policy.json")
 

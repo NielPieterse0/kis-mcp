@@ -20,8 +20,9 @@ dev = [
 [project.scripts]
 kis-mcp = "kis_mcp.server:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/kis_mcp"]
+[tool.kis-mcp]
+deployment-model = "source-checkout-only"
+configuration-root = "."
 
 [tool.pytest.ini_options]
 addopts = "-q"

@@ -4,15 +4,15 @@ from .config import (
     load_supabase_provider_config,
 )
 from .server import (
-    SUPABASE_PROVIDER_DESCRIPTOR,
+    build_provider_descriptor,
     provider_health,
     register_provider,
 )
 
 __all__ = [
-    "SUPABASE_PROVIDER_DESCRIPTOR",
     "SupabaseProviderConfig",
     "SupabaseProviderConfigError",
+    "build_provider_descriptor",
     "load_supabase_provider_config",
     "provider_health",
     "register_provider",

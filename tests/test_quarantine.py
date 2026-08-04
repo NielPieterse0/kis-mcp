@@ -234,7 +234,7 @@ def test_list_records_reports_corrupt_metadata() -> None:
         service.list_records()
 
 
-def test_list_records_reports_corruption_beyond_return_limit() -> None:
+def test_list_records_does_not_validate_records_beyond_return_limit() -> None:
     root = _new_test_root()
     service = _service(root)
     corrupt_source = _new_test_file("older.txt", root=root / "older")
@@ -243,10 +243,13 @@ def test_list_records_reports_corruption_beyond_return_limit() -> None:
     corrupt_metadata.write_text("{not-json\n", encoding="utf-8")
 
     valid_source = _new_test_file("newer.txt", root=root / "newer")
-    service.quarantine(str(valid_source))
+    valid_record = service.quarantine(str(valid_source))
 
+    records = service.list_records(limit=1)
+
+    assert [record.operation_id for record in records] == [valid_record.operation_id]
     with pytest.raises(QuarantineError, match=corrupt_record.operation_id):
-        service.list_records(limit=1)
+        service.list_records()
 
 
 def test_list_records_reports_missing_metadata() -> None:

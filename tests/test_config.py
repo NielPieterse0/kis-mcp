@@ -117,3 +117,18 @@ def test_invalid_discover_settings_are_rejected(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="settings.discover.limits.max_files"):
         load_runtime_config(root)
+
+
+def test_default_configuration_requires_a_source_checkout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import kis_mcp.config as config_module
+
+    installed_module = tmp_path / "site-packages" / "kis_mcp" / "config.py"
+    installed_module.parent.mkdir(parents=True)
+    installed_module.write_text("# installed copy\n", encoding="utf-8")
+    monkeypatch.setattr(config_module, "__file__", str(installed_module))
+
+    with pytest.raises(RuntimeError, match="KIS_MCP_SOURCE_CHECKOUT_REQUIRED"):
+        config_module.load_runtime_config()
