@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from .command_intent import resolve_command_effects
 from .contracts import ProviderCapabilities
 from .models import InvocationEffects
+from .process_state import ProcessStateRegistry
 
 
 NETWORK_ONLY_TOOLS = frozenset({"give_feedback_to_desktop_commander"})
@@ -41,10 +42,11 @@ DELETE_PATH_KEYS: dict[str, tuple[str, ...]] = {
 }
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class DesktopCommanderEffectResolver:
     project_boundary: str
     provider_state_file: str
+    process_states: ProcessStateRegistry = field(default_factory=ProcessStateRegistry)
 
     @property
     def capabilities(self) -> ProviderCapabilities:
@@ -84,11 +86,20 @@ class DesktopCommanderEffectResolver:
             command = self._command_text(normalized_name, args)
             if not command:
                 return InvocationEffects()
+            if normalized_name == "interact_with_process":
+                tracked = self.process_states.resolve_interaction(
+                    args,
+                    project_boundary=self.project_boundary,
+                )
+                if tracked is not None:
+                    return tracked
             cwd = self._working_directory(args)
+            shell = args.get("shell") if isinstance(args.get("shell"), str) else None
             return resolve_command_effects(
                 command,
                 cwd=cwd,
                 project_boundary=self.project_boundary,
+                shell=shell,
             )
 
         if normalized_name == CONFIGURATION_TOOL_NAME:
@@ -126,6 +137,19 @@ class DesktopCommanderEffectResolver:
 
         return InvocationEffects()
 
+    def observe_success(
+        self,
+        tool_name: str,
+        arguments: Mapping[str, Any] | None,
+        result: Any,
+    ) -> None:
+        self.process_states.observe_success(
+            tool_name,
+            dict(arguments or {}),
+            result,
+            project_boundary=self.project_boundary,
+        )
+
     def _working_directory(self, arguments: Mapping[str, Any]) -> str:
         for key in ("cwd", "working_directory", "workingDirectory"):
             value = arguments.get(key)
@@ -143,13 +167,17 @@ class DesktopCommanderEffectResolver:
             value = arguments.get(key)
             if isinstance(value, str):
                 return value
-            if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+            if isinstance(value, Sequence) and not isinstance(
+                value,
+                (str, bytes, bytearray),
+            ):
                 return " ".join(str(item) for item in value)
         return ""
 
     @staticmethod
     def _collect_paths(
-        arguments: Mapping[str, Any], keys: tuple[str, ...]
+        arguments: Mapping[str, Any],
+        keys: tuple[str, ...],
     ) -> tuple[str, ...]:
         paths: list[str] = []
         for key in keys:
@@ -157,10 +185,13 @@ class DesktopCommanderEffectResolver:
             if isinstance(value, str) and value.strip():
                 paths.append(value)
             elif isinstance(value, Sequence) and not isinstance(
-                value, (str, bytes, bytearray)
+                value,
+                (str, bytes, bytearray),
             ):
                 paths.extend(
-                    str(item) for item in value if isinstance(item, str) and item.strip()
+                    str(item)
+                    for item in value
+                    if isinstance(item, str) and item.strip()
                 )
         return tuple(dict.fromkeys(paths))
 

@@ -86,7 +86,11 @@ class ThreeRuleMiddleware(Middleware):
         decision = self.policy.evaluate(effects)
 
         if decision.kind is DecisionKind.ALLOW:
-            return await call_next(context)
+            result = await call_next(context)
+            observer = getattr(self.resolver, "observe_success", None)
+            if callable(observer):
+                observer(tool_name, arguments, result)
+            return result
 
         if decision.kind is DecisionKind.BLOCK:
             raise ToolError(self._error_message(decision))

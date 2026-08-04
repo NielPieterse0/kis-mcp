@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import stat
 import subprocess
 import threading
 import time
@@ -13,11 +12,11 @@ from typing import BinaryIO
 from urllib.parse import urlsplit, urlunsplit
 
 from .contracts import GitSummary
+from .git_metadata import GitMetadataValidationError, validate_git_metadata_graph
 from .read_authority import ReadAuthority, is_within_boundary
 from .settings import DiscoverSettings
 
 _SAFE_SCHEMES = {"git", "http", "https", "ssh"}
-_REPARSE_FLAG = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,48 +125,14 @@ class GitReader:
         )
 
     def _validate_metadata(self, root: Path) -> str | None:
-        metadata = root / ".git"
         try:
-            info = os.lstat(metadata)
-        except FileNotFoundError:
-            return "GIT_NOT_REPOSITORY"
-        if _is_link_or_reparse(info):
-            return "GIT_METADATA_UNSAFE"
-        if stat.S_ISDIR(info.st_mode):
-            return None
-        if not stat.S_ISREG(info.st_mode):
-            return "GIT_METADATA_INVALID"
-        if info.st_size > self._settings.limits.git_metadata_max_bytes:
-            return "GIT_METADATA_TOO_LARGE"
-        try:
-            data = _read_regular_file(
-                metadata,
-                expected=info,
-                maximum=self._settings.limits.git_metadata_max_bytes,
+            validate_git_metadata_graph(
+                root,
+                boundary=self._authority.boundary,
+                maximum_file_bytes=self._settings.limits.git_metadata_max_bytes,
             )
-        except OSError:
-            return "GIT_METADATA_UNSAFE"
-        try:
-            text = data.decode("utf-8")
-        except UnicodeDecodeError:
-            return "GIT_METADATA_ENCODING_INVALID"
-        match = re.fullmatch(r"gitdir:\s*(.+?)\s*\r?\n?", text)
-        if match is None:
-            return "GIT_METADATA_INVALID"
-        raw_target = match.group(1)
-        candidate = Path(raw_target)
-        target = candidate if candidate.is_absolute() else root / candidate
-        target = target.resolve(strict=False)
-        if not is_within_boundary(self._authority.boundary, target):
-            return "GIT_METADATA_OUTSIDE_BOUNDARY"
-        try:
-            target_info = os.lstat(target)
-        except FileNotFoundError:
-            return "GIT_METADATA_TARGET_MISSING"
-        if _is_link_or_reparse(target_info):
-            return "GIT_METADATA_UNSAFE"
-        if not stat.S_ISDIR(target_info.st_mode):
-            return "GIT_METADATA_TARGET_NOT_DIRECTORY"
+        except GitMetadataValidationError as exc:
+            return exc.code
         return None
 
     def _run(
@@ -286,6 +251,17 @@ def _run_bounded(
 
 def _isolated_environment() -> dict[str, str]:
     environment = dict(os.environ)
+    for key in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_NAMESPACE",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        environment.pop(key, None)
     environment.update(
         {
             "GIT_OPTIONAL_LOCKS": "0",
@@ -303,44 +279,6 @@ def _isolated_environment() -> dict[str, str]:
         }
     )
     return environment
-
-
-def _read_regular_file(path: Path, *, expected: os.stat_result, maximum: int) -> bytes:
-    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
-    try:
-        opened = os.fstat(descriptor)
-        if _identity(expected) != _identity(opened) or not stat.S_ISREG(opened.st_mode):
-            raise OSError("Git metadata changed during validation")
-        chunks: list[bytes] = []
-        remaining = maximum + 1
-        while remaining > 0:
-            chunk = os.read(descriptor, min(65_536, remaining))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        data = b"".join(chunks)
-        after = os.fstat(descriptor)
-        if _identity(opened) != _identity(after) or opened.st_size != after.st_size:
-            raise OSError("Git metadata changed while reading")
-    finally:
-        os.close(descriptor)
-    if len(data) > maximum:
-        raise OSError("Git metadata exceeded its configured limit")
-    return data
-
-
-def _identity(info: os.stat_result) -> tuple[int, int, int]:
-    return (info.st_dev, info.st_ino, info.st_mode)
-
-
-def _is_link_or_reparse(info: os.stat_result) -> bool:
-    return stat.S_ISLNK(info.st_mode) or bool(
-        getattr(info, "st_file_attributes", 0) & _REPARSE_FLAG
-    )
 
 
 def _decode(value: bytes) -> str:

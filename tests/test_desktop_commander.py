@@ -184,7 +184,10 @@ def test_local_git_clone_is_allowed() -> None:
 
 def test_read_only_git_forms_do_not_claim_a_write_target() -> None:
     for command in (
+        "git status",
+        "git log",
         "git branch",
+        "git branch --all",
         "git branch --list",
         "git tag",
         "git tag --list",
@@ -211,7 +214,13 @@ def test_mutating_git_forms_report_the_working_directory() -> None:
             "start_process",
             {"command": command, "cwd": r"C:\Projects\kis-mcp"},
         )
-        assert effects.write_paths == (r"C:\Projects\kis-mcp",)
+        assert effects.write_paths
+        assert effects.write_paths[0] == r"C:\Projects\kis-mcp"
+        assert all(
+            path == r"C:\Projects\kis-mcp"
+            or path.startswith("C:\\Projects\\kis-mcp\\")
+            for path in effects.write_paths
+        )
 
 
 def test_local_package_install_is_allowed() -> None:

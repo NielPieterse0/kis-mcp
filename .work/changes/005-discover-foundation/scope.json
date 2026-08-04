@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "005-discover-foundation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/005-discover-foundation",
   "worktree": ".work/worktrees/005-discover-foundation",
   "base": "main",
