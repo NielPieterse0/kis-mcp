@@ -78,6 +78,6 @@
 - [x] Run the focused Discover suite through the locked `C:\Projects\.kis-mcp\python-env` environment during implementation and the full locked suite at closeout.
 - [x] Run `pwsh -File scripts/verify.ps1`.
 - [x] Run Git whitespace and declared-scope checks.
-- [ ] Commit and push without force.
-- [ ] Create a draft pull request for review.
-- [ ] Do not merge until reviewed.
+- [x] Commit and push without force.
+- [x] Create draft pull request #13 for review.
+- [x] Do not merge until reviewed.

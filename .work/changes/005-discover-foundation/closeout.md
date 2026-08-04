@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, integration, review, and local verification are complete. The branch is ready to push and open as a draft pull request. It must remain unmerged until reviewed.
+Implementation, integration, review, verification, push, and draft pull-request creation are complete. The branch and worktree remain active for review. The pull request is intentionally unmerged.
 
 ## Delivery
 
@@ -11,9 +11,11 @@ Implementation, integration, review, and local verification are complete. The br
 | Branch | `change/005-discover-foundation` |
 | Worktree | `C:\Projects\kis-mcp\.work\worktrees\005-discover-foundation` |
 | Foundation commit | `ee1336c` |
-| Current-main integration commit | `9a8237c` |
-| Base | `main` |
-| Pull request | Pending draft creation |
+| Latest-main integration commit | `0b6280e` |
+| Base | `main` at `f9e0c16` |
+| Pull request | `#13 — Add bounded inspect_project discovery foundation` |
+| Pull-request URL | `https://github.com/NielPieterse0/kis-mcp/pull/13` |
+| Pull-request state | Open, draft, unmerged |
 
 ## Implemented outcome
 
