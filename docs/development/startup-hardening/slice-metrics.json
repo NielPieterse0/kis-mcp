@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "change_id": "013-startup-hardening",
+  "measurement_index": 1,
+  "measurements_required_for_mas": 2,
+  "mas_status": "insufficient_longitudinal_data",
+  "base_commit": "0915bfa67e4452240d2c5fef677670c0c68386c7",
+  "captured_on": "2026-08-04",
+  "read_set": [
+    "AGENTS.md",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/STARTUP-HARDENING.md",
+    "docs/TRUST-MODEL.md",
+    "policy/kis-mcp.policy.json",
+    ".agents/skills/develop-code/SKILL.md",
+    ".agents/skills/develop-code/references/classification.md",
+    ".work/changes/006-provider-state-atomicity/scope.json",
+    ".work/changes/007-chatgpt-remote-commissioning/scope.json",
+    ".work/changes/013-startup-hardening/scope.json",
+    "scripts/change-governance.py",
+    "scripts/change-workflow.ps1",
+    "scripts/set-tunnel-credential.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/tunnel-state.ps1",
+    "scripts/windows-credential.ps1",
+    "scripts/verify.py",
+    "scripts/verify.ps1",
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/desktop_commander.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/provider_lifecycle.py",
+    "src/kis_mcp/provider_state_atomic.cjs",
+    "src/kis_mcp/provider_startup_compat.cjs",
+    "src/kis_mcp/remote_runtime.py",
+    "src/kis_mcp/server.py",
+    "tests/test_middleware.py",
+    "tests/test_provider_lifecycle.py",
+    "tests/test_remote_runtime.py",
+    "tests/test_startup_hardening.py",
+    "tests/test_startup_scripts.py",
+    "tests/test_tunnel_scripts.py",
+    "C:/Projects/.kis-mcp/python-env/Lib/site-packages/mcp/shared/session.py",
+    "C:/Projects/.kis-mcp/python-env/Lib/site-packages/fastmcp/server/providers/proxy.py",
+    "C:/Projects/.kis-mcp/desktop-commander/node_modules/@wonderwhy-er/desktop-commander/dist/index.js",
+    "C:/Projects/.kis-mcp/desktop-commander/node_modules/@wonderwhy-er/desktop-commander/dist/custom-stdio.js",
+    "C:/Projects/.kis-mcp/desktop-commander/node_modules/@wonderwhy-er/desktop-commander/dist/utils/feature-flags.js",
+    "C:/Projects/.kis-mcp/desktop-commander/node_modules/@wonderwhy-er/desktop-commander/dist/utils/logger.js"
+  ],
+  "edit_set": [
+    ".work/changes/006-provider-state-atomicity/scope.json",
+    ".work/changes/013-startup-hardening/closeout.md",
+    ".work/changes/013-startup-hardening/plan.md",
+    ".work/changes/013-startup-hardening/scope.json",
+    ".work/changes/013-startup-hardening/spec.md",
+    ".work/changes/013-startup-hardening/tasks.md",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/STARTUP-HARDENING.md",
+    "docs/development/startup-hardening/ownership.md",
+    "docs/development/startup-hardening/slice-metrics.json",
+    "docs/development/startup-hardening/verification.md",
+    "scripts/set-tunnel-credential.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/tunnel-state.ps1",
+    "scripts/windows-credential.ps1",
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/config.py",
+    "src/kis_mcp/provider_lifecycle.py",
+    "src/kis_mcp/provider_startup_compat.cjs",
+    "src/kis_mcp/remote_runtime.py",
+    "tests/test_provider_lifecycle.py",
+    "tests/test_remote_runtime.py",
+    "tests/test_startup_hardening.py",
+    "tests/test_startup_scripts.py",
+    "tests/test_tunnel_scripts.py"
+  ],
+  "change_reason_clusters": [
+    {
+      "id": "provider-startup-containment",
+      "reason": "Contain Desktop Commander startup-only incompatibilities and provider surface leakage behind one lifecycle-owned preload seam.",
+      "paths": [
+        "src/kis_mcp/provider_lifecycle.py",
+        "src/kis_mcp/provider_startup_compat.cjs",
+        "tests/test_provider_lifecycle.py",
+        "tests/test_startup_hardening.py"
+      ]
+    },
+    {
+      "id": "readiness-classification",
+      "reason": "Absorb the committed non-secret tunnel identifier model from closed change 007, separate static tunnel profile generation from live endpoint readiness, and classify endpoint refusal independently from profile invalidity.",
+      "paths": [
+        "scripts/setup-tunnel.ps1",
+        "scripts/tunnel-state.ps1",
+        "settings/kis-mcp.settings.json",
+        "src/kis_mcp/config.py",
+        "tests/test_startup_scripts.py",
+        "tests/test_tunnel_scripts.py"
+      ]
+    },
+    {
+      "id": "credential-containment",
+      "reason": "Move tunnel secrets out of JSON and files into per-user Windows Credential Manager entries and inject them only into owned tunnel-client processes.",
+      "paths": [
+        "scripts/set-tunnel-credential.ps1",
+        "scripts/setup-tunnel.ps1",
+        "scripts/start-chatgpt.ps1",
+        "scripts/tunnel-state.ps1",
+        "scripts/windows-credential.ps1",
+        "settings/kis-mcp.settings.json",
+        "src/kis_mcp/config.py",
+        "tests/test_remote_runtime.py",
+        "tests/test_startup_hardening.py",
+        "tests/test_startup_scripts.py",
+        "tests/test_tunnel_scripts.py"
+      ]
+    },
+    {
+      "id": "supervised-startup-sequencing",
+      "reason": "Start and verify the local MCP endpoint before the tunnel, emit bounded kis-mcp state, and support normal bounded observation cleanup.",
+      "paths": [
+        "scripts/start-chatgpt.ps1",
+        "tests/test_startup_scripts.py"
+      ]
+    },
+    {
+      "id": "runtime-noise-reduction",
+      "reason": "Remove FastMCP promotional output and contain tunnel setup, server, provider, and tunnel-client diagnostics in local runtime logs instead of the operator console.",
+      "paths": [
+        "docs/STARTUP-HARDENING.md",
+        "scripts/setup-tunnel.ps1",
+        "scripts/start-chatgpt.ps1",
+        "src/kis_mcp/remote_runtime.py",
+        "tests/test_remote_runtime.py",
+        "tests/test_startup_scripts.py"
+      ]
+    },
+    {
+      "id": "ownership-and-governance-repair",
+      "reason": "Close the stale merged 006 claim, transfer startup correction ownership from closed 007 to 013, and constrain the slice away from parallel-agent paths.",
+      "paths": [
+        ".work/changes/006-provider-state-atomicity/scope.json",
+        ".work/changes/013-startup-hardening/scope.json",
+        "docs/development/startup-hardening/ownership.md"
+      ]
+    }
+  ],
+  "counts": {
+    "read_set_paths": 40,
+    "edit_set_paths": 27,
+    "change_reason_clusters": 6
+  },
+  "notes": [
+    "Read-set entries outside the repository are dependencies inspected for compatibility evidence and are not edit candidates.",
+    "This is the first substantial-slice measurement. A real MAS score requires the same measurements from the next substantial slice before scoring.",
+    "The Skills worktree was observed only to confirm parallel occupancy and was not modified or included in this slice's read-set analysis."
+  ]
+}

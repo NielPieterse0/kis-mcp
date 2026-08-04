@@ -191,16 +191,14 @@
         "profile_name": "kis-mcp-operation",
         "configured": false,
         "tunnel_id": "",
-        "control_plane_scope_id": "",
-        "control_plane_api_key_env": "CONTROL_PLANE_API_KEY"
+        "tunnel_credential_target": "kis-mcp/tunnel/operation"
       },
       "development": {
         "port": 8011,
         "profile_name": "kis-mcp-development",
         "configured": false,
         "tunnel_id": "",
-        "control_plane_scope_id": "",
-        "control_plane_api_key_env": "CONTROL_PLANE_API_KEY"
+        "tunnel_credential_target": "kis-mcp/tunnel/development"
       }
     }
   }

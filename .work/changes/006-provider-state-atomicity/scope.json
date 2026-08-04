@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "006-provider-state-atomicity",
-  "status": "active",
+  "status": "closed",
   "branch": "change/006-provider-state-atomicity",
   "worktree": ".work/worktrees/006-provider-state-atomicity",
   "base": "main",

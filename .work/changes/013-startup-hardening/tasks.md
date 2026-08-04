@@ -1,0 +1,24 @@
+# Startup Hardening Tasks
+
+- [x] Read repository authority and classify the slice as Complex.
+- [x] Preserve dirty main, closed 007, Skills, and other parallel-agent worktrees without modification.
+- [x] Create and register isolated change `013-startup-hardening`.
+- [x] Rebuild the branch as one linear commit from exact base `0915bfa67e4452240d2c5fef677670c0c68386c7`.
+- [x] Resolve startup ownership from closed change `007` to active change `013` within the `013` documentation and scope only.
+- [x] Absorb the committed non-secret tunnel identifier schema required by the startup path.
+- [x] Replace file-based tunnel secret handling with per-user Windows Credential Manager storage and transient child-process injection.
+- [x] Validate the selected credential before moving an existing active profile into backup.
+- [x] Implement and test the lifecycle-owned provider startup compatibility adapter while preserving normal provider tool names and schemas.
+- [x] Keep compatibility behavior out of Work middleware and the Desktop Commander effect resolver.
+- [x] Disable the FastMCP startup banner.
+- [x] Separate static profile generation from optional live endpoint validation.
+- [x] Classify endpoint unavailability separately from invalid profile state.
+- [x] Sequence server readiness before tunnel startup.
+- [x] Capture setup, server, and tunnel diagnostics in local runtime logs.
+- [x] Reduce the operator console to bounded kis-mcp profile and readiness fields.
+- [x] Add bounded observation mode with normal owned-process cleanup.
+- [x] Record read-set, edit-set, and change-reason clusters as MAS measurement 1 of 2.
+- [x] Run focused tests and the complete locked verification suite.
+- [x] Run a live isolated observation without terminating the occupied port `8011` runtime.
+- [x] Confirm settings restoration and clean console evidence.
+- [x] Complete the final diff review and prepare the verified tree for one amended linear commit; report remote publication separately after it occurs.
