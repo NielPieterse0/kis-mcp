@@ -18,6 +18,12 @@ CONFIGURATION_TOOL_NAME = "set_config_value"
 COMMAND_TOOLS = frozenset(
     {"start_process", "execute_command", "interact_with_process"}
 )
+ENTRY_PATH_KEYS: dict[str, tuple[str, ...]] = {
+    "move_file": ("source", "destination"),
+}
+CONDITIONAL_WRITE_PATH_KEYS: dict[str, tuple[str, ...]] = {
+    "write_pdf": ("path", "outputPath"),
+}
 
 WRITE_PATH_KEYS: dict[str, tuple[str, ...]] = {
     "write_file": ("path",),
@@ -85,7 +91,7 @@ class DesktopCommanderEffectResolver:
                 project_boundary=self.project_boundary,
             )
 
-        if normalized_name == "set_config_value":
+        if normalized_name == CONFIGURATION_TOOL_NAME:
             external_network = (
                 str(args.get("key", "")).casefold() == "telemetryenabled"
                 and not self._telemetry_disabled(args.get("value"))
@@ -95,11 +101,11 @@ class DesktopCommanderEffectResolver:
                 external_network=external_network,
             )
 
-        if normalized_name == "move_file":
-            paths = self._collect_paths(args, ("source", "destination"))
+        if normalized_name in ENTRY_PATH_KEYS:
+            paths = self._collect_paths(args, ENTRY_PATH_KEYS[normalized_name])
             return InvocationEffects(entry_paths=paths)
 
-        if normalized_name == "write_pdf":
+        if normalized_name in CONDITIONAL_WRITE_PATH_KEYS:
             output_path = args.get("outputPath")
             effective_key = (
                 "outputPath"
