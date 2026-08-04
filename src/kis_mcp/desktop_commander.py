@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .command_intent import resolve_command_effects
+from .contracts import ProviderCapabilities
 from .models import InvocationEffects
 
 
@@ -39,20 +40,29 @@ class DesktopCommanderEffectResolver:
     provider_state_file: str
 
     @property
+    def capabilities(self) -> ProviderCapabilities:
+        return ProviderCapabilities(
+            network_only_tools=NETWORK_ONLY_TOOLS,
+            direct_delete_tools=frozenset(DELETE_PATH_KEYS),
+            unexposed_tool_arguments=UNEXPOSED_TOOL_ARGUMENTS,
+            unexposed_config_keys=UNEXPOSED_CONFIG_KEYS,
+        )
+
+    @property
     def network_only_tools(self) -> frozenset[str]:
-        return NETWORK_ONLY_TOOLS
+        return self.capabilities.network_only_tools
 
     @property
     def direct_delete_tools(self) -> frozenset[str]:
-        return frozenset(DELETE_PATH_KEYS)
+        return self.capabilities.direct_delete_tools
 
     @property
-    def unexposed_tool_arguments(self) -> dict[str, frozenset[str]]:
-        return UNEXPOSED_TOOL_ARGUMENTS
+    def unexposed_tool_arguments(self) -> Mapping[str, frozenset[str]]:
+        return self.capabilities.unexposed_tool_arguments
 
     @property
     def unexposed_config_keys(self) -> frozenset[str]:
-        return UNEXPOSED_CONFIG_KEYS
+        return self.capabilities.unexposed_config_keys
 
     def resolve(
         self,

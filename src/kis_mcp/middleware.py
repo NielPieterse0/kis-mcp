@@ -9,9 +9,8 @@ from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools.tool import ToolResult
 
-from .desktop_commander import DesktopCommanderEffectResolver
-from .models import DecisionKind
-from .policy import ThreeRulePolicy
+from .contracts import PolicyEvaluator, ProviderEffectResolver
+from .models import DecisionKind, PolicyDecision
 from .quarantine import QuarantineError
 
 
@@ -24,8 +23,8 @@ class ThreeRuleMiddleware(Middleware):
     def __init__(
         self,
         *,
-        resolver: DesktopCommanderEffectResolver,
-        policy: ThreeRulePolicy,
+        resolver: ProviderEffectResolver,
+        policy: PolicyEvaluator,
         quarantine_paths: QuarantinePaths,
     ) -> None:
         self.resolver = resolver
@@ -38,8 +37,9 @@ class ThreeRuleMiddleware(Middleware):
         call_next: Any,
     ) -> Sequence[Any]:
         tools = await call_next(context)
-        hidden_tools = set(self.resolver.network_only_tools)
-        hidden_arguments = self.resolver.unexposed_tool_arguments
+        capabilities = self.resolver.capabilities
+        hidden_tools = set(capabilities.network_only_tools)
+        hidden_arguments = capabilities.unexposed_tool_arguments
         visible: list[Any] = []
         for tool in tools:
             name = str(getattr(tool, "name", ""))
@@ -49,7 +49,7 @@ class ThreeRuleMiddleware(Middleware):
             visible_tool = self._without_arguments(tool, arguments) if arguments else tool
             if name.casefold() == "set_config_value":
                 visible_tool = self._without_config_keys(
-                    visible_tool, self.resolver.unexposed_config_keys
+                    visible_tool, capabilities.unexposed_config_keys
                 )
             visible.append(visible_tool)
         return visible
@@ -57,20 +57,23 @@ class ThreeRuleMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next: Any) -> Any:
         tool_name = str(context.message.name)
         arguments = dict(context.message.arguments or {})
-        if tool_name.casefold() in self.resolver.network_only_tools:
+        capabilities = self.resolver.capabilities
+        if tool_name.casefold() in capabilities.network_only_tools:
             raise ToolError(
                 "UNSUPPORTED_PROVIDER_TOOL: This provider-only network capability is "
                 "not exposed through Work."
             )
         if tool_name.casefold() == "set_config_value":
             key = str(arguments.get("key", ""))
-            hidden_keys = {value.casefold() for value in self.resolver.unexposed_config_keys}
+            hidden_keys = {
+                value.casefold() for value in capabilities.unexposed_config_keys
+            }
             if key.casefold() in hidden_keys:
                 raise ToolError(
                     "PROVIDER_CONFIGURATION_INVARIANT: Desktop Commander command and "
                     "directory restriction fields are gateway-managed and remain empty."
                 )
-        unsupported = self.resolver.unexposed_tool_arguments.get(tool_name.casefold(), ())
+        unsupported = capabilities.unexposed_tool_arguments.get(tool_name.casefold(), ())
         supplied = sorted(set(arguments).intersection(unsupported))
         if supplied:
             raise ToolError(
@@ -87,7 +90,7 @@ class ThreeRuleMiddleware(Middleware):
             raise ToolError(self._error_message(decision))
 
         if decision.kind is DecisionKind.QUARANTINE:
-            if tool_name.casefold() not in self.resolver.direct_delete_tools:
+            if tool_name.casefold() not in capabilities.direct_delete_tools:
                 raise ToolError(
                     "HR-003_QUARANTINE_REQUIRED: The command explicitly requests "
                     "permanent deletion. Use a filesystem delete tool or "
@@ -141,6 +144,6 @@ class ThreeRuleMiddleware(Middleware):
         return tool
 
     @staticmethod
-    def _error_message(decision: Any) -> str:
+    def _error_message(decision: PolicyDecision) -> str:
         path_detail = f" Paths: {', '.join(decision.paths)}." if decision.paths else ""
         return f"{decision.code}: {decision.message}{path_detail}"
