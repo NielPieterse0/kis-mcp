@@ -13,7 +13,7 @@
 - [x] Task 2 — repository scope middleware.
 - [x] Task 3 — registry, server, and health.
 - [x] Task 4 — bootstrap, smoke, and operations.
-- [ ] Task 5 — final staged review, verification, commit, push, and draft PR.
+- [x] Task 5 — final staged review, verification, commit, push, and draft PR.
 
 ## Evidence
 

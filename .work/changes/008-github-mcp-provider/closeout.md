@@ -31,8 +31,8 @@
 
 - Branch: `change/008-github-mcp-provider`
 - Worktree: `.work/worktrees/008-github-mcp-provider`
-- Commit: pending final commit.
-- Pull request: pending draft PR creation.
+- Implementation commit: `399bc94b3465b9eeb99c0f59622a9bcc4594d35d`.
+- Pull request: [#7 — Add isolated GitHub MCP provider integration](https://github.com/NielPieterse0/kis-mcp/pull/7), open as draft.
 - Merge: prohibited until review; not performed.
 - Cleanup: retain worktree until PR review and merge.
 

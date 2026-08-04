@@ -113,4 +113,4 @@
 - [x] Run `pwsh -NoProfile -File scripts/verify.ps1`.
 - [x] Run `git diff --check`, inspect status/diff, and confirm only owned paths changed.
 - [x] Review requirements, secrets, authorization, error handling, upgrade/rollback, and current implementation claims.
-- [ ] Commit, push `change/008-github-mcp-provider`, and open a draft PR without merging.
+- [x] Commit, push `change/008-github-mcp-provider`, and open a draft PR without merging.
