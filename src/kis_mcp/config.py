@@ -5,7 +5,10 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from .discover.settings import DiscoverSettings
 
 from .paths import (
     PathValidationError,
@@ -178,6 +181,12 @@ class RuntimeConfig:
             str(key): str(value)
             for key, value in self.raw_settings.get("implementation_status", {}).items()
         }
+
+    @property
+    def discover_settings(self) -> "DiscoverSettings":
+        from .discover.settings import DiscoverSettings
+
+        return DiscoverSettings.from_mapping(self.raw_settings.get("discover"))
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -406,6 +415,13 @@ def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
     _validate_path_layout(settings, policy, repository_root=root)
     _validate_provider(settings)
     _validate_remote_mcp(settings)
+
+    from .discover.settings import DiscoverSettings
+
+    try:
+        DiscoverSettings.from_mapping(settings.get("discover"))
+    except ValueError as exc:
+        raise RuntimeError(str(exc)) from exc
 
     fastmcp = _object(settings.get("fastmcp"), "settings.fastmcp")
     if _string(fastmcp.get("transport"), "settings.fastmcp.transport") != "stdio":

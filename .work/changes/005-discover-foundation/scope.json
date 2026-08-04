@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "change_id": "005-discover-foundation",
+  "status": "active",
+  "branch": "change/005-discover-foundation",
+  "worktree": ".work/worktrees/005-discover-foundation",
+  "base": "main",
+  "outcome": "Adopt the complete Discover target specification and implement the first bounded inspect_project capability by adapting the proven sdk-tool analysis and project-intelligence foundation with dev-intel repository inspection parity",
+  "owned_paths": [
+    "src/kis_mcp/discover/**",
+    "tests/discover/**",
+    "contracts/discover/**",
+    "docs/DISCOVER-MODULE-PRODUCT-SPEC.md",
+    "docs/development/discover-foundation/**",
+    ".work/changes/005-discover-foundation/**"
+  ],
+  "shared_paths": [
+    "src/kis_mcp/contracts.py",
+    "src/kis_mcp/models.py",
+    "src/kis_mcp/config.py",
+    "src/kis_mcp/server.py",
+    "settings/kis-mcp.settings.json",
+    "tests/test_architecture_boundaries.py",
+    "tests/test_public_contracts.py",
+    "tests/test_config.py",
+    "AGENTS.md",
+    "SPEC.md",
+    "README.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "docs/OPERATIONS.md",
+    "scripts/verify.ps1",
+    "scripts/smoke-chatgpt.ps1",
+    "tests/test_tunnel_scripts.py"
+  ],
+  "excluded_paths": [
+    "src/kis_mcp/desktop_commander.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/quarantine.py",
+    "src/kis_mcp/quarantine_integrity.py",
+    "tests/integration/**",
+    "tests/support/**",
+    "scripts/commission-live-proxy.ps1"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

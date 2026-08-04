@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inspect-project-request.schema.json",
+  "title": "inspect_project request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "limits": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "max_files": {"type": "integer", "minimum": 1},
+        "max_directories": {"type": "integer", "minimum": 1},
+        "max_total_bytes": {"type": "integer", "minimum": 1},
+        "max_evidence": {"type": "integer", "minimum": 1},
+        "max_output_chars": {"type": "integer", "minimum": 1},
+        "max_depth": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

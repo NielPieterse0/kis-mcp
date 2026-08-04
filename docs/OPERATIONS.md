@@ -78,12 +78,14 @@ Normal startup uses the installed package without downloading or updating it.
 
 Edit only the canonical JSON files:
 
-- `settings/kis-mcp.settings.json` for identity, paths, provider version and launch settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
+- `settings/kis-mcp.settings.json` for identity, paths, provider version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
 
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
 
 The normal approved boundary is `C:\Projects`. State and quarantine roots must remain true descendants of it.
+
+`settings.discover` owns all Discover retrieval behavior: enablement, exclusions, allowed text extensions and conventional filenames, encodings, hard-link handling, and file, directory, byte, depth, traversal-time, Git, Python-index, evidence, and output budgets. Change those values in JSON rather than hard-coding new limits or exclusions. Request-side limits may only narrow configured maxima.
 
 `settings.remote_mcp` contains two named instances:
 
@@ -115,6 +117,24 @@ Provider readiness rejects enabled telemetry, a missing or non-loopback feature-
 
 The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
+## Use Discover
+
+`inspect_project` is exposed through local stdio and both HTTP instances. Supply one project directory beneath `C:\Projects`:
+
+```json
+{
+  "path": "C:\\Projects\\example",
+  "limits": {
+    "max_files": 500,
+    "max_output_chars": 200000
+  }
+}
+```
+
+Request limits are optional and may only narrow values in `settings.discover.limits`. The result contains versioned repository, evidence, local Git, verification-discovery, Python-structure, confidence, truncation, and handoff records. Verification declarations are evidence only: Discover does not execute repository code, tests, builds, or discovered commands.
+
+`DISCOVER_*` errors are structural and corrective. They are not HR policy decisions. Resolve the reported path, unsafe link/reparse condition, unsupported or excessive request limit, unreadable text, Git metadata condition, or configured budget rather than changing `policy/kis-mcp.policy.json`.
+
 ## Verify local ChatGPT HTTP transport
 
 Run the local no-external-network smoke test before configuring a tunnel:
@@ -123,7 +143,7 @@ Run the local no-external-network smoke test before configuring a tunnel:
 pwsh -File .\scripts\smoke-chatgpt.ps1 -AllInstances -TimeoutSeconds 90
 ```
 
-For each instance, the script starts the settings-defined loopback streamable HTTP endpoint, initializes MCP, lists tools, calls `kis_health`, verifies representative read/write/edit/process tools, writes and reads a unique marker beneath `C:\Projects\.kis-mcp\temp`, and quarantines the marker recoverably. The expected catalogue currently contains 29 tools. `give_feedback_to_desktop_commander` remains absent because every invocation is external-network-only; ordinary mixed-purpose tools remain exposed.
+For each instance, the script starts the settings-defined loopback streamable HTTP endpoint, initializes MCP, lists tools, calls `kis_health`, calls bounded `inspect_project` against the repository root, verifies representative read/write/edit/process tools, writes and reads a unique marker beneath `C:\Projects\.kis-mcp\temp`, and quarantines the marker recoverably. `give_feedback_to_desktop_commander` remains absent because every invocation is external-network-only; ordinary mixed-purpose tools and `inspect_project` remain exposed.
 
 Use one instance when diagnosing a specific port or profile:
 
@@ -253,7 +273,8 @@ The repository checks also confirm:
 3. Desktop Commander is not vendored;
 4. generated-state paths remain canonical and outside the repository;
 5. predecessor runtime identities are absent from authoritative and runtime files;
-6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass.
+6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass;
+7. Discover contracts, JSON settings, path identity, link/reparse and hard-link handling, traversal budgets, deterministic detection, fixed local Git reads, pure Python AST indexing, output compaction, evidence integrity, donor independence, architecture boundaries, and tool registration pass.
 
 Verification also checks the pinned provider surface under `contracts/desktop-commander/`, including provider identity, all exposed tool schemas and annotations, effect classification coverage, adapter mappings, and the recorded SHA-256 fingerprint. These checks are release evidence only; they do not add a runtime allowlist or a fourth policy rule.
 
@@ -300,6 +321,7 @@ Permanent disposal is intentionally not exposed as a normal Work tool.
 - `KIS_MCP_TUNNEL_NOT_READY`: inspect tunnel-client output, the configured tunnel association, runtime key, and control-plane scope.
 - `KIS_MCP_SMOKE_TOOLS_MISSING`: stop commissioning; the remote catalogue is reduced or the provider contract changed.
 - `KIS_MCP_SMOKE_NETWORK_ONLY_TOOL_EXPOSED`: stop commissioning; the proven network-only feedback tool must not be exposed.
+- `KIS_MCP_SMOKE_DISCOVER_CALL_FAILED`: inspect the `inspect_project` tool result, repository path, Discover settings, and configured budgets before retrying.
 - `KIS_MCP_SMOKE_WRITE_CALL_FAILED`, `KIS_MCP_SMOKE_READ_CALL_FAILED`, or `KIS_MCP_SMOKE_QUARANTINE_CALL_FAILED`: inspect the corresponding MCP tool result and quarantine state before retrying.
 
 - `DESKTOP_COMMANDER_ARCHIVE_NOT_FOUND`: place the configured scanned `.tgz` in the current user's `Downloads` directory.
