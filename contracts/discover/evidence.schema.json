@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence.schema.json",
+  "title": "Discover evidence item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "subject",
+    "source",
+    "provenance",
+    "location",
+    "trust",
+    "confidence",
+    "freshness",
+    "summary",
+    "details",
+    "truncated"
+  ],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "kind": {"type": "string", "minLength": 1},
+    "subject": {"type": "string", "minLength": 1},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "provider", "identifier", "revision"],
+      "properties": {
+        "kind": {"type": "string", "minLength": 1},
+        "provider": {"type": "string", "minLength": 1},
+        "identifier": {"type": "string", "minLength": 1},
+        "revision": {"type": ["string", "null"]}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source_id"],
+      "properties": {
+        "kind": {
+          "enum": [
+            "declared",
+            "observed",
+            "conventional",
+            "inferred",
+            "remote_observed",
+            "governance_required",
+            "recommended"
+          ]
+        },
+        "source_id": {"type": "string", "minLength": 1}
+      }
+    },
+    "location": {"type": "object"},
+    "trust": {"enum": ["trusted", "untrusted", "partial", "unknown"]},
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "freshness": {"enum": ["current", "stale", "unknown"]},
+    "summary": {"type": "string", "minLength": 1},
+    "details": {"type": "object"},
+    "truncated": {"type": "boolean"}
+  }
+}

@@ -8,6 +8,8 @@ This document defines the final platform boundary, capability planes, shared ker
 
 The current implementation baseline remains the small operator-supervised FastMCP gateway described in `SPEC.md`. The three prohibited outcomes in `docs/TRUST-MODEL.md` remain the only enforcement restrictions unless the operator explicitly changes them.
 
+The detailed Discover product boundary and phased roadmap are defined in [`DISCOVER-MODULE-PRODUCT-SPEC.md`](DISCOVER-MODULE-PRODUCT-SPEC.md). That document is target-state authority for Discover only; `SPEC.md`, checked-in contracts, tool registration, configuration, and fresh tests remain authoritative for current implementation claims.
+
 ## 1. Purpose
 
 The kis-mcp Platform is a governed environment for understanding, evaluating, and changing software repositories.

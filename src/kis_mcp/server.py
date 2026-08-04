@@ -15,6 +15,8 @@ from fastmcp.server.providers.proxy import ProxyClient
 
 from .config import RuntimeConfig, load_runtime_config
 from .desktop_commander import DesktopCommanderEffectResolver
+from .discover.service import InspectProjectService
+from .discover.tools import register_discover_tools
 from .middleware import ThreeRuleMiddleware
 from .models import (
     HealthResponse,
@@ -156,6 +158,13 @@ def build_server(
     server = create_proxy(
         ProxyClient(transport),
         name=runtime.server_name,
+    )
+    register_discover_tools(
+        server,
+        InspectProjectService(
+            boundary=Path(runtime.project_boundary),
+            settings=runtime.discover_settings,
+        ),
     )
 
     quarantine = QuarantineService(

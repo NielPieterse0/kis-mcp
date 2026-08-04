@@ -107,3 +107,13 @@ def test_configuration_validation_does_not_create_generated_directories(
 
     load_runtime_config(root)
     assert not candidate.exists()
+
+
+def test_invalid_discover_settings_are_rejected(tmp_path: Path) -> None:
+    root = _configuration_copy(tmp_path)
+    settings = _read_settings(root)
+    settings["discover"]["limits"]["max_files"] = 0  # type: ignore[index]
+    _write_settings(root, settings)
+
+    with pytest.raises(RuntimeError, match="settings.discover.limits.max_files"):
+        load_runtime_config(root)
