@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 from pathlib import Path
 
 
@@ -153,3 +155,70 @@ def test_repository_verification_checks_change_governance_layout() -> None:
     assert "verify_change_governance" in verifier
     assert "change-governance.py" in verifier
     assert ".work/changes/_template" in verifier
+
+
+def _load_repository_verifier():
+    path = REPOSITORY_ROOT / "scripts" / "verify.py"
+    spec = importlib.util.spec_from_file_location("kis_repository_verify", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_repository_declares_canonical_line_ending_policy() -> None:
+    attributes = (REPOSITORY_ROOT / ".gitattributes").read_text(encoding="utf-8")
+    editor = (REPOSITORY_ROOT / ".editorconfig").read_text(encoding="utf-8")
+    configure = (
+        REPOSITORY_ROOT / "scripts" / "configure-repository.ps1"
+    ).read_text(encoding="utf-8")
+    workflow = (REPOSITORY_ROOT / "scripts" / "change-workflow.ps1").read_text(
+        encoding="utf-8"
+    )
+    verification = (REPOSITORY_ROOT / "scripts" / "verify.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert "* text=auto eol=lf" in attributes
+    assert "*.cmd text eol=crlf" in attributes
+    assert "end_of_line = lf" in editor
+    assert "core.autocrlf false" in configure
+    assert "core.eol lf" in configure
+    assert "core.safecrlf true" in configure
+    assert "configure-repository.ps1" in workflow
+    assert "configure-repository.ps1" in verification
+
+
+def test_line_ending_verifier_flags_only_lf_policy_violations() -> None:
+    verifier = _load_repository_verifier()
+    output = "\n".join(
+        (
+            "i/lf    w/lf    attr/text=auto eol=lf\tgood.py",
+            "i/crlf  w/crlf  attr/text=auto eol=lf\tbad.json",
+            "i/lf    w/mixed attr/text=auto eol=lf\tmixed.md",
+            "i/lf    w/crlf  attr/text eol=crlf\tlegacy.cmd",
+            "i/-text w/-text attr/-text\timage.png",
+        )
+    )
+
+    assert verifier._line_ending_violations(output) == [
+        {
+            "path": "bad.json",
+            "index": "crlf",
+            "worktree": "crlf",
+        },
+        {
+            "path": "mixed.md",
+            "index": "lf",
+            "worktree": "mixed",
+        },
+    ]
+
+
+def test_repository_verification_runs_line_ending_check() -> None:
+    verifier = (REPOSITORY_ROOT / "scripts" / "verify.py").read_text(encoding="utf-8")
+
+    assert "def verify_repository_line_endings()" in verifier
+    assert "verify_repository_line_endings," in verifier
+    assert '"repository-line-endings"' in verifier

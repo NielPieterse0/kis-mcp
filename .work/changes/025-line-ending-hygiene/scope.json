@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "change_id": "025-line-ending-hygiene",
+  "status": "active",
+  "branch": "change/025-line-ending-hygiene",
+  "worktree": ".work/worktrees/025-line-ending-hygiene",
+  "base": "main",
+  "outcome": "Establish canonical LF repository text handling, enforce repository-local Git line-ending configuration, renormalize tracked text once, and fail verification on future CRLF or mixed tracked text",
+  "owned_paths": [
+    ".gitattributes",
+    ".editorconfig",
+    "scripts/configure-repository.ps1",
+    "scripts/change-workflow.ps1",
+    "scripts/verify.ps1",
+    "scripts/verify.py",
+    "tests/test_repository_scope.py",
+    "contracts/desktop-commander/0.2.46.schema.sha256",
+    "contracts/desktop-commander/0.2.46.tools.json",
+    ".work/changes/025-line-ending-hygiene/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
