@@ -24,32 +24,61 @@ def test_tunnel_configuration_is_canonical_json() -> None:
         r"C:\Tools\openai-tunnel-client\tunnel-client.exe"
     )
     assert set(remote["instances"]) == {"operation", "development"}
-    for instance in remote["instances"].values():
-        assert "tunnel_id" in instance
-        assert "control_plane_scope_id" in instance
-        assert "control_plane_api_key_env" in instance
+    for name, instance in remote["instances"].items():
+        assert instance["configured"] is False
+        assert instance["tunnel_id"] == ""
+        assert instance["tunnel_credential_target"] == f"kis-mcp/tunnel/{name}"
+        assert "tunnel_authentication_id" not in instance
 
 
-def test_tunnel_state_helper_reads_settings_and_named_instances() -> None:
+def test_tunnel_state_helper_reads_non_secret_identifiers() -> None:
     content = _script("tunnel-state.ps1")
 
     assert "settings\\kis-mcp.settings.json" in content
     assert "Get-KisMcpRemoteInstance" in content
     assert "operation" in content and "development" in content
-    assert "configured" in content
+    assert "RequireConfigured" in content
+    assert "tunnel_credential_target" in content
+    assert "tunnel_authentication_id" not in content
     assert "tunnel_client_path" in content
 
 
-def test_setup_script_uses_settings_without_embedding_credentials() -> None:
+def test_windows_credential_helper_uses_credential_manager_and_zeroes_native_buffer() -> None:
+    content = _script("windows-credential.ps1")
+
+    assert "CredWriteW" in content
+    assert "CredReadW" in content
+    assert "Set-KisMcpWindowsCredential" in content
+    assert "Get-KisMcpWindowsCredential" in content
+    assert "Marshal.WriteByte" in content
+    assert "Marshal.FreeCoTaskMem" in content
+
+
+def test_set_credential_script_uses_non_secret_settings_target() -> None:
+    content = _script("set-tunnel-credential.ps1")
+
+    assert "Read-Host" in content
+    assert "-AsSecureString" in content
+    assert "Set-KisMcpWindowsCredential" in content
+    assert "$Remote.tunnel_credential_target" in content
+
+
+def test_setup_script_uses_windows_credential_without_persisting_secret() -> None:
     content = _script("setup-tunnel.ps1")
 
     assert "Get-KisMcpRemoteInstance" in content
+    assert "Get-KisMcpWindowsCredential" in content
     assert "--profile-dir" in content
     assert "--tunnel-id" in content
     assert "--mcp-server-url" in content
     assert "--control-plane-api-key-ref" in content
+    assert '"env:$CredentialEnvironmentName"' in content
+    assert "$env:$CredentialEnvironmentName" not in content
+    assert "[Environment]::SetEnvironmentVariable" in content
+    assert "finally" in content
+    assert "$Remote.tunnel_credential_target" in content
+    assert "tunnel_authentication_id" not in content
     assert "BackupExistingProfile" in content
-    assert "control_plane_scope_id" in content
     assert "doctor" in content
     assert "--explain" in content
     assert "sk-" not in content
@@ -64,7 +93,10 @@ def test_chatgpt_launcher_owns_http_and_tunnel_processes() -> None:
     assert "--health.url-file" in content
     assert "readyz" in content
     assert "Kill()" in content
-    assert "control_plane_scope_id" in content
+    assert "Get-KisMcpWindowsCredential" in content
+    assert "$Remote.tunnel_credential_target" in content
+    assert "$TunnelEnvironment" in content
+    assert "tunnel_authentication_id" not in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" in content
 
 

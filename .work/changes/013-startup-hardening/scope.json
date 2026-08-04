@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "change_id": "013-startup-hardening",
+  "status": "active",
+  "branch": "change/013-startup-hardening",
+  "worktree": ".work/worktrees/013-startup-hardening",
+  "base": "main",
+  "outcome": "Harden supervised ChatGPT startup by absorbing the unlanded committed commissioning identifier model from closed change 007, separating tunnel profile generation from live readiness validation, containing Desktop Commander startup behavior behind a lifecycle-owned compatibility seam, storing tunnel credentials in Windows Credential Manager, and reducing launcher output without changing HR-001, HR-002, or HR-003",
+  "owned_paths": [
+    ".work/changes/013-startup-hardening/**",
+    ".work/changes/006-provider-state-atomicity/scope.json",
+    "src/kis_mcp/provider_startup_compat.cjs",
+    "src/kis_mcp/provider_lifecycle.py",
+    "src/kis_mcp/remote_runtime.py",
+    "scripts/tunnel-state.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/windows-credential.ps1",
+    "scripts/set-tunnel-credential.ps1",
+    "tests/test_provider_lifecycle.py",
+    "tests/test_startup_hardening.py",
+    "tests/test_startup_scripts.py",
+    "tests/test_remote_runtime.py",
+    "docs/STARTUP-HARDENING.md",
+    "docs/development/startup-hardening/**"
+  ],
+  "shared_paths": [
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/config.py",
+    "tests/test_tunnel_scripts.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md"
+  ],
+  "excluded_paths": [
+    "src/kis_mcp/discover/**",
+    "contracts/discover/**",
+    "tests/discover/**",
+    "src/kis_mcp/skills/**",
+    "contracts/skills/**",
+    "tests/skills/**",
+    "src/kis_mcp/providers/**",
+    "settings/providers/**",
+    "policy/**",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/quarantine.py",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/desktop_commander.py",
+    "tests/test_middleware.py",
+    "tests/test_public_contracts.py",
+    ".work/changes/007-chatgpt-remote-commissioning/**",
+    "docs/development/chatgpt-remote-commissioning/**"
+  ],
+  "dependencies": [
+    "005-discover-foundation",
+    "006-provider-state-atomicity",
+    "007-chatgpt-remote-commissioning"
+  ],
+  "integration_owner": "013-startup-hardening"
+}

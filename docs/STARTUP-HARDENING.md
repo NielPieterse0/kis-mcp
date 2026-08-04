@@ -1,0 +1,118 @@
+# Startup Hardening
+
+## Operator workflow
+
+Tunnel secrets are stored as per-user Generic Credentials in Windows Credential Manager. The checked-in settings contain only the non-secret credential target name. Store the selected instance's secret once before profile setup or startup:
+
+```powershell
+pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance development
+```
+
+Setup and startup retrieve the secret only for the owned tunnel-client process. They do not write it to JSON, profile YAML, logs, or runtime state.
+
+### 1. Generate or replace a tunnel profile
+
+Profile generation is a static commissioning action. It does not require the local MCP endpoint to be running.
+
+```powershell
+pwsh -File .\scripts\setup-tunnel.ps1 -Instance development
+```
+
+Use `-BackupExistingProfile` to preserve and replace an existing profile.
+
+```powershell
+pwsh -File .\scripts\setup-tunnel.ps1 -Instance development -BackupExistingProfile
+```
+
+The script reports `live_validation=skipped` and `setup_log=<path>`. Tunnel-client initialization and doctor output are written to that local runtime log instead of the operator console. A stopped local server is not treated as an invalid tunnel profile.
+
+### 2. Optionally validate a live endpoint
+
+Run live validation only when the selected local MCP endpoint is already listening.
+
+```powershell
+pwsh -File .\scripts\setup-tunnel.ps1 `
+  -Instance development `
+  -BackupExistingProfile `
+  -ValidateLiveEndpoint
+```
+
+The script polls MCP `initialize` readiness before invoking `tunnel-client doctor`.
+
+- Endpoint refusal or timeout returns `KIS_MCP_ENDPOINT_NOT_READY`.
+- A doctor failure after endpoint readiness returns `KIS_MCP_TUNNEL_PROFILE_INVALID`.
+
+### 3. Start the supervised ChatGPT path
+
+```powershell
+pwsh -File .\scripts\start-chatgpt.ps1 -Instance development
+```
+
+The launcher performs this order:
+
+1. reject an occupied selected port or an active alternate instance;
+2. start the local kis-mcp HTTP runtime;
+3. poll MCP `initialize` readiness;
+4. start the tunnel client;
+5. poll the tunnel `/readyz` endpoint;
+6. capture child-process stdout and stderr beneath the instance runtime root;
+7. write a versioned startup-state JSON record containing the diagnostic log paths;
+8. emit the bounded readiness fields below.
+
+```text
+health=ready
+endpoint=<loopback MCP endpoint>
+policy_fingerprint=<sha256>
+tunnel_state=ready
+tunnel_profile=<profile name>
+tunnel_id=<non-secret tunnel identifier>
+startup_state=<local JSON state path>
+```
+
+The operator console contains only the bounded kis-mcp fields above. FastMCP, provider, server transport, tunnel-client Fx, admin UI, and startup diagnostics are retained in the log paths recorded by the startup-state JSON.
+
+The launcher owns both child processes. Closing or interrupting the launcher stops the owned local runtime and tunnel process. It does not terminate unrelated listeners.
+
+## Provider containment
+
+Desktop Commander remains the authoritative Work provider and is not modified or vendored.
+
+A kis-mcp-owned Node preload adapter is installed before the provider starts. It performs four bounded compatibility actions:
+
+1. returns a deterministic local `{ "flags": {} }` response for the exact configured `DC_FLAG_URL` without opening a socket;
+2. suppresses provider `notifications/message` records before FastMCP receives them;
+3. removes provider-specific `_meta` and `meta` fields from `tools/list` responses;
+4. removes provider administration tools from `tools/list` before FastMCP constructs the public catalogue.
+
+All other fetch requests, JSON-RPC requests, responses, errors, tools, and non-log notifications pass through unchanged.
+
+FastMCP starts with `show_banner=False`, so deployment promotion and update output are not part of the supervised runtime surface.
+
+## Public Work surface
+
+The startup compatibility adapter removes these provider administration tools from the provider `tools/list` response before FastMCP receives it:
+
+- `get_config`
+- `set_config_value`
+- `get_prompts`
+- `get_usage_stats`
+- `get_recent_tool_calls`
+
+Because these tools are absent when FastMCP constructs the proxy catalogue, they are not callable through the public kis-mcp surface.
+
+Ordinary filesystem, editing, search, terminal, process, and document tools remain exposed subject only to HR-001, HR-002, and HR-003. Provider tool results are not wrapped or rewritten.
+
+## Error classification
+
+| Error | Meaning |
+|---|---|
+| `KIS_MCP_ENDPOINT_NOT_READY` | The local MCP endpoint did not become ready within the bounded wait. |
+| `KIS_MCP_TUNNEL_PROFILE_INVALID` | Live endpoint readiness succeeded, but tunnel-client doctor rejected the profile or live configuration. |
+| `KIS_MCP_TUNNEL_PROFILE_MISSING` | Generate the selected profile before startup. |
+| `KIS_MCP_PORT_IN_USE` | The selected loopback port already has a listener. No process is terminated automatically. |
+| `KIS_MCP_OTHER_INSTANCE_ACTIVE` | The alternate supervised instance is already listening. |
+| `KIS_MCP_TUNNEL_NOT_READY` | The tunnel process started but did not report ready before the deadline. |
+
+## Recovery
+
+Revert the startup-hardening change to restore the previous scripts and provider launch behavior. Existing profile YAML is never permanently deleted: replacement requires `-BackupExistingProfile`, which moves the prior profile beneath the profile backup directory. The Windows Credential Manager entry remains operator-owned and is not copied, logged, or deleted by rollback.
