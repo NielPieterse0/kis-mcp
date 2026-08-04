@@ -1,0 +1,154 @@
+# kis-mcp
+
+Repository: `C:\Projects\kis-mcp`
+Remote: `https://github.com/NielPieterse0/kis-mcp.git`
+
+## Canonical identity
+
+- Product name: `kis-mcp`.
+- Python distribution and CLI: `kis-mcp`.
+- Python import package: `kis_mcp`.
+- Runtime settings: `settings/kis-mcp.settings.json`.
+- Enforcement policy: `policy/kis-mcp.policy.json`.
+- Generated state and quarantine root: `C:\Projects\.kis-mcp`.
+
+## Authority order
+
+Read these files before changing the repository:
+
+1. `AGENTS.md` — repository scope and operating instructions.
+2. `docs/TRUST-MODEL.md` — trust assumptions and the only three prohibited outcomes.
+3. `SPEC.md` — current product architecture and implementation boundary.
+4. `docs/PLATFORM-CONCEPT.md` — approved final platform outcome and phased evolution.
+5. `policy/kis-mcp.policy.json` — machine-readable expression of the three rules.
+6. `docs/OPERATIONS.md` — installation, startup, configuration, and verification.
+
+When documents conflict, use the earliest applicable authority above.
+
+## Skill authority and routing
+
+Skills under `.agents/skills` are procedural development aids. They are not product, runtime, policy, or repository authority, and their presence does not prove that a platform capability is implemented.
+
+Apply skills under these rules:
+
+1. The authority order in this file overrides every skill instruction.
+2. An externally adopted skill is authorized only when its directory contains an `adoption-manifest.json` whose approval status is `approved`. Use it only within the capabilities, filesystem scope, activation mode, dependencies, and risk boundary recorded by that manifest.
+3. A skill without an approved adoption manifest is reference-only guidance. It may inform MVP development, but it must not impose gates, require external access, authorize mutations, add dependencies, create a fourth policy rule, or override an approved repository decision.
+4. A skill requirement to invoke another skill applies only when that referenced skill is authorized under this section. Otherwise perform the necessary bounded step directly under repository authority and record any resulting verification limitation.
+5. Skill instructions that assume another host, deployment model, network access, package installation, publication, directory submission, or remote service are inapplicable unless the operator separately approves that exact activity.
+
+The following repository-owned workflow skills are explicitly authorized by this file for specification-slice development, even though they are not third-party adopted skills:
+
+- Use `.agents/skills/develop-code/SKILL.md` for an approved specification slice that creates, changes, fixes, refactors, or verifies executable implementation. It coordinates the slice from requirements through planning, implementation, review, verification, and closeout without changing the approved product boundary.
+- Use `.agents/skills/develop-docs/SKILL.md` for a documentation-only specification slice or an authoritative documentation update. It coordinates sources, authority, structure, review, verification, and closeout without turning target-state documentation into an implementation claim.
+- For a mixed slice, use `develop-code` for executable changes and `develop-docs` for authoritative documentation, then reconcile both against the same approved specification and current verification evidence.
+
+These workflow skills remain subordinate to `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, and the current implementation phase. They cannot expand the runtime, alter HR-001 through HR-003, or make an unapproved future capability current.
+
+## Supporting lessons record
+
+`docs/LESSONS-APPLICABILITY.md` maps consolidated prior-project recommendations to the current repository. Use it as a review and planning aid after reading the authority documents above. It is non-authoritative, cannot add a fourth prohibited outcome, and must distinguish current coverage, continuing evidence needs, future-phase adoption, advisory triggers, and rejected interpretations.
+
+## Greenfield boundary
+
+This repository contains only:
+
+1. integration with the authoritative Desktop Commander MCP distribution;
+2. a small FastMCP gateway and enforcement layer written for this project;
+3. ordinary local development operations exposed through Desktop Commander's normal tool contracts;
+4. tests proving the three policy outcomes;
+5. minimal operational documentation and scripts.
+
+Do not import SDK2 or another predecessor as a runtime dependency. SDK2 artifacts may be inspected as source material, but copied material must be reduced, renamed, and reconciled with this repository's authority before admission.
+
+The operator has approved `docs/PLATFORM-CONCEPT.md` as the final product direction. That approval changes the documentation boundary only: the repository may define the future Discover, Govern, Work, evidence, provider, catalogue, profile, and workflow model in authoritative documents. Do not implement those future capabilities, add runtime dependencies, or claim them as current behavior without a separately approved implementation phase.
+
+Do not add a custom replacement filesystem, custom replacement terminal, forked Desktop Commander, or duplicated provider implementation unless the operator explicitly changes the implementation boundary.
+
+## Trust model
+
+`kis-mcp` is a private, single-operator, directly supervised system. It is not designed for unattended or unsupervised implementation.
+
+Desktop Commander remains the provider of ordinary filesystem, editing, search, process, testing, and local Git operations. FastMCP is the enforcement and forwarding boundary. Tool implementation and policy remain separate.
+
+## The only three prohibited outcomes
+
+FastMCP may block or transform a call only for one of these outcomes:
+
+1. **HR-001 — write outside `C:\Projects`:** block any resolved direct or indirect write effect outside the approved project boundary.
+2. **HR-002 — unrestricted external network through Work:** do not expose network-only Work tools; block network modes or calls whose resolved Work effect is external network access.
+3. **HR-003 — permanent deletion:** transform delete-like intent into a recoverable move beneath `C:\Projects\.kis-mcp\quarantine`; block when safe quarantine is impossible.
+
+Tool names, executables, broad capability, destructive-looking metadata, or absence from a curated list are not independent policy reasons.
+
+## Narrow enforcement standard
+
+FastMCP evaluates the complete concrete invocation and its proven resultant effects. A block or quarantine decision is valid only when the combined tool, arguments, modes, working directory, explicit targets, composed actions, and resolved effects positively establish HR-001, HR-002, or HR-003.
+
+A prompt phrase, word, URL string, tool name, executable, command, flag, capability class, destructive appearance, possible misuse, incomplete prediction, or missing resolver is not independently sufficient to block.
+
+If a prohibited effect cannot be specifically established, allow the invocation. Add a future narrow resolver only after a concrete violating combination is identified and covered by conformance tests.
+
+Structural input failures must remain distinct from hard-rule violations. Network-only provider capabilities may be unexposed when every invocation necessarily violates HR-002; do not retain redundant content or URL blocks for capabilities that cannot reach the Work surface.
+
+## Desktop Commander integration
+
+- Use `@wonderwhy-er/desktop-commander` from its authoritative source.
+- Pin the tested version in `settings/kis-mcp.settings.json`.
+- Do not fork, vendor, or reimplement Desktop Commander without explicit operator approval.
+- Keep provider-generated configuration, logs, cache, and runtime state under `C:\Projects\.kis-mcp\desktop-commander`.
+- Preserve the provider's normal tool names and schemas except where a minimal compatibility transform is required by FastMCP.
+- Keep provider-native security features enabled when they do not create a fourth project policy rule.
+
+Installation may require external network access. It is an explicit operator-supervised bootstrap action outside the normal Work tool path. Normal Work execution must not silently install or update packages.
+
+## FastMCP enforcement layer
+
+Keep the enforcement layer small and auditable:
+
+```text
+Desktop Commander tool call
+        |
+        v
+resolve invocation effects
+        |
+        v
+apply HR-001 / HR-002 / HR-003
+        |
+        +-- allow ----------------------> forward unchanged
+        +-- HR-001 or HR-002 ----------> corrective rejection
+        +-- HR-003 --------------------> quarantine transform or rejection
+```
+
+Separate effect resolution from policy decisions. The policy decision core must not know provider-specific tool names. Provider-specific resolution belongs in a narrow adapter with tests for every supported mutating, network-capable, deletion-capable, and command-execution shape.
+
+Terminal and process tools remain available through Desktop Commander's normal contracts. Resolve and block only concrete invocations whose intent or declared effect matches HR-001, HR-002, or HR-003; uncertainty, tool breadth, or lack of a specialized parser is not an independent reason to block.
+
+## Repository standards
+
+- Write only within `C:\Projects`.
+- Never permanently delete repository artifacts; use recoverable quarantine.
+- Keep temporary files under `C:\Projects\.kis-mcp\temp` or the repository `.temp` directory when one is explicitly needed.
+- Keep configuration in JSON.
+- Keep modules focused and dependency direction simple.
+- Do not commit secrets, tokens, machine-specific credentials, generated state, package caches, provider installation contents, or quarantine contents.
+- Do not represent target behavior as implemented without fresh applicable tests.
+- Keep documentation minimal; update an existing authority instead of adding overlapping documents.
+
+## Verification
+
+Before completion, run the repository verification entry point in `scripts/verify.ps1`. At minimum, verify:
+
+- JSON configuration parses;
+- the policy contains exactly HR-001, HR-002, and HR-003;
+- direct filesystem writes outside `C:\Projects` are rejected;
+- local writes inside `C:\Projects` are allowed;
+- explicit external-network modes are rejected;
+- delete intent is transformed to quarantine;
+- path normalization and boundary-prefix edge cases are covered;
+- Desktop Commander is not vendored or forked in the repository;
+- documentation and implementation status agree.
+
+## Stop rule
+
+Stop when the requested bounded outcome is complete, verification is current, contradictions are resolved, and remaining work is explicitly deferred rather than implied complete.

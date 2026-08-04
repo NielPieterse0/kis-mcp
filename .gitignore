@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Project-local temporary material
+.temp/
+
+# Generated state must live under C:\Projects\.kis-mcp
+.kis-mcp/
+.mcp-command-state/
+Microsoft/
+node_modules/
+
+# Editor and OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

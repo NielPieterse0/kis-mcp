@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "skill": "simpler-code",
+  "source": {
+    "repository": "https://github.com/anthropics/claude-plugins-official.git",
+    "revision": "9b415bdde0e7f7e34a967c548c763f90d3dd29b61b0459755240a7a4b16f124d",
+    "imported_at": "2026-07-31",
+    "content_sha256": "bfeae8e14efeb0d8a8d35db3e723c38c52ab9972a216b3f258f57b3dfd873677"
+  },
+  "license": {"identifier": "Apache-2.0", "reviewed": true},
+  "risk": {
+    "tier": 1,
+    "capabilities": {
+      "lifecycle_hooks": false,
+      "network": false,
+      "credentials": false,
+      "external_mutations": false,
+      "runtime_installation": false,
+      "remote_mcp": false,
+      "git_publication": false,
+      "deployment": false,
+      "deletion": false
+    }
+  },
+  "filesystem": {"read": ["."], "write": [], "absolute_paths": false},
+  "activation": {"mode": "model", "requires_trusted_project": true, "requires_human_approval": false},
+  "dependencies": {"locked": true, "runtime_installation": false},
+  "approval": {"status": "approved", "reviewer": "repository-owner", "reviewed_at": "2026-07-31"},
+  "rollback": {"verified": true, "method": "Disable runtime control and remove only the skills/simpler-code directory."}
+}

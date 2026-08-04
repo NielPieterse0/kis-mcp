@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "policy_name": "kis-mcp-three-rule-policy",
+  "project_boundary": "C:\\Projects",
+  "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine",
+  "rules": [
+    {
+      "id": "HR-001",
+      "name": "write_boundary",
+      "prohibited_outcome": "write_outside_project_boundary",
+      "decision": "block"
+    },
+    {
+      "id": "HR-002",
+      "name": "external_network",
+      "prohibited_outcome": "external_network_through_work",
+      "decision": "block"
+    },
+    {
+      "id": "HR-003",
+      "name": "permanent_deletion",
+      "prohibited_outcome": "permanent_deletion",
+      "decision": "quarantine_or_block"
+    }
+  ]
+}

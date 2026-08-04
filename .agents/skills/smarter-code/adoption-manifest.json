@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "skill": "smarter-code",
+  "source": {
+    "repository": "https://github.com/anthropics/claude-plugins-official.git",
+    "revision": "b2cfe75f24513357041efc2599f9d047047c2b78a5f07ee96c300292250c8b3b",
+    "imported_at": "2026-07-31",
+    "content_sha256": "725be4d0c262322012a7561cd9bc85446c5592ddb2027ff82a4d3de02e931298"
+  },
+  "license": {"identifier": "Apache-2.0", "reviewed": true},
+  "risk": {
+    "tier": 1,
+    "capabilities": {
+      "lifecycle_hooks": false,
+      "network": false,
+      "credentials": false,
+      "external_mutations": false,
+      "runtime_installation": false,
+      "remote_mcp": false,
+      "git_publication": false,
+      "deployment": false,
+      "deletion": false
+    }
+  },
+  "filesystem": {"read": ["."], "write": [], "absolute_paths": false},
+  "activation": {"mode": "model", "requires_trusted_project": true, "requires_human_approval": false},
+  "dependencies": {"locked": true, "runtime_installation": false},
+  "approval": {"status": "approved", "reviewer": "repository-owner", "reviewed_at": "2026-07-31"},
+  "rollback": {"verified": true, "method": "Disable runtime control and remove only the skills/smarter-code directory."}
+}

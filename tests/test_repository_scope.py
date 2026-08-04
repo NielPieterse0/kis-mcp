@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_repository_skills_are_not_runtime_catalogue() -> None:
+    runtime_root = REPOSITORY_ROOT / "src"
+    assert not any(path.name == "skills" for path in runtime_root.rglob("skills"))
+
+    runtime_and_config_files = [
+        *runtime_root.rglob("*.py"),
+        *(REPOSITORY_ROOT / "settings").rglob("*.json"),
+        *(REPOSITORY_ROOT / "policy").rglob("*.json"),
+    ]
+    runtime_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in runtime_and_config_files
+    )
+    assert ".agents" not in runtime_text
+
+
+def test_verification_uses_locked_external_interpreter() -> None:
+    powershell = (REPOSITORY_ROOT / "scripts" / "verify.ps1").read_text(
+        encoding="utf-8"
+    )
+    python = (REPOSITORY_ROOT / "scripts" / "verify.py").read_text(encoding="utf-8")
+    start = (REPOSITORY_ROOT / "scripts" / "start.ps1").read_text(encoding="utf-8")
+
+    assert "uv sync --offline --dev --frozen" in powershell
+    assert "sys.executable" in python
+    assert '"-m",\n            "pytest"' in python
+    assert "uv run --no-sync pytest" not in powershell
+    assert "uv run --no-sync kis-mcp" not in start
+
+
+def test_desktop_commander_bootstrap_resolves_windows_node_and_npm_launchers() -> None:
+    installer = (
+        REPOSITORY_ROOT / "scripts" / "install-desktop-commander.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "& npm.exe" not in installer
+    assert "Get-Command 'node.exe'" in installer
+    assert "Get-Command 'npm.cmd'" in installer
+    assert "NODE_NOT_INSTALLED" in installer
+    assert "NPM_NOT_INSTALLED" in installer
+
+
+def test_desktop_commander_bootstrap_uses_verified_scanned_archive_offline() -> None:
+    installer = (
+        REPOSITORY_ROOT / "scripts" / "install-desktop-commander.ps1"
+    ).read_text(encoding="utf-8")
+    settings = (REPOSITORY_ROOT / "settings" / "kis-mcp.settings.json").read_text(
+        encoding="utf-8"
+    )
+
+    assert "wonderwhy-er-desktop-commander-0.2.46.tgz" in settings
+    assert "DA392A6CC44CA1E3B390FCD8D95F79584F8CD40147A793EA94504843C05C4CED" in settings
+    assert "Get-FileHash" in installer
+    assert "HASH_MISMATCH" in installer
+    assert "--offline" in installer
+    assert "--ignore-scripts" in installer
+    assert "$ArchivePath" in installer
+    assert '"$Package@$Version"' not in installer
+    assert "authoritative npm registry" not in installer
+
+
+def test_dependency_cache_preparation_is_supervised_scanned_and_separate() -> None:
+    preparation = (
+        REPOSITORY_ROOT / "scripts" / "prepare-desktop-commander-cache.ps1"
+    ).read_text(encoding="utf-8")
+    installer = (
+        REPOSITORY_ROOT / "scripts" / "install-desktop-commander.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "Get-FileHash" in preparation
+    assert "MpCmdRun.exe" in preparation
+    assert "--ignore-scripts" in preparation
+    assert "$ArchivePath" in preparation
+    assert '"$Package@$Version"' not in preparation
+    assert "Move-Item -LiteralPath $AcquisitionCache -Destination $CacheRoot" in preparation
+    assert "Previous cache retained" in preparation
+    assert "--offline" in installer
+    assert "NPM_CONFIG_OFFLINE = 'true'" in installer
+
+
+def test_desktop_commander_is_not_vendored() -> None:
+    assert not (REPOSITORY_ROOT / "node_modules").exists()
+    assert not (REPOSITORY_ROOT / "DesktopCommanderMCP").exists()
+
+
+def test_no_predecessor_runtime_package_is_present() -> None:
+    assert not (REPOSITORY_ROOT / "src" / "sdk_tool").exists()
+    assert not (REPOSITORY_ROOT / "src" / "mcp_tool").exists()
+
+
+def test_policy_declares_only_three_rules() -> None:
+    policy_text = (REPOSITORY_ROOT / "policy" / "kis-mcp.policy.json").read_text(
+        encoding="utf-8"
+    )
+    assert policy_text.count('"id": "HR-') == 3

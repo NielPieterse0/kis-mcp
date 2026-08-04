@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "product": {
+    "name": "kis-mcp",
+    "distribution": "kis-mcp",
+    "python_package": "kis_mcp"
+  },
+  "paths": {
+    "project_boundary": "C:\\Projects",
+    "state_root": "C:\\Projects\\.kis-mcp",
+    "desktop_commander_root": "C:\\Projects\\.kis-mcp\\desktop-commander",
+    "desktop_commander_config_root": "C:\\Projects\\.kis-mcp\\.claude-server-commander",
+    "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine",
+    "temp_root": "C:\\Projects\\.kis-mcp\\temp",
+    "log_root": "C:\\Projects\\.kis-mcp\\logs",
+    "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache",
+    "python_environment_root": "C:\\Projects\\.kis-mcp\\python-env",
+    "uv_cache_root": "C:\\Projects\\.kis-mcp\\uv-cache",
+    "python_cache_root": "C:\\Projects\\.kis-mcp\\python-cache",
+    "pytest_cache_root": "C:\\Projects\\.kis-mcp\\pytest-cache"
+  },
+  "desktop_commander": {
+    "authoritative_source": "https://github.com/wonderwhy-er/DesktopCommanderMCP",
+    "package": "@wonderwhy-er/desktop-commander",
+    "version": "0.2.46",
+    "entry_point": "node_modules\\@wonderwhy-er\\desktop-commander\\dist\\index.js",
+    "require_local_chrome": true,
+    "launch": {
+      "command": "node.exe",
+      "args": [
+        "C:\\Projects\\.kis-mcp\\desktop-commander\\node_modules\\@wonderwhy-er\\desktop-commander\\dist\\index.js",
+        "--no-onboarding"
+      ],
+      "cwd": "C:\\Projects\\.kis-mcp\\desktop-commander",
+      "env": {
+        "NO_UPDATE_NOTIFIER": "1",
+        "DESKTOP_COMMANDER_DISABLE_TELEMETRY": "1",
+        "DC_FLAG_URL": "http://127.0.0.1:9/kis-mcp-offline"
+      }
+    },
+    "archive": {
+      "file_name": "wonderwhy-er-desktop-commander-0.2.46.tgz",
+      "sha256": "DA392A6CC44CA1E3B390FCD8D95F79584F8CD40147A793EA94504843C05C4CED"
+    }
+  },
+  "fastmcp": {
+    "version": "3.4.4",
+    "server_name": "kis-mcp",
+    "transport": "stdio"
+  },
+  "implementation_status": {
+    "policy_core": "diagnostic_unit_verified",
+    "desktop_commander_adapter": "diagnostic_unit_verified_live_schema_not_verified",
+    "quarantine": "diagnostic_unit_verified",
+    "dependency_lock": "verified",
+    "desktop_commander_installation": "verified_offline_install_and_stdio_startup",
+    "live_proxy": "not_verified"
+  }
+}

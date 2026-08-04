@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "skill": "code-review",
+  "source": {
+    "repository": "https://github.com/anthropics/claude-plugins-official.git",
+    "revision": "048e3c044da90379e4a00066e631b1cf0d4fac0fb0339b28334bca01f6657c5d",
+    "imported_at": "2026-07-31",
+    "content_sha256": "1e058b5e3d3e4d1615a2371df89a9989575ec6adec544a82257bd8c1776013ff"
+  },
+  "license": {"identifier": "Apache-2.0", "reviewed": true},
+  "risk": {
+    "tier": 1,
+    "capabilities": {
+      "lifecycle_hooks": false,
+      "network": false,
+      "credentials": false,
+      "external_mutations": false,
+      "runtime_installation": false,
+      "remote_mcp": false,
+      "git_publication": false,
+      "deployment": false,
+      "deletion": false
+    }
+  },
+  "filesystem": {"read": ["."], "write": [], "absolute_paths": false},
+  "activation": {"mode": "model", "requires_trusted_project": true, "requires_human_approval": false},
+  "dependencies": {"locked": true, "runtime_installation": false},
+  "approval": {"status": "approved", "reviewer": "repository-owner", "reviewed_at": "2026-07-31"},
+  "rollback": {"verified": true, "method": "Disable runtime control and remove only the skills/code-review directory."}
+}
