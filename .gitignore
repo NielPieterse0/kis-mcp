@@ -13,6 +13,7 @@ build/
 # Generated state must live under C:\Projects\.kis-mcp
 .kis-mcp/
 .mcp-command-state/
+.mcp-external-state/
 Microsoft/
 node_modules/
 
