@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "change_id": "001-parallel-agent-governance",
+  "status": "ready",
+  "branch": "change/001-parallel-agent-governance",
+  "worktree": ".work/worktrees/001-parallel-agent-governance",
+  "base": "main",
+  "outcome": "Add lean change claims and standardized worktree governance for parallel agents.",
+  "owned_paths": [
+    ".gitignore",
+    ".work/changes/_template/**",
+    ".work/changes/001-parallel-agent-governance/**",
+    "AGENTS.md",
+    "docs/OPERATIONS.md",
+    "scripts/change-governance.py",
+    "scripts/change-workflow.ps1",
+    "scripts/verify.py",
+    "tests/test_change_governance.py",
+    "tests/test_repository_scope.py"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "settings/**",
+    "src/kis_mcp/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

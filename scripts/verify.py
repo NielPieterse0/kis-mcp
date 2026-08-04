@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import importlib.metadata
+import importlib.util
 import json
 import os
 import subprocess
@@ -102,6 +103,54 @@ def verify_python_syntax() -> int:
     return 0
 
 
+def verify_change_governance() -> int:
+    governance_path = ROOT / "scripts" / "change-governance.py"
+    template_root = ROOT / ".work" / "changes" / "_template"
+    required_paths = [
+        governance_path,
+        ROOT / "scripts" / "change-workflow.ps1",
+        *(template_root / name for name in ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md")),
+    ]
+    missing = [str(path.relative_to(ROOT)) for path in required_paths if not path.is_file()]
+    gitignore_lines = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    if ".work/worktrees/" not in gitignore_lines:
+        missing.append(".gitignore:.work/worktrees/")
+    if missing:
+        _emit("change-governance", False, missing=missing)
+        return 1
+
+    spec = importlib.util.spec_from_file_location("kis_change_governance", governance_path)
+    if spec is None or spec.loader is None:
+        _emit("change-governance", False, error="Unable to load change-governance.py")
+        return 1
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+        claims = []
+        changes_root = ROOT / ".work" / "changes"
+        for scope_path in sorted(changes_root.glob("*/scope.json")):
+            if scope_path.parent.name.startswith("_"):
+                continue
+            claims.append(module.load_claim(scope_path))
+        conflicts = module.find_claim_conflicts(claims)
+        if conflicts:
+            _emit("change-governance", False, conflicts=conflicts)
+            return 1
+    except Exception as exc:
+        _emit("change-governance", False, error=str(exc))
+        return 1
+
+    _emit(
+        "change-governance",
+        True,
+        script="scripts/change-governance.py",
+        template=".work/changes/_template",
+        claims=len(claims),
+    )
+    return 0
+
+
 def verify_tests() -> int:
     config = load_runtime_config(ROOT)
     environment = dict(os.environ)
@@ -129,6 +178,7 @@ def main() -> int:
         verify_interpreter,
         verify_dependency_versions,
         verify_python_syntax,
+        verify_change_governance,
         verify_tests,
     ):
         if check() != 0:

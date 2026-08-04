@@ -100,3 +100,35 @@ def test_policy_declares_only_three_rules() -> None:
         encoding="utf-8"
     )
     assert policy_text.count('"id": "HR-') == 3
+
+
+def test_parallel_change_workflow_is_standardized_and_tracked() -> None:
+    gitignore = (REPOSITORY_ROOT / ".gitignore").read_text(encoding="utf-8")
+    agents = (REPOSITORY_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    operations = (REPOSITORY_ROOT / "docs" / "OPERATIONS.md").read_text(
+        encoding="utf-8"
+    )
+    wrapper = (REPOSITORY_ROOT / "scripts" / "change-workflow.ps1").read_text(
+        encoding="utf-8"
+    )
+
+    assert ".work/worktrees/" in gitignore.splitlines()
+    assert ".work/worktrees/<change-id>" in agents
+    assert "Parallel agent count is not limited" in agents
+    assert "scope.json" in agents
+    assert "change-governance.py" in wrapper
+    assert "change-workflow.ps1 new" in operations
+    assert "change-workflow.ps1 check" in operations
+    assert "change-workflow.ps1 cleanup" in operations
+
+    template = REPOSITORY_ROOT / ".work" / "changes" / "_template"
+    for name in ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md"):
+        assert (template / name).is_file()
+
+
+def test_repository_verification_checks_change_governance_layout() -> None:
+    verifier = (REPOSITORY_ROOT / "scripts" / "verify.py").read_text(encoding="utf-8")
+
+    assert "verify_change_governance" in verifier
+    assert "change-governance.py" in verifier
+    assert ".work/changes/_template" in verifier

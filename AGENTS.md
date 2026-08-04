@@ -124,6 +124,24 @@ Separate effect resolution from policy decisions. The policy decision core must 
 
 Terminal and process tools remain available through Desktop Commander's normal contracts. Resolve and block only concrete invocations whose intent or declared effect matches HR-001, HR-002, or HR-003; uncertainty, tool breadth, or lack of a specialized parser is not an independent reason to block.
 
+## Parallel change workflow
+
+Parallel agent count is not limited. Coordination is enforced through explicit change claims rather than a cap on agents or worktrees.
+
+Before implementation begins:
+
+1. Start from a clean primary `main` worktree.
+2. Create one stable change ID in the form `NNN-kebab-case`.
+3. Run `pwsh -File scripts/change-workflow.ps1 new <change-id> --outcome <text> --owned <path>` with additional `--owned`, `--shared`, `--exclude`, `--depends-on`, or `--integration-owner` arguments as required.
+4. Work only in `.work/worktrees/<change-id>` on branch `change/<change-id>`.
+5. Keep `scope.json`, `spec.md`, `plan.md`, `tasks.md`, and `closeout.md` under `.work/changes/<change-id>/` current with the implementation.
+
+Path claims are repository-relative exact paths or recursive paths ending in `/**`. `owned_paths` are exclusive. An overlap is permitted only when every overlapping claim uses `shared_paths` and coordination is explicit through a dependency or integration owner. Duplicate outcomes, branches, worktree paths, change IDs, and uncoordinated overlaps must fail before worktree creation.
+
+Before completion, run `pwsh -File scripts/change-workflow.ps1 check` from the change worktree and then run the normal repository verification. After the branch is merged into its declared base, run `pwsh -File scripts/change-workflow.ps1 cleanup <change-id>` from the clean primary worktree. Cleanup must refuse dirty or unmerged worktrees and must never force branch deletion.
+
+Manual worktree creation is an emergency exception only. Register the same change artifacts before the first implementation edit and run `change-workflow.ps1 validate` immediately.
+
 ## Repository standards
 
 - Write only within `C:\Projects`.
