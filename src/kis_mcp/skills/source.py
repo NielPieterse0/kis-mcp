@@ -40,10 +40,12 @@ class SkillSourceReader:
 
     def __init__(self, config: SkillsConfig) -> None:
         self.config = config
-        self.root = config.root.resolve(strict=True)
+        configured_root = config.root.absolute()
+        for candidate in (*reversed(configured_root.parents), configured_root):
+            self.assert_no_link(candidate)
+        self.root = configured_root.resolve(strict=True)
         if not self.root.is_dir():
             raise SkillsError("SKILLS_ROOT_INVALID", "Skills root must be a directory")
-        self.assert_no_link(self.root)
 
     def read_directory(self, skill_root: Path) -> SkillSource:
         files: list[SkillFile] = []

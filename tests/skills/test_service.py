@@ -40,6 +40,13 @@ class RecordingFilesystemBackend:
         target.write_bytes(current.replace(old_string, new_string).encode("utf-8"))
 
 
+class NoOpReplacementBackend(RecordingFilesystemBackend):
+    async def replace_text(
+        self, path: str, old_string: str, new_string: str
+    ) -> None:
+        self.calls.append(("replace_text", (path, old_string, new_string)))
+
+
 class RecordingServer:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, object], bool]] = []
@@ -122,6 +129,27 @@ def test_improve_skill_uses_exact_backend_replacement_and_refreshes(
         replacement.encode("utf-8")
     ).hexdigest()
     assert service.load_skill("alpha-skill").sha256 == result.after_sha256
+
+
+def test_improve_skill_rejects_backend_noop_after_hash_precondition(
+    skills_config: SkillsConfig, make_skill
+) -> None:
+    root = make_skill("alpha-skill")
+    backend = NoOpReplacementBackend()
+    service = SkillsService(SkillCatalogue(skills_config), backend)
+    loaded = service.load_skill("alpha-skill")
+    current = (root / "SKILL.md").read_bytes().decode("utf-8")
+    replacement = current.replace("Summary for alpha-skill", "Improved summary")
+
+    with pytest.raises(SkillsError, match="SKILLS_HASH_MISMATCH"):
+        asyncio.run(
+            service.improve_skill(
+                "alpha-skill", "SKILL.md", loaded.sha256, replacement
+            )
+        )
+
+    assert service.load_skill("alpha-skill").sha256 == loaded.sha256
+    assert [call[0] for call in backend.calls] == ["replace_text"]
 
 
 def test_fastmcp_backend_reenters_server_middleware_for_every_mutation() -> None:

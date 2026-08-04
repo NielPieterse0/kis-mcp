@@ -8,6 +8,7 @@ import pytest
 from kis_mcp.skills.catalogue import SkillCatalogue
 from kis_mcp.skills.config import SkillsConfig
 from kis_mcp.skills.errors import SkillsError
+from kis_mcp.skills.source import SkillSourceReader
 
 
 def test_refresh_and_list_are_deterministic_and_paginated(
@@ -100,6 +101,24 @@ def test_catalogue_rejects_traversal_backslashes_and_unknown_files(
 
     with pytest.raises(SkillsError, match="SKILLS_FILE_UNKNOWN"):
         catalogue.read_skill_file("alpha-skill", "references/missing.md")
+
+
+def test_reader_checks_configured_ancestors_before_resolving_root(
+    skills_config: SkillsConfig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    checked: list[Path] = []
+    original = SkillSourceReader.assert_no_link
+
+    def record_check(reader: SkillSourceReader, path: Path) -> None:
+        checked.append(Path(path))
+        original(reader, path)
+
+    monkeypatch.setattr(SkillSourceReader, "assert_no_link", record_check)
+
+    SkillSourceReader(skills_config)
+
+    assert skills_config.root.parent in checked
+    assert checked.index(skills_config.root.parent) < checked.index(skills_config.root)
 
 
 def test_refresh_rejects_invalid_skill_without_replacing_active_snapshot(

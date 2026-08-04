@@ -119,10 +119,17 @@ class SkillsService:
                 subject=proposed.relative_path,
             ) from exc
         refreshed = self.catalogue.refresh_skills()
+        active = self.catalogue.read_skill_file(skill_id, proposed.relative_path)
+        if active.sha256 != proposed.after_sha256:
+            raise SkillsError(
+                "SKILLS_HASH_MISMATCH",
+                "Skill file changed concurrently or the backend did not apply the exact replacement",
+                subject=proposed.relative_path,
+            )
         return SkillMutationResponse(
             skill_id=skill_id,
             relative_path=proposed.relative_path,
             before_sha256=proposed.before_sha256,
-            after_sha256=proposed.after_sha256,
+            after_sha256=active.sha256,
             snapshot_id=refreshed.snapshot_id,
         )

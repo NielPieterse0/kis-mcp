@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete, locally verified, pushed, and opened as draft PR #14: `https://github.com/NielPieterse0/kis-mcp/pull/14`.
+Implementation complete, locally verified, and open as PR #14: `https://github.com/NielPieterse0/kis-mcp/pull/14`.
 
 ## Implemented scope
 
@@ -21,6 +21,7 @@ Implementation complete, locally verified, pushed, and opened as draft PR #14: `
 - TDD covered configuration, schemas, parsing, source safety, deterministic snapshots, pagination, queries, file reads, stale cursors, malformed sources, size/suffix limits, mutation prevalidation, backend routing, exact middleware re-entry, structured tool output, fail-open initialization, and additive server composition.
 - The modularity assessment found the initial 681-line catalogue combined unrelated parsing, traversal, normalization, snapshot, query, and mutation-validation responsibilities. `frontmatter.py` and `source.py` were extracted; `catalogue.py` now owns snapshot/query behavior only.
 - Final read-only review found one availability defect: malformed shared Skills data could prevent the complete server from starting. This was repaired and regression-tested.
+- Landing review found two additional correctness defects: configured-root ancestry was resolved before link/reparse validation, and `improve_skill` could report the proposed SHA after a backend no-op or non-exact result. Both were repaired with failing-first regression tests, ancestor checks before resolution, and an exact post-mutation SHA verification.
 - No critical, important, or moderate Skills-specific correctness findings remain after repair.
 
 ## Verification
@@ -29,7 +30,7 @@ Fresh integrated evidence:
 
 ```text
 pwsh -NoProfile -File .temp/run-focused-tests.ps1 tests/skills
-30 passed
+32 passed
 
 pwsh -NoProfile -File scripts/smoke-skills-module.ps1
 ok=true; tool_count=39; skills_tool_count=9; catalogue_skill_count=17
