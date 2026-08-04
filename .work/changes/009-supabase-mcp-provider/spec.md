@@ -70,6 +70,6 @@ The shared Provider foundation from PR #9 is authoritative. This adapter uses th
 - Installing or vendoring the Supabase npm package.
 - Reimplementing Supabase APIs or tool schemas.
 - Connecting to production data.
-- Modifying the shared provider registry or active server composition.
+- Modifying the provider-neutral core or automatically composing adapters into the active platform server.
 - Discover normalization of Supabase evidence.
 - Changing HR-001, HR-002, HR-003, or `policy/kis-mcp.policy.json`.
