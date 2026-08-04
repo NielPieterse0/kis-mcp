@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "providers": [
+    {
+      "provider_id": "github-mcp",
+      "enabled": true,
+      "namespace": "github"
+    },
+    {
+      "provider_id": "supabase",
+      "enabled": true,
+      "namespace": "supabase"
+    }
+  ]
+}
