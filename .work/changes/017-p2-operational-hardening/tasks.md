@@ -15,4 +15,4 @@
 - [x] Final diff review completed.
 - [x] Scope and whitespace checks passed.
 - [x] Full locked verification passed: 406 tests, two expected skips, 66 Python files, 12 governance claims.
-- [ ] Commit, push, and PR state recorded.
+- [x] Commit and branch push completed; draft PR #18 created for dependency-aware review.

@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and repository verification complete. Publication is pending the final commit and PR creation.
+Implementation, repository verification, commit, push, and draft PR creation are complete. PR #18 remains draft until the documented P2 dependencies and merge order are resolved.
 
 ## Implemented scope
 
