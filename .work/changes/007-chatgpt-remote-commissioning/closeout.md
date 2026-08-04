@@ -39,7 +39,7 @@ Final authoritative verification:
 pwsh -File .\scripts\verify.ps1
 ```
 
-Result: 158 passed, 1 skipped; configuration, interpreter, dependencies, syntax, governance verifier, pytest, and exact three-rule checks passed.
+Result after integrating current `main`: 180 passed, 1 skipped; configuration, interpreter, dependencies, syntax, governance verifier, pytest, provider-module tests, and exact three-rule checks passed.
 
 Final governed scope check:
 
@@ -47,7 +47,7 @@ Final governed scope check:
 pwsh -File .\scripts\change-workflow.ps1 check
 ```
 
-Result: passed; all 17 changed paths were declared owned or shared paths.
+Result after integrating current `main`: passed; all 14 PR-changed paths were declared owned or shared paths.
 
 Final local dual-instance behavioral smoke:
 

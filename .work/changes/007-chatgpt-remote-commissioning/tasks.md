@@ -14,7 +14,7 @@
 - [x] Confirm the necessarily network-only feedback tool remains absent.
 - [x] Update authoritative specification and operations documentation.
 - [x] Record exact local evidence and external tunnel limitation.
-- [x] Run authoritative verification: 158 passed, 1 skipped.
+- [x] Integrate current `main` and run authoritative verification: 180 passed, 1 skipped.
 - [x] Run both-instance write/read/quarantine smoke successfully.
 - [x] Run the governed current-change scope check successfully.
 - [x] Complete final diff, secret, and policy review.

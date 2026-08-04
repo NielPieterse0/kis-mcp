@@ -57,7 +57,7 @@
 
 ### Task 6: Final review and delivery
 
-- [x] Run authoritative verification: 158 passed, 1 skipped.
+- [x] Integrate current `main` and run authoritative verification: 180 passed, 1 skipped.
 - [x] Run both-instance behavioral smoke with write/read/quarantine success.
 - [x] Run the current-change scope check.
 - [x] Review the final diff, secret exposure, and policy drift.
