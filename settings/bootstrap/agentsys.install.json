@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "tool_id": "agentsys",
+  "package": "agentsys",
+  "version": "6.0.1",
+  "install_root": "C:\\Projects\\.kis-mcp\\tools\\agentsys\\6.0.1",
+  "managed_home": "C:\\Projects\\.kis-mcp\\agent-hosts\\agentsys",
+  "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache\\agentsys",
+  "temp_root": "C:\\Projects\\.kis-mcp\\temp\\agentsys",
+  "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine\\agentsys",
+  "hosts": ["claude", "opencode", "codex"],
+  "opencode_strip_models": true,
+  "kis_mcp_command_policy": {
+    "default_enabled": false,
+    "available_commands": [
+      "audit-project", "audit-project-agents", "audit-project-github",
+      "banthis", "consult", "debate", "delivery-approval", "deslop",
+      "drift-detect", "enhance", "gate-and-ship", "learn", "next-task",
+      "perf", "prepare-delivery", "release", "repo-intel", "ship",
+      "ship-ci-review-loop", "ship-deployment", "ship-error-handling",
+      "skill-curator", "skillers", "sync-docs", "system-prompt-curator"
+    ],
+    "enabled_commands": []
+  }
+}

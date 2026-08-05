@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "tool_id": "agnix",
+  "package": "agnix",
+  "version": "0.45.0",
+  "install_root": "C:\\Projects\\.kis-mcp\\tools\\agnix\\0.45.0",
+  "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache\\agnix",
+  "temp_root": "C:\\Projects\\.kis-mcp\\temp\\agnix",
+  "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine\\agnix",
+  "expected_commands": ["agnix"],
+  "kis_mcp_exposure": {
+    "enabled": false,
+    "namespace": "agnix"
+  }
+}
