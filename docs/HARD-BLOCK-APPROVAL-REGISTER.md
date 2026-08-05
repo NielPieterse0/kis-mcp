@@ -122,6 +122,26 @@ The resolver distinguishes supported read-only and mutating Git forms. For a res
 
 ---
 
+## HR1-07 — Serena effective mutation destination outside the boundary
+
+**Implementation:** Proposed provider mapping; production implementation pending operator approval.
+
+Serena exposes file, symbol, refactoring, memory, project-configuration, index, cache, and logging operations that can produce writes. The adapter will resolve each pinned provider contract to its actual effective write or entry-mutation destinations using the active project, project-relative arguments, provider-state locations, move source and destination, and documented argument precedence. Serena tool names, optional status, beta status, or general editing capability are not sufficient to claim a write effect.
+
+**Hard-block condition:** A complete Serena invocation resolves one or more effective write or entry-mutation destinations outside `C:\Projects`.
+
+**Permitted forms:** Reads outside the boundary remain permitted. A mutating Serena invocation whose complete resolved write set remains inside `C:\Projects` is forwarded. An unresolved or malformed provider argument is handled as a structural/provider error rather than an HR-001 decision.
+
+**Evidence/tests required before activation:** Exact schema fixtures for every enabled mutating Serena tool; project-relative and absolute path tests; alias-precedence tests; move source/destination tests; provider-state, memory, index, cache, and log location tests; link, junction, and prefix-collision tests; permitted in-boundary counterexamples.
+
+**Reason approval is required:** This mapping teaches the gateway how Serena-specific arguments and provider state become concrete write effects. An overbroad mapping would suppress valid Serena capability; an incomplete mapping could permit a proven HR-001 write.
+
+**Recommended disposition:** Approve.
+
+**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+
+---
+
 # HR-002 — Proven external network through Work
 
 ## HR2-01 — Known network client with an external target
@@ -189,6 +209,26 @@ The pinned provider interprets only boolean `false` and string `"false"` as tele
 **Hard-block condition:** `set_config_value` targets `telemetryEnabled` with a value that the pinned provider does not interpret as disabled.
 
 **Evidence/tests:** `test_enabling_telemetry_is_network_intent`, `test_disabling_telemetry_is_not_network_intent`.
+
+**Recommended disposition:** Approve.
+
+**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+
+---
+
+## HR2-06 — Serena shell command with a proven external target
+
+**Implementation:** Proposed provider mapping; production implementation pending operator approval.
+
+Serena exposes `execute_shell_command`. The adapter will pass the complete command, effective working directory, shell form, and resolved arguments into the existing command-effect resolver. The Serena tool name, presence of a URL-like string, unknown executable, or general ability to start a process does not independently establish external-network intent.
+
+**Hard-block condition:** The complete Serena shell invocation resolves under the existing exact command contracts to an operation that consumes a non-loopback external host, endpoint, registry, package source, or remote.
+
+**Permitted forms:** Local commands, loopback access, commands without a proven external target, help or dry-run forms, and unresolved command shapes are not blocked under HR-002. Other proven effects from the same command remain subject to HR-001 and HR-003.
+
+**Evidence/tests required before activation:** Exact Serena shell schema fixture; working-directory propagation; quoted and escaped argument handling; known network-client targets and option values; package-source and Git-remote resolution; localhost counterexamples; unknown-command counterexamples; composed-command tests.
+
+**Reason approval is required:** This mapping connects a new provider shell contract to the existing HR-002 resolver. It must preserve Serena shell capability while blocking only complete invocations that prove an external Work-network effect.
 
 **Recommended disposition:** Approve.
 
@@ -289,6 +329,28 @@ Permanent deletion is never forwarded as fallback.
 **Result:** Reject as `HR-003_QUARANTINE_FAILED`.
 
 **Evidence/tests:** quarantine failure and middleware failure tests.
+
+**Recommended disposition:** Approve.
+
+**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+
+---
+
+## HR3-07 — Serena whole-memory-file deletion
+
+**Implementation:** Proposed quarantine mapping; production implementation pending operator approval.
+
+At the candidate Serena `1.6.1` contract, `delete_memory` requests deletion of one complete memory file. The adapter will resolve the effective memory file from the active project, memory name, `SERENA_HOME`, and configured Serena project-data location. The provider delete operation is not forwarded when the exact file target is resolved.
+
+**Hard-rule condition:** `delete_memory` resolves one exact existing memory file inside `C:\Projects` and requests permanent removal of that complete artifact.
+
+**Result:** Move the memory file intact into kis-mcp quarantine and record restoration metadata. If the exact target is outside `C:\Projects`, apply HR-001. If the target cannot be resolved exactly or safe quarantine cannot complete, return the applicable structural error or `HR-003_QUARANTINE_FAILED`; never forward permanent deletion as fallback.
+
+**Not included:** `delete_lines`, `safe_delete_symbol`, `jet_brains_safe_delete`, replacements, and refactorings that alter content within a retained source file are treated as content writes under HR-001, not whole-artifact deletion. A later pinned Serena contract that can delete a complete file or directory requires a new or revised approved mapping before activation.
+
+**Evidence/tests required before activation:** Exact `delete_memory` schema fixture; project and global memory-path resolution; traversal and alias rejection; exact quarantine and restore tests; outside-boundary tests; missing-target and quarantine-failure tests; counterexamples proving partial code deletion remains an ordinary in-boundary write.
+
+**Reason approval is required:** This mapping converts a new provider-specific whole-file delete contract into the existing recoverable quarantine behavior while avoiding an overbroad interpretation of every code-removal operation as HR-003.
 
 **Recommended disposition:** Approve.
 
