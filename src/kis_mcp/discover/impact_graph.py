@@ -6,6 +6,11 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from .analyzers import AnalysisContext, AnalyzerRegistry, run_pipeline
+from .analyzers.architecture import ArchitectureComponentsAnalyzer
+from .analyzers.change_impact import ChangeImpactAnalyzer
+from .analyzers.dependencies import DependencyImportsAnalyzer
+from .analyzers.repository_map import RepositoryMapAnalyzer
 from .contracts import Confidence, VerificationDeclaration
 from .errors import DiscoverError
 from .impact_contracts import (
@@ -42,6 +47,42 @@ class ImpactGraphService:
             authority=authority,
             settings=self._settings,
         ).discover(request.project, snapshot)
+        analysis = run_pipeline(
+            (
+                "repository.map",
+                "architecture.components",
+                "dependencies.imports",
+                "change.impact",
+            ),
+            AnalysisContext(
+                snapshot=snapshot,
+                authority=authority,
+                project_path=request.project,
+                python_index=index,
+                verification=verification.declarations,
+                changed_paths=request.changed_paths,
+                analyzer_options={
+                    "architecture.components": {
+                        "max_components": self._settings.limits.max_directories,
+                    },
+                    "dependencies.imports": {
+                        "max_edges": self._settings.limits.python_max_records,
+                    },
+                    "change.impact": {
+                        "max_impacts": self._settings.limits.python_max_records,
+                    },
+                },
+            ),
+            AnalyzerRegistry(
+                (
+                    RepositoryMapAnalyzer(),
+                    ArchitectureComponentsAnalyzer(),
+                    DependencyImportsAnalyzer(),
+                    ChangeImpactAnalyzer(),
+                )
+            ),
+        )
+        change_analysis = analysis.outputs["change.impact"]
 
         changed = frozenset(request.changed_paths)
         changed_modules = {
@@ -54,12 +95,17 @@ class ImpactGraphService:
         changed_symbol_records = tuple(
             item for item in index.symbols if item.path in changed
         )
-        dependants_all = _dependants(
+        python_dependants = _dependants(
             changed_modules=changed_modules,
             changed_symbols=changed_symbol_records,
             imports=index.imports,
             calls=index.calls,
             inheritance=index.inheritance,
+        )
+        javascript_dependants = _javascript_dependants(change_analysis)
+        dependants_all = _merge_dependants(
+            python_dependants,
+            javascript_dependants,
         )
         dependants = dependants_all[: request.budget.max_dependants]
         tests_all = _affected_tests(
@@ -86,6 +132,8 @@ class ImpactGraphService:
         reasons = set(index.truncation_reasons)
         if snapshot.truncated:
             reasons.update(snapshot.truncation_reasons)
+        if analysis.truncated:
+            reasons.add("dependency_analysis")
         if omissions.symbols:
             reasons.add("max_symbols")
         if omissions.dependants:
@@ -102,12 +150,18 @@ class ImpactGraphService:
             index_status=index.status,
             index_has_modules=bool(index.modules),
             verification_truncated=verification.truncated,
+            analysis_unknowns=analysis.unknowns,
+            task_terms_available=False,
         )
         confidence = (
             Confidence.LOW
-            if not index.modules
+            if not index.modules and not dependants_all
             else Confidence.MEDIUM
-            if reasons or index.diagnostics or verification.diagnostics
+            if not index.modules
+            or reasons
+            or index.diagnostics
+            or verification.diagnostics
+            or analysis.diagnostics
             else Confidence.HIGH
         )
         response = InspectImpactResponse(
@@ -234,6 +288,46 @@ def _dependants(*, changed_modules, changed_symbols, imports, calls, inheritance
     )
 
 
+def _javascript_dependants(change_analysis) -> tuple[ImpactDependant, ...]:
+    records: list[ImpactDependant] = []
+    for item in change_analysis.facts.get("dependants", ()):
+        if item.get("kind") != "javascript_import":
+            continue
+        depth = int(item.get("depth", 1))
+        records.append(
+            ImpactDependant(
+                kind="import",
+                source=str(item["source"]),
+                target=str(item["target"]),
+                path=str(item["source"]),
+                line=int(item.get("line", 1)),
+                confidence=Confidence.HIGH if depth == 1 else Confidence.MEDIUM,
+                provenance=(
+                    "javascript_static_import"
+                    if depth == 1
+                    else "javascript_static_import_transitive"
+                ),
+            )
+        )
+    return tuple(records)
+
+
+def _merge_dependants(*groups: tuple[ImpactDependant, ...]) -> tuple[ImpactDependant, ...]:
+    records: dict[tuple[str, str, str, str, int, str], ImpactDependant] = {}
+    for group in groups:
+        for item in group:
+            key = (
+                item.kind,
+                item.source,
+                item.target,
+                item.path,
+                item.line,
+                item.provenance,
+            )
+            records.setdefault(key, item)
+    return tuple(records.values())
+
+
 def _affected_tests(*, snapshot, changed_paths, changed_modules, changed_symbols, dependants):
     targets = {
         *changed_modules,
@@ -264,7 +358,7 @@ def _affected_tests(*, snapshot, changed_paths, changed_modules, changed_symbols
             matches.update(
                 item.target for item in dependants if item.path == normalized
             )
-            reason = "The test contains an AST-confirmed dependant relationship."
+            reason = "The test contains a deterministic parser-confirmed dependant relationship."
             provenance = "python_ast"
             confidence = Confidence.HIGH
         tokens = _tokens(normalized)
@@ -322,14 +416,27 @@ def _handoff(item: VerificationDeclaration, changed_paths: tuple[str, ...]) -> I
     )
 
 
-def _unknowns(*, request, changed_modules, changed_symbols, index_status, index_has_modules, verification_truncated):
+def _unknowns(
+    *,
+    request,
+    changed_modules,
+    changed_symbols,
+    index_status,
+    index_has_modules,
+    verification_truncated,
+    analysis_unknowns,
+    task_terms_available,
+):
+    del changed_modules
     values: list[ImpactUnknown] = []
-    unsupported = tuple(path for path in request.changed_paths if not path.casefold().endswith(".py"))
+    unsupported = tuple(
+        path for path in request.changed_paths if not path.casefold().endswith(".py")
+    )
     if unsupported:
         values.append(
             ImpactUnknown(
                 code="NON_PYTHON_SYMBOL_IMPACT_UNAVAILABLE",
-                reason="Symbol-level impact is currently limited to Python; non-Python paths retain path and verification evidence only.",
+                reason="Symbol-level impact is currently limited to Python; supported JavaScript and TypeScript paths retain static dependency and verification evidence.",
             )
         )
     if not index_has_modules:
@@ -360,7 +467,26 @@ def _unknowns(*, request, changed_modules, changed_symbols, index_status, index_
                 reason="Additional verification declarations may exist beyond configured limits.",
             )
         )
-    return tuple(sorted(values, key=lambda item: (item.code, item.reason)))
+    for reason in analysis_unknowns:
+        lowered = reason.casefold()
+        if "dynamic import" in lowered:
+            code = "JAVASCRIPT_DYNAMIC_IMPORT_IMPACT_UNKNOWN"
+        elif "could not be resolved" in lowered:
+            code = "JAVASCRIPT_IMPORT_TARGET_UNRESOLVED"
+        else:
+            code = "DEPENDENCY_IMPACT_PARTIAL"
+        values.append(ImpactUnknown(code=code, reason=reason))
+    if not task_terms_available:
+        values.append(
+            ImpactUnknown(
+                code="TASK_TOKEN_IMPACT_UNAVAILABLE",
+                reason="No task terms were supplied to inspect_impact; task-token impact remains unevaluated rather than inferred.",
+            )
+        )
+    unique = {(item.code, item.reason): item for item in values}
+    return tuple(
+        sorted(unique.values(), key=lambda item: (item.code, item.reason))
+    )
 
 
 def _path_category(path: str) -> str:
@@ -381,7 +507,12 @@ def _tokens(value: str) -> set[str]:
 
 
 def _fingerprint(value: Any) -> str:
-    payload = json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    payload = json.dumps(
+        value,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
 

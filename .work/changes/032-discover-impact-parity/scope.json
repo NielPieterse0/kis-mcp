@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "032-discover-impact-parity",
+  "status": "closed",
+  "branch": "change/032-discover-impact-parity",
+  "worktree": ".work/worktrees/032-discover-impact-parity",
+  "base": "main",
+  "outcome": "Harvest remaining deterministic change-impact intelligence without donor runtime coupling",
+  "owned_paths": [
+    "src/kis_mcp/discover/analyzers/**",
+    "src/kis_mcp/discover/impact_graph.py",
+    "src/kis_mcp/discover/impact_contracts.py",
+    "tests/discover/impact_parity/**",
+    "docs/development/discover-foundation/source-harvest.md",
+    ".work/changes/032-discover-impact-parity/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
