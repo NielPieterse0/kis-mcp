@@ -27,10 +27,10 @@ C:\Projects\.kis-mcp\tools\
 ├── agentsys\6.0.1\
 └── agnix\0.45.0\
 
-C:\Projects\.kis-mcp\agent-hosts\
-├── claude\
-├── opencode\
-└── codex\
+C:\Projects\.kis-mcp\agent-hosts\agentsys\
+├── .claude\
+├── .config\opencode\
+└── .codex\
 ```
 
 The AgentSys installer runs once with all three supported targets while `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA`, `XDG_CONFIG_HOME`, `CLAUDE_CONFIG_DIR`, `OPENCODE_CONFIG_DIR`, and `CODEX_HOME` are redirected beneath the managed host root. A launcher restores the same environment before invoking each host. agnix is installed separately and verified through both CLI and MCP entrypoints where the npm package provides them.

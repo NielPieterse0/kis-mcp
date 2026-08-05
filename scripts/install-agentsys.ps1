@@ -15,6 +15,24 @@ function Assert-InProjects([string]$Path, [string]$Name) {
     if ($Full -ne $ProjectsRoot -and -not $Full.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "AGENTSYS_PATH_OUTSIDE_PROJECTS: $Name=$Full"
     }
+
+    $Probe = $Full
+    while (-not [string]::IsNullOrWhiteSpace($Probe)) {
+        if (Test-Path -LiteralPath $Probe) {
+            $Item = Get-Item -LiteralPath $Probe -Force
+            if (($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "AGENTSYS_PATH_REPARSE_POINT: $Name traverses $Probe"
+            }
+        }
+        if ($Probe -eq $ProjectsRoot) {
+            break
+        }
+        $Parent = Split-Path -Parent $Probe
+        if ([string]::IsNullOrWhiteSpace($Parent) -or $Parent -eq $Probe) {
+            break
+        }
+        $Probe = $Parent
+    }
     return $Full
 }
 
@@ -47,26 +65,20 @@ foreach ($Path in @($CacheRoot, $TempRoot, $QuarantineRoot, (Split-Path -Parent 
     New-Item -ItemType Directory -Path $Path -Force | Out-Null
 }
 
-$OperationId = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ') + '-' + [guid]::NewGuid().ToString('N')
-$OperationQuarantine = Join-Path $QuarantineRoot $OperationId
-New-Item -ItemType Directory -Path $OperationQuarantine -Force | Out-Null
+$StageId = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ') + '-' + [guid]::NewGuid().ToString('N')
+$StagingInstallRoot = Assert-InProjects (Join-Path $TempRoot "agentsys-package-$StageId") 'staging_install_root'
+$StagingManagedHome = Assert-InProjects (Join-Path $TempRoot "agentsys-home-$StageId") 'staging_managed_home'
+New-Item -ItemType Directory -Path $StagingInstallRoot, $StagingManagedHome -Force | Out-Null
 
-foreach ($Existing in @($InstallRoot, $ManagedHome)) {
-    if (Test-Path -LiteralPath $Existing) {
-        $Name = Split-Path -Leaf $Existing
-        Move-Item -LiteralPath $Existing -Destination (Join-Path $OperationQuarantine $Name)
-    }
-}
-
-New-Item -ItemType Directory -Path $InstallRoot, $ManagedHome -Force | Out-Null
-$env:HOME = $ManagedHome
-$env:USERPROFILE = $ManagedHome
-$env:APPDATA = Join-Path $ManagedHome 'AppData\Roaming'
-$env:LOCALAPPDATA = Join-Path $ManagedHome 'AppData\Local'
-$env:XDG_CONFIG_HOME = Join-Path $ManagedHome '.config'
-$env:OPENCODE_CONFIG_DIR = Join-Path $ManagedHome '.config\opencode'
-$env:CODEX_HOME = Join-Path $ManagedHome '.codex'
-$env:CLAUDE_CONFIG_DIR = Join-Path $ManagedHome '.claude'
+$env:HOME = $StagingManagedHome
+$env:USERPROFILE = $StagingManagedHome
+$env:APPDATA = Join-Path $StagingManagedHome 'AppData\Roaming'
+$env:LOCALAPPDATA = Join-Path $StagingManagedHome 'AppData\Local'
+$env:XDG_CONFIG_HOME = Join-Path $StagingManagedHome '.config'
+$env:OPENCODE_CONFIG_DIR = Join-Path $StagingManagedHome '.config\opencode'
+$env:CODEX_HOME = Join-Path $StagingManagedHome '.codex'
+$env:CLAUDE_CONFIG_DIR = Join-Path $StagingManagedHome '.claude'
+$env:AGENTSYS_STRIP_MODELS = if ([bool]$Settings.opencode_strip_models) { 'true' } else { 'false' }
 $env:NPM_CONFIG_CACHE = $CacheRoot
 $env:NPM_CONFIG_AUDIT = 'false'
 $env:NPM_CONFIG_FUND = 'false'
@@ -79,14 +91,14 @@ foreach ($Path in @($env:APPDATA, $env:LOCALAPPDATA, $env:XDG_CONFIG_HOME, $env:
 }
 
 $PackageSpec = "$($Settings.package)@$($Settings.version)"
-Write-Host "Installing $PackageSpec at $InstallRoot..."
-& $Npm.Source install --prefix $InstallRoot $PackageSpec --save-exact --ignore-scripts --no-audit --no-fund
+Write-Host "Staging $PackageSpec at $StagingInstallRoot..."
+& $Npm.Source install --prefix $StagingInstallRoot $PackageSpec --save-exact --ignore-scripts --no-audit --no-fund
 if ($LASTEXITCODE -ne 0) {
     throw "AGENTSYS_PACKAGE_INSTALL_FAILED: npm exited with code $LASTEXITCODE."
 }
 
-$PackageJsonPath = Join-Path $InstallRoot 'node_modules\agentsys\package.json'
-$CliPath = Join-Path $InstallRoot 'node_modules\agentsys\bin\cli.js'
+$PackageJsonPath = Join-Path $StagingInstallRoot 'node_modules\agentsys\package.json'
+$CliPath = Join-Path $StagingInstallRoot 'node_modules\agentsys\bin\cli.js'
 if (-not (Test-Path -LiteralPath $PackageJsonPath -PathType Leaf) -or -not (Test-Path -LiteralPath $CliPath -PathType Leaf)) {
     throw 'AGENTSYS_PACKAGE_INVALID: package metadata or CLI entrypoint is missing.'
 }
@@ -101,8 +113,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "AGENTSYS_PROFILE_INSTALL_FAILED: CLI exited with code $LASTEXITCODE."
 }
 
-$PluginCache = Join-Path $ManagedHome '.agentsys\plugins'
-$ClaudePlugins = Join-Path $ManagedHome '.claude\plugins'
+$PluginCache = Join-Path $StagingManagedHome '.agentsys\plugins'
+$ClaudePlugins = Join-Path $StagingManagedHome '.claude\plugins'
 New-Item -ItemType Directory -Path $ClaudePlugins -Force | Out-Null
 $PluginDirectories = @(Get-ChildItem -LiteralPath $PluginCache -Directory | Where-Object {
     Test-Path -LiteralPath (Join-Path $_.FullName '.claude-plugin\plugin.json')
@@ -118,14 +130,63 @@ foreach ($Plugin in $PluginDirectories) {
     Copy-Item -LiteralPath $Plugin.FullName -Destination $Destination -Recurse
 }
 
-$OpenCodeCommands = @(Get-ChildItem -LiteralPath (Join-Path $ManagedHome '.config\opencode\commands') -File -Filter '*.md' -ErrorAction SilentlyContinue)
-$OpenCodeAgents = @(Get-ChildItem -LiteralPath (Join-Path $ManagedHome '.config\opencode\agents') -File -Filter '*.md' -ErrorAction SilentlyContinue)
-$OpenCodeSkills = @(Get-ChildItem -LiteralPath (Join-Path $ManagedHome '.config\opencode\skills') -Directory -ErrorAction SilentlyContinue)
-$CodexSkills = @(Get-ChildItem -LiteralPath (Join-Path $ManagedHome '.codex\skills') -Directory -ErrorAction SilentlyContinue)
+$ReferencePairs = @(
+    @($StagingManagedHome, $ManagedHome),
+    @($StagingInstallRoot, $InstallRoot)
+)
+$Utf8Strict = New-Object System.Text.UTF8Encoding($false, $true)
+$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$RemainingStagingReferences = 0
+foreach ($File in Get-ChildItem -LiteralPath $StagingManagedHome -Recurse -File) {
+    $Bytes = [System.IO.File]::ReadAllBytes($File.FullName)
+    if ([Array]::IndexOf($Bytes, [byte]0) -ge 0) {
+        continue
+    }
+    try { $Text = $Utf8Strict.GetString($Bytes) }
+    catch { continue }
+    $Updated = $Text
+    foreach ($Pair in $ReferencePairs) {
+        $Source = [string]$Pair[0]
+        $Target = [string]$Pair[1]
+        $Updated = $Updated.Replace($Source.Replace('\', '\\'), $Target.Replace('\', '\\'))
+        $Updated = $Updated.Replace($Source, $Target)
+    }
+    if ($Updated -ne $Text) {
+        [System.IO.File]::WriteAllText($File.FullName, $Updated, $Utf8NoBom)
+    }
+    foreach ($Pair in $ReferencePairs) {
+        $Source = [string]$Pair[0]
+        if ($Updated.Contains($Source) -or $Updated.Contains($Source.Replace('\', '\\'))) {
+            $RemainingStagingReferences++
+        }
+    }
+}
+if ($RemainingStagingReferences -gt 0) {
+    throw "AGENTSYS_PROFILE_RELOCATION_FAILED: $RemainingStagingReferences staged path references remain."
+}
+
+$OpenCodeCommands = @(Get-ChildItem -LiteralPath (Join-Path $StagingManagedHome '.config\opencode\commands') -File -Filter '*.md' -ErrorAction SilentlyContinue)
+$OpenCodeAgents = @(Get-ChildItem -LiteralPath (Join-Path $StagingManagedHome '.config\opencode\agents') -File -Filter '*.md' -ErrorAction SilentlyContinue)
+$OpenCodeSkills = @(Get-ChildItem -LiteralPath (Join-Path $StagingManagedHome '.config\opencode\skills') -Directory -ErrorAction SilentlyContinue)
+$CodexSkills = @(Get-ChildItem -LiteralPath (Join-Path $StagingManagedHome '.codex\skills') -Directory -ErrorAction SilentlyContinue)
 $ClaudeInstalled = @(Get-ChildItem -LiteralPath $ClaudePlugins -Directory -ErrorAction SilentlyContinue)
 if ($OpenCodeCommands.Count -eq 0 -or $CodexSkills.Count -eq 0 -or $ClaudeInstalled.Count -eq 0) {
     throw 'AGENTSYS_HOST_PROFILE_INCOMPLETE: one or more managed host profiles are empty.'
 }
+
+$ConfiguredCommands = @($Settings.kis_mcp_command_policy.available_commands | ForEach-Object { [string]$_ })
+$ExpectedCommands = @($ConfiguredCommands | Sort-Object)
+$OpenCodeCommandNames = @($OpenCodeCommands | ForEach-Object { $_.BaseName } | Sort-Object)
+$CodexSkillNames = @($CodexSkills | ForEach-Object { $_.Name } | Sort-Object)
+if (@($ConfiguredCommands | Sort-Object -Unique).Count -ne $ConfiguredCommands.Count -or
+    ($OpenCodeCommandNames -join "`n") -ne ($ExpectedCommands -join "`n") -or
+    ($CodexSkillNames -join "`n") -ne ($ExpectedCommands -join "`n")) {
+    throw 'AGENTSYS_COMMAND_CATALOGUE_MISMATCH: generated OpenCode commands and Codex skills must exactly match the configured command catalogue.'
+}
+
+$OperationId = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ') + '-' + [guid]::NewGuid().ToString('N')
+$OperationQuarantine = Join-Path $QuarantineRoot $OperationId
+New-Item -ItemType Directory -Path $OperationQuarantine -Force | Out-Null
 
 $Status = [ordered]@{
     schema_version = 1
@@ -142,8 +203,51 @@ $Status = [ordered]@{
     kis_mcp_command_policy = $Settings.kis_mcp_command_policy
     previous_state_quarantine = $OperationQuarantine
 }
-$StatusPath = Join-Path $ManagedHome 'installation.json'
+$StatusPath = Join-Path $StagingManagedHome 'installation.json'
 $StatusJson = ($Status | ConvertTo-Json -Depth 8) + [Environment]::NewLine
 [System.IO.File]::WriteAllText($StatusPath, $StatusJson, (New-Object System.Text.UTF8Encoding($false)))
+
+$PreviousInstall = $null
+$PreviousHome = $null
+$InstallActivated = $false
+$HomeActivated = $false
+try {
+    if (Test-Path -LiteralPath $InstallRoot) {
+        $PreviousInstallDestination = Join-Path $OperationQuarantine 'previous-package'
+        Move-Item -LiteralPath $InstallRoot -Destination $PreviousInstallDestination
+        $PreviousInstall = $PreviousInstallDestination
+    }
+    if (Test-Path -LiteralPath $ManagedHome) {
+        $PreviousHomeDestination = Join-Path $OperationQuarantine 'previous-home'
+        Move-Item -LiteralPath $ManagedHome -Destination $PreviousHomeDestination
+        $PreviousHome = $PreviousHomeDestination
+    }
+    Move-Item -LiteralPath $StagingInstallRoot -Destination $InstallRoot
+    $InstallActivated = $true
+    Move-Item -LiteralPath $StagingManagedHome -Destination $ManagedHome
+    $HomeActivated = $true
+}
+catch {
+    $ActivationMessage = $_.Exception.Message
+    $RollbackErrors = @()
+    if ($HomeActivated -and (Test-Path -LiteralPath $ManagedHome)) {
+        try { Move-Item -LiteralPath $ManagedHome -Destination (Join-Path $OperationQuarantine 'failed-new-home') }
+        catch { $RollbackErrors += "new home: $($_.Exception.Message)" }
+    }
+    if ($InstallActivated -and (Test-Path -LiteralPath $InstallRoot)) {
+        try { Move-Item -LiteralPath $InstallRoot -Destination (Join-Path $OperationQuarantine 'failed-new-package') }
+        catch { $RollbackErrors += "new package: $($_.Exception.Message)" }
+    }
+    if ($null -ne $PreviousHome -and -not (Test-Path -LiteralPath $ManagedHome)) {
+        try { Move-Item -LiteralPath $PreviousHome -Destination $ManagedHome }
+        catch { $RollbackErrors += "previous home: $($_.Exception.Message)" }
+    }
+    if ($null -ne $PreviousInstall -and -not (Test-Path -LiteralPath $InstallRoot)) {
+        try { Move-Item -LiteralPath $PreviousInstall -Destination $InstallRoot }
+        catch { $RollbackErrors += "previous package: $($_.Exception.Message)" }
+    }
+    $RollbackDetail = if ($RollbackErrors.Count -gt 0) { '; rollback errors: ' + ($RollbackErrors -join ' | ') } else { '' }
+    throw "AGENTSYS_ACTIVATION_FAILED: $ActivationMessage$RollbackDetail"
+}
 
 $Status | ConvertTo-Json -Depth 8

@@ -36,7 +36,19 @@ def test_agentsys_installer_is_complete_but_bounded() -> None:
     assert "$env:XDG_CONFIG_HOME" in script
     assert "$env:CODEX_HOME" in script
     assert "$env:CLAUDE_CONFIG_DIR" in script
+    assert "$StagingInstallRoot" in script
+    assert "$StagingManagedHome" in script
+    assert "ReparsePoint" in script
+    assert "AGENTSYS_PATH_REPARSE_POINT" in script
+    assert "AGENTSYS_PROFILE_RELOCATION_FAILED" in script
+    assert "AGENTSYS_COMMAND_CATALOGUE_MISMATCH" in script
+    assert "AGENTSYS_ACTIVATION_FAILED" in script
+    assert "failed-new-package" in script
     assert "Move-Item" in script
     assert "Copy-Item" in script
     assert "Remove-Item" not in script
     assert "rmSync" not in script
+    assert script.index("& $Npm.Source install") < script.index("Move-Item -LiteralPath $InstallRoot")
+    assert script.index("AGENTSYS_COMMAND_CATALOGUE_MISMATCH") < script.index(
+        "Move-Item -LiteralPath $InstallRoot"
+    )

@@ -20,5 +20,7 @@ def test_launcher_supports_exact_managed_hosts() -> None:
     assert "settings\\bootstrap\\agnix.install.json" in script
     assert "node_modules\\.bin" in script
     assert "$env:PATH" in script
+    assert "ReparsePoint" in script
+    assert "AGENTSYS_MANAGED_PATH_REPARSE_POINT" in script
     assert "AGENTSYS_HOST_COMMAND_UNAVAILABLE" in script
     assert "Remove-Item" not in script

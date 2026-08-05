@@ -19,10 +19,31 @@ $AgentSysInstallRoot = [System.IO.Path]::GetFullPath([string]$Settings.install_r
 $AgnixInstallRoot = [System.IO.Path]::GetFullPath([string]$AgnixSettings.install_root)
 $ProjectsRoot = [System.IO.Path]::GetFullPath('C:\Projects')
 $Prefix = $ProjectsRoot.TrimEnd('\') + '\'
-foreach ($ManagedPath in @($ManagedHome, $AgentSysInstallRoot, $AgnixInstallRoot)) {
-    if (-not $ManagedPath.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+function Assert-ManagedPath([string]$ManagedPath) {
+    if ($ManagedPath -ne $ProjectsRoot -and -not $ManagedPath.StartsWith($Prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "AGENTSYS_MANAGED_PATH_OUTSIDE_PROJECTS: $ManagedPath"
     }
+
+    $Probe = $ManagedPath
+    while (-not [string]::IsNullOrWhiteSpace($Probe)) {
+        if (Test-Path -LiteralPath $Probe) {
+            $Item = Get-Item -LiteralPath $Probe -Force
+            if (($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                throw "AGENTSYS_MANAGED_PATH_REPARSE_POINT: $ManagedPath traverses $Probe"
+            }
+        }
+        if ($Probe -eq $ProjectsRoot) {
+            break
+        }
+        $Parent = Split-Path -Parent $Probe
+        if ([string]::IsNullOrWhiteSpace($Parent) -or $Parent -eq $Probe) {
+            break
+        }
+        $Probe = $Parent
+    }
+}
+foreach ($ManagedPath in @($ManagedHome, $AgentSysInstallRoot, $AgnixInstallRoot)) {
+    Assert-ManagedPath $ManagedPath
 }
 
 $env:HOME = $ManagedHome

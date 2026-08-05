@@ -24,8 +24,16 @@ def test_agnix_installer_is_pinned_recoverable_and_truthful() -> None:
 
     assert "version -ne '0.45.0'" in script
     assert "--save-exact" in script
+    assert "$StagingInstallRoot" in script
+    assert "ReparsePoint" in script
+    assert "AGNIX_PATH_REPARSE_POINT" in script
+    assert "AGNIX_ACTIVATION_FAILED" in script
+    assert "failed-new-package" in script
+    assert "AGNIX_NODE_UNSUPPORTED" in script
     assert "Move-Item" in script
     assert "Remove-Item" not in script
     assert "@latest" not in script.lower()
     assert "mcp_status = 'not_in_npm_distribution'" in script
     assert "agnix.cmd" in script
+    assert script.index("& $Npm.Source install") < script.index("Move-Item -LiteralPath $InstallRoot")
+    assert script.index("AGNIX_SMOKE_FAILED") < script.index("Move-Item -LiteralPath $InstallRoot")
