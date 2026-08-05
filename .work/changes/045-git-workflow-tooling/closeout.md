@@ -70,7 +70,7 @@ Implementation and PR hardening complete; exact-head verification, merge, and cl
 - Branch: `change/045-git-workflow-tooling`
 - Worktree: `.work/worktrees/045-git-workflow-tooling`
 - Implementation commit: `8f64e279b4123e3e9cef24740b13db2440c334f8`
-- Hardening commit: pending
+- Hardening commit: `c3d5faa54b176687575be248932120592146393d`
 - Pull request: #57 — `Add structured Git workflow and recoverable cleanup commands`
 - Merge: pending
 - Cleanup: pending
