@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/project-catalog-request.schema.json",
+  "title": "Discover Project Catalog Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["projects", "budget"],
+  "properties": {
+    "projects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_projects", "max_manifests", "max_relationships", "max_unknowns"],
+      "properties": {
+        "max_projects": {"type": "integer", "minimum": 1},
+        "max_manifests": {"type": "integer", "minimum": 1},
+        "max_relationships": {"type": "integer", "minimum": 1},
+        "max_unknowns": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}
