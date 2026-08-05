@@ -4,6 +4,7 @@
   "runtime_settings_path": "C:\\Projects\\kis-mcp\\settings\\kis-mcp.settings.json",
   "policy_path": "C:\\Projects\\kis-mcp\\policy\\kis-mcp.policy.json",
   "provider_settings_path": "C:\\Projects\\kis-mcp\\settings\\providers\\platform-runtime.provider.json",
+  "approval_register_path": "C:\\Projects\\kis-mcp\\docs\\HARD-BLOCK-APPROVAL-REGISTER.md",
   "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine",
   "verification_command": [
     "pwsh",
@@ -11,8 +12,15 @@
     "-File",
     "scripts/verify.ps1"
   ],
+  "discover_enabled": true,
   "limits": {
     "max_provider_entries": 20,
+    "max_approval_entries": 20,
+    "max_recent_calls": 50,
+    "max_policy_decisions": 50,
+    "max_active_processes": 50,
+    "max_active_searches": 50,
+    "max_discover_findings": 20,
     "max_quarantine_records": 20,
     "git_timeout_seconds": 3,
     "max_json_bytes": 1000000

@@ -9,13 +9,15 @@ from types import MappingProxyType
 from typing import Any
 
 
-_APPROVED_EXTERNAL_PROVIDER_NAMESPACES = MappingProxyType(
+_APPROVED_PROVIDER_NAMESPACES = MappingProxyType(
     {
+        "control-center": "controlcenter",
         "github-mcp": "github",
         "supabase": "supabase",
     }
 )
-APPROVED_EXTERNAL_PROVIDER_IDS = frozenset(_APPROVED_EXTERNAL_PROVIDER_NAMESPACES)
+APPROVED_EXTERNAL_PROVIDER_IDS = frozenset({"github-mcp", "supabase"})
+APPROVED_PROVIDER_IDS = frozenset(_APPROVED_PROVIDER_NAMESPACES)
 _SETTINGS_KEYS = frozenset({"schema_version", "providers"})
 _PROVIDER_KEYS = frozenset({"provider_id", "enabled", "namespace"})
 _NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9]*$")
@@ -33,9 +35,9 @@ class ProviderMountSetting:
 
     def __post_init__(self) -> None:
         provider_id = _required_text(self.provider_id, "provider_id")
-        if provider_id not in APPROVED_EXTERNAL_PROVIDER_IDS:
+        if provider_id not in APPROVED_PROVIDER_IDS:
             raise ProviderRuntimeSettingsError(
-                "provider_id must identify an approved external provider"
+                "provider_id must identify an approved provider"
             )
         if not isinstance(self.enabled, bool):
             raise ProviderRuntimeSettingsError("enabled must be a boolean")
@@ -44,7 +46,7 @@ class ProviderMountSetting:
             raise ProviderRuntimeSettingsError(
                 "namespace must use lower-case alphanumeric namespace syntax"
             )
-        expected_namespace = _APPROVED_EXTERNAL_PROVIDER_NAMESPACES[provider_id]
+        expected_namespace = _APPROVED_PROVIDER_NAMESPACES[provider_id]
         if namespace != expected_namespace:
             raise ProviderRuntimeSettingsError(
                 f"namespace must be {expected_namespace} for provider_id {provider_id}"
@@ -75,9 +77,14 @@ class ProviderRuntimeSettings:
             raise ProviderRuntimeSettingsError(
                 "providers contains duplicate namespace values"
             )
-        if set(provider_ids) != APPROVED_EXTERNAL_PROVIDER_IDS:
+        actual_ids = set(provider_ids)
+        if not APPROVED_EXTERNAL_PROVIDER_IDS.issubset(actual_ids):
             raise ProviderRuntimeSettingsError(
                 "providers must contain exactly the approved external providers"
+            )
+        if not actual_ids.issubset(APPROVED_PROVIDER_IDS):
+            raise ProviderRuntimeSettingsError(
+                "providers contains an unapproved provider"
             )
         object.__setattr__(
             self,
@@ -125,9 +132,9 @@ def _provider_entry(value: Any, index: int) -> ProviderMountSetting:
     _exact_keys(value, _PROVIDER_KEYS, label)
 
     provider_id = _required_text(value["provider_id"], f"{label}.provider_id")
-    if provider_id not in APPROVED_EXTERNAL_PROVIDER_IDS:
+    if provider_id not in APPROVED_PROVIDER_IDS:
         raise ProviderRuntimeSettingsError(
-            f"{label}.provider_id must identify an approved external provider"
+            f"{label}.provider_id must identify an approved provider"
         )
 
     enabled = value["enabled"]
@@ -175,6 +182,7 @@ def load_provider_runtime_settings(
 
 __all__ = [
     "APPROVED_EXTERNAL_PROVIDER_IDS",
+    "APPROVED_PROVIDER_IDS",
     "ProviderMountSetting",
     "ProviderRuntimeSettings",
     "ProviderRuntimeSettingsError",

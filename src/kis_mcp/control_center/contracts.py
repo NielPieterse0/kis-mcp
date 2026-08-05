@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
+from kis_mcp.runtime_observability import RuntimeObservabilitySnapshot
+
 
 @dataclass(frozen=True, slots=True)
 class Diagnostic:
@@ -61,6 +63,56 @@ class ProviderSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class ProviderRuntimeSummary:
+    provider_id: str
+    namespace: str
+    registered: bool
+    enabled: bool
+    mounted: bool
+    state: str
+    readiness: str
+    action: str
+    commissioning: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovalSummary:
+    approval_id: str
+    title: str
+    status: str
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class DiscoverSummary:
+    status: str
+    project_id: str | None
+    languages: tuple[str, ...]
+    frameworks: tuple[str, ...]
+    module_count: int
+    finding_count: int
+    confidence: str
+    truncated: bool
+    findings: tuple[str, ...]
+    detail: str
+
+
+@dataclass(frozen=True, slots=True)
+class QuarantineRecordSummary:
+    operation_id: str
+    original_path: str
+    item_type: str
+    restored: bool
+
+
+@dataclass(frozen=True, slots=True)
+class AvailableAction:
+    label: str
+    tool_name: str
+    kind: str
+
+
+@dataclass(frozen=True, slots=True)
 class QuarantineSummary:
     root: str
     status: str
@@ -85,8 +137,14 @@ class ControlCenterSnapshot:
     runtime: RuntimeSummary
     project: ProjectSummary
     policy: PolicySummary
+    approvals: tuple[ApprovalSummary, ...]
+    discover: DiscoverSummary
     providers: tuple[ProviderSummary, ...]
+    provider_runtime: tuple[ProviderRuntimeSummary, ...]
+    observability: RuntimeObservabilitySnapshot
     quarantine: QuarantineSummary
+    quarantine_records: tuple[QuarantineRecordSummary, ...]
+    actions: tuple[AvailableAction, ...]
     verification: VerificationSummary
     diagnostics: tuple[Diagnostic, ...]
 

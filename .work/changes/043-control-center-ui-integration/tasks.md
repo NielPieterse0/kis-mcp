@@ -7,8 +7,8 @@
 - [x] Validate active change governance and establish focused baseline.
 - [x] Commit governance artifacts.
 - [x] Task 2: bounded process-local observability.
-- [ ] Task 3: provider composition publication and enriched local evidence.
-- [ ] Task 4: complete host-themed dashboard.
+- [x] Task 3: provider composition publication and enriched local evidence.
+- [x] Task 4: complete host-themed dashboard.
 - [ ] Task 5: mounted local provider integration.
 - [ ] Task 6: documentation, review, verification, PR, merge, and cleanup.
 
