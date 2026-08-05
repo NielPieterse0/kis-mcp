@@ -11,5 +11,6 @@
 - [x] Add request/response schemas and focused TDD coverage for the unified workflow and impact extensions.
 - [x] Reconcile the Discover product specification and final-integration record.
 - [x] Run full Discover regression, governance checks, syntax, whitespace, and full repository verification.
-- [x] Perform final diff review and resolve boundedness, normalization, and private-coupling findings.
-- [ ] Push, raise and review the PR, merge safely, verify main, and clean merged/stale worktree state.
+- [x] Perform final diff review and resolve boundedness, normalization, private-coupling, and traceability findings.
+- [x] Push, raise and review PR #52, merge safely, and verify merged `main`.
+- [x] Close the governance claim and prepare the merged worktree for governed cleanup.
