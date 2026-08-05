@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "033-discover-provider-admission",
+  "status": "active",
+  "branch": "change/033-discover-provider-admission",
+  "worktree": ".work/worktrees/033-discover-provider-admission",
+  "base": "main",
+  "outcome": "Add bounded provider candidate evidence and governed admission handoffs without installation or activation",
+  "owned_paths": [
+    "src/kis_mcp/discover/provider_admission/**",
+    "tests/discover/provider_admission/**",
+    "contracts/discover/provider-candidate.schema.json",
+    "contracts/discover/provider-admission-request.schema.json",
+    "docs/development/discover-provider-admission/**",
+    ".work/changes/033-discover-provider-admission/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
