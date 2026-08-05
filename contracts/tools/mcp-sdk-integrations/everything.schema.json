@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/tools/mcp-sdk-integrations/everything.schema.json",
+  "title": "Everything MCP Tool Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "source_repository",
+    "source_revision",
+    "package_name",
+    "package_version",
+    "executable",
+    "entry_point",
+    "arguments"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "source_repository": {"const": "https://github.com/modelcontextprotocol/servers"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "package_name": {"const": "@modelcontextprotocol/server-everything"},
+    "package_version": {"const": "2.0.0"},
+    "executable": {"type": "string", "minLength": 1},
+    "entry_point": {"type": "string", "minLength": 1},
+    "arguments": {
+      "type": "array",
+      "prefixItems": [{"const": "stdio"}],
+      "items": false,
+      "minItems": 1,
+      "maxItems": 1
+    }
+  }
+}

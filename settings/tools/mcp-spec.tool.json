@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "source_repository": "https://github.com/modelcontextprotocol/modelcontextprotocol",
+  "source_revision": "5c4f1768b97198a149d7db05f5026b30c6a3cb12",
+  "plugin_path": "plugins/mcp-spec",
+  "local_checkout": null
+}

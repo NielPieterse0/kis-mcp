@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/tools/mcp-sdk-integrations/mcp-spec.schema.json",
+  "title": "MCP Spec Plugin Tool Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "source_repository",
+    "source_revision",
+    "plugin_path",
+    "local_checkout"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "source_repository": {"const": "https://github.com/modelcontextprotocol/modelcontextprotocol"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "plugin_path": {"const": "plugins/mcp-spec"},
+    "local_checkout": {"type": ["string", "null"], "minLength": 1}
+  }
+}
