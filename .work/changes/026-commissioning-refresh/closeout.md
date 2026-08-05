@@ -37,6 +37,7 @@
 - Governing review sources: repository authority, change specification, local `code-review` skill, MCP server design guidance, and the operator-supplied commissioning report.
 - Finding resolved: GitHub PAT override was initially still presented as ready; it now produces a degraded configuration-conflict state with a removal action and regression coverage.
 - Finding resolved: promoted action metadata was initially duplicated inside `platform_health`; status extraction now emits it once, validates fixed keys, and bounds each promoted value to 256 characters.
+- Finding resolved during PR completion: provider-owned onboarding status could still say ready when runtime composition had failed to build or mount the provider. Runtime build and mount failures now override onboarding status with an actionable unavailable state; regression tests observed both failures before the repair and passed afterward.
 - Remaining findings: none identified in the final reviewed diff.
 
 ## Git and integration

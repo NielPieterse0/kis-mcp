@@ -26,6 +26,23 @@ _DEFAULT_COMMISSIONING = {
     key: _NOT_VERIFIED for key in _COMMISSIONING_KEYS
 }
 _MAX_STATUS_VALUE_LENGTH = 256
+_RUNTIME_USER_STATUS_BY_STATE = {
+    "build_failed": {
+        "state": "build_failed",
+        "label": "Unavailable — provider build failed",
+        "required_action": (
+            "Inspect provider readiness and local configuration, then restart the gateway."
+        ),
+    },
+    "mount_failed": {
+        "state": "mount_failed",
+        "label": "Unavailable — provider mount failed",
+        "required_action": (
+            "Inspect the provider namespace and gateway mount failure, then restart "
+            "the gateway."
+        ),
+    },
+}
 
 
 def _fixed_text_mapping(
@@ -292,7 +309,12 @@ def provider_runtime_status(
             (None, None, None),
         )
         provider["readiness"] = readiness
-        provider["user_status"] = user_status
+        runtime_user_status = _RUNTIME_USER_STATUS_BY_STATE.get(result.state.value)
+        provider["user_status"] = (
+            dict(runtime_user_status)
+            if runtime_user_status is not None
+            else user_status
+        )
         provider["commissioning"] = (
             commissioning
             if commissioning is not None

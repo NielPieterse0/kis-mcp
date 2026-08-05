@@ -13,6 +13,7 @@
 - [x] Task 4: update existing authoritative and provider guidance.
 - [x] Review the final diff for correctness, redaction, simplicity, and scope.
 - [x] Resolve review findings for GitHub PAT conflict handling and status de-duplication.
+- [x] Resolve PR-completion finding so runtime build and mount failures override ready onboarding status.
 - [x] Run the focused provider suite: 170 tests passed.
 - [x] Run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check`.
 - [x] Run `git diff --check`.

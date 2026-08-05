@@ -473,6 +473,64 @@ def test_provider_runtime_status_separates_mounting_from_commissioning() -> None
     }
 
 
+def test_provider_runtime_status_prioritizes_mount_failure_over_ready_preflight() -> None:
+    runtime = _runtime_module()
+    service = _service(
+        _descriptor(
+            "github-mcp",
+            builder=lambda: _child_server("github"),
+            readiness=ProviderReadiness(
+                provider_id="github-mcp",
+                state=ProviderState.READY,
+                summary="Local preflight is ready.",
+                details={
+                    "user_status": {
+                        "state": "ready_authentication_required",
+                        "label": "Ready — authentication required",
+                        "required_action": "Authenticate before live operations.",
+                    },
+                    "commissioning": {
+                        "installed": "ready",
+                        "configured": "ready",
+                        "authenticated": "required",
+                        "upstream_connected": "pending_authentication",
+                        "tools_discovered": "pending_authentication",
+                        "live_verified": "pending_authentication",
+                    },
+                },
+            ),
+        ),
+    )
+    composition = runtime.ProviderRuntimeComposition(
+        results=(
+            runtime.ProviderMountResult(
+                provider_id="github-mcp",
+                namespace="github",
+                registered=True,
+                enabled=True,
+                build_attempted=True,
+                built=True,
+                mounted=False,
+                state=runtime.ProviderMountState.MOUNT_FAILED,
+                error_type="RuntimeError",
+            ),
+        )
+    )
+
+    status = runtime.provider_runtime_status(service, composition)
+
+    provider = status["external_providers"][0]
+    assert provider["state"] == "mount_failed"
+    assert provider["user_status"] == {
+        "state": "mount_failed",
+        "label": "Unavailable — provider mount failed",
+        "required_action": (
+            "Inspect the provider namespace and gateway mount failure, then restart "
+            "the gateway."
+        ),
+    }
+
+
 def test_build_server_mounts_injected_provider_and_exposes_status(monkeypatch: Any) -> None:
     from kis_mcp import server as server_module
 
@@ -533,11 +591,44 @@ def test_build_server_contains_provider_builder_failures(monkeypatch: Any) -> No
     def fail_supabase() -> FastMCP:
         raise ValueError("supabase-secret-value")
 
+    ready_user_status = {
+        "state": "ready_authentication_required",
+        "label": "Ready — authentication required",
+        "required_action": "Authenticate before live operations.",
+    }
+    ready_commissioning = {
+        "installed": "ready",
+        "configured": "ready",
+        "authenticated": "required",
+        "upstream_connected": "pending_authentication",
+        "tools_discovered": "pending_authentication",
+        "live_verified": "pending_authentication",
+    }
+
+    def ready_readiness(provider_id: str) -> ProviderReadiness:
+        return ProviderReadiness(
+            provider_id=provider_id,
+            state=ProviderState.READY,
+            summary="Local preflight is ready.",
+            details={
+                "user_status": ready_user_status,
+                "commissioning": ready_commissioning,
+            },
+        )
+
     server = server_module.build_server(
         validate_provider=False,
         provider_service=_service(
-            _descriptor("github-mcp", builder=fail_github),
-            _descriptor("supabase", builder=fail_supabase),
+            _descriptor(
+                "github-mcp",
+                builder=fail_github,
+                readiness=ready_readiness("github-mcp"),
+            ),
+            _descriptor(
+                "supabase",
+                builder=fail_supabase,
+                readiness=ready_readiness("supabase"),
+            ),
         ),
         provider_runtime_settings=_runtime_settings(),
     )
@@ -557,5 +648,19 @@ def test_build_server_contains_provider_builder_failures(monkeypatch: Any) -> No
     providers = {item["provider_id"]: item for item in status["external_providers"]}
     assert providers["github-mcp"]["state"] == "build_failed"
     assert providers["github-mcp"]["error_type"] == "RuntimeError"
+    assert providers["github-mcp"]["user_status"] == {
+        "state": "build_failed",
+        "label": "Unavailable — provider build failed",
+        "required_action": (
+            "Inspect provider readiness and local configuration, then restart the gateway."
+        ),
+    }
     assert providers["supabase"]["state"] == "build_failed"
     assert providers["supabase"]["error_type"] == "ValueError"
+    assert providers["supabase"]["user_status"] == {
+        "state": "build_failed",
+        "label": "Unavailable — provider build failed",
+        "required_action": (
+            "Inspect provider readiness and local configuration, then restart the gateway."
+        ),
+    }
