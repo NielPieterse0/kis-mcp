@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "change_id": "046-modularity-hardening",
+  "status": "active",
+  "branch": "change/046-modularity-hardening",
+  "worktree": ".work/worktrees/046-modularity-hardening",
+  "base": "main",
+  "outcome": "Close current modularity boundary violations without overlapping active worktrees",
+  "owned_paths": [
+    "src/kis_mcp/providers/nvidia/**",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/tools/codex_cli/**",
+    "src/kis_mcp/workflows/code_review/**",
+    "src/kis_mcp/control_center/**",
+    "src/kis_mcp/providers/github/smoke.py",
+    "src/kis_mcp/providers/supabase/smoke.py",
+    "src/kis_mcp/provider_registry.py",
+    "scripts/run-provider-live-smoke.py",
+    "scripts/smoke-github-mcp.ps1",
+    "scripts/smoke-supabase-mcp.ps1",
+    "tests/providers/nvidia/**",
+    "tests/providers/test_platform_composition.py",
+    "tests/tools/codex_cli/**",
+    "tests/workflows/code_review/**",
+    "tests/control_center/**",
+    "tests/providers/github/test_registry.py",
+    "tests/providers/github/test_live_smoke.py",
+    "tests/providers/github/test_scripts.py",
+    "tests/providers/supabase/test_supabase_artifacts.py",
+    "tests/providers/supabase/test_supabase_commissioning.py",
+    "tests/architecture/**",
+    ".work/changes/046-modularity-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/tools/__init__.py",
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/discover/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

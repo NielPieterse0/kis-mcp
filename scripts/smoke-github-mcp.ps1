@@ -39,7 +39,7 @@ try {
         if ($PatPresent) {
             throw "GITHUB_OAUTH_PAT_CONFLICT: clear $($Settings.pat_env) before interactive OAuth commissioning."
         }
-        $LiveReportJson = & uv run --offline --no-sync python -m kis_mcp.providers.github.smoke
+        $LiveReportJson = & uv run --offline --no-sync python scripts/run-provider-live-smoke.py github
         if ($LASTEXITCODE -ne 0) {
             throw "GitHub MCP live smoke failed with exit code $LASTEXITCODE"
         }

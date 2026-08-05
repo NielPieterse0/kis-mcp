@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from kis_mcp.providers.nvidia import NvidiaSettings
+from kis_mcp.tools.codex_cli import CodexSettings
 from kis_mcp.workflows.code_review.reviewer import CodeReviewAgent
-from kis_mcp.workflows.code_review.settings import AgentSettings, CodexSettings, NvidiaSettings
+from kis_mcp.workflows.code_review.settings import AgentSettings
 
 
 class FakeCollector:

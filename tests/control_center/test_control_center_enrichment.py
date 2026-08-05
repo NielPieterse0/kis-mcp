@@ -22,10 +22,18 @@ def _settings(tmp_path: Path) -> ControlCenterSettings:
     project = tmp_path / "project"
     quarantine = tmp_path / "quarantine"
     project.mkdir()
-    _write_json(runtime, {"product": {"name": "kis-mcp"}, "fastmcp": {"server_name": "kis-mcp"}})
+    _write_json(
+        runtime,
+        {
+            "schema_version": 1,
+            "product": {"name": "kis-mcp"},
+            "fastmcp": {"server_name": "kis-mcp"},
+        },
+    )
     _write_json(
         policy,
         {
+            "schema_version": 1,
             "rules": [
                 {"id": "HR-001", "name": "Write boundary", "prohibited_outcome": "outside writes", "decision": "block"},
                 {"id": "HR-002", "name": "External network", "prohibited_outcome": "external network", "decision": "block"},
@@ -36,6 +44,7 @@ def _settings(tmp_path: Path) -> ControlCenterSettings:
     _write_json(
         providers,
         {
+            "schema_version": 1,
             "providers": [
                 {"provider_id": "github-mcp", "enabled": True, "namespace": "github"},
                 {"provider_id": "control-center", "enabled": True, "namespace": "controlcenter"},
@@ -51,6 +60,7 @@ def _settings(tmp_path: Path) -> ControlCenterSettings:
         operation / "metadata.json",
         {
             "operation_id": operation.name,
+            "schema_version": 2,
             "original_path": r"C:\Projects\old.txt",
             "item_type": "file",
             "restored_at": None,

@@ -12,8 +12,8 @@ from ..contracts import (
     ProviderState,
 )
 from ..registry import ProviderRegistry
-from ...workflows.code_review.settings import NvidiaSettings
 from .client import NvidiaNimClient
+from .settings import NvidiaSettings
 
 
 def nvidia_provider_descriptor(
@@ -60,7 +60,7 @@ def nvidia_provider_descriptor(
                 capability_id="llm.inference.nvidia-nim",
                 description="Run bounded advisory inference through NVIDIA NIM.",
                 effects=("external_network",),
-                tool_names=("review_change_with_agent",),
+                tool_names=(),
             ),
         ),
         builder=build,

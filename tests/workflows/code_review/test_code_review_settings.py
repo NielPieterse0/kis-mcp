@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from kis_mcp.providers.nvidia import NvidiaSettings
+from kis_mcp.tools.codex_cli import CodexSettings
 from kis_mcp.workflows.code_review.settings import (
     AgentSettingsError,
     load_agent_settings,
@@ -24,6 +26,8 @@ def test_load_agent_settings_reads_strict_checked_in_configuration() -> None:
     assert settings.fallback_backend == "codex-cli"
     assert settings.max_evidence_chars == 120000
     assert settings.max_output_chars == 30000
+    assert isinstance(settings.nvidia, NvidiaSettings)
+    assert isinstance(settings.codex, CodexSettings)
     assert settings.nvidia.base_url == "https://integrate.api.nvidia.com/v1"
     assert settings.nvidia.model == "meta/llama-3.3-70b-instruct"
     assert settings.nvidia.api_key_env == "NVIDIA_API_KEY"
