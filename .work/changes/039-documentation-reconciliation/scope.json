@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "change_id": "039-documentation-reconciliation",
+  "status": "active",
+  "branch": "change/039-documentation-reconciliation",
+  "worktree": ".work/worktrees/039-documentation-reconciliation",
+  "base": "origin/main",
+  "outcome": "Audit the complete tracked documentation set and reconcile non-conflicting current-state, architecture, operations, provider, lessons, and historical-status documentation with the verified implementation and repository writing standard",
+  "owned_paths": [
+    "README.md",
+    "SPEC.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "docs/PROVIDER-MODULE-PRODUCT-SPEC.md",
+    "docs/LESSONS-APPLICABILITY.md",
+    "docs/OPERATIONS.md",
+    "docs/development/provider-composition/README.md",
+    "docs/development/skills-module/README.md",
+    ".work/changes/039-documentation-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "AGENTS.md",
+    "docs/HARD-BLOCK-APPROVAL-REGISTER.md",
+    "docs/DISCOVER-MODULE-PRODUCT-SPEC.md",
+    "settings/kis-mcp.settings.json",
+    "policy/**",
+    "src/**",
+    "tests/**",
+    "contracts/**",
+    "scripts/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

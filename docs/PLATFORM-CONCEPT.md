@@ -56,23 +56,46 @@ Reviews and audits are composed workflows over these planes.
 
 ## 3. Relationship to the current kis-mcp baseline
 
-The current gateway is the initial Work-plane enforcement foundation, not the complete final product.
+The current gateway is no longer only the initial Work-plane foundation. It now contains bounded public Discover, Skills, Provider composition, Tools and agent workflow support, plus a separate read-only Control Center. Govern and broader workflow composition remain target-state capabilities.
 
-It remains responsible for:
+### Current capability state
+
+| State | Capability |
+|---|---|
+| Public primary gateway | Desktop Commander Work tools; five gateway operations; `inspect_project`; working-tree `inspect_change`; nine Skills operations; namespaced GitHub and Supabase tools when mounted; `review_change_with_agent`. |
+| Internal Discover services | Staged, commit, range, and branch change targets; context broker; impact graph; contract intelligence; project catalog; provider-admission evidence. |
+| Standalone | KIS Control Center read-only MCP App and UI resource. |
+| Target | Govern surface, public context/impact/catalog/admission workflows, broader semantic and remote evidence, progressive workflow coordination. |
+
+The current implementation remains responsible for:
 
 - integrating the authoritative Desktop Commander distribution;
 - resolving concrete invocation effects;
 - enforcing exactly HR-001, HR-002, and HR-003;
 - preserving ordinary local development operations outside those prohibited outcomes;
-- providing recoverable quarantine.
+- providing recoverable quarantine;
+- exposing bounded local Discover evidence without executing repository code;
+- resolving the approved shared Skills catalogue and routing its mutations through Work;
+- explicitly registering and composing approved providers;
+- exposing one bounded advisory code-review workflow without mutation authority.
 
-The future platform may add Discover, Govern, workflow coordination, evidence normalization, provider orchestration, progressive capability exposure, and bounded Work workflows. Those additions MUST NOT silently create a fourth policy prohibition.
+The future platform may add Govern, public context and impact workflows, broader semantic and trusted remote evidence, progressive capability exposure, and workflow coordination. Those additions MUST NOT silently create a fourth policy prohibition.
 
 Profiles, catalogues, governance checks, evidence requirements, readiness states, and workflow routing may control what platform functionality is installed, selected, or presented. They MUST NOT be interpreted as independent reasons to block an otherwise permitted Desktop Commander invocation under the three-rule Work policy.
 
 ### Implemented Skills capability
 
-The current platform also includes a focused `skills.catalogue` capability. It resolves reusable procedures from `C:\Projects\.agents\skills`, exposes bounded catalogue/read/evaluation operations, and routes create/improve mutations through the existing Work middleware and Desktop Commander backend. Skills remain reusable procedures rather than repository authority, provider plugins, or new policy rules. ChatGPT loads instructions and composes ordinary Work operations; the runtime does not automatically execute arbitrary skill code. Initial catalogue failure leaves the wider Work/gateway server available and surfaces a corrective Skills error.
+The current platform includes a focused `skills.catalogue` capability. It resolves reusable procedures from `C:\Projects\.agents\skills`, exposes bounded catalogue/read/evaluation operations, and routes create/improve mutations through the existing Work middleware and Desktop Commander backend. Skills remain reusable procedures rather than repository authority, provider plugins, or new policy rules. ChatGPT loads instructions and composes ordinary Work operations; the runtime does not automatically execute arbitrary skill code. Initial catalogue failure leaves the wider Work/gateway server available and surfaces a corrective Skills error.
+
+### Implemented Provider and agent capability
+
+The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors. GitHub and Supabase may mount under namespaced public tools; NVIDIA is workflow-only. Codex CLI remains a local Tools-registry adapter. Readiness, mounting, authentication, and commissioning are reported separately and do not create Work authorization.
+
+`review_change_with_agent` collects bounded local Git evidence and requests one advisory review through NVIDIA NIM or Codex CLI. It permits at most one fallback and grants no mutation or nested-delegation authority.
+
+### Standalone Control Center
+
+The KIS Control Center is a separate read-only MCP App. It reports bounded local runtime, project, policy, provider-configuration, quarantine, and verification guidance. It is not mounted into the primary gateway and is not part of Work enforcement.
 
 ## 4. Shared platform kernel
 
@@ -402,19 +425,32 @@ The platform will not initially:
 
 ## 12. Delivery sequence
 
-1. Preserve and verify the current Desktop Commander integration, three-rule policy, quarantine, and baseline contracts.
-2. Add repository-wide `inspect_project` using bounded scanner and detector foundations.
-3. Add fixed-template local Git evidence.
-4. Add `inspect_change` for working trees, refs, commits, and pull requests.
-5. Integrate a read-only semantic provider and normalize symbol operations.
-6. Build the code atlas and task-scoped `get_code_context` broker.
-7. Add governance manifest, authority registry, document classification, rulesets, and drift detection.
-8. Compose repository, change, documentation, architecture, governance, security, and debugging workflows.
-9. Add bounded Work planning, proposals, approved application, and verification while preserving ordinary Desktop Commander operations.
-10. Normalize GitHub connector, `gh`, CI, and PR-review evidence through supervised external boundaries.
-11. Add provider discovery, health, conformance, and periodic registry evaluation.
+The sequence remains architectural guidance, but several foundations are already implemented. Status must be read by exposure level rather than as a binary complete/incomplete flag.
 
-Each phase requires explicit design, implementation, and verification. Documentation of later phases is not implementation evidence.
+| Capability | Status |
+|---|---|
+| Desktop Commander integration, three-rule policy, quarantine, and baseline contracts | Public and implemented. |
+| Repository-wide `inspect_project`, local Git evidence, and working-tree `inspect_change` | Public and implemented. |
+| Staged, commit, range, and branch change readers | Internally implemented; not exposed by the public `inspect_change` signature. |
+| Context broker, impact graph, contract intelligence, project catalog, and provider-admission evidence | Internally implemented with versioned contracts; public composition remains target work. |
+| Provider registry, GitHub/Supabase runtime mounting, and provider status | Public and implemented. |
+| Skills catalogue and mutation workflow | Public and implemented. |
+| NVIDIA/Codex advisory code-review workflow | Public and implemented; live backend commissioning is separate evidence. |
+| KIS Control Center | Implemented as a standalone read-only MCP App. |
+| Govern plane, authority registry, rule evaluation, and drift detection | Target. |
+| Broader semantic providers and trusted remote Discover evidence | Target. |
+| Composed public review, audit, debugging, proposal, and verification workflows | Target. |
+
+The next architectural stages are:
+
+1. finish public composition of approved internal Discover services without widening read or execution authority;
+2. add Govern authority, rules, findings, exceptions, and documentation-drift detection;
+3. compose repository, change, documentation, architecture, governance, security, and debugging workflows;
+4. add bounded Work planning, proposal, application, and verification workflows while preserving ordinary Desktop Commander operations;
+5. normalize trusted remote evidence through approved connectors;
+6. continue provider discovery, conformance, and registry evaluation through isolated slices.
+
+Each stage requires explicit design, implementation, and verification. Documentation of target capabilities is not implementation evidence.
 
 ## 13. Success criteria
 

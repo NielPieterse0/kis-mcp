@@ -19,13 +19,13 @@ The repository contains only:
 - recoverable quarantine support;
 - minimal JSON configuration, tests, and operational documentation.
 
-The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile permission framework, a governance subsystem, or a fork of Desktop Commander. It includes one bounded, read-only Discover foundation implemented natively under `src/kis_mcp/discover`; donor repositories remain source evidence only and are not runtime dependencies. Repository-local `.agents/skills` material remains procedural development guidance. The separate runtime Skills module resolves reusable procedures exclusively from the operator-approved shared root `C:\\Projects\\.agents\\skills` through `settings/skills.settings.json`, and its mutations re-enter the existing Work middleware and Desktop Commander backend.
+The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile permission framework, a governance subsystem, or a fork of Desktop Commander. It implements bounded Discover, Skills, Provider, Tools, workflow, and Control Center modules natively under `src/kis_mcp`; donor repositories remain source evidence only and are not runtime dependencies. Repository-local `.agents/skills` material remains procedural development guidance. The runtime Skills module resolves reusable procedures exclusively from the operator-approved shared root `C:\\Projects\\.agents\\skills` through `settings/skills.settings.json`, and its mutations re-enter the existing Work middleware and Desktop Commander backend.
 
 ## Product evolution
 
-This specification defines the current implementation baseline. The approved final product direction is defined in `docs/PLATFORM-CONCEPT.md`.
+This specification defines the current implementation baseline. [`docs/PLATFORM-CONCEPT.md`](docs/PLATFORM-CONCEPT.md) defines the approved target architecture.
 
-The current FastMCP and Desktop Commander gateway is the initial Work-plane enforcement foundation of a larger three-plane platform:
+The platform uses three capability planes:
 
 ```text
 Discover → establish bounded repository evidence
@@ -33,7 +33,16 @@ Govern   → evaluate evidence against declared standards
 Work     → perform controlled change under HR-001 / HR-002 / HR-003
 ```
 
-The current Discover foundation provides bounded local repository discovery, deterministic evidence, local Git metadata, verification-command discovery without execution, a pure Python structural index through `inspect_project`, and bounded current-working-tree change classification through `inspect_change`. Future phases may add commit and range inspection, semantic providers, remote evidence, broader language intelligence, bounded context brokering, governance evaluation, reviews, audits, debugging, and workflow coordination. Those later capabilities remain targets, not current implementation claims.
+The current public gateway implements Work, bounded Discover, Skills, provider status and composition, quarantine operations, and one advisory code-review workflow. Govern remains target-state work.
+
+### Capability exposure
+
+| Exposure | Current capability |
+|---|---|
+| Public gateway | Desktop Commander Work tools; five gateway operations; `inspect_project`; working-tree `inspect_change`; nine Skills operations; `review_change_with_agent`; namespaced GitHub and Supabase tools when their adapters mount. |
+| Internal services and versioned contracts | Staged, commit, range, and branch change targets; context brokering; impact analysis; contract intelligence; explicit project cataloging; provider-admission evidence. These services are tested but are not public gateway tools unless separately registered. |
+| Standalone | KIS Control Center read-only MCP App and UI resource. |
+| Target | Govern operations, public context and impact workflows, broader semantic and trusted remote evidence, and composed platform workflows. |
 
 The future platform model does not alter the closed Work enforcement decision set. Profiles, catalogues, governance findings, evidence requirements, readiness, or workflow selection must not become additional reasons to block an otherwise permitted invocation.
 
@@ -42,9 +51,12 @@ The future platform model does not alter the closed Work enforcement decision se
 | Component | Responsibility |
 |---|---|
 | Desktop Commander | Provides ordinary filesystem, edit, search, process, testing, and local-development tools. |
-| FastMCP gateway | Mirrors provider contracts, exposes gateway and Discover tools, evaluates concrete Work invocations, and forwards allowed provider calls. |
-| Discover foundation | Performs bounded read-only local repository inspection through `inspect_project`, using JSON-configured evidence and output budgets. |
-| Provider runtime | Explicitly registers approved providers, builds enabled GitHub and Supabase adapters, mounts successful FastMCP adapters under unique namespaces, contains adapter build/mount failures, and reports truthful runtime status. |
+| FastMCP gateway | Mirrors provider contracts, exposes gateway, Discover, Skills, provider-status, and agent tools, evaluates concrete Work invocations, and forwards allowed provider calls. |
+| Discover module | Exposes bounded `inspect_project` and working-tree `inspect_change`; also contains tested internal change-target, context, impact, contract, project-catalog, and provider-admission services. |
+| Skills module | Resolves the approved shared catalogue, exposes nine public operations, and routes create/improve mutations back through Work middleware. |
+| Provider runtime | Registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors; mounts enabled GitHub and Supabase adapters under unique namespaces; contains failures; and reports readiness and commissioning separately. |
+| Tools and workflows | Registers local executable adapters such as Codex CLI and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection. |
+| Control Center | Runs as a separate read-only MCP App with one snapshot tool and one local UI resource; it is not part of the primary Work gateway. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
 | Three-rule policy | Returns only allow, block HR-001, block HR-002, quarantine HR-003, or block HR-003. |
 | Quarantine service | Moves delete targets intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>`. |
@@ -272,16 +284,40 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
-The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander Work adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, Windows Credential Manager-backed tunnel credential retrieval, the bounded Discover foundation, the shared Skills catalogue with Work-backed create/improve operations, provider runtime composition, and one advisory code-review agent with optional NVIDIA NIM and Codex CLI backends.
+The current implementation includes:
 
-`inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
+- repository authority, strict JSON configuration, and the closed HR-001/HR-002/HR-003 policy core;
+- the Desktop Commander Work adapter, startup containment, provider-contract shaping, quarantine, and restoration;
+- local stdio and settings-driven loopback HTTP startup for `operation` and `development`;
+- public `inspect_project` and working-tree `inspect_change` Discover operations;
+- nine public Skills operations backed by the approved shared catalogue;
+- provider-neutral contracts, registry, catalogue, health, explicit construction, and runtime composition;
+- GitHub MCP and Supabase adapters mounted under `github_*` and `supabase_*` when enabled adapters build successfully;
+- an NVIDIA NIM provider used only by the advisory code-review workflow;
+- a generic Tools registry with a fixed Codex CLI adapter;
+- `review_change_with_agent`, which collects bounded local evidence, permits one fallback, and grants no mutation or nested-agent authority;
+- the standalone read-only KIS Control Center MCP App.
 
-`inspect_change` is also registered on the gateway for the current working tree. It consumes the existing bounded local Git inventory and returns deterministic change identity, retained path statuses, conventional classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. Commit, range, branch, pull-request, semantic-symbol, dependant, verification-handoff, and remote-evidence support remain unimplemented.
+### Discover status
 
-The verified Skills merge established an additive Work/gateway/Discover/Skills catalogue and preserved fail-open Skills registration. The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors. The generic Tools registry supports local adapters, with Codex CLI registered as an optional local executable tool for the code-review workflow. `build_server()` selects the approved external GitHub and Supabase providers from strict JSON runtime settings, builds enabled adapters in deterministic order, mounts successful FastMCP adapters under `github_*` and `supabase_*`, and contains unavailable or invalid adapters without preventing Work, Discover, Skills, agent registration, or gateway startup. NVIDIA is consumed by the advisory workflow rather than mounted as a general passthrough. `kis_provider_status` reports registration, readiness, actionable next steps, build, mount, and separate commissioning evidence. GitHub executable/configuration readiness is reported as authentication required rather than failure. Supabase without project scope mounts a local health-only surface and reports project initialization required; project scope then advances it to authentication required. Genuine executable, credential-storage, configuration-conflict, builder, mount, protocol, and runtime failures remain degraded, unavailable, or failed. Successfully mounted upstream tools extend the core catalogue dynamically and do not alter the three-rule Work policy.
+`inspect_project` returns deterministic local repository evidence for projects beneath `C:\Projects`. It applies JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link, reparse, and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network access or repository-code execution.
 
-The GitHub connector is commissioned through the official binary and supervised OAuth flow with persistent credential reuse and authenticated private-repository read evidence. The Supabase connector is commissioned through hosted OAuth 2.1 dynamic client registration with Windows Credential Manager persistence, mandatory project scoping, harmless `get_project_url` verification, and shared `supabase_*` smoke evidence without PAT transport. Its Supabase-specific OAuth adapter preserves the returned client secret and normalizes the omitted token-endpoint authentication method to `client_secret_post` before token exchange.
+The public `inspect_change` signature accepts only a project path and inspects the working tree. The internal request contracts and hardened reader also support staged, commit, range, and branch targets. Internal Discover services and versioned schemas additionally implement context brokering, impact analysis with Python and bounded JavaScript/TypeScript dependency evidence, affected-test and verification handoffs, contract intelligence, explicit selected-project cataloging, and provider-admission evidence. These internal services are not public gateway tools on the current baseline.
 
-`review_change_with_agent` collects only bounded local `AGENTS.md`, Git status, staged diff, and unstaged diff evidence. It selects the configured NVIDIA NIM or Codex CLI backend, uses at most one fallback, requests advisory structured output, normalizes unstructured output when necessary, and grants no mutation or nested-agent authority. NVIDIA uses the OpenAI-compatible HTTPS chat-completions endpoint with the API key read from `NVIDIA_API_KEY`; Codex receives the prompt through standard input via `scripts/invoke-codex-agent.ps1` and runs `codex exec` with ephemeral JSON output and a read-only sandbox request. The Codex wrapper compares Git-visible repository fingerprints before and after the run and returns `CODEX_CLI_MUTATION_DETECTED` if HEAD, status, tracked diff, or untracked-file content changes. Missing or invalid agent settings disable only this optional workflow; missing credentials, executable state, authentication, transport, or provider response reduce it without preventing the core gateway from starting. The checked-in implementation and tests do not claim live NVIDIA inference or live Codex authentication has been commissioned.
+### Provider and agent status
 
-The external Secure MCP Tunnel and ChatGPT app hop are not claimed as commissioned until the operator supplies the real `tunnel_id`, stores the corresponding Windows Credential Manager secret for each instance, marks it configured, creates the profiles, and completes the live ChatGPT tool scan. These implementation-status statements do not restrict normal tools beyond HR-001, HR-002, and HR-003.
+The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors. Runtime JSON selects GitHub and Supabase for deterministic namespaced mounting. Adapter build, invalid-result, mount, authentication, and commissioning states remain separate; one unavailable optional provider does not prevent Work, Discover, Skills, agent registration, or gateway startup.
+
+`kis_provider_status` reports registration, runtime enablement, readiness, build and mount state, actionable user status, and commissioning evidence separately. GitHub authentication requirements and Supabase project-initialization or authentication requirements are onboarding states, not provider failure. NVIDIA is not mounted as a general passthrough. Codex CLI is a local executable Tool adapter, not a Provider-module connector.
+
+`review_change_with_agent` collects bounded `AGENTS.md`, Git status, staged diff, and unstaged diff evidence. It selects NVIDIA NIM or Codex CLI, permits at most one fallback, requests advisory output, and exposes no mutation or nested delegation operation. NVIDIA reads its key only from `NVIDIA_API_KEY`. Codex receives the prompt through standard input via `scripts/invoke-codex-agent.ps1`, requests an ephemeral read-only sandbox, and fails if its before/after Git-visible repository fingerprint changes. The implementation and tests do not claim live NVIDIA inference or live Codex authentication is commissioned.
+
+### Remote and standalone status
+
+Both remote instance records contain distinct configured tunnel IDs and loopback ports. That configuration does not prove the Windows credential exists, a profile has been generated, the external tunnel is connected, ChatGPT has scanned the catalogue, or end-to-end operations have passed. External commissioning requires those separate supervised checks.
+
+The KIS Control Center runs independently with `python -m kis_mcp.control_center`. It exposes one read-only snapshot tool and one local MCP App resource. It performs no mutation or network access and is not mounted into the primary Work gateway.
+
+The `settings.remote_mcp.stateless_http` field and the current runtime startup mode are contradictory. This executable/configuration defect is not resolved by documentation and requires a separate code/configuration change with tests.
+
+None of these implementation-status statements restrict normal Work beyond HR-001, HR-002, and HR-003.

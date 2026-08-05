@@ -111,7 +111,7 @@ Each instance has its own loopback port, tunnel profile, explicit `configured` s
 C:\Tools\openai-tunnel-client\tunnel-client.exe
 ```
 
-The checked-in instance records remain `configured: false` with blank tunnel IDs until commissioning. Before tunnel setup, populate the real `tunnel_id`, change `configured` to `true`, and store the secret once with `scripts\set-tunnel-credential.ps1` for that instance's configured credential target. Do not commit credential values or generated profile YAML.
+The checked-in `operation` and `development` records contain distinct non-secret tunnel IDs and are marked `configured: true`. This configuration does not prove local credential, generated-profile, external tunnel, ChatGPT discovery, or end-to-end commissioning state. Before tunnel setup or startup, verify the selected record, complete its supervised credential setup, and generate the corresponding profile. Do not commit credential values or generated profile YAML.
 
 `active_instance` controls the default only. Use `-Instance operation` or `-Instance development` for an explicit switch. There is no automatic failover.
 
@@ -156,7 +156,7 @@ Request limits are optional and may only narrow values in `settings.discover.lim
 }
 ```
 
-The result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. It does not inspect commits, ranges, branches, pull requests, remote checks, changed symbols, dependant modules, or verification handoffs.
+The public result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. The public tool currently exposes only working-tree inspection. Internal contracts and services support staged, commit, range, and branch targets, context brokering, impact analysis, dependant evidence, affected tests, and verification handoffs, but those capabilities are not public tool parameters or operations on the current gateway. Pull-request and trusted remote evidence remain unavailable.
 
 `DISCOVER_*` errors are structural and corrective. They are not HR policy decisions. Resolve the reported path, unsafe link/reparse condition, unsupported or excessive request limit, unreadable text, Git metadata condition, or configured budget rather than changing `policy/kis-mcp.policy.json`.
 
@@ -231,6 +231,23 @@ Example call:
 
 Omit `backend` to use preferred/fallback order. Set it to `nvidia-nim` or `codex-cli` to require that backend without silently switching. Tests validate request shape, bounds, fallback, redaction, and additive registration; they do not prove live NVIDIA credentials or live Codex authentication.
 
+## Run the KIS Control Center
+
+The KIS Control Center is a separate read-only MCP App. It is not mounted into the primary gateway and does not participate in Work policy enforcement.
+
+Run it from the source checkout through the locked project interpreter:
+
+```powershell
+C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.control_center
+```
+
+The server reads `settings\control-center.settings.json` and exposes:
+
+- `open_kis_control_center` — a bounded structured local snapshot;
+- `ui://kis-mcp/control-center.html` — a self-contained local MCP App resource.
+
+The snapshot reports runtime identity, configured project and local Git state, the exact three-rule declaration, provider configuration with runtime-check requirements, bounded quarantine counts, verification guidance, and structural diagnostics. It performs no mutation or network access. Provider configuration does not prove provider authentication or commissioning, and verification remains unrecorded until current evidence is run.
+
 ## Commission Supabase OAuth
 
 Use only a development or test Supabase project. The project-scoped provider exposes read/write capabilities even though commissioning invokes only a harmless read.
@@ -297,10 +314,10 @@ This proves the local ChatGPT-compatible HTTP path. It does not prove the extern
 ## Configure a tunnel profile
 For the selected instance:
 
-1. Enter its real `tunnel_id` in `settings.remote_mcp.instances`.
-2. Set that instance's `configured` field to `true`.
-3. Store the tunnel secret once in Windows Credential Manager.
-4. Create the project-local tunnel profile.
+1. Verify that its checked-in non-secret `tunnel_id`, credential target, loopback URL, and `configured: true` state are correct.
+2. Complete the supervised Windows credential step for that instance.
+3. Create the project-local tunnel profile.
+4. Run local and external commissioning checks before treating the instance as live.
 
 ```powershell
 pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance development

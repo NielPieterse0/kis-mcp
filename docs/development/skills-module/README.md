@@ -68,9 +68,9 @@ Observed result:
 
 Desktop Commander emitted its existing notification-validation warnings during local in-process proxy calls. They did not alter the successful tool results, and this slice does not modify provider notification handling.
 
-# Modularity assessment
+## Modularity assessment
 
-## Conclusions and risks
+### Conclusions and risks
 
 1. **REC** Preserve the final module boundary. Catalogue querying, source ingestion, mutation orchestration, and public registration have separate named responsibilities and explicit interfaces.
 2. **FACT** The initial `catalogue.py` combined parsing, traversal, normalization, snapshot management, queries, and mutation validation in 681 lines.
@@ -79,7 +79,7 @@ Desktop Commander emitted its existing notification-validation warnings during l
 5. **RISK** The units are new, so independent rate-of-change history is insufficient to compute RFC or a defensible MAS.
 6. **REC** Defer further splitting until at least three materially different changes show a repeated seam or one focused change requires reading more than four Skills units.
 
-## Scope and evidence strength
+### Scope and evidence strength
 
 - Subject class: Python implementation modules in `src/kis_mcp/skills`.
 - Units: nine implementation files; `__init__.py` excluded as an export-only package file.
@@ -94,7 +94,7 @@ Collector command:
 python <modularity-assessment>/scripts/seams.py --repo . --since "90 days ago" --granularity file --top 25 --top-peers 5 --format md --unit <each src/kis_mcp/skills file>
 ```
 
-## Evidence
+### Evidence
 
 | ID | Evidence | Strength |
 |---|---|---|
@@ -106,7 +106,7 @@ python <modularity-assessment>/scripts/seams.py --repo . --since "90 days ago" -
 | E-06 | Distinct commit subjects are too new and too implementation-concentrated to classify as stable RFC kinds. | U |
 | E-07 | Long-term independent release cadence is unavailable for a new module. | U |
 
-## Unit scoring
+### Unit scoring
 
 `MAS = n/a` for every unit because RFC history remains `U`; unknowns are not converted into scores.
 
@@ -124,7 +124,7 @@ python <modularity-assessment>/scripts/seams.py --repo . --since "90 days ago" -
 
 Hard-fail audit: no K4 dependency, hidden mutable state, unenforced ordering, public internal-layout exposure, or isolation requiring more than half the system was found. `errors.py` has measured fan-in 9 but remains a stable data-only exception contract, so HF-1 does not apply.
 
-## Finding
+### Finding
 
 F-01 | UD-2 God module risk, resolved before delivery | U-04 initial catalogue | Severity: medium x medium
 
@@ -136,17 +136,17 @@ F-01 | UD-2 God module risk, resolved before delivery | U-04 initial catalogue |
 
 **RISK** Further splitting without change history could create OD-1 micro-module sprawl.
 
-## Proposal and status
+### Proposal and status
 
 P-01 | From U-04 | Strategy: domain responsibility | **COMPLETED**
 
 New units: `frontmatter.py` for metadata parsing and `source.py` for safe source normalization. Interface: `parse_skill_frontmatter()` and `SkillSourceReader`. Catalogue querying and snapshot semantics remain behind `SkillCatalogue`. Evidence: E-01, E-02, E-03. Sequence: extract pure parser, extract source reader, rerun all focused tests. Reversal cost: LOW. Verify: 30 focused tests and full verification pass.
 
-## Deferred trigger
+### Deferred trigger
 
 `DEFER - trigger:` split `catalogue.py` again only when at least three distinct change requests repeatedly modify one query family independently, or a representative focused change requires reading more than four Skills units. Merge micro-units only if two units repeatedly change together and one cannot be tested without the other's internals.
 
-## Verification record
+### Verification record
 
 ```text
 pwsh -NoProfile -File .temp/run-focused-tests.ps1 tests/skills
