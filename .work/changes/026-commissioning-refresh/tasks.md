@@ -20,4 +20,4 @@
 - [x] Run `pwsh -NoProfile -File .\scripts\verify.ps1` serially.
 - [x] Record closeout evidence and prepare the branch for review/integration.
 - [x] Commit and publish the verified branch for review as PR #34.
-- [ ] After merge, clean the change worktree and branch from clean `main`.
+- [x] After merge, clean the change worktree and branch from clean `main`.

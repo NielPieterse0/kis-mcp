@@ -46,8 +46,9 @@
 - Worktree: `.work/worktrees/026-commissioning-refresh`
 - Base: local `main` at `a73a19c6efbaf15b651cb05243f894e2a7623590`
 - Implementation commit: `b15f49e9c26b25d81ac6c3192397d9481e552a41`.
-- Pull request: `#34 — Clarify provider commissioning readiness` is open for review; no merge is authorized by this closeout.
-- Cleanup: retain the branch/worktree until review and merge; remove them safely from clean `main` after integration.
+- Integrated current `main` into the branch at exact head `7ed1a46ee9695825f5443be401426fc445c24327` and reran scope, whitespace, and the full locked verification: all tests passed with two expected skips and 85 Python files passed syntax validation.
+- Pull request: `#34 — Clarify provider commissioning readiness`, merged at the exact verified head using merge commit `6efb0db4c6cb556942395c7b3a7157a21e204299`.
+- Cleanup: completed; the local worktree and branch were removed by the repository workflow.
 
 ## Residual items
 

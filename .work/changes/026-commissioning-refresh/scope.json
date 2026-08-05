@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "026-commissioning-refresh",
-  "status": "active",
+  "status": "closed",
   "branch": "change/026-commissioning-refresh",
   "worktree": ".work/worktrees/026-commissioning-refresh",
   "base": "main",
