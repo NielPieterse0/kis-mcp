@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "027-discover-change-targets",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/027-discover-change-targets",
   "worktree": ".work/worktrees/027-discover-change-targets",
   "base": "main",

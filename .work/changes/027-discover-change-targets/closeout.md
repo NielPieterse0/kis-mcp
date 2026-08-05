@@ -29,9 +29,9 @@
 
 - Branch: `change/027-discover-change-targets`
 - Worktree: `.work/worktrees/027-discover-change-targets`
-- Commit: pending publication
-- Pull request: pending publication
-- Cleanup: pending merge
+- Commit: `5d41a94531ca8a20316182e31203670deb0f424b`
+- Pull request: `#33`, merged at exact head using merge commit `18ec3c1d064193fa6904957eda8335c51df72823`
+- Cleanup: completed; the local worktree and branch were removed by the repository workflow
 
 ## Residual items
 

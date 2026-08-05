@@ -9,4 +9,4 @@
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
 - [x] Run `git diff --check` and the full locked `pwsh -File scripts/verify.ps1` suite.
 - [x] Complete whole-diff correctness, architecture, boundary, and regression review.
-- [ ] Merge and run safe cleanup from `main`.
+- [x] Merge and run safe cleanup from `main`.
