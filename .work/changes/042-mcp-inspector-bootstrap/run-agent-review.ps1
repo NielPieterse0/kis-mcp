@@ -30,7 +30,7 @@ $Git = (Get-Command 'git.exe' -CommandType Application | Select-Object -First 1)
 $BaseSha = (& $Git -C $RepositoryRoot merge-base main HEAD).Trim()
 $HeadSha = (& $Git -C $RepositoryRoot rev-parse HEAD).Trim()
 $ReviewInstructions = @"
-Review the change from base $BaseSha to head $HeadSha against .work/changes/042-mcp-inspector-bootstrap/spec.md and plan.md. Focus on correctness, security, path containment, exact dependency pinning, npm staging, smoke-before-activation ordering, quarantine and rollback behavior, PowerShell failure modes, launcher instance selection, local-only binding, runtime state containment, truthful documentation, tests, and unnecessary gateway or policy surface. Report only actionable findings, classified Critical, Important, or Minor. Explicitly state when no blocking findings remain. Do not modify the repository.
+Review the change from base $BaseSha to head $HeadSha against .work/changes/042-mcp-inspector-bootstrap/spec.md. Return at most five concise actionable Critical or Important findings. Focus on package identity, path containment, staging and rollback, bootstrap-state quarantine, launcher local binding, and policy surface. Omit minor observations. Explicitly state when no blocking findings remain. Do not modify the repository.
 "@
 $Arguments = [ordered]@{
     path = $RepositoryRoot

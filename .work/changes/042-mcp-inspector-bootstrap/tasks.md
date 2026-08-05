@@ -6,16 +6,20 @@
 - [x] Create the isolated `042-mcp-inspector-bootstrap` change worktree.
 - [x] Run the clean baseline repository verification.
 - [x] Write and self-review the specification and implementation plan.
-- [ ] Add failing settings-contract tests.
-- [ ] Implement the pinned settings contract and pass focused tests.
-- [ ] Add failing installer tests.
-- [ ] Implement staged installation, smoke verification, quarantine, and rollback.
-- [ ] Add failing launcher tests.
-- [ ] Implement the loopback local-instance launcher.
-- [ ] Write operator documentation.
-- [ ] Run focused tests and `pwsh -File scripts/change-workflow.ps1 check`.
-- [ ] Run `pwsh -File scripts/verify.ps1` on the final branch state.
-- [ ] Run the supervised Inspector installer and record installation evidence.
-- [ ] Review the final diff and resolve blocking findings.
-- [ ] Complete closeout evidence.
+- [x] Add failing settings-contract tests.
+- [x] Implement the pinned settings contract and pass focused tests.
+- [x] Add failing installer tests.
+- [x] Implement staged installation, smoke verification, quarantine, and rollback.
+- [x] Add failing launcher tests.
+- [x] Implement the loopback local-instance launcher.
+- [x] Write operator documentation.
+- [x] Run focused tests and `pwsh -File scripts/change-workflow.ps1 check`.
+- [x] Run `pwsh -File scripts/verify.ps1` on the implementation head.
+- [x] Run first-time and replacement supervised Inspector installs.
+- [x] Validate Inspector CLI against the development kis-mcp tool catalogue.
+- [x] Validate the managed web launcher returns HTTP 200 with redacted token evidence.
+- [x] Add and verify the bootstrap-home quarantine regression fix.
+- [x] Run independent review; record the successful earlier review and final timeout limitation accurately.
+- [x] Review the final diff and resolve blocking findings.
+- [ ] Complete final closeout evidence and verification.
 - [ ] Push, create and merge the PR, then clean the worktree from `main`.
