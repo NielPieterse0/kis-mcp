@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/provider-admission-request.schema.json",
+  "title": "Discover Govern Provider Admission Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_id", "candidate_id", "decision", "requested_capabilities",
+    "requested_effects", "unresolved_risks", "required_evidence", "provenance"
+  ],
+  "properties": {
+    "request_id": {"type": "string", "minLength": 1},
+    "candidate_id": {"type": "string", "minLength": 1},
+    "decision": {"const": "pending_govern"},
+    "requested_capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "requested_effects": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "unresolved_risks": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "required_evidence": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "provenance": {"const": "discover_provider_admission"}
+  }
+}
