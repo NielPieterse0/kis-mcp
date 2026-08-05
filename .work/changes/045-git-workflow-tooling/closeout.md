@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, PR hardening, and exact-head verification complete; merge and cleanup pending.
+Implementation, PR hardening, merge, and merged-main verification complete; governed cleanup prepared.
 
 ## Implemented scope
 
@@ -53,6 +53,10 @@ Implementation, PR hardening, and exact-head verification complete; merge and cl
   - complete pytest suite passed with 2 expected skips;
   - 158 Python files passed syntax validation;
   - governance, configuration, dependencies, line endings, whitespace, interpreter, and exact HR-001/HR-002/HR-003 checks passed.
+- Merged `main` verification passed on merge commit `802fbef20f2e8daae6900c4d1700a791a684b0cb`:
+  - complete pytest suite passed with 2 expected skips;
+  - 158 Python files passed syntax validation;
+  - governance, configuration, dependencies, line endings, interpreter, and exact HR-001/HR-002/HR-003 checks passed.
 
 ## Review
 
@@ -73,9 +77,13 @@ Implementation, PR hardening, and exact-head verification complete; merge and cl
 - Worktree: `.work/worktrees/045-git-workflow-tooling`
 - Implementation commit: `8f64e279b4123e3e9cef24740b13db2440c334f8`
 - Hardening commit: `c3d5faa54b176687575be248932120592146393d`
+- Final reviewed head: `e5b8b5354410fa02089b8f52f719237ce89fc677`
 - Pull request: #57 — `Add structured Git workflow and recoverable cleanup commands`
-- Merge: pending
-- Cleanup: pending
+- Pull-request review: completed with no configured CI failures or unresolved review threads.
+- Merge commit: `802fbef20f2e8daae6900c4d1700a791a684b0cb`
+- Merged-main verification: passed.
+- Governance claim: closed in this metadata follow-up.
+- Cleanup: prepared; run only after this closure metadata is merged into `main`.
 
 ## Residual boundaries
 

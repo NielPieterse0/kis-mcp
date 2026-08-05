@@ -9,4 +9,5 @@
 - [x] Harden `cleanup_change_worktree` without force deletion.
 - [x] Add operator and agent documentation.
 - [x] Run focused tests, governance checks, full verification, and final review.
-- [ ] Commit, integrate latest main, rerun exact-head verification, push, raise/review/merge the PR, verify main, and clean change `045` only.
+- [x] Commit, integrate latest main, rerun exact-head verification, push, raise/review/merge PR #57, and verify merged `main`.
+- [x] Close the `045` governance claim and prepare the clean merged worktree for governed cleanup.
