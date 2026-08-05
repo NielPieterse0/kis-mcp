@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/inspect-change-response.schema.json",
+  "title": "Discover inspect change response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "source",
+    "available",
+    "project_path",
+    "repository_root",
+    "change",
+    "changed_files",
+    "affected_scopes",
+    "changed_tests",
+    "contract_paths",
+    "documentation_paths",
+    "configuration_paths",
+    "policy_paths",
+    "impact_summary",
+    "diagnostics",
+    "unknowns",
+    "confidence",
+    "truncated"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "inspect_change"},
+    "source": {"$ref": "#/$defs/source"},
+    "available": {"type": "boolean"},
+    "project_path": {"type": "string", "minLength": 1},
+    "repository_root": {"type": ["string", "null"]},
+    "change": {"$ref": "#/$defs/change_identity"},
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "$ref": "inspect-change-working-tree-response.schema.json#/$defs/changed_file"
+      }
+    },
+    "affected_scopes": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/path_list"
+    },
+    "changed_tests": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/path_list"
+    },
+    "contract_paths": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/path_list"
+    },
+    "documentation_paths": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/path_list"
+    },
+    "configuration_paths": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/path_list"
+    },
+    "policy_paths": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/path_list"
+    },
+    "impact_summary": {
+      "$ref": "inspect-change-working-tree-response.schema.json#/$defs/impact_summary"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "inspect-change-working-tree-response.schema.json#/$defs/diagnostic"
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "$ref": "inspect-change-working-tree-response.schema.json#/$defs/unknown"
+      }
+    },
+    "verification_handoffs": {
+      "type": "array",
+      "items": {
+        "$ref": "inspect-change-working-tree-response.schema.json#/$defs/verification_handoff"
+      }
+    },
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "truncated": {"type": "boolean"}
+  },
+  "$defs": {
+    "source": {"enum": ["working_tree", "staged", "commit", "range", "branch"]},
+    "git_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/@+\\-]*$"
+    },
+    "change_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "fingerprint"],
+      "properties": {
+        "source": {"$ref": "#/$defs/source"},
+        "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "commit_ref": {"$ref": "#/$defs/git_ref"},
+        "base_ref": {"$ref": "#/$defs/git_ref"},
+        "head_ref": {"$ref": "#/$defs/git_ref"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"source": {"const": "commit"}}},
+          "then": {"required": ["commit_ref"]}
+        },
+        {
+          "if": {"properties": {"source": {"enum": ["range", "branch"]}}},
+          "then": {"required": ["base_ref", "head_ref"]}
+        }
+      ]
+    }
+  }
+}

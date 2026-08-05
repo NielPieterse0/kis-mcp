@@ -18,6 +18,7 @@ from .read_authority import ReadAuthority, is_within_boundary
 from .settings import DiscoverSettings
 
 _SAFE_SCHEMES = {"git", "http", "https", "ssh"}
+GitTimeoutExpired = subprocess.TimeoutExpired
 
 
 @dataclass(frozen=True, slots=True)
@@ -614,4 +615,4 @@ def _unavailable(code: str) -> GitSummary:
     )
 
 
-__all__ = ["GitReader"]
+__all__ = ["GitReader", "GitTimeoutExpired"]
