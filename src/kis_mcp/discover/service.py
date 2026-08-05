@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from .budgeting import ResultBudgeter
+from .context_broker import ContextBrokerService
+from .context_contracts import GetCodeContextRequest, GetCodeContextResponse
 from .contracts import (
     Confidence,
     EvidenceItem,
@@ -37,6 +39,17 @@ class InspectProjectService:
     def __init__(self, *, boundary: Path, settings: DiscoverSettings) -> None:
         self._boundary = boundary
         self._settings = settings
+
+    def get_code_context(
+        self,
+        request: GetCodeContextRequest,
+    ) -> GetCodeContextResponse:
+        """Delegate bounded task context assembly through the Discover facade."""
+
+        return ContextBrokerService(
+            boundary=self._boundary,
+            settings=self._settings,
+        ).get(request)
 
     def inspect(self, request: InspectProjectRequest) -> InspectProjectResponse:
         if not self._settings.enabled:

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/analyze-change-request.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "source", "budget"],
+  "properties": {
+    "project": {"type": "string", "minLength": 1},
+    "source": {"enum": ["working_tree", "staged", "commit", "range", "branch", "supplied"]},
+    "commit_ref": {"type": ["string", "null"]},
+    "base_ref": {"type": ["string", "null"]},
+    "head_ref": {"type": ["string", "null"]},
+    "task_terms": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "supplied_changes": {"type": "array", "items": {"$ref": "#/$defs/change"}},
+    "github_context": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/github"}]},
+    "budget": {"$ref": "#/$defs/budget"}
+  },
+  "$defs": {
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "status", "previous_path"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "status": {"enum": ["added", "copied", "deleted", "modified", "renamed", "type_changed", "unmerged", "unknown"]},
+        "previous_path": {"type": ["string", "null"]}
+      }
+    },
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "pull_number", "base_sha", "head_sha", "changes"],
+      "properties": {
+        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "pull_number": {"type": "integer", "minimum": 1},
+        "base_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "head_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "changes": {"type": "array", "items": {"$ref": "#/$defs/change"}}
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_symbols", "max_dependants", "max_tests", "max_verifications"],
+      "properties": {
+        "max_symbols": {"type": "integer", "minimum": 1},
+        "max_dependants": {"type": "integer", "minimum": 1},
+        "max_tests": {"type": "integer", "minimum": 1},
+        "max_verifications": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

@@ -59,6 +59,14 @@ class GitReader:
         self._settings = settings
         self._executable = shutil.which("git")
 
+    @property
+    def authority(self) -> ReadAuthority:
+        return self._authority
+
+    @property
+    def settings(self) -> DiscoverSettings:
+        return self._settings
+
     def inspect(self, project_path: str) -> GitSummary:
         project = self._authority.resolve_project(project_path)
         root = Path(project.canonical_path)
