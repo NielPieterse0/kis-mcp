@@ -89,12 +89,64 @@ def github_provider_readiness(
     environ: Mapping[str, str] | None = None,
 ) -> ProviderReadiness:
     health = github_provider_health(settings, environ)
-    state = ProviderState.READY if health.ready else ProviderState.UNAVAILABLE
-    summary = (
-        "GitHub MCP executable is installed; OAuth commissioning is not verified."
-        if health.ready
-        else "GitHub MCP executable is not installed."
-    )
+    if not health.ready:
+        state = ProviderState.UNAVAILABLE
+        summary = "GitHub MCP is unavailable because the executable is not installed."
+        user_status = {
+            "state": "installation_required",
+            "label": "Unavailable — installation required",
+            "required_action": (
+                "Install the pinned GitHub MCP executable before using GitHub operations."
+            ),
+        }
+        commissioning = {
+            "installed": "required",
+            "configured": "pending_installation",
+            "authenticated": "pending_installation",
+            "upstream_connected": "pending_installation",
+            "tools_discovered": "pending_installation",
+            "live_verified": "pending_installation",
+        }
+    elif health.pat_override_present:
+        state = ProviderState.DEGRADED
+        summary = "GitHub MCP has a PAT override that conflicts with OAuth."
+        user_status = {
+            "state": "configuration_conflict",
+            "label": "Action required — remove PAT override",
+            "required_action": (
+                "Remove GITHUB_PERSONAL_ACCESS_TOKEN before using the configured "
+                "OAuth flow."
+            ),
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "conflict",
+            "authenticated": "blocked_configuration",
+            "upstream_connected": "blocked_configuration",
+            "tools_discovered": "blocked_configuration",
+            "live_verified": "blocked_configuration",
+        }
+    else:
+        state = ProviderState.READY
+        summary = (
+            "GitHub MCP is ready; authenticate with OAuth before live operations."
+        )
+        user_status = {
+            "state": "ready_authentication_required",
+            "label": "Ready — authentication required",
+            "required_action": (
+                "Sign in to GitHub through the configured OAuth flow before live "
+                "operations."
+            ),
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "ready",
+            "authenticated": "required",
+            "upstream_connected": "pending_authentication",
+            "tools_discovered": "pending_authentication",
+            "live_verified": "pending_authentication",
+        }
     return ProviderReadiness(
         provider_id=health.provider_id,
         state=state,
@@ -108,6 +160,8 @@ def github_provider_readiness(
             "authenticated": health.authenticated,
             "toolsets": health.toolsets,
             "approved_repositories": health.approved_repositories,
+            "user_status": user_status,
+            "commissioning": commissioning,
         },
     )
 

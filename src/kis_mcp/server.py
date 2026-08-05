@@ -276,7 +276,7 @@ def build_server(
 
     @provider_status_server.tool
     def kis_provider_status() -> dict[str, Any]:
-        """Report provider registration, mount state, readiness, and commissioning gaps."""
+        """Report provider readiness, mount state, and actionable connection steps."""
 
         return provider_runtime_status(
             external_provider_service,

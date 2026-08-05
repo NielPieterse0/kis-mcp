@@ -23,6 +23,8 @@ The checked-in configuration:
 
 To request the upstream read-only surface, set `upstream.read_only` to `true`. To select official feature groups, add their upstream feature names to `upstream.features`. Neither setting creates a local tool-name allowlist.
 
+Before a repository is linked, `kis_provider_status` reports **`Ready — project initialization required`** and mounts the local `supabase_kis_supabase_health` surface without constructing an upstream transport. This means the provider is commissioned and available for setup; it does not mean Supabase is broken or degraded. After `SUPABASE_PROJECT_REF` is set and local OAuth prerequisites pass, the state becomes **`Ready — authentication required`** until browser authorization and live verification are completed.
+
 ## Preflight
 
 Set `SUPABASE_PROJECT_REF` in the supervised operator environment and clear the legacy PAT variable:
@@ -82,7 +84,7 @@ The standalone endpoint remains available through:
 C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.providers.supabase
 ```
 
-Normal startup requires project scope but not a PAT. The project reference is encoded as the official `project_ref` query parameter. FastMCP supplies the OAuth client to the upstream HTTP transport and reuses the configured keyring state.
+Normal startup does not require a project reference merely to mount and report provider health. Without `SUPABASE_PROJECT_REF`, the adapter exposes only its local health tool and reports project initialization as the required next step. Once project scope is present and Windows credential storage is available without a legacy PAT conflict, the project reference is encoded as the official `project_ref` query parameter, FastMCP constructs the OAuth-enabled upstream HTTP transport, and the provider reports authentication as the required next step.
 
 The shared Provider foundation is the integration boundary. This adapter exposes `build_provider_descriptor`, `provider_health`, and `register_provider(registry)` through `kis_mcp.providers.supabase`. Registration remains explicit and contains invalid Supabase configuration by leaving the provider absent; importing the adapter does not register, start, or contact the provider.
 
