@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "024-discover-change-tool-registration",
-  "status": "active",
+  "status": "closed",
   "branch": "change/024-discover-change-tool-registration",
   "worktree": ".work/worktrees/024-discover-change-tool-registration",
   "base": "origin/main",

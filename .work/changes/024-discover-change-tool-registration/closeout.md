@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation, documentation, review, and verification complete. Publication remains.
+Implementation, documentation, review, verification, and merge complete. PR #29 merged at exact head `abb1df37bc98b7fad6ad918aa2a9d56279d30b59` as merge commit `e864625a3b75e9daa446bacc5bfee69bad098720`. Governance closeout and cleanup remain.
 
 ## Delivered
 
