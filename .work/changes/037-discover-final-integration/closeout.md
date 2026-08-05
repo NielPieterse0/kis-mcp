@@ -2,44 +2,55 @@
 
 ## Implemented scope
 
-- Completed the fixed bounded local Discover v1 public surface: `inspect_project`, `inspect_change`, and `get_code_context`.
-- Added `InspectProjectService.get_code_context()` as a narrow façade over `ContextBrokerService` using the same configured boundary and Discover settings.
-- Registered `get_code_context` with explicit project, task, and complete code-context budgets.
-- Extended the public `inspect_change` binding to all existing supported targets: working tree, staged, commit, range, and branch, while preserving the one-argument working-tree default.
-- Normalized structural request failures and Discover retrieval failures into deterministic JSON `ToolError` payloads without new hard-rule codes.
-- Preserved read-only, non-destructive, idempotent, and closed-world annotations for all three public operations.
-- Proved top-level server composition through the existing unchanged registration seams and kept provider admission and project catalog services internal.
-- Updated the Discover product specification with the bounded local v1 completion checkpoint, public/internal boundary, staged provider expansion, and revised definition of done.
-- Added dedicated final-integration documentation, including active shared-file ownership and later synchronization requirements.
+- Completed the bounded local Discover public surface: `inspect_project`, `inspect_change`, `get_code_context`, and `analyze_change`.
+- Added `InspectProjectService.get_code_context()` as a narrow façade over `ContextBrokerService` using the configured Discover boundary and settings.
+- Extended public `inspect_change` to working tree, staged, commit, range, and branch targets while preserving the one-argument working-tree default.
+- Added `analyze_change` to normalize local Git targets, caller-supplied change records, and caller-supplied GitHub pull-request metadata without executing a connector or using external network access.
+- Integrated task terms into `ImpactGraphService` rather than returning `TASK_TOKEN_IMPACT_UNAVAILABLE` when terms are supplied.
+- Added bounded contract, configuration, and task-term relationship evidence with explicit provenance and confidence.
+- Added evidence-backed implementation steps, affected-test selection, and non-executable verification handoffs.
+- Added configured input bounds for supplied changes and task terms, and made dependency and relationship evidence share the existing dependant budget.
+- Added `analyze-change-request`, `analyze-change-response`, and extended `inspect-impact` schemas.
+- Preserved backward-compatible serialization for legacy `InspectImpactRequest` calls without task terms.
+- Normalized supplied GitHub repository names and SHAs before serialization.
+- Exposed GitReader authority and settings through public read-only properties rather than private-attribute coupling.
+- Updated the Discover product specification and dedicated final-integration documentation.
+- Installed no Tool or Provider packages.
 
 ## Validation evidence
 
-- Focused public registration and composition suite: 15 tests passed.
-- Full Discover suite: 202 tests passed, 1 expected skip.
-- Registered change scope check: passed and reported only declared 037 paths.
-- Full repository verification: passed; complete pytest suite passed with 2 expected skips, 112 Python files passed syntax validation, and configuration, dependency, governance, whitespace, line-ending, interpreter, and exact HR-001/HR-002/HR-003 checks passed.
-- Full verification used the 037 worktree package in the serialized shared Python environment.
+- Focused final review regression: 31 tests passed.
+- Full Discover regression before final integration: 204 tests passed with 1 expected skip.
+- Registered change scope check on the integrated head: passed and reported only declared `037` paths.
+- Integrated full repository verification on commit `2b0fa9d` passed:
+  - complete pytest suite passed with 2 expected skips;
+  - 138 Python files passed syntax validation;
+  - line-ending, whitespace, configuration, locked dependency, interpreter, change-governance, and exact HR-001/HR-002/HR-003 checks passed.
+- Full verification used the `037` worktree package in the serialized shared Python environment.
 
 ## Review
 
-- Security: no network, subprocess, provider execution, credentials, policy mutation, settings mutation, or new server authority was introduced.
-- Compatibility: existing `inspect_project` and one-argument `inspect_change(path)` calls remain valid; response schema identities are unchanged.
-- Public surface: exactly three Discover operations are exposed. Internal provider-admission and project-catalog service names are absent from the public tool list.
-- Modularity: context composition remains behind the existing project-service façade; change registration uses the existing strict request contract and service.
-- Error contract: a review regression found that `DiscoverError` inherits `ValueError`; handlers were reordered so specific retrieval errors retain their structured codes instead of being flattened into generic request errors.
-- Simplicity: one shared read-only annotation constant and two narrow error helpers replace duplicated registration logic.
-- Ownership: active change `035-llm-capability` owns `src/kis_mcp/server.py`, `SPEC.md`, and `docs/OPERATIONS.md`; this slice did not edit or bypass those files.
-- Findings: no critical or important defects remain.
+- Security: no external network call, connector execution, repository-code execution, credential access, policy mutation, package installation, or additional hard-rule decision was introduced.
+- Boundedness: review found and fixed unbounded supplied-change, task-term, and relationship output paths. Runtime limits now come from `settings.discover.limits` and relationship evidence shares the existing dependant budget.
+- Normalization: review found and fixed preservation of whitespace and uppercase GitHub identifiers in normalized output.
+- Compatibility: existing `inspect_project`, `inspect_change(path)`, and task-term-free `InspectImpactRequest` serialization remain valid.
+- Modularity: public workflow registration remains under Discover; the top-level server composition file was not modified. GitReader now exposes narrow public properties required by the composition service.
+- Error contract: structural request failures and Discover retrieval failures remain deterministic JSON `ToolError` payloads without new `HR-*` codes.
+- Public surface: raw `inspect_impact`, provider admission, and project-catalog operations remain internal.
+- Findings: no critical or important defects remain after the final review fixes.
 
 ## Git and merge
 
 - Branch: `change/037-discover-final-integration`
 - Worktree: `.work/worktrees/037-discover-final-integration`
-- Implementation commit: pending
+- Checkpoint commit: `4f47053`
+- Main implementation commit: `cd7b843`
+- Latest-main integration commit: `2b0fa9d`
 - Pull request and merge: pending
 - Cleanup: pending
 
-## Residual items
+## Residual boundaries
 
-- Shared `SPEC.md` and `docs/OPERATIONS.md` synchronization remains with the active 035 shared-file owner or a later non-overlapping documentation change. This is documentation alignment, not a Discover runtime blocker.
-- Optional semantic providers, remote forge evidence, provider registries, background indexes, process-backed analyzers, and additional contract formats remain separately governed expansion work and are explicitly staged rather than represented as installed.
+- Discover accepts GitHub context supplied by the caller; it does not execute the GitHub connector or infer missing remote evidence.
+- Dynamic JavaScript imports, alias/package resolution, external module resolution, background indexing, implicit project-root scans, and verification execution remain explicitly outside this bounded local slice.
+- Optional semantic providers and additional contract formats remain separately governed expansion work and are not represented as installed.

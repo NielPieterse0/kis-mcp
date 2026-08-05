@@ -10,6 +10,6 @@
 - [x] Expose the unified public `analyze_change` workflow through the existing Discover registration seam.
 - [x] Add request/response schemas and focused TDD coverage for the unified workflow and impact extensions.
 - [x] Reconcile the Discover product specification and final-integration record.
-- [ ] Run full Discover regression, governance checks, syntax, whitespace, and full repository verification.
-- [ ] Perform final diff review and resolve blocking findings.
-- [ ] Commit, push, raise and review the PR, merge safely, verify main, and clean merged/stale worktree state.
+- [x] Run full Discover regression, governance checks, syntax, whitespace, and full repository verification.
+- [x] Perform final diff review and resolve boundedness, normalization, and private-coupling findings.
+- [ ] Push, raise and review the PR, merge safely, verify main, and clean merged/stale worktree state.
