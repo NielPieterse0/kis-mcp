@@ -60,5 +60,5 @@
 - [x] Run focused tests with the locked project interpreter.
 - [x] Run `pwsh -NoProfile -File scripts/verify.ps1` serially.
 - [x] Review the full diff against the specification and simplify unnecessary duplication.
-- [ ] Commit, push, create and review the PR, merge the exact verified head, update local `main`, and clean the worktree without force.
-- [ ] Rebase 035 onto the merged Tools foundation before resuming Codex integration.
+- [x] Commit, push, create and review PR #41, merge the exact verified head, update local `main`, and clean the worktree without force.
+- [x] Rebase 035 onto the merged Tools foundation before resuming Codex integration.

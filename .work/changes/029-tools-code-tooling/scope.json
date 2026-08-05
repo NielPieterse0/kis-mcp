@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "029-tools-code-tooling",
-  "status": "active",
+  "status": "closed",
   "branch": "change/029-tools-code-tooling",
   "worktree": ".work/worktrees/029-tools-code-tooling",
   "base": "main",

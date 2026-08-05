@@ -6,5 +6,5 @@
 - [x] Implement and test catalogue, health aggregation, and service facade.
 - [x] Verify no adapter, network, credential, gateway, provider, or policy coupling.
 - [x] Run change-workflow checks, focused tests, and full verification.
-- [ ] Review and merge the exact verified PR head.
-- [ ] Clean the 029 branch/worktree and rebase 035 onto merged main.
+- [x] Review and merge the exact verified PR head through PR #41.
+- [x] Clean the 029 branch/worktree and rebase 035 onto merged main immediately after merge.

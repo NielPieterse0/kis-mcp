@@ -23,9 +23,11 @@
 
 - Branch: `change/029-tools-code-tooling`
 - Worktree: `.work/worktrees/029-tools-code-tooling`
-- Commit: pending final commit.
-- Pull request or merge: pending.
-- Cleanup: pending merge.
+- Implementation commit: `801eda142bfc5840c3190150f1a853b79a6860a0`.
+- Current `origin/main` was integrated conflict-free at merge commit `4c7a4c0` before final verification.
+- Pull request: `#41 — Add provider-neutral Tools foundation`.
+- Merge method: merge commit at the exact final verified PR head.
+- Cleanup: run immediately after merge through `change-workflow.ps1 cleanup 029-tools-code-tooling`; no force deletion.
 
 ## Residual items
 
