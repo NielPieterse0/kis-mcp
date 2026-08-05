@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "037-discover-final-integration",
-  "status": "active",
+  "status": "closed",
   "branch": "change/037-discover-final-integration",
   "worktree": ".work/worktrees/037-discover-final-integration",
   "base": "origin/main",
