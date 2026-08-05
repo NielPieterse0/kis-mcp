@@ -37,3 +37,30 @@ def test_mcp_inspector_settings_pin_v2_and_managed_paths() -> None:
         "quarantine_root",
     ):
         assert data[field].casefold().startswith("c:\\projects\\")
+
+
+def test_mcp_inspector_installer_is_pinned_staged_and_recoverable() -> None:
+    script = INSTALLER.read_text(encoding="utf-8")
+
+    assert "version -ne '2.0.0'" in script
+    assert "minimum_node_version" in script
+    assert "--save-exact" in script
+    assert "--ignore-scripts" in script
+    assert "$StagingInstallRoot" in script
+    assert "clients\\launcher\\build\\index.js" in script
+    assert "& $Node.Source $StagingLauncher --cli --help" in script
+    assert "MCP_INSPECTOR_SMOKE_FAILED" in script
+    assert "MCP_INSPECTOR_ACTIVATION_FAILED" in script
+    assert "failed-new-package" in script
+    assert "previous-package" in script
+    assert "ReparsePoint" in script
+    assert "Move-Item" in script
+    assert "Remove-Item" not in script
+    assert "@latest" not in script.casefold()
+    assert "kis_mcp_exposure.enabled" in script
+    assert script.index("& $Npm.Source install") < script.index(
+        "Move-Item -LiteralPath $InstallRoot"
+    )
+    assert script.index("MCP_INSPECTOR_SMOKE_FAILED") < script.index(
+        "Move-Item -LiteralPath $InstallRoot"
+    )
