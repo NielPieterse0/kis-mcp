@@ -52,8 +52,8 @@ Enter the existing vault unlock when prompted, then confirm `kis-op` remains ava
 
 - Branch: `change/041-dual-instance-commissioning`
 - Worktree: `.work/worktrees/041-dual-instance-commissioning`
-- Commit: pending final commit
-- Pull request: pending publication
+- Implementation commit: `ecfff066dc204d889d8ac841eb73441ff1d9bc7f`
+- Pull request: `#50` — `https://github.com/NielPieterse0/kis-mcp/pull/50`
 - Cleanup: pending merge
 
 ## Residual items

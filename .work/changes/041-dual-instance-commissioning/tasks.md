@@ -11,5 +11,6 @@
 - [x] Run `pwsh -NoProfile -File scripts/verify.ps1`.
 - [ ] Complete the operator-unlocked live `kis-dev` tunnel smoke while the existing `kis-op` remains healthy; automated preflight confirmed `kis-op` on `8010` and `8011` free, but this execution context could not present the vault prompt.
 - [x] Review the complete diff and record closeout evidence.
-- [ ] Commit, push, create/review the PR, and shepherd it to exact-head readiness.
+- [x] Commit the implementation, push the branch, and create PR #50.
+- [ ] Shepherd the final exact head through PR Completion to verified readiness.
 - [ ] Obtain explicit exact-head merge approval, land through PR Completion, and clean the worktree/branches.
