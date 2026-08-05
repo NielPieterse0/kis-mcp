@@ -28,3 +28,18 @@ def test_infrastructure_settings_do_not_depend_on_code_review_workflow() -> None
     ]
 
     assert offenders == []
+
+
+def test_control_center_snapshot_delegates_storage_interpretation() -> None:
+    source = (SOURCE_ROOT / "control_center" / "snapshot.py").read_text(encoding="utf-8")
+    forbidden = (
+        "json.loads",
+        "metadata.json",
+        "subprocess.run",
+        "runtime_settings_path",
+        "policy_path",
+        "provider_settings_path",
+        "quarantine_root",
+    )
+
+    assert [fragment for fragment in forbidden if fragment in source] == []

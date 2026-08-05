@@ -24,6 +24,7 @@ def _settings(tmp_path: Path, project: Path) -> ControlCenterSettings:
     _write_json(
         runtime_path,
         {
+            "schema_version": 1,
             "product": {"name": "kis-mcp"},
             "desktop_commander": {
                 "version": "0.2.46",
@@ -40,6 +41,7 @@ def _settings(tmp_path: Path, project: Path) -> ControlCenterSettings:
     _write_json(
         policy_path,
         {
+            "schema_version": 1,
             "rules": [
                 {
                     "id": "HR-001",
@@ -65,6 +67,7 @@ def _settings(tmp_path: Path, project: Path) -> ControlCenterSettings:
     _write_json(
         providers_path,
         {
+            "schema_version": 1,
             "providers": [
                 {
                     "provider_id": "github-mcp",
@@ -82,15 +85,33 @@ def _settings(tmp_path: Path, project: Path) -> ControlCenterSettings:
     quarantine_root.mkdir()
     _write_json(
         quarantine_root / "20260805T010203000000Z-aaaaaaaaaaaa" / "metadata.json",
-        {"restored_at": None},
+        {
+            "schema_version": 2,
+            "operation_id": "20260805T010203000000Z-aaaaaaaaaaaa",
+            "original_path": r"C:\Projects\active.txt",
+            "item_type": "file",
+            "restored_at": None,
+        },
     )
     _write_json(
         quarantine_root / "20260805T010204000000Z-bbbbbbbbbbbb" / "metadata.json",
-        {"restored_at": "2026-08-05T01:03:00+00:00"},
+        {
+            "schema_version": 2,
+            "operation_id": "20260805T010204000000Z-bbbbbbbbbbbb",
+            "original_path": r"C:\Projects\restored.txt",
+            "item_type": "file",
+            "restored_at": "2026-08-05T01:03:00+00:00",
+        },
     )
     _write_json(
         quarantine_root / "20260805T010205000000Z-cccccccccccc" / "metadata.json",
-        {"restored_at": 7},
+        {
+            "schema_version": 2,
+            "operation_id": "20260805T010205000000Z-cccccccccccc",
+            "original_path": r"C:\Projects\invalid.txt",
+            "item_type": "file",
+            "restored_at": 7,
+        },
     )
 
     return ControlCenterSettings(
