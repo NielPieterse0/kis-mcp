@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from kis_mcp.desktop_commander import DesktopCommanderEffectResolver
+from kis_mcp.runtime_observability import RuntimeObservability
 
 
 RESOLVER = DesktopCommanderEffectResolver(
@@ -460,3 +461,38 @@ def test_unknown_tool_is_allowed_without_invented_restriction() -> None:
     assert effects.entry_paths == ()
     assert effects.delete_paths == ()
     assert effects.external_network is False
+
+
+def test_search_success_observer_tracks_and_stops_active_searches() -> None:
+    observability = RuntimeObservability(max_recent_calls=5, max_policy_decisions=5)
+    resolver = DesktopCommanderEffectResolver(
+        project_boundary=r"C:\Projects",
+        provider_state_file=r"C:\Projects\.kis-mcp\desktop-commander\config.json",
+        observability=observability,
+    )
+
+    resolver.observe_success(
+        "start_search",
+        {"path": r"C:\Projects\secret-project", "query": "private query"},
+        "Search started. Search ID: search-abc-123",
+    )
+    resolver.observe_success(
+        "get_more_search_results",
+        {"search_id": "search-abc-123", "offset": 10},
+        "private result body",
+    )
+
+    active = observability.snapshot().active_searches
+    assert [(item.search_id, item.tool_name) for item in active] == [
+        ("search-abc-123", "start_search")
+    ]
+    rendered = str(observability.snapshot().to_dict())
+    assert "private query" not in rendered
+    assert "private result body" not in rendered
+
+    resolver.observe_success(
+        "stop_search",
+        {"search_id": "search-abc-123"},
+        "stopped",
+    )
+    assert observability.snapshot().active_searches == ()

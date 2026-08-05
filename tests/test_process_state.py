@@ -10,6 +10,8 @@ from fastmcp import Client, FastMCP
 from kis_mcp.desktop_commander import DesktopCommanderEffectResolver
 from kis_mcp.middleware import ThreeRuleMiddleware
 from kis_mcp.policy import ThreeRulePolicy
+from kis_mcp.process_state import ProcessStateRegistry
+from kis_mcp.runtime_observability import RuntimeObservability
 
 
 PROJECT_BOUNDARY = r"C:\Projects"
@@ -170,3 +172,36 @@ def test_pushd_popd_and_process_termination_update_or_clear_state() -> None:
 
     asyncio.run(run())
     assert calls[-2:] == [("kill", 77), ("interact", 77, r"Set-Content .\default.txt data")]
+
+
+def test_process_state_publishes_redacted_active_process_lifecycle() -> None:
+    observability = RuntimeObservability(max_recent_calls=5, max_policy_decisions=5)
+    registry = ProcessStateRegistry(observability=observability)
+
+    registry.observe_success(
+        "start_process",
+        {"command": "pwsh", "cwd": r"C:\Projects\secret-project"},
+        "Process started with PID 99",
+        project_boundary=PROJECT_BOUNDARY,
+    )
+    registry.observe_success(
+        "interact_with_process",
+        {"pid": 99, "input": "private command value"},
+        "private result body",
+        project_boundary=PROJECT_BOUNDARY,
+    )
+
+    active = observability.snapshot().active_processes
+    assert [(item.pid, item.cwd, item.shell, item.interaction_count) for item in active] == [
+        (99, r"C:\Projects\secret-project", "powershell", 1)
+    ]
+    assert "private command value" not in str(observability.snapshot().to_dict())
+    assert "private result body" not in str(observability.snapshot().to_dict())
+
+    registry.observe_success(
+        "kill_process",
+        {"pid": 99},
+        "terminated",
+        project_boundary=PROJECT_BOUNDARY,
+    )
+    assert observability.snapshot().active_processes == ()

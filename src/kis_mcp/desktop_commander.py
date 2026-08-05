@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+import re
 from typing import Any
 
 from .command_intent import resolve_command_effects
 from .contracts import ProviderCapabilities
 from .models import InvocationEffects
 from .process_state import ProcessStateRegistry
+from .runtime_observability import RuntimeObservability, get_runtime_observability
 
 
 NETWORK_ONLY_TOOLS = frozenset({"give_feedback_to_desktop_commander"})
@@ -16,6 +18,12 @@ UNEXPOSED_TOOL_ARGUMENTS: dict[str, frozenset[str]] = {
 }
 UNEXPOSED_CONFIG_KEYS = frozenset({"blockedCommands", "allowedDirectories"})
 CONFIGURATION_TOOL_NAME = "set_config_value"
+_SEARCH_START_TOOLS = frozenset({"start_search"})
+_SEARCH_INTERACTION_TOOLS = frozenset({"get_more_search_results"})
+_SEARCH_STOP_TOOLS = frozenset({"stop_search"})
+_SEARCH_ID_PATTERN = re.compile(
+    r"(?i)\bsearch(?:\s+id)?\s*[:=]\s*([A-Za-z0-9._-]{1,128})"
+)
 COMMAND_TOOLS = frozenset(
     {"start_process", "execute_command", "interact_with_process"}
 )
@@ -46,7 +54,12 @@ DELETE_PATH_KEYS: dict[str, tuple[str, ...]] = {
 class DesktopCommanderEffectResolver:
     project_boundary: str
     provider_state_file: str
-    process_states: ProcessStateRegistry = field(default_factory=ProcessStateRegistry)
+    observability: RuntimeObservability = field(default_factory=get_runtime_observability)
+    process_states: ProcessStateRegistry | None = None
+
+    def __post_init__(self) -> None:
+        if self.process_states is None:
+            self.process_states = ProcessStateRegistry(observability=self.observability)
 
     @property
     def capabilities(self) -> ProviderCapabilities:
@@ -143,12 +156,32 @@ class DesktopCommanderEffectResolver:
         arguments: Mapping[str, Any] | None,
         result: Any,
     ) -> None:
-        self.process_states.observe_success(
-            tool_name,
-            dict(arguments or {}),
-            result,
-            project_boundary=self.project_boundary,
-        )
+        args = dict(arguments or {})
+        process_states = self.process_states
+        if process_states is not None:
+            process_states.observe_success(
+                tool_name,
+                args,
+                result,
+                project_boundary=self.project_boundary,
+            )
+
+        normalized = tool_name.casefold()
+        if normalized in _SEARCH_START_TOOLS:
+            search_id = self._search_id_from_result(result)
+            if search_id:
+                self.observability.search_started(
+                    search_id=search_id,
+                    tool_name=normalized,
+                )
+        elif normalized in _SEARCH_INTERACTION_TOOLS:
+            search_id = self._search_id_from_arguments(args)
+            if search_id:
+                self.observability.search_interacted(search_id=search_id)
+        elif normalized in _SEARCH_STOP_TOOLS:
+            search_id = self._search_id_from_arguments(args)
+            if search_id:
+                self.observability.search_stopped(search_id=search_id)
 
     def _working_directory(self, arguments: Mapping[str, Any]) -> str:
         for key in ("cwd", "working_directory", "workingDirectory"):
@@ -194,6 +227,55 @@ class DesktopCommanderEffectResolver:
                     if isinstance(item, str) and item.strip()
                 )
         return tuple(dict.fromkeys(paths))
+
+    @staticmethod
+    def _search_id_from_arguments(arguments: Mapping[str, Any]) -> str | None:
+        for key in ("search_id", "searchId", "id"):
+            value = arguments.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()[:128]
+        return None
+
+    @staticmethod
+    def _search_id_from_result(result: Any) -> str | None:
+        seen: set[int] = set()
+
+        def visit(value: Any, depth: int) -> str | None:
+            if value is None or depth > 4:
+                return None
+            identity = id(value)
+            if identity in seen:
+                return None
+            seen.add(identity)
+            if isinstance(value, str):
+                match = _SEARCH_ID_PATTERN.search(value)
+                return match.group(1) if match else None
+            if isinstance(value, Mapping):
+                direct = DesktopCommanderEffectResolver._search_id_from_arguments(value)
+                if direct:
+                    return direct
+                for nested in value.values():
+                    found = visit(nested, depth + 1)
+                    if found:
+                        return found
+                return None
+            if isinstance(value, Sequence) and not isinstance(
+                value,
+                (str, bytes, bytearray),
+            ):
+                for nested in value:
+                    found = visit(nested, depth + 1)
+                    if found:
+                        return found
+                return None
+            for attribute in ("content", "structured_content", "text", "data", "result"):
+                if hasattr(value, attribute):
+                    found = visit(getattr(value, attribute), depth + 1)
+                    if found:
+                        return found
+            return None
+
+        return visit(result, 0)
 
     @staticmethod
     def _telemetry_disabled(value: Any) -> bool:

@@ -7,6 +7,7 @@ from ..workflows.code_review.settings import (
     NvidiaSettings,
     load_agent_settings_or_disabled,
 )
+from .control_center import register_control_center_provider
 from .desktop_commander import register_desktop_commander_provider
 from .github import GitHubProviderSettings, register_github_provider
 from .nvidia import register_nvidia_provider
@@ -40,6 +41,7 @@ def build_platform_provider_registry(
     """Register approved providers explicitly without building or probing them."""
 
     registry = ProviderRegistry()
+    register_control_center_provider(registry)
     register_desktop_commander_provider(registry, runtime_config)
     register_github_provider(
         registry,

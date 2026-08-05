@@ -10,6 +10,11 @@
       "provider_id": "supabase",
       "enabled": true,
       "namespace": "supabase"
+    },
+    {
+      "provider_id": "control-center",
+      "enabled": true,
+      "namespace": "controlcenter"
     }
   ]
 }

@@ -3,16 +3,27 @@ from __future__ import annotations
 import pytest
 
 from kis_mcp.control_center.contracts import (
+    ApprovalSummary,
+    AvailableAction,
     ControlCenterSnapshot,
     Diagnostic,
+    DiscoverSummary,
     GitSummary,
     PolicyRuleSummary,
     PolicySummary,
     ProjectSummary,
+    ProviderRuntimeSummary,
     ProviderSummary,
+    QuarantineRecordSummary,
     QuarantineSummary,
     RuntimeSummary,
     VerificationSummary,
+)
+from kis_mcp.runtime_observability import (
+    ActiveProcessRecord,
+    ActiveSearchRecord,
+    RuntimeObservabilitySnapshot,
+    ToolCallRecord,
 )
 
 
@@ -64,6 +75,26 @@ def sample_snapshot() -> ControlCenterSnapshot:
                 ),
             ),
         ),
+        approvals=(
+            ApprovalSummary(
+                approval_id="HR1-01",
+                title="Outside write resolver",
+                status="pending",
+                detail="Operator decision required.",
+            ),
+        ),
+        discover=DiscoverSummary(
+            status="available",
+            project_id="project-1",
+            languages=("Python",),
+            frameworks=("FastMCP",),
+            module_count=8,
+            finding_count=1,
+            confidence="high",
+            truncated=False,
+            findings=("Sample finding <unsafe>",),
+            detail="Bounded local inspect_project evidence.",
+        ),
         providers=(
             ProviderSummary(
                 provider_id="github-mcp",
@@ -80,6 +111,70 @@ def sample_snapshot() -> ControlCenterSnapshot:
                 action="Use kis_provider_status.",
             ),
         ),
+        provider_runtime=(
+            ProviderRuntimeSummary(
+                provider_id="control-center",
+                namespace="controlcenter",
+                registered=True,
+                enabled=True,
+                mounted=True,
+                state="mounted",
+                readiness="ready",
+                action="Local dashboard ready.",
+                commissioning=(("live_verified", "not_applicable"),),
+            ),
+            ProviderRuntimeSummary(
+                provider_id="github-mcp",
+                namespace="github",
+                registered=True,
+                enabled=True,
+                mounted=True,
+                state="mounted",
+                readiness="ready",
+                action="Authenticate <unsafe> before live operations.",
+                commissioning=(("authenticated", "required"),),
+            ),
+        ),
+        observability=RuntimeObservabilitySnapshot(
+            recent_calls=(
+                ToolCallRecord(
+                    timestamp="2026-08-05T02:59:00+00:00",
+                    tool_name="read_file",
+                    argument_keys=("path",),
+                    decision="allow",
+                    outcome="success",
+                    code="ALLOW",
+                ),
+            ),
+            recent_policy_decisions=(
+                ToolCallRecord(
+                    timestamp="2026-08-05T02:58:00+00:00",
+                    tool_name="execute_command",
+                    argument_keys=("command",),
+                    decision="block",
+                    outcome="rejected",
+                    code="HR-002_EXTERNAL_NETWORK",
+                ),
+            ),
+            active_processes=(
+                ActiveProcessRecord(
+                    pid=42,
+                    cwd=r"C:\Projects\kis-mcp",
+                    shell="powershell",
+                    started_at="2026-08-05T02:50:00+00:00",
+                    last_seen_at="2026-08-05T02:59:00+00:00",
+                    interaction_count=2,
+                ),
+            ),
+            active_searches=(
+                ActiveSearchRecord(
+                    search_id="search-1",
+                    tool_name="start_search",
+                    started_at="2026-08-05T02:55:00+00:00",
+                    last_seen_at="2026-08-05T02:59:00+00:00",
+                ),
+            ),
+        ),
         quarantine=QuarantineSummary(
             root=r"C:\Projects\.kis-mcp\quarantine",
             status="available",
@@ -88,6 +183,19 @@ def sample_snapshot() -> ControlCenterSnapshot:
             restored_records=1,
             invalid_records=0,
             truncated=False,
+        ),
+        quarantine_records=(
+            QuarantineRecordSummary(
+                operation_id="20260805T010203000000Z-aaaaaaaaaaaa",
+                original_path=r"C:\Projects\old.txt",
+                item_type="file",
+                restored=False,
+            ),
+        ),
+        actions=(
+            AvailableAction("Refresh project evidence", "inspect_project", "read"),
+            AvailableAction("List quarantine", "kis_list_quarantine", "read"),
+            AvailableAction("Restore quarantine record", "kis_restore_quarantine", "mutation"),
         ),
         verification=VerificationSummary(
             status="not_recorded",
