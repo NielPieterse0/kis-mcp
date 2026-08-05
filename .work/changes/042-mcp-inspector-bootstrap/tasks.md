@@ -1,0 +1,25 @@
+# Tasks: MCP Inspector Bootstrap
+
+- [x] Read repository authority, current Tools/bootstrap patterns, and active change claims.
+- [x] Inspect upstream MCP Inspector v2 package, launcher, runtime, and Node requirements.
+- [x] Classify the slice as Medium and define the approved managed-bootstrap architecture.
+- [x] Create the isolated `042-mcp-inspector-bootstrap` change worktree.
+- [x] Run the clean baseline repository verification.
+- [x] Write and self-review the specification and implementation plan.
+- [x] Add failing settings-contract tests.
+- [x] Implement the pinned settings contract and pass focused tests.
+- [x] Add failing installer tests.
+- [x] Implement staged installation, smoke verification, quarantine, and rollback.
+- [x] Add failing launcher tests.
+- [x] Implement the loopback local-instance launcher.
+- [x] Write operator documentation.
+- [x] Run focused tests and `pwsh -File scripts/change-workflow.ps1 check`.
+- [x] Run `pwsh -File scripts/verify.ps1` on the implementation head.
+- [x] Run first-time and replacement supervised Inspector installs.
+- [x] Validate Inspector CLI against the development kis-mcp tool catalogue.
+- [x] Validate the managed web launcher returns HTTP 200 with redacted token evidence.
+- [x] Add and verify the bootstrap-home quarantine regression fix.
+- [x] Run independent review; record the successful earlier review and final timeout limitation accurately.
+- [x] Review the final diff and resolve blocking findings.
+- [ ] Complete final closeout evidence and verification.
+- [ ] Push, create and merge the PR, then clean the worktree from `main`.
