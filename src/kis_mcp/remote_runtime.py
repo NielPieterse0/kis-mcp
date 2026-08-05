@@ -24,7 +24,7 @@ def run_remote_instance(
         host=instance.host,
         port=instance.port,
         path=instance.path,
-        stateless_http=True,
+        stateless_http=False,
         json_response=True,
         show_banner=False,
     )

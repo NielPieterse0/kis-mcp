@@ -77,7 +77,7 @@ def test_remote_runtime_uses_streamable_http_arguments() -> None:
             "host": instance.host,
             "port": instance.port,
             "path": instance.path,
-            "stateless_http": True,
+            "stateless_http": False,
             "json_response": True,
             "show_banner": False,
         }
