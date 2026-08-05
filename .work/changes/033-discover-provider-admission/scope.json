@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "033-discover-provider-admission",
-  "status": "active",
+  "status": "closed",
   "branch": "change/033-discover-provider-admission",
   "worktree": ".work/worktrees/033-discover-provider-admission",
   "base": "main",
