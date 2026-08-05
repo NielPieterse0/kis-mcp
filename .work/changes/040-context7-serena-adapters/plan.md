@@ -1,34 +1,179 @@
-# Context7 and Serena Adapter Plan
+# Context7 and Serena Adapters Implementation Plan
 
-## Phase 1 — Operator approval gate
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-- [x] Inspect repository authority, active claims, and the existing hard-block register.
-- [x] Verify current official Context7 and Serena capabilities and candidate versions.
-- [ ] Add only the new Serena HR mappings to `docs/HARD-BLOCK-APPROVAL-REGISTER.md`.
-- [ ] Present the entries and reasons to the operator.
-- [ ] Record operator decisions in the existing register.
+**Goal:** Integrate independent pinned Context7 and Serena adapters through the existing Tools foundation while activating only the operator-approved, evidence-complete HR mappings.
 
-Production implementation is blocked until the three new register entries are approved or amended.
+**Architecture:** Context7 is an approved external read-only evidence adapter. Serena is a local stdio MCP adapter whose provider-managed state is contained through settings and readiness invariants, while invocation-controlled mutations, shell effects, and whole-memory deletion are resolved through narrow adapters into the existing HR-001/002/003 enforcement path. Generic command-resolver repair remains outside this slice.
 
-## Phase 2 — Context7 adapter
+**Tech Stack:** Python 3.11 stdlib, FastMCP, JSON Schema, PowerShell installers, pytest.
 
-- [ ] Write failing tests for descriptor metadata, settings validation, readiness containment, fixed endpoint identity, redacted credential handling, and the two upstream MCP operations.
-- [ ] Implement independent Context7 settings, contracts, installer, adapter, descriptor, and readiness probe.
-- [ ] Verify that Context7 uses `ToolBoundary.APPROVED_EXTERNAL_SERVICE` and does not enter the local Work command path.
-- [ ] Verify failure does not prevent Serena or wider runtime startup.
+## Global Constraints
 
-## Phase 3 — Serena adapter
+- Work only in `.work/worktrees/040-context7-serena-adapters` on `change/040-context7-serena-adapters`.
+- Preserve exactly HR-001, HR-002, and HR-003.
+- Use `docs/HARD-BLOCK-APPROVAL-REGISTER.md` as the only hard-block approval register.
+- Do not create a second policy engine or provider-native restriction layer.
+- Do not modify `src/kis_mcp/command_intent.py` or generic resolver tests in this slice.
+- Context7 normal lookups use `ToolBoundary.APPROVED_EXTERNAL_SERVICE`, not the local Work command path.
+- Provider-managed Serena cache, index, log, temporary, configuration, language-server, and runtime-state roots are installation/readiness invariants, not per-invocation hard blocks.
+- HR1-07 remains inactive until the narrowed wording receives explicit operator approval.
+- HR2-06 remains inactive until the corrected shared command resolver is present and its activation tests pass.
+- HR3-07 remains inactive until pinned-contract evidence proves the complete deleted artifact set and consistency behavior.
 
-- [ ] Write failing tests for descriptor metadata, isolated provider state, upstream tool preservation, project-relative path resolution, shell-command effect delegation, and memory quarantine.
-- [ ] Implement independent Serena settings, contracts, installer, stdio adapter, descriptor, readiness probe, and effect mapping.
-- [ ] Implement only the operator-approved HR mappings from the existing register.
-- [ ] Verify failure does not prevent Context7 or wider runtime startup.
+---
 
-## Phase 4 — Registration and verification
+### Task 1: Finalize approval-state documentation
 
-- [ ] Register both descriptors in the existing Tools service/runtime without coupling them to each other.
-- [ ] Run focused adapter tests.
-- [ ] Run change-governance validation and scope checks.
-- [ ] Run full repository verification serially.
-- [ ] Review the complete diff against AGENTS.md, the trust model, and the approved register decisions.
-- [ ] Commit, push, and raise a reviewable PR without merging it.
+**Files:**
+- Modify: `docs/HARD-BLOCK-APPROVAL-REGISTER.md`
+- Modify: `.work/changes/040-context7-serena-adapters/spec.md`
+- Modify: `.work/changes/040-context7-serena-adapters/tasks.md`
+
+**Interfaces:**
+- Consumes: operator review decision for HR1-07, HR2-06, HR3-07.
+- Produces: one auditable activation state for each mapping.
+
+- [x] Record HR1-07 as `Revise` and narrow it to invocation-controlled file and entry mutations.
+- [x] Record HR2-06 as approved with corrected-resolver and semantic-preservation conditions.
+- [x] Record HR3-07 as approved with pinned-contract completeness and consistency conditions.
+- [ ] Present the revised HR1-07 wording for final operator approval before enabling Serena mutation forwarding.
+- [ ] Commit the approval-state revision separately from production implementation.
+
+### Task 2: Freeze pinned upstream contracts
+
+**Files:**
+- Create: `contracts/tools/context7/upstream-tools.json`
+- Create: `contracts/tools/context7/settings.schema.json`
+- Create: `contracts/tools/serena/upstream-tools.json`
+- Create: `contracts/tools/serena/settings.schema.json`
+- Test: `tests/tools/test_context7_tool.py`
+- Test: `tests/tools/test_serena_tool.py`
+
+**Interfaces:**
+- Produces: immutable tool schemas and source revisions consumed by descriptors, adapters, effect mapping, and installers.
+
+- [ ] Capture only Context7 `resolve-library-id` and `query-docs` from the pinned distribution.
+- [ ] Capture every enabled Serena operation with exact argument names, precedence, path semantics, shell representation, and mutation classification.
+- [ ] Inspect pinned Serena source for `delete_memory` and enumerate every deleted or modified artifact.
+- [ ] Write failing fixture tests that reject schema drift, unknown enabled mutations, ambiguous aliases, and incomplete `delete_memory` artifact evidence.
+- [ ] Run `pytest tests/tools/test_context7_tool.py tests/tools/test_serena_tool.py -v` and confirm the fixture tests fail before implementation.
+- [ ] Commit the pinned contracts and failing tests.
+
+### Task 3: Implement independent Context7 adapter
+
+**Files:**
+- Create: `src/kis_mcp/tools/context7/settings.py`
+- Create: `src/kis_mcp/tools/context7/adapter.py`
+- Create: `src/kis_mcp/tools/context7/tool.py`
+- Create: `src/kis_mcp/tools/context7/__init__.py`
+- Create: `settings/tools/context7.tool.json`
+- Create: `scripts/install-context7.ps1`
+- Modify: `tests/tools/test_context7_tool.py`
+
+**Interfaces:**
+- Produces: `Context7Settings`, `Context7Adapter`, `build_context7_descriptor()`.
+
+- [ ] Add tests for fixed provider identity, pinned source revision, settings validation, bounded outputs, redacted credentials, readiness containment, and exact two-operation exposure.
+- [ ] Implement the minimal adapter and descriptor using `ToolBoundary.APPROVED_EXTERNAL_SERVICE`.
+- [ ] Keep installation/package state beneath `C:\Projects\.kis-mcp\context7`.
+- [ ] Verify arbitrary endpoint mutation, arbitrary provider passthrough, and local Work command routing are absent.
+- [ ] Run `pytest tests/tools/test_context7_tool.py -v` and confirm pass.
+- [ ] Commit Context7 independently.
+
+### Task 4: Implement Serena bootstrap and provider-managed storage invariants
+
+**Files:**
+- Create: `src/kis_mcp/tools/serena/settings.py`
+- Create: `src/kis_mcp/tools/serena/adapter.py`
+- Create: `src/kis_mcp/tools/serena/tool.py`
+- Create: `src/kis_mcp/tools/serena/__init__.py`
+- Create: `settings/tools/serena.tool.json`
+- Create: `scripts/install-serena.ps1`
+- Modify: `tests/tools/test_serena_tool.py`
+
+**Interfaces:**
+- Produces: `SerenaSettings`, `SerenaAdapter`, `build_serena_descriptor()`.
+
+- [ ] Add failing tests requiring Serena home, project data, cache, index, log, temporary, language-server, configuration, and memory roots beneath `C:\Projects`.
+- [ ] Implement installation and readiness checks that fail Serena readiness without creating per-invocation HR decisions.
+- [ ] Launch the pinned provider over stdio and preserve upstream operation schemas.
+- [ ] Confirm provider absence or readiness failure does not prevent Context7 or wider runtime startup.
+- [ ] Run the Serena readiness and storage tests and confirm pass.
+- [ ] Commit bootstrap and readiness independently.
+
+### Task 5: Implement narrowed HR1-07 invocation effect mapping
+
+**Files:**
+- Create: `src/kis_mcp/tools/serena/effects.py`
+- Modify: `src/kis_mcp/tools/serena/adapter.py`
+- Modify: `tests/tools/test_serena_tool.py`
+
+**Interfaces:**
+- Produces: `resolve_serena_effects(operation: str, arguments: Mapping[str, object], settings: SerenaSettings) -> InvocationEffects`.
+
+- [ ] Keep this task blocked until the revised HR1-07 wording is explicitly approved.
+- [ ] Add failing tests for explicit file paths, project-relative symbol edits, exact memory paths, move source/destination, explicit outputs, argument precedence, traversal, links, junctions, and prefix collisions.
+- [ ] Add counterexamples proving provider-managed state roots, reads, unknown effect coverage, and valid in-boundary edits do not create HR-001 blocks.
+- [ ] Implement exact per-operation contracts; do not infer destinations generically from all path-like arguments.
+- [ ] Run `pytest tests/tools/test_serena_tool.py -k "effect or mutation or boundary" -v` and confirm pass.
+- [ ] Commit HR1-07 mapping independently.
+
+### Task 6: Integrate HR2-06 through the corrected shared resolver
+
+**Files:**
+- Modify: `src/kis_mcp/tools/serena/effects.py`
+- Modify: `tests/tools/test_serena_tool.py`
+
+**Interfaces:**
+- Consumes: corrected repository `resolve_command_effects(...)` behavior.
+- Produces: unchanged-semantic delegation for Serena `execute_shell_command`.
+
+- [ ] Verify the branch base contains the approved generic resolver corrections for network-bearing options, case-sensitive short options, shell quoting/redirection, and exact operand contracts.
+- [ ] If that verification fails, leave Serena shell activation disabled and do not patch the generic resolver in this slice.
+- [ ] Add tests preserving command text or argument vector, shell type, working directory, quoting, argument boundaries, and explicitly represented environment target data.
+- [ ] Add proxy, connection-routing, DNS override, jump-host, package-source, Git-remote, localhost, URL-as-data, unknown-command, composed-command, and dry-run-network cases.
+- [ ] Delegate to the shared resolver without reconstructing command semantics.
+- [ ] Run `pytest tests/tools/test_serena_tool.py -k shell -v` and confirm pass.
+- [ ] Commit HR2-06 integration independently.
+
+### Task 7: Implement HR3-07 complete-artifact quarantine
+
+**Files:**
+- Create: `src/kis_mcp/tools/serena/memory.py`
+- Modify: `src/kis_mcp/tools/serena/adapter.py`
+- Modify: `tests/tools/test_serena_tool.py`
+
+**Interfaces:**
+- Produces: exact `delete_memory` artifact resolution and one quarantine request; never calls provider deletion after successful quarantine.
+
+- [ ] Keep activation blocked until the pinned-contract audit proves the complete artifact set.
+- [ ] Add failing tests for memory file, metadata, catalogue, index, and any other proven related artifacts.
+- [ ] Add tests rejecting wildcard, traversal, ambiguous aliases, outside global memory, unknown artifact sets, and quarantine failure.
+- [ ] Add assertions that the provider delete operation is not called after quarantine.
+- [ ] Add restore and subsequent Serena readiness tests for stale, regenerated, or repaired metadata.
+- [ ] Call the existing transactional `QuarantineService.quarantine_many(...)` batch for the complete proven artifact set and verify rollback on partial failure.
+- [ ] Run `pytest tests/tools/test_serena_tool.py -k memory -v` and confirm pass.
+- [ ] Commit HR3-07 independently.
+
+### Task 8: Register, document, and verify
+
+**Files:**
+- Modify: `src/kis_mcp/tools/__init__.py`
+- Modify: `src/kis_mcp/server.py`
+- Create: `tests/tools/test_context7_serena_registration.py`
+- Create: `docs/development/tools/context7-serena.md`
+- Modify: `.work/changes/040-context7-serena-adapters/closeout.md`
+
+**Interfaces:**
+- Consumes: independent Context7 and Serena descriptors.
+- Produces: optional runtime registration with contained failure domains.
+
+- [ ] Register descriptors independently; neither builder may construct or require the other.
+- [ ] Ensure conditionally inactive Serena capabilities remain explicitly inactive rather than broadly disabling Serena.
+- [ ] Run `pytest tests/tools/test_context7_tool.py tests/tools/test_serena_tool.py tests/tools/test_context7_serena_registration.py -v`.
+- [ ] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 validate` and `check`.
+- [ ] Run `pwsh -NoProfile -File scripts/verify.ps1` serially.
+- [ ] Review the full diff against AGENTS.md, the trust model, and every activation condition.
+- [ ] Reconcile the register with the operator-edited primary-worktree version without losing existing decisions.
+- [ ] Commit, push, raise a PR, review the exact head, merge only if all activation conditions and verification pass, then clean the worktree without force.

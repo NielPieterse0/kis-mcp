@@ -1,78 +1,123 @@
 # Change Specification: Context7 and Serena Adapters
 
 - **Change ID:** `040-context7-serena-adapters`
-- **Status:** Planning gate pending operator approval of new hard-block mappings
-- **Risk profile:** Elevated because Serena exposes mutation, shell, and file-delete effects
-- **Dependency:** Merged `029-tools-code-tooling` foundation
+- **Status:** Approved for staged implementation; HR1-07 activation remains pending revised operator approval
+- **Risk profile:** Elevated because Serena exposes mutation, shell, and whole-artifact deletion effects
+- **Dependency:** Merged `029-tools-code-tooling` foundation; HR2-06 activation additionally depends on corrected shared command-resolver behavior
 
 ## Outcome
 
 Integrate two independent adapters behind the existing provider-neutral Tools foundation:
 
 1. Context7 as an approved external documentation-evidence service.
-2. Serena as a local MCP semantic-code provider with its provider state redirected beneath `C:\Projects\.kis-mcp`.
+2. Serena as a local MCP semantic-code provider with provider-managed storage configured and verified beneath `C:\Projects`.
 
-The adapters remain independent. Failure, absence, or disablement of one must not prevent the other or the wider kis-mcp runtime from starting.
+The adapters remain independent. Failure, absence, disablement, or conditional capability inactivity in one must not prevent the other or the wider kis-mcp runtime from starting.
 
 ## Existing authority
 
 - Preserve exactly HR-001, HR-002, and HR-003.
 - Use `docs/HARD-BLOCK-APPROVAL-REGISTER.md` as the only operator approval register for hard blocks or quarantine transforms.
-- Do not create a separate approval list.
-- Do not suppress tools merely by name, category, overlap, destructive appearance, or possible misuse.
+- Do not create a separate approval list or Serena-specific policy engine.
+- Do not suppress tools by name, category, overlap, destructive appearance, optional status, or possible misuse.
 - Context7 normal lookup operations use the approved external-provider boundary, not the local Work network path.
-- Serena invocations are evaluated by their concrete resolved effects.
+- Serena invocations are evaluated only through concrete resolved effects.
+- Unknown or unsupported effect resolution is not proof of a hard-rule violation.
 
 ## Authoritative upstream baselines
 
-- Context7: official `upstash/context7` MCP distribution; current candidate pin `@upstash/context7-mcp@3.2.0`.
-- Serena: official `serena-agent` PyPI distribution; current candidate pin `1.6.1`.
+- Context7: official `upstash/context7` MCP distribution; candidate pin `@upstash/context7-mcp@3.2.0`.
+- Serena: official `serena-agent` distribution; candidate pin `1.6.1`.
 
-The final pins and integrity values must be recorded in JSON and verified by installers before commissioning.
+Final pins, integrity values, and captured upstream tool contracts must be recorded in JSON and verified before commissioning.
 
-## New hard-block mappings requiring operator decision
+## Operator decisions and activation state
 
-Only the following proposed mappings are added to the existing register:
+### HR1-07 — Revise
 
-- **HR1-07 — Serena effective mutation destination outside `C:\Projects`.** Resolve actual provider destinations for file edits, symbol refactors, moves, memory writes, project/config writes, generated indexes, caches, logs, and shell-command write effects. Block only when the effective destination is proven outside the boundary.
-- **HR2-06 — Serena shell command with a proven external target.** Map `execute_shell_command` into the existing exact command-effect resolver. Block only when the complete command proves an external-network operation.
-- **HR3-07 — Serena whole-artifact deletion.** Transform an exact `delete_memory` file deletion, and any pinned Serena operation proven to delete a complete file or directory, into quarantine. Partial code edits such as deleting lines or a symbol are ordinary content writes, not whole-artifact deletion.
+The mapping is narrowed to invocation-controlled destinations only:
 
-Context7 adds no hard-block entry because its two read-only lookup tools are intentionally hosted behind the approved external-service boundary. Installation, endpoint identity, credentials, and readiness are non-hard controls rather than additional policy prohibitions.
+- explicit file paths;
+- project-relative file and symbol edits;
+- exact memory-file paths;
+- move source and destination entries;
+- explicit output destinations.
 
-## Implementation boundary after approval
+Provider-managed cache, index, log, temporary, configuration, language-server, and runtime-state roots are installation and readiness invariants. They do not independently create per-invocation HR-001 blocks unless the concrete invocation explicitly selects or changes such a destination.
+
+HR1-07 remains inactive until the operator approves the revised wording. Missing resolver coverage must not become a blanket Serena rejection.
+
+### HR2-06 — Approved conditionally
+
+Serena `execute_shell_command` may delegate to the shared command-effect resolver only after:
+
+1. the shared resolver includes approved corrections for network-bearing options, connection routing, proxy targets, DNS overrides, jump hosts, case-sensitive short options, shell quoting/redirection, and exact operand contracts;
+2. the adapter preserves command text or argument vectors, working directory, shell type, quoting, argument boundaries, and explicitly represented environment target data;
+3. tests prove that dry-run status alone is not treated as evidence of no network use.
+
+Generic resolver corrections remain outside this slice. If the corrected resolver is absent, Serena shell capability remains inactive while the rest of Serena may proceed.
+
+### HR3-07 — Approved conditionally
+
+Serena `delete_memory` may be transformed into quarantine only after pinned-contract evidence establishes the complete deleted or modified artifact set, including related metadata, catalogue, index, or consistency state.
+
+The implementation must:
+
+- resolve exact non-ambiguous paths;
+- reject wildcard, traversal, ambiguous alias, outside-global-memory, and unknown-artifact-set cases;
+- quarantine the complete proven artifact set;
+- never call the provider delete operation after successful quarantine;
+- test restoration and subsequent Serena behavior for stale or regenerated metadata.
+
+### Context7 — No hard-block entry
+
+Context7's two read-only documentation operations use the approved external-provider boundary. Identity, endpoint, credential references, response budgets, installation, and readiness remain provider controls rather than HR-001/002/003 blocks.
+
+## Implementation boundary
 
 ### Context7 adapter
 
-- Expose the upstream `resolve-library-id` and `query-docs` contracts without unrelated CLI setup/remove commands.
-- Use a fixed approved Context7 endpoint and secret reference; do not expose arbitrary endpoint or credential mutation as public tools.
+- Expose only upstream `resolve-library-id` and `query-docs` operations.
+- Use a fixed approved provider identity and endpoint configuration.
+- Do not expose arbitrary endpoint, credential, setup, removal, or provider-passthrough operations.
 - Keep installation and package state beneath `C:\Projects\.kis-mcp\context7`.
-- Report bounded readiness without leaking credentials.
+- Bound outputs and redact credential information from readiness and errors.
 
-### Serena adapter
+### Serena bootstrap and provider storage
 
 - Launch the pinned server over stdio.
-- Keep `SERENA_HOME`, configuration, logs, caches, indexes, memories, and language-server state beneath approved `C:\Projects` locations where supported by the pinned provider.
-- Preserve upstream tools unless a concrete invocation resolves to HR-001, HR-002, or HR-003.
-- Reuse the existing Work effect resolver for shell-command effects rather than creating a second command policy.
-- Resolve provider-native path aliases and project-relative paths to their single effective targets before policy evaluation.
+- Configure Serena home, project data, cache, index, log, temporary, language-server, configuration, and memory roots beneath `C:\Projects` where supported by the pinned provider.
+- Verify those roots through installer and readiness checks rather than per-invocation policy.
+- Preserve upstream operations except where an activated, operator-approved HR mapping applies.
+- Keep unavailable or conditionally inactive operations explicit without disabling unrelated Serena capability.
+
+### Serena invocation effects
+
+- Resolve exact per-operation argument contracts and documented precedence.
+- Do not generically classify every path-like argument as a mutation destination.
+- Reuse the corrected shared command resolver for shell effects without modifying it in this slice.
+- Transform `delete_memory` only when the complete artifact set is proven.
 
 ## Explicit non-rules
 
 The following are not blockers:
 
 - Serena tool names or broad editing capability;
-- reading a project outside `C:\Projects` when no write outside the boundary is produced;
-- an unknown shell command or incomplete prediction;
+- provider-managed state roots that are correctly configured beneath `C:\Projects`;
+- reading outside `C:\Projects` without a proven external write;
+- unknown or unsupported effect resolution;
+- a dry-run label without analysis of actual network consumption;
 - Context7 documentation content, library names, queries, or returned examples;
 - provider overlap with Desktop Commander;
 - optional or beta status alone.
 
 ## Acceptance criteria
 
-1. The existing hard-block register contains the three proposed Serena entries with pending operator decisions and exact reasons.
-2. No production adapter implementation begins until those entries are approved or amended.
-3. After approval, both adapters have independent descriptors, settings, readiness probes, installers, contracts, and tests.
-4. Context7 normal lookups use only the approved external-service boundary.
-5. Serena mutating and shell calls reuse HR-001/002/003 effect enforcement without creating another policy rule.
-6. Focused tests and full repository verification pass before a reviewable PR is raised.
+1. The existing hard-block register records HR1-07 as revised and HR2-06/HR3-07 as conditionally approved.
+2. HR1-07 is not activated without explicit approval of its narrowed wording.
+3. Context7 and Serena bootstrap can be implemented independently of unresolved Serena activation gates.
+4. Serena provider-managed storage is controlled through settings, installation, and readiness checks rather than broad per-invocation blocking.
+5. HR2-06 activates only against the corrected shared resolver with preserved command semantics.
+6. HR3-07 activates only after complete pinned-contract artifact evidence and consistency tests.
+7. Condition failure disables only the affected Serena operation or mapping, not the whole provider.
+8. Focused tests, change-governance checks, and full repository verification pass before merge.

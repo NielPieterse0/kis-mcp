@@ -32,6 +32,8 @@
     "uv.lock",
     "scripts/start.ps1",
     "scripts/start-chatgpt.ps1",
+    "src/kis_mcp/command_intent.py",
+    "tests/test_desktop_commander.py",
     "src/kis_mcp/discover/**",
     "tests/discover/**",
     "policy/**"

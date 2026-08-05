@@ -48,7 +48,13 @@ The adapter reports only provider arguments that are effective write destination
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+The register says only the effective provider destination is reported. Current handling can collect multiple alias fields, notably edit_block.file_path and edit_block.path, without establishing which one the provider actually consumes. An inactive external alias could therefore block a valid in-boundary write.
+
+Define provider argument precedence for every alias-bearing tool. Report exactly one effective destination where the provider uses precedence. Reject structurally if mutually exclusive fields are invalid.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ## HR1-02 — Move source or destination outside the boundary
 
@@ -62,7 +68,7 @@ A move mutates directory entries at both the source and destination. Existing an
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-03 — Effective path through links or junctions
 
@@ -76,7 +82,7 @@ Content writes follow the effective final target. Entry mutations resolve existi
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-04 — Explicit shell output redirection
 
@@ -90,7 +96,13 @@ Recognized unquoted output redirections identify a concrete destination and are 
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+The register says only unquoted redirections are detected, but the current regex does not maintain shell quote state. A literal > inside a quoted string can be interpreted as a redirection.
+
+Parse redirection through the shell tokenizer/state machine. Prove that the operator itself is syntactic redirection, not quoted text, escaped text, comparison syntax, or argument data.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ## HR1-05 — Known write-command destination
 
@@ -104,7 +116,13 @@ Known copy, create, and PowerShell content-write contracts are used only to iden
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+“Known copy, create, and PowerShell contracts” is too vague. Current generic extraction of non-option values can mistake option values for destinations—for example values associated with New-Item -ItemType, touch -d, or future command options.
+
+Replace generic positional inference with exact per-command contracts: supported options, which options consume values, positional destination index, parameter precedence, and supported modes.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ## HR1-06 — Mutating local Git operation outside the boundary
 
@@ -118,27 +136,39 @@ The resolver distinguishes supported read-only and mutating Git forms. For a res
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+The text claims read-only and mutating Git forms are distinguished, but some operations are classified only by command name. Forms such as git add --dry-run, git commit --dry-run, and help modes can be falsely classified as writes.
+
+Add exact dry-run, help, porcelain/report-only, and no-op classifications. Resolve actual --git-dir, --work-tree, index, common directory, and explicit output targets rather than using the working directory as a broad fallback.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ---
 
-## HR1-07 — Serena effective mutation destination outside the boundary
+## HR1-07 — Serena invocation-controlled mutation outside the boundary
 
-**Implementation:** Proposed provider mapping; production implementation pending operator approval.
+**Implementation:** Proposed provider mapping; revise before production activation.
 
-Serena exposes file, symbol, refactoring, memory, project-configuration, index, cache, and logging operations that can produce writes. The adapter will resolve each pinned provider contract to its actual effective write or entry-mutation destinations using the active project, project-relative arguments, provider-state locations, move source and destination, and documented argument precedence. Serena tool names, optional status, beta status, or general editing capability are not sufficient to claim a write effect.
+The Serena adapter resolves only destinations controlled by the concrete enabled invocation: explicit file paths, project-relative file or symbol edits, exact memory-file paths, move source and destination entries, and explicit output destinations. Serena tool names, editing capability, provider optionality, and unresolved effect coverage do not establish a write effect.
 
-**Hard-block condition:** A complete Serena invocation resolves one or more effective write or entry-mutation destinations outside `C:\Projects`.
+**Hard-block condition:** An enabled Serena invocation resolves an invocation-controlled file mutation or entry mutation outside `C:\Projects`.
 
-**Permitted forms:** Reads outside the boundary remain permitted. A mutating Serena invocation whose complete resolved write set remains inside `C:\Projects` is forwarded. An unresolved or malformed provider argument is handled as a structural/provider error rather than an HR-001 decision.
+**Separate provider-storage invariant:** Serena cache, index, log, temporary, configuration, language-server, and default runtime-state roots must be configured beneath `C:\Projects` and verified by installation and readiness checks. Those provider-managed roots do not independently cause a per-invocation HR-001 block unless the specific invocation explicitly selects or changes that destination.
 
-**Evidence/tests required before activation:** Exact schema fixtures for every enabled mutating Serena tool; project-relative and absolute path tests; alias-precedence tests; move source/destination tests; provider-state, memory, index, cache, and log location tests; link, junction, and prefix-collision tests; permitted in-boundary counterexamples.
+**Permitted forms:** Reads outside the boundary remain permitted. A mutating invocation whose proven invocation-controlled destinations remain inside `C:\Projects` is forwarded. Unknown or unsupported effect resolution is not proof of HR-001. Malformed input may be rejected as a structural/provider error, but missing resolver coverage must not become a blanket Serena rejection.
 
-**Reason approval is required:** This mapping teaches the gateway how Serena-specific arguments and provider state become concrete write effects. An overbroad mapping would suppress valid Serena capability; an incomplete mapping could permit a proven HR-001 write.
+**Evidence/tests required before activation:** Exact pinned schema fixtures for each enabled invocation-controlled mutation; documented argument precedence; project-relative and absolute path resolution; move source/destination effects; memory-file resolution; explicit output paths; link, junction, traversal, and prefix-collision cases; permitted in-boundary and unknown-effect counterexamples. Provider-managed storage is tested separately through installer and readiness tests.
 
-**Recommended disposition:** Approve.
+**Reason approval is required:** The mapping must stop proven Serena writes outside the boundary without turning incidental provider-managed storage into a broad per-invocation blocker that suppresses otherwise valid Serena capability.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Recommended disposition:** Revise and resubmit the narrowed mapping for approval.
+
+**Operator Comments:**
+
+Separate invocation-controlled mutations from provider-managed storage. Cache, index, log, temporary, configuration, and runtime-state roots belong to installation and startup invariants unless a concrete invocation explicitly selects or alters them. Unknown or unsupported effect resolution is not proof of HR-001.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ---
 
@@ -156,7 +186,13 @@ A known network-client executable is only a resolver hint. The resolver identifi
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+The target parser excludes several values that can themselves cause external network access. Current examples include proxy and connection-routing options such as --proxy, --connect-to, and --resolve. Case-folding also risks conflating curl’s case-sensitive -x and -X.
+
+Divide options into non-network data values and network-bearing target values. Preserve case-sensitive short-option semantics. Treat proxy, jump-host, DNS override, connection-routing, and similar values as consuming network targets.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ## HR2-02 — Package operation with an explicit external source
 
@@ -170,7 +206,7 @@ Package-manager names, operation names, package names, lockfile actions, missing
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-03 — Git operation with an external remote
 
@@ -184,7 +220,7 @@ For `fetch`, `pull`, and `push`, named and default remotes are resolved from loc
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-04 — UNC or SCP-style external target
 
@@ -198,7 +234,7 @@ UNC and SCP-style strings are evaluated only when consumed as the actual target 
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-05 — Enabling Desktop Commander telemetry
 
@@ -212,27 +248,43 @@ The pinned provider interprets only boolean `false` and string `"false"` as tele
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+“Not interpreted as disabled” is not automatically equivalent to “proven to enable telemetry.” Invalid, null, unsupported, or rejected values may produce a structural error rather than network activity.
+
+Define the pinned provider’s exact accepted values and resulting persisted/runtime state. Block only values proven to produce enabled telemetry. Classify rejected or invalid values as structural/provider errors.
+
+**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
 
 ---
 
 ## HR2-06 — Serena shell command with a proven external target
 
-**Implementation:** Proposed provider mapping; production implementation pending operator approval.
+**Implementation:** Approved conditionally; production activation is blocked until the shared exact command resolver satisfies the recorded revision conditions.
 
-Serena exposes `execute_shell_command`. The adapter will pass the complete command, effective working directory, shell form, and resolved arguments into the existing command-effect resolver. The Serena tool name, presence of a URL-like string, unknown executable, or general ability to start a process does not independently establish external-network intent.
+Serena exposes `execute_shell_command`. The adapter must preserve the provider's actual command text or argument vector, effective working directory, shell type, quoting and argument boundaries, and explicitly represented environment-derived target information. It delegates that unchanged semantic input to the corrected shared command-effect resolver. The Serena tool name, presence of URL-like data, unknown executable, dry-run label, or general process capability does not independently establish external-network intent.
 
-**Hard-block condition:** The complete Serena shell invocation resolves under the existing exact command contracts to an operation that consumes a non-loopback external host, endpoint, registry, package source, or remote.
+**Hard-block condition:** The complete preserved Serena shell invocation resolves under corrected exact command contracts to an operation that consumes a non-loopback external host, endpoint, registry, package source, proxy, connection-routing target, DNS override, jump host, or remote.
 
-**Permitted forms:** Local commands, loopback access, commands without a proven external target, help or dry-run forms, and unresolved command shapes are not blocked under HR-002. Other proven effects from the same command remain subject to HR-001 and HR-003.
+**Permitted forms:** Permit only when the resolved invocation does not prove external-network consumption. Local commands, loopback access, URL-like data without a network consumer, and unresolved command shapes are not blocked under HR-002. Dry-run status alone does not establish absence of network access. Other proven effects from the same command remain subject to HR-001 and HR-003.
 
-**Evidence/tests required before activation:** Exact Serena shell schema fixture; working-directory propagation; quoted and escaped argument handling; known network-client targets and option values; package-source and Git-remote resolution; localhost counterexamples; unknown-command counterexamples; composed-command tests.
+**Activation conditions:**
 
-**Reason approval is required:** This mapping connects a new provider shell contract to the existing HR-002 resolver. It must preserve Serena shell capability while blocking only complete invocations that prove an external Work-network effect.
+1. The shared resolver includes the approved corrections for network-bearing options, case-sensitive short options, shell quoting/redirection, and exact command operand contracts.
+2. The Serena adapter does not reconstruct or normalize the command in a way that changes quoting, argument boundaries, shell semantics, or effective working directory.
+3. Serena-specific tests prove delegation to the corrected resolver and include dry-run forms that still consume an external target.
 
-**Recommended disposition:** Approve.
+**Evidence/tests required before activation:** Exact pinned Serena shell schema fixture; command-text and argument-vector preservation; working-directory and shell propagation; quoted and escaped arguments; proxy, connection-routing, DNS-override, jump-host, package-source, and Git-remote targets; case-sensitive short options; localhost and URL-as-data counterexamples; unknown-command counterexamples; composed-command tests; dry-run network counterexamples.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Reason approval is required:** This connects Serena's shell contract to the shared HR-002 resolver without introducing a blanket shell restriction or a Serena-specific duplicate policy engine.
+
+**Recommended disposition:** Approve subject to the activation conditions above.
+
+**Operator Comments:**
+
+Approval is conditional on use of the revised exact command resolver, preservation of Serena command semantics, and removal of any assumption that dry-run status alone proves no network access.
+
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 
@@ -252,7 +304,7 @@ Exact provider delete targets inside `C:\Projects` are moved intact to quarantin
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-02 — Known delete command with explicit operands
 
@@ -268,7 +320,13 @@ Known delete commands contribute delete effects only when explicit operands are 
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator Comments:**
+
+The resolver can determine exact literal delete paths, but middleware rejects all terminal delete commands because only direct provider delete tools are transformed. This is safe but unnecessarily removes capability.
+
+Transform simple, exact terminal delete forms directly into quarantine. Continue rejecting wildcards, expressions, pipelines, recursive dynamic selections, command substitutions, unresolved variables, and other cases where the complete target set is not proven.
+
+**Operator decision:** [] Approve  [x] Revise  [ ] Reject
 
 ## HR3-03 — Destructive `git clean`
 
@@ -284,7 +342,7 @@ Dry-run forms are not blocked. A forced non-dry-run `git clean` proves permanent
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-04 — Delete target outside `C:\Projects`
 
@@ -300,7 +358,7 @@ Deleting an external directory entry is a write outside the approved boundary. E
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-05 — Delete the `C:\Projects` boundary itself
 
@@ -316,7 +374,7 @@ The project boundary cannot be moved beneath a quarantine directory located insi
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-06 — Safe quarantine cannot be completed
 
@@ -332,29 +390,43 @@ Permanent deletion is never forwarded as fallback.
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 
 ## HR3-07 — Serena whole-memory-file deletion
 
-**Implementation:** Proposed quarantine mapping; production implementation pending operator approval.
+**Implementation:** Approved conditionally; production activation requires pinned-contract completeness evidence.
 
-At the candidate Serena `1.6.1` contract, `delete_memory` requests deletion of one complete memory file. The adapter will resolve the effective memory file from the active project, memory name, `SERENA_HOME`, and configured Serena project-data location. The provider delete operation is not forwarded when the exact file target is resolved.
+At the candidate Serena `1.6.1` contract, `delete_memory` requests deletion of one complete memory artifact. Before activation, the adapter must prove the complete deleted artifact set, including any manifest, catalogue, metadata, index, or related state changed by the provider operation. The adapter resolves exact paths from the active project, memory name, configured Serena home, and configured project-data roots.
 
-**Hard-rule condition:** `delete_memory` resolves one exact existing memory file inside `C:\Projects` and requests permanent removal of that complete artifact.
+**Hard-rule condition:** `delete_memory` resolves one exact, complete, known artifact set inside `C:\Projects` and requests permanent removal of those artifacts.
 
-**Result:** Move the memory file intact into kis-mcp quarantine and record restoration metadata. If the exact target is outside `C:\Projects`, apply HR-001. If the target cannot be resolved exactly or safe quarantine cannot complete, return the applicable structural error or `HR-003_QUARANTINE_FAILED`; never forward permanent deletion as fallback.
+**Result:** Move every proven artifact in the complete set intact through one transactional `QuarantineService.quarantine_many(...)` batch and record the returned restoration metadata. Do not call Serena's delete operation after quarantine. If any resolved target is outside `C:\Projects`, apply HR-001 and do not import it into quarantine. If the complete set cannot be proven exactly, aliases are ambiguous, traversal or wildcards are present, or safe quarantine cannot complete, return the applicable structural error or `HR-003_QUARANTINE_FAILED`; never forward permanent deletion as fallback.
 
-**Not included:** `delete_lines`, `safe_delete_symbol`, `jet_brains_safe_delete`, replacements, and refactorings that alter content within a retained source file are treated as content writes under HR-001, not whole-artifact deletion. A later pinned Serena contract that can delete a complete file or directory requires a new or revised approved mapping before activation.
+**Global-memory condition:** Global Serena memory is covered only when its exact configured storage path is beneath `C:\Projects`. An outside global-memory artifact is rejected under HR-001 and is never moved into local quarantine.
 
-**Evidence/tests required before activation:** Exact `delete_memory` schema fixture; project and global memory-path resolution; traversal and alias rejection; exact quarantine and restore tests; outside-boundary tests; missing-target and quarantine-failure tests; counterexamples proving partial code deletion remains an ordinary in-boundary write.
+**Not included:** `delete_lines`, `safe_delete_symbol`, `jet_brains_safe_delete`, replacements, and refactorings that alter content within a retained source file are content writes under HR-001, not whole-artifact deletion. A later pinned contract that deletes another complete file or directory requires a revised approved mapping before activation.
 
-**Reason approval is required:** This mapping converts a new provider-specific whole-file delete contract into the existing recoverable quarantine behavior while avoiding an overbroad interpretation of every code-removal operation as HR-003.
+**Activation conditions:**
 
-**Recommended disposition:** Approve.
+1. Pinned-contract evidence establishes the complete artifact set deleted or modified by `delete_memory`.
+2. Tests cover all related metadata, index, catalogue, and consistency effects.
+3. Serena's provider delete operation is never called after successful quarantine.
+4. Resolution is exact and rejects wildcard, traversal, ambiguous aliases, and unknown artifact sets.
+5. Quarantine, restore, and subsequent Serena behavior are tested for stale or regenerated metadata.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Evidence/tests required before activation:** Exact `delete_memory` schema and source fixture; project and permitted global memory resolution; full artifact-set enumeration; traversal, wildcard, and alias rejection; no-provider-delete assertion; exact quarantine and restore; outside-boundary rejection; quarantine failure; post-quarantine readiness and stale-metadata behavior; counterexamples proving partial code deletion remains an ordinary content write.
+
+**Reason approval is required:** This maps one provider-specific whole-artifact deletion to recoverable quarantine while requiring proof that skipping the provider operation does not leave an unknown deletion set or untested consistency effects.
+
+**Recommended disposition:** Approve subject to the activation conditions above.
+
+**Operator Comments:**
+
+Approval is conditional on pinned-contract proof of the complete deleted artifact set, tests for metadata and index effects, no provider delete call after quarantine, and exact non-ambiguous path resolution.
+
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 

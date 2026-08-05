@@ -2,10 +2,20 @@
 
 - [x] Create and register the isolated change worktree.
 - [x] Confirm no active path-claim overlap.
-- [x] Inspect the existing approved hard-block register.
-- [x] Verify official Context7 and Serena tool surfaces.
+- [x] Inspect the existing hard-block approval register.
+- [x] Verify the Context7 and Serena candidate tool surfaces.
 - [x] Add HR1-07, HR2-06, and HR3-07 to the existing register.
-- [ ] Obtain operator decisions on those entries.
-- [ ] Implement Context7 adapter after approval.
-- [ ] Implement Serena adapter after approval.
-- [ ] Verify, review, commit, push, and raise a PR.
+- [x] Record the operator review outcome: HR1-07 revise; HR2-06 and HR3-07 conditionally approve.
+- [x] Narrow HR1-07 to invocation-controlled mutations and separate provider-managed storage invariants.
+- [x] Add HR2-06 resolver-semantic and dry-run conditions.
+- [x] Add HR3-07 complete-artifact, metadata, quarantine, and consistency conditions.
+- [ ] Obtain final operator approval for the revised HR1-07 wording.
+- [x] Commit the revised approval gate and implementation plan.
+- [ ] Freeze pinned Context7 and Serena upstream contracts.
+- [ ] Implement the independent Context7 adapter.
+- [ ] Implement Serena bootstrap and provider-managed storage readiness.
+- [ ] Implement HR1-07 only after final approval.
+- [ ] Activate HR2-06 only after the corrected shared resolver is present and verified.
+- [ ] Activate HR3-07 only after complete artifact-set evidence and consistency tests.
+- [ ] Register both adapters independently.
+- [ ] Verify, review, raise a PR, merge only if safe, and clean the worktree.
