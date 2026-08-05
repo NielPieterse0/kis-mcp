@@ -37,7 +37,7 @@ The JSON result includes:
 - aggregate status and line counts;
 - explicit truncation and omission counts.
 
-Refs and paths are validated before Git execution. Option-shaped refs, whitespace, traversal-like refs, and ambiguous paths are rejected structurally.
+Refs and paths are validated before Git execution. Option-shaped refs, whitespace, traversal-like refs, and ambiguous paths are rejected structurally. Git stdout and stderr are drained incrementally under one combined byte cap, and each command has a 30-second timeout; large output is never fully buffered before rejection.
 
 ### PR readiness
 

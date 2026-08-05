@@ -6,14 +6,16 @@ import json
 import re
 import subprocess
 import sys
+import threading
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, BinaryIO, Sequence
 
 
 SCHEMA_VERSION = 1
 DEFAULT_MAX_FILES = 1_000
 DEFAULT_MAX_OUTPUT_BYTES = 1_000_000
 _REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@{}+:-]*$")
+_CHANGE_ID_PATTERN = re.compile(r"^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 class GitWorkflowError(ValueError):
@@ -48,10 +50,20 @@ def _load_change_governance():
 
 def _repository_root(value: Path | str) -> Path:
     candidate = Path(value).resolve()
+    if not candidate.is_dir():
+        raise GitWorkflowError(
+            "GIT_REPOSITORY_INVALID",
+            "The repository path does not identify an existing directory.",
+            field="repository",
+        )
     result = _run_git(candidate, "rev-parse", "--show-toplevel", check=False)
     if result.returncode != 0:
-        raise GitWorkflowError("GIT_REPOSITORY_INVALID", "The repository path is not a Git worktree.", field="repository")
-    return Path(result.stdout.decode("utf-8", errors="replace").strip()).resolve()
+        raise GitWorkflowError(
+            "GIT_REPOSITORY_INVALID",
+            "The repository path is not a Git worktree.",
+            field="repository",
+        )
+    return Path(_decode(result.stdout).strip()).resolve()
 
 
 def _validate_ref(repository: Path, value: str, field: str) -> str:
@@ -83,8 +95,24 @@ def _validate_path(value: str | None) -> str | None:
         or re.match(r"^[A-Za-z]:/", normalized)
         or any(part in {"", ".", ".."} for part in normalized.split("/"))
     ):
-        raise GitWorkflowError("GIT_PATH_INVALID", "Path filters must be unambiguous repository-relative paths.", field="path")
+        raise GitWorkflowError(
+            "GIT_PATH_INVALID",
+            "Path filters must be unambiguous repository-relative paths.",
+            field="path",
+        )
     return normalized
+
+
+def _validate_change_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    if not _CHANGE_ID_PATTERN.fullmatch(value):
+        raise GitWorkflowError(
+            "CHANGE_ID_INVALID",
+            "change_id must use NNN-kebab-case form.",
+            field="change_id",
+        )
+    return value
 
 
 def _run_git(
@@ -92,21 +120,75 @@ def _run_git(
     *args: str,
     check: bool = True,
     max_output_bytes: int = DEFAULT_MAX_OUTPUT_BYTES,
+    timeout_seconds: float = 30.0,
 ) -> subprocess.CompletedProcess[bytes]:
-    completed = subprocess.run(
-        ["git", "--no-pager", *args],
-        cwd=repository,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        check=False,
-    )
-    if len(completed.stdout) > max_output_bytes or len(completed.stderr) > max_output_bytes:
+    command = ["git", "--no-pager", *args]
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=repository,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        raise GitWorkflowError(
+            "GIT_EXECUTION_FAILED",
+            f"Git could not be started: {exc}",
+        ) from exc
+    if process.stdout is None or process.stderr is None:
+        process.kill()
+        raise GitWorkflowError("GIT_EXECUTION_FAILED", "Git output streams were unavailable.")
+
+    stdout = bytearray()
+    stderr = bytearray()
+    state = {"overflow": False, "captured": 0}
+    lock = threading.Lock()
+
+    def drain(stream: BinaryIO, target: bytearray) -> None:
+        while True:
+            chunk = stream.read(65_536)
+            if not chunk:
+                break
+            with lock:
+                remaining = max_output_bytes - int(state["captured"])
+                accepted = min(len(chunk), max(0, remaining))
+                if accepted:
+                    target.extend(chunk[:accepted])
+                    state["captured"] = int(state["captured"]) + accepted
+                if accepted < len(chunk):
+                    state["overflow"] = True
+
+    stdout_thread = threading.Thread(target=drain, args=(process.stdout, stdout), daemon=True)
+    stderr_thread = threading.Thread(target=drain, args=(process.stderr, stderr), daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+    try:
+        returncode = process.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        process.wait()
+        stdout_thread.join()
+        stderr_thread.join()
+        raise GitWorkflowError(
+            "GIT_TIMEOUT",
+            f"Git command exceeded {timeout_seconds:g} seconds.",
+        ) from exc
+    stdout_thread.join()
+    stderr_thread.join()
+    if state["overflow"]:
         raise GitWorkflowError(
             "GIT_OUTPUT_LIMIT_EXCEEDED",
             f"Git output exceeded {max_output_bytes} bytes.",
         )
+    completed = subprocess.CompletedProcess(
+        command,
+        returncode,
+        bytes(stdout),
+        bytes(stderr),
+    )
     if check and completed.returncode != 0:
-        detail = completed.stderr.decode("utf-8", errors="replace").strip()
+        detail = _decode(completed.stderr).strip()
         raise GitWorkflowError("GIT_COMMAND_FAILED", detail or "Git command failed.")
     return completed
 
@@ -366,12 +448,45 @@ def _long_path_risk(path: Path, *, limit: int = 240, max_entries: int = 2_000) -
     return False
 
 
+def _primary_worktree(repository: Path) -> Path:
+    common_dir = _decode(
+        _run_git(
+            repository,
+            "rev-parse",
+            "--path-format=absolute",
+            "--git-common-dir",
+        ).stdout
+    ).strip()
+    path = Path(common_dir).resolve()
+    if path.name.casefold() != ".git" or not path.is_dir():
+        raise GitWorkflowError(
+            "GIT_COMMON_DIR_INVALID",
+            "Git did not resolve a normal primary worktree common directory.",
+        )
+    return path.parent
+
+
 def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> dict[str, Any]:
     root = _repository_root(repository)
+    change_id = _validate_change_id(change_id)
     governance = _load_change_governance()
-    claims = {claim.branch: claim for claim in governance.load_worktree_claims(root)}
+    try:
+        claims = {
+            claim.branch: claim
+            for claim in governance.load_worktree_claims(root)
+        }
+        entries = governance.discover_worktrees(root)
+        primary = _primary_worktree(root)
+    except governance.ClaimError as exc:
+        raise GitWorkflowError(
+            "CHANGE_GOVERNANCE_INVALID",
+            str(exc),
+        ) from exc
+
     records: list[dict[str, Any]] = []
-    for entry in governance.discover_worktrees(root)[1:]:
+    for entry in entries:
+        if entry.path.resolve() == primary:
+            continue
         if not entry.branch or not entry.branch.startswith("change/"):
             continue
         current_id = entry.branch.removeprefix("change/")
@@ -385,7 +500,7 @@ def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> 
             merged = False
         else:
             base = claim.base
-            merged = governance._run_git(
+            merged = _run_git(
                 root,
                 "merge-base",
                 "--is-ancestor",
@@ -395,15 +510,21 @@ def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> 
             ).returncode == 0
             if not merged:
                 blockers.append("CHANGE_BRANCH_UNMERGED")
-        status = governance._run_git(
+
+        status_result = _run_git(
             entry.path,
             "status",
             "--porcelain",
             "--untracked-files=all",
-        ).stdout
-        clean = not status.strip()
-        if not clean:
-            blockers.append("WORKTREE_DIRTY")
+            check=False,
+        )
+        if status_result.returncode != 0:
+            clean = False
+            blockers.append("WORKTREE_STATUS_UNAVAILABLE")
+        else:
+            clean = not _decode(status_result.stdout).strip()
+            if not clean:
+                blockers.append("WORKTREE_DIRTY")
         records.append(
             {
                 "change_id": current_id,
