@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "029-discover-impact-graph",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/029-discover-impact-graph",
   "worktree": ".work/worktrees/029-discover-impact-graph",
   "base": "main",

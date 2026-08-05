@@ -30,9 +30,9 @@
 
 - Branch: `change/029-discover-impact-graph`
 - Worktree: `.work/worktrees/029-discover-impact-graph`
-- Commit: pending publication
-- Pull request: pending publication
-- Cleanup: pending merge
+- Commit: `90c01dd8b10a77b5ee49d3ba740431d4d0466ec6`
+- Pull request: PR `#36`, merged at the exact head using merge commit `8cac70e2bce9ce21f8e57203d07dca90bfbd65b6`
+- Cleanup: completed; the local worktree and branch were removed by the repository workflow
 
 ## Residual items
 
