@@ -29,7 +29,8 @@
 - Branch: `change/031-agent-tooling-bootstrap`
 - Worktree: `.work/worktrees/031-agent-tooling-bootstrap`
 - Commit: current branch HEAD (`feat(tools): bootstrap agentsys and agnix`).
-- Pull request or merge: pending publication; merge is not authorized by this closeout.
+- Pull request: `#38` — `Bootstrap AgentSys and agnix tooling`.
+- Merge: not authorized by this closeout.
 - Cleanup: pending approved merge.
 
 ## Residual items
