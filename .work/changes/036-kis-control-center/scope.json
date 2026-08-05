@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "change_id": "036-kis-control-center",
+  "status": "closed",
+  "branch": "change/036-kis-control-center",
+  "worktree": ".work/worktrees/036-kis-control-center",
+  "base": "main",
+  "outcome": "Add a separate read-only KIS Control Center MCP App without modifying or forking Desktop Commander",
+  "owned_paths": [
+    "src/kis_mcp/control_center/**",
+    "tests/control_center/**",
+    "settings/control-center.settings.json",
+    "contracts/control-center/**",
+    "docs/development/control-center/**",
+    ".work/changes/036-kis-control-center/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/tools/**",
+    "tests/tools/**",
+    "settings/kis-mcp.settings.json",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "policy/**",
+    ".kis-mcp/desktop-commander/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
