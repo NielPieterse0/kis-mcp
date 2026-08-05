@@ -12,6 +12,7 @@ from fastmcp.tools.tool import ToolResult
 from .contracts import PolicyEvaluator, ProviderEffectResolver
 from .models import DecisionKind, PolicyDecision
 from .quarantine import QuarantineError
+from .runtime_observability import RuntimeObservability, get_runtime_observability
 
 
 QuarantinePaths = Callable[[Sequence[str]], Sequence[Mapping[str, Any]]]
@@ -26,10 +27,12 @@ class ThreeRuleMiddleware(Middleware):
         resolver: ProviderEffectResolver,
         policy: PolicyEvaluator,
         quarantine_paths: QuarantinePaths,
+        observability: RuntimeObservability | None = None,
     ) -> None:
         self.resolver = resolver
         self.policy = policy
         self.quarantine_paths = quarantine_paths
+        self.observability = observability or get_runtime_observability()
 
     async def on_list_tools(
         self,
@@ -58,9 +61,17 @@ class ThreeRuleMiddleware(Middleware):
     async def on_call_tool(self, context: MiddlewareContext, call_next: Any) -> Any:
         tool_name = str(context.message.name)
         arguments = dict(context.message.arguments or {})
+        argument_keys = tuple(arguments)
         capabilities = self.resolver.capabilities
         configuration_tool = capabilities.configuration_tool_name
         if tool_name.casefold() in capabilities.network_only_tools:
+            self._record_call(
+                tool_name,
+                argument_keys,
+                decision="unsupported",
+                outcome="rejected",
+                code="UNSUPPORTED_PROVIDER_TOOL",
+            )
             raise ToolError(
                 "UNSUPPORTED_PROVIDER_TOOL: This provider-only network capability is "
                 "not exposed through Work."
@@ -71,6 +82,13 @@ class ThreeRuleMiddleware(Middleware):
                 value.casefold() for value in capabilities.unexposed_config_keys
             }
             if key.casefold() in hidden_keys:
+                self._record_call(
+                    tool_name,
+                    argument_keys,
+                    decision="unsupported",
+                    outcome="rejected",
+                    code="PROVIDER_CONFIGURATION_INVARIANT",
+                )
                 raise ToolError(
                     "PROVIDER_CONFIGURATION_INVARIANT: Desktop Commander command and "
                     "directory restriction fields are gateway-managed and remain empty."
@@ -78,6 +96,13 @@ class ThreeRuleMiddleware(Middleware):
         unsupported = capabilities.unexposed_tool_arguments.get(tool_name.casefold(), ())
         supplied = sorted(set(arguments).intersection(unsupported))
         if supplied:
+            self._record_call(
+                tool_name,
+                argument_keys,
+                decision="unsupported",
+                outcome="rejected",
+                code="UNSUPPORTED_PROVIDER_MODE",
+            )
             raise ToolError(
                 "UNSUPPORTED_PROVIDER_MODE: The following provider-only network "
                 f"arguments are not exposed through Work: {', '.join(supplied)}."
@@ -86,17 +111,48 @@ class ThreeRuleMiddleware(Middleware):
         decision = self.policy.evaluate(effects)
 
         if decision.kind is DecisionKind.ALLOW:
-            result = await call_next(context)
+            try:
+                result = await call_next(context)
+            except Exception:
+                self._record_call(
+                    tool_name,
+                    argument_keys,
+                    decision=decision.kind.value,
+                    outcome="error",
+                    code=decision.code,
+                )
+                raise
             observer = getattr(self.resolver, "observe_success", None)
             if callable(observer):
                 observer(tool_name, arguments, result)
+            self._record_call(
+                tool_name,
+                argument_keys,
+                decision=decision.kind.value,
+                outcome="success",
+                code=decision.code,
+            )
             return result
 
         if decision.kind is DecisionKind.BLOCK:
+            self._record_call(
+                tool_name,
+                argument_keys,
+                decision=decision.kind.value,
+                outcome="rejected",
+                code=decision.code,
+            )
             raise ToolError(self._error_message(decision))
 
         if decision.kind is DecisionKind.QUARANTINE:
             if tool_name.casefold() not in capabilities.direct_delete_tools:
+                self._record_call(
+                    tool_name,
+                    argument_keys,
+                    decision=decision.kind.value,
+                    outcome="rejected",
+                    code="HR-003_QUARANTINE_REQUIRED",
+                )
                 raise ToolError(
                     "HR-003_QUARANTINE_REQUIRED: The command explicitly requests "
                     "permanent deletion. Use a filesystem delete tool or "
@@ -106,15 +162,46 @@ class ThreeRuleMiddleware(Middleware):
             try:
                 records = list(self.quarantine_paths(decision.paths))
             except QuarantineError as exc:
+                self._record_call(
+                    tool_name,
+                    argument_keys,
+                    decision=decision.kind.value,
+                    outcome="error",
+                    code="HR-003_QUARANTINE_FAILED",
+                )
                 raise ToolError(f"HR-003_QUARANTINE_FAILED: {exc}") from exc
             payload = {"quarantined": records}
             rendered = json.dumps(payload, indent=2, sort_keys=True)
+            self._record_call(
+                tool_name,
+                argument_keys,
+                decision=decision.kind.value,
+                outcome="success",
+                code=decision.code,
+            )
             return ToolResult(
                 content=rendered,
                 structured_content={"result": rendered},
             )
 
         raise RuntimeError(f"Unexpected policy decision: {decision.kind}")
+
+    def _record_call(
+        self,
+        tool_name: str,
+        argument_keys: Sequence[str],
+        *,
+        decision: str,
+        outcome: str,
+        code: str | None,
+    ) -> None:
+        self.observability.record_tool_call(
+            tool_name=tool_name,
+            argument_keys=tuple(argument_keys),
+            decision=decision,
+            outcome=outcome,
+            code=code,
+        )
 
     @staticmethod
     def _without_arguments(tool: Any, hidden: Sequence[str]) -> Any:

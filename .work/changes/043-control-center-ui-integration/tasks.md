@@ -5,8 +5,8 @@
 - [x] Create isolated worktree and branch from clean `main`.
 - [x] Register bounded scope, specification, and implementation plan before production edits.
 - [x] Validate active change governance and establish focused baseline.
-- [ ] Commit governance artifacts.
-- [ ] Task 2: bounded process-local observability.
+- [x] Commit governance artifacts.
+- [x] Task 2: bounded process-local observability.
 - [ ] Task 3: provider composition publication and enriched local evidence.
 - [ ] Task 4: complete host-themed dashboard.
 - [ ] Task 5: mounted local provider integration.
