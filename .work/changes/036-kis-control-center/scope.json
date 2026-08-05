@@ -4,7 +4,7 @@
   "status": "closed",
   "branch": "change/036-kis-control-center",
   "worktree": ".work/worktrees/036-kis-control-center",
-  "base": "main",
+  "base": "origin/main",
   "outcome": "Add a separate read-only KIS Control Center MCP App without modifying or forking Desktop Commander",
   "owned_paths": [
     "src/kis_mcp/control_center/**",
