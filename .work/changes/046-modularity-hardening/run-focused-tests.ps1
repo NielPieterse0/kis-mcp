@@ -1,14 +1,20 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$RepositoryRoot = 'C:\Projects\kis-mcp\.work\worktrees\046-modularity-hardening'
+$RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $Python = 'C:\Projects\.kis-mcp\python-env\Scripts\python.exe'
 
 Push-Location $RepositoryRoot
 try {
     & $Python -m pytest `
-        tests/providers/github/test_registry.py `
-        'tests/architecture/test_modularity_boundaries.py::test_root_provider_registry_alias_is_retired' `
+        tests/providers/nvidia `
+        tests/providers/test_platform_composition.py `
+        tests/tools/codex_cli `
+        tests/workflows/code_review `
+        tests/control_center `
+        tests/providers/github `
+        tests/providers/supabase `
+        tests/architecture `
         -q
     exit $LASTEXITCODE
 }

@@ -35,22 +35,30 @@ def _read_json(
     schema_version: int = 1,
 ) -> dict[str, Any] | None:
     try:
-        size = path.stat().st_size
-    except OSError:
-        diagnostics.append(Diagnostic(unavailable_code, f"Unable to read {path.name}."))
+        with path.open("rb") as handle:
+            payload = handle.read(settings.max_json_bytes + 1)
+    except OSError as exc:
+        diagnostics.append(
+            Diagnostic(unavailable_code, f"{path}: {type(exc).__name__}")
+        )
         return None
-    if size > settings.max_json_bytes:
+    if len(payload) > settings.max_json_bytes:
         diagnostics.append(
             Diagnostic(
                 f"{invalid_code}_LIMIT_EXCEEDED",
-                f"Refused {path.name} because it exceeds the configured byte limit.",
+                (
+                    f"{path}: JSON input exceeds the configured "
+                    f"{settings.max_json_bytes}-byte limit"
+                ),
             )
         )
         return None
     try:
-        value: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        diagnostics.append(Diagnostic(invalid_code, f"Invalid JSON in {path.name}."))
+        value: Any = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        diagnostics.append(
+            Diagnostic(invalid_code, f"{path}: {type(exc).__name__}")
+        )
         return None
     if not isinstance(value, dict):
         diagnostics.append(Diagnostic(invalid_code, f"Expected an object in {path.name}."))
@@ -107,7 +115,7 @@ class RuntimeStatusReader:
             installed = entry.is_file()
         return RuntimeSummary(
             status="available",
-            product=_nested_string(runtime, "product", "name", default="kis-mcp"),
+            product=_nested_string(runtime, "product", "name", default="unknown"),
             server=_nested_string(runtime, "fastmcp", "server_name", default="unknown"),
             desktop_commander_version=_nested_string(
                 runtime, "desktop_commander", "version", default="unknown"
@@ -118,12 +126,21 @@ class RuntimeStatusReader:
 
     @staticmethod
     def _desktop_commander_entry(desktop: dict[str, Any]) -> Path | None:
-        raw = desktop.get("entry_point")
         launch = desktop.get("launch")
+        if isinstance(launch, dict):
+            args = launch.get("args")
+            if (
+                isinstance(args, list)
+                and args
+                and isinstance(args[0], str)
+                and args[0]
+            ):
+                return Path(args[0])
+        entry = desktop.get("entry_point")
         cwd = launch.get("cwd") if isinstance(launch, dict) else None
-        if not isinstance(raw, str) or not raw or not isinstance(cwd, str) or not cwd:
-            return None
-        return Path(cwd) / Path(raw)
+        if isinstance(entry, str) and entry and isinstance(cwd, str) and cwd:
+            return Path(cwd) / entry
+        return None
 
 
 class PolicyStatusReader:
@@ -142,30 +159,41 @@ class PolicyStatusReader:
             return PolicySummary(status="unavailable", closed_rule_set=False, rules=())
         raw_rules = policy.get("rules")
         if not isinstance(raw_rules, list):
-            diagnostics.append(Diagnostic("CONTROL_CENTER_POLICY_INVALID", "Policy rules are unavailable."))
+            diagnostics.append(
+                Diagnostic(
+                    "CONTROL_CENTER_POLICY_INVALID",
+                    "Policy rules must be an array.",
+                )
+            )
             return PolicySummary(status="invalid", closed_rule_set=False, rules=())
         rules: list[PolicyRuleSummary] = []
         for raw in raw_rules:
-            if not isinstance(raw, dict):
-                continue
-            rule_id = raw.get("id")
-            name = raw.get("name")
-            prohibited = raw.get("prohibited_outcome")
-            decision = raw.get("decision")
-            if not all(isinstance(value, str) for value in (rule_id, name, prohibited, decision)):
+            if not isinstance(raw, dict) or not isinstance(raw.get("id"), str):
                 continue
             rules.append(
                 PolicyRuleSummary(
-                    rule_id=rule_id,
-                    name=name,
-                    prohibited_outcome=prohibited,
-                    decision=decision,
+                    rule_id=raw["id"],
+                    name=str(raw.get("name", "unknown")),
+                    prohibited_outcome=str(
+                        raw.get("prohibited_outcome", "unknown")
+                    ),
+                    decision=str(raw.get("decision", "unknown")),
                 )
             )
-        rule_ids = tuple(rule.rule_id for rule in rules)
+        closed = tuple(rule.rule_id for rule in rules) == _EXPECTED_RULE_IDS
+        if not closed:
+            diagnostics.append(
+                Diagnostic(
+                    "CONTROL_CENTER_POLICY_RULE_SET_MISMATCH",
+                    (
+                        "Policy does not contain exactly HR-001, HR-002, and HR-003 "
+                        "in canonical order."
+                    ),
+                )
+            )
         return PolicySummary(
-            status="available",
-            closed_rule_set=rule_ids == _EXPECTED_RULE_IDS,
+            status="available" if rules else "invalid",
+            closed_rule_set=closed,
             rules=tuple(rules),
         )
 
@@ -192,27 +220,21 @@ class ProviderStatusReader:
             return ()
         providers: list[ProviderSummary] = []
         for raw in raw_providers[: self.settings.max_provider_entries]:
-            if not isinstance(raw, dict):
-                continue
-            provider_id = raw.get("provider_id")
-            namespace = raw.get("namespace")
-            enabled = raw.get("enabled")
-            if not isinstance(provider_id, str) or not isinstance(namespace, str) or type(enabled) is not bool:
+            if not isinstance(raw, dict) or not isinstance(raw.get("provider_id"), str):
                 continue
             providers.append(
                 ProviderSummary(
-                    provider_id=provider_id,
-                    namespace=namespace,
-                    enabled=enabled,
-                    readiness="runtime_check_required" if enabled else "disabled",
+                    provider_id=raw["provider_id"],
+                    namespace=str(raw.get("namespace", "unknown")),
+                    enabled=raw.get("enabled") is True,
+                    readiness="runtime_check_required",
                     action=(
-                        "Authenticate or verify provider readiness before live use."
-                        if enabled
-                        else "Enable in provider runtime settings to expose this provider."
+                        "Use kis_provider_status for current build, mount, authentication, "
+                        "and commissioning evidence."
                     ),
                 )
             )
-        return tuple(sorted(providers, key=lambda item: item.provider_id))
+        return tuple(providers)
 
 
 class QuarantineStatusReader:
@@ -342,39 +364,79 @@ class GitStatusReader:
         self.settings = settings
 
     def read(self) -> GitSummary:
-        command = ["git", "status", "--short", "--branch", "--untracked-files=all"]
-        environment = os.environ.copy()
-        for key in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY"):
+        project_path = self.settings.project_path
+        if not project_path.is_dir():
+            return GitSummary(
+                status="path_unavailable",
+                branch=None,
+                dirty=None,
+                changed_files=None,
+                detail="Configured project path is not an available directory.",
+            )
+        environment = dict(os.environ)
+        for key in (
+            "GIT_DIR",
+            "GIT_WORK_TREE",
+            "GIT_INDEX_FILE",
+            "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        ):
             environment.pop(key, None)
+        environment.update(
+            {
+                "GIT_TERMINAL_PROMPT": "0",
+                "GIT_OPTIONAL_LOCKS": "0",
+                "GIT_CEILING_DIRECTORIES": str(project_path.parent),
+            }
+        )
         try:
             completed = subprocess.run(
-                command,
-                cwd=self.settings.project_path,
-                env=environment,
+                [
+                    "git",
+                    "-C",
+                    str(project_path),
+                    "status",
+                    "--short",
+                    "--branch",
+                    "--untracked-files=normal",
+                ],
+                check=False,
                 capture_output=True,
                 text=True,
                 timeout=self.settings.git_timeout_seconds,
-                check=False,
+                env=environment,
             )
-        except FileNotFoundError:
-            return GitSummary("unavailable", None, None, None, "git executable not found")
-        except subprocess.TimeoutExpired:
-            return GitSummary("timeout", None, None, None, "git status timed out")
-        except OSError:
-            return GitSummary("unavailable", None, None, None, "git status failed to start")
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return GitSummary(
+                status="unavailable",
+                branch=None,
+                dirty=None,
+                changed_files=None,
+                detail=f"Local Git status is unavailable: {type(exc).__name__}.",
+            )
         if completed.returncode != 0:
-            detail = "not a Git repository" if "not a git repository" in completed.stderr.lower() else "git status failed"
-            status = "not_repository" if detail == "not a Git repository" else "error"
-            return GitSummary(status, None, None, None, detail)
+            detail = (completed.stderr or completed.stdout).strip()
+            status = (
+                "not_repository"
+                if "not a git repository" in detail.casefold()
+                else "unavailable"
+            )
+            return GitSummary(
+                status=status,
+                branch=None,
+                dirty=None,
+                changed_files=None,
+                detail=detail or "Local Git status returned a non-zero exit code.",
+            )
         lines = completed.stdout.splitlines()
-        branch = self._parse_branch(lines[0]) if lines and lines[0].startswith("##") else None
-        changed = sum(1 for line in lines if not line.startswith("##"))
+        header = lines[0] if lines and lines[0].startswith("## ") else ""
+        changes = lines[1:] if header else lines
         return GitSummary(
             status="available",
-            branch=branch,
-            dirty=changed > 0,
-            changed_files=changed,
-            detail="Git status available.",
+            branch=self._parse_branch(header),
+            dirty=bool(changes),
+            changed_files=len(changes),
+            detail="Local fixed-template Git status collected without remote access.",
         )
 
     @staticmethod

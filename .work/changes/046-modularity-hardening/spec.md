@@ -79,7 +79,7 @@ Current evidence on `main` at `cd19e86`:
 Add architecture tests that fail when:
 
 - provider or tool packages import the code-review workflow;
-- provider packages import the application server;
+- provider smoke modules import the application server;
 - the retired root provider registry module returns;
 - Control Center snapshot code directly reads the canonical runtime, policy, provider, or quarantine JSON layouts.
 
