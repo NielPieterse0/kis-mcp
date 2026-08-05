@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": "029-discover-impact-graph",
+  "status": "closed",
+  "branch": "change/029-discover-impact-graph",
+  "worktree": ".work/worktrees/029-discover-impact-graph",
+  "base": "main",
+  "outcome": "Add bounded changed-symbol dependant test and verification impact evidence",
+  "owned_paths": [
+    "src/kis_mcp/discover/impact_contracts.py",
+    "src/kis_mcp/discover/impact_graph.py",
+    "contracts/discover/inspect-impact-request.schema.json",
+    "contracts/discover/inspect-impact-response.schema.json",
+    "tests/discover/test_impact_contracts.py",
+    "tests/discover/test_impact_graph.py",
+    "tests/discover/test_impact_determinism.py",
+    ".work/changes/029-discover-impact-graph/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "025-stateful-remote-http",
-  "status": "active",
+  "status": "closed",
   "branch": "change/025-stateful-remote-http",
   "worktree": ".work/worktrees/025-stateful-remote-http",
   "base": "main",

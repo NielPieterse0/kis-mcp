@@ -74,16 +74,38 @@ def _inventory(*, truncated: bool = False) -> LocalChangeInventory:
     )
 
 
-def test_request_accepts_only_working_tree_source() -> None:
+def test_request_validates_supported_target_shapes() -> None:
     request = InspectChangeRequest(path=r"C:\Projects\example")
 
     assert request.path == r"C:\Projects\example"
     assert request.source == "working_tree"
 
+    commit = InspectChangeRequest(
+        path=r"C:\Projects\example",
+        source="commit",
+        commit_ref="a" * 40,
+    )
+    assert commit.commit_ref == "a" * 40
+
+    comparison = InspectChangeRequest(
+        path=r"C:\Projects\example",
+        source="range",
+        base_ref="main",
+        head_ref="feature/discover",
+    )
+    assert comparison.base_ref == "main"
+    assert comparison.head_ref == "feature/discover"
+
     with pytest.raises(ValueError, match="non-empty"):
         InspectChangeRequest(path="  ")
-    with pytest.raises(ValueError, match="working_tree"):
+    with pytest.raises(ValueError, match="commit_ref"):
         InspectChangeRequest(path=r"C:\Projects\example", source="commit")
+    with pytest.raises(ValueError, match="option-like"):
+        InspectChangeRequest(
+            path=r"C:\Projects\example",
+            source="commit",
+            commit_ref="--output=outside",
+        )
 
 
 def test_response_serializes_exact_versioned_contract() -> None:
@@ -246,7 +268,14 @@ def test_service_projects_inventory_into_deterministic_impact() -> None:
     assert [item.code for item in first.unknowns] == [
         "CHANGE_DEPENDANT_IMPACT_UNAVAILABLE",
         "CHANGE_SYMBOL_IMPACT_UNAVAILABLE",
-        "CHANGE_VERIFICATION_MAPPING_UNAVAILABLE",
+    ]
+    assert [item.verification_id for item in first.verification_handoffs] == [
+        "verification.source",
+        "verification.tests",
+        "verification.contracts",
+        "verification.configuration",
+        "verification.policy",
+        "verification.documentation",
     ]
     assert first.confidence == "high"
     assert first.truncated is False

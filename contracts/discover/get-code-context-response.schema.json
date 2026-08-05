@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/get-code-context-response.schema.json",
+  "title": "Discover get code context response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "project",
+    "task",
+    "budget",
+    "task_terms",
+    "files",
+    "modules",
+    "symbols",
+    "relationships",
+    "instructions",
+    "tests",
+    "contracts",
+    "git",
+    "providers",
+    "unknowns",
+    "omissions",
+    "confidence",
+    "truncated",
+    "truncation_reasons",
+    "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "get_code_context"},
+    "project": {"$ref": "#/$defs/project"},
+    "task": {"type": "string", "minLength": 1},
+    "budget": {"$ref": "#/$defs/budget"},
+    "task_terms": {"$ref": "#/$defs/string_list"},
+    "files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/file"}
+    },
+    "modules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/module"}
+    },
+    "symbols": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/symbol"}
+    },
+    "relationships": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/relationship"}
+    },
+    "instructions": {"$ref": "#/$defs/string_list"},
+    "tests": {"$ref": "#/$defs/string_list"},
+    "contracts": {"$ref": "#/$defs/string_list"},
+    "git": {"type": "object"},
+    "providers": {"type": "object"},
+    "unknowns": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/unknown"}
+    },
+    "omissions": {"$ref": "#/$defs/omissions"},
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "truncated": {"type": "boolean"},
+    "truncation_reasons": {"$ref": "#/$defs/string_list"},
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "nullable_string": {"type": ["string", "null"]},
+    "string_list": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_chars", "max_files", "max_symbols", "max_relationships"],
+      "properties": {
+        "max_chars": {"type": "integer", "minimum": 2000},
+        "max_files": {"type": "integer", "minimum": 1},
+        "max_symbols": {"type": "integer", "minimum": 1},
+        "max_relationships": {"type": "integer", "minimum": 1}
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "canonical_path", "repository_root", "git_root", "remote_identity"],
+      "properties": {
+        "project_id": {"type": "string", "minLength": 1},
+        "canonical_path": {"type": "string", "minLength": 1},
+        "repository_root": {"type": "string", "minLength": 1},
+        "git_root": {"$ref": "#/$defs/nullable_string"},
+        "remote_identity": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "provider", "identifier"],
+      "properties": {
+        "kind": {
+          "enum": ["observed", "parser_confirmed", "git_observed", "conventional", "inferred"]
+        },
+        "provider": {"type": "string", "minLength": 1},
+        "identifier": {"type": "string", "minLength": 1}
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "category",
+        "relevance_score",
+        "matched_terms",
+        "excerpt",
+        "start_line",
+        "end_line",
+        "truncated",
+        "provenance"
+      ],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "category": {
+          "enum": ["source", "test", "contract", "instruction", "documentation", "configuration", "policy", "other"]
+        },
+        "relevance_score": {"type": "integer", "minimum": 0},
+        "matched_terms": {"$ref": "#/$defs/string_list"},
+        "excerpt": {"type": "string", "minLength": 1},
+        "start_line": {"type": "integer", "minimum": 1},
+        "end_line": {"type": "integer", "minimum": 1},
+        "truncated": {"type": "boolean"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "path", "relevance_score", "matched_terms", "provenance"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "relevance_score": {"type": "integer", "minimum": 0},
+        "matched_terms": {"$ref": "#/$defs/string_list"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "symbol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "qualified_name",
+        "module",
+        "name",
+        "kind",
+        "path",
+        "line",
+        "end_line",
+        "relevance_score",
+        "matched_terms",
+        "provenance"
+      ],
+      "properties": {
+        "qualified_name": {"type": "string", "minLength": 1},
+        "module": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "end_line": {"type": ["integer", "null"], "minimum": 1},
+        "relevance_score": {"type": "integer", "minimum": 0},
+        "matched_terms": {"$ref": "#/$defs/string_list"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "target",
+        "path",
+        "line",
+        "relevance_score",
+        "confidence",
+        "provenance"
+      ],
+      "properties": {
+        "kind": {"enum": ["import", "call", "inheritance"]},
+        "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1},
+        "relevance_score": {"type": "integer", "minimum": 0},
+        "confidence": {"enum": ["high", "medium", "low"]},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "unknown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "reason"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "omissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "symbols", "relationships", "unreadable_files"],
+      "properties": {
+        "files": {"type": "integer", "minimum": 0},
+        "symbols": {"type": "integer", "minimum": 0},
+        "relationships": {"type": "integer", "minimum": 0},
+        "unreadable_files": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

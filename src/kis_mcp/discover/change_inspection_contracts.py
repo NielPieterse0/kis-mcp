@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -7,6 +8,9 @@ from typing import Any, Mapping
 INSPECT_CHANGE_SCHEMA_VERSION = 1
 INSPECT_CHANGE_TOOL = "inspect_change"
 WORKING_TREE_SOURCE = "working_tree"
+SUPPORTED_CHANGE_SOURCES = frozenset(
+    {WORKING_TREE_SOURCE, "staged", "commit", "range", "branch"}
+)
 
 _CHANGE_STATUSES = {
     "added",
@@ -28,6 +32,7 @@ _CHANGE_CATEGORIES = {
     "other",
 }
 _CONFIDENCE_VALUES = {"high", "medium", "low"}
+_REF_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+\-]*$")
 
 
 def _required_text(value: str, label: str) -> str:
@@ -42,25 +47,95 @@ def _non_negative(value: int, label: str) -> int:
     return value
 
 
+def _validated_ref(value: str | None, label: str) -> str | None:
+    if value is None:
+        return None
+    _required_text(value, label)
+    if len(value) > 255:
+        raise ValueError(f"{label} exceeds 255 characters")
+    if value.startswith("-"):
+        raise ValueError(f"{label} must not be option-like")
+    if not _REF_PATTERN.fullmatch(value):
+        raise ValueError(f"{label} contains unsupported characters")
+    if any(marker in value for marker in ("..", "@{", "//")):
+        raise ValueError(f"{label} contains an unsafe Git ref sequence")
+    if value.startswith(".") or value.endswith((".", "/")):
+        raise ValueError(f"{label} has an invalid Git ref boundary")
+    return value
+
+
+def _validate_target_shape(
+    source: str,
+    *,
+    commit_ref: str | None,
+    base_ref: str | None,
+    head_ref: str | None,
+) -> None:
+    if source not in SUPPORTED_CHANGE_SOURCES:
+        raise ValueError("inspect change source is unsupported")
+    if source in {WORKING_TREE_SOURCE, "staged"}:
+        if any(value is not None for value in (commit_ref, base_ref, head_ref)):
+            raise ValueError(f"{source} source does not accept target refs")
+        return
+    if source == "commit":
+        if commit_ref is None:
+            raise ValueError("commit source requires commit_ref")
+        if base_ref is not None or head_ref is not None:
+            raise ValueError("commit source accepts only commit_ref")
+        return
+    if commit_ref is not None:
+        raise ValueError(f"{source} source does not accept commit_ref")
+    if base_ref is None or head_ref is None:
+        raise ValueError(f"{source} source requires base_ref and head_ref")
+
+
 @dataclass(frozen=True, slots=True)
 class InspectChangeRequest:
     path: str
     source: str = WORKING_TREE_SOURCE
+    commit_ref: str | None = None
+    base_ref: str | None = None
+    head_ref: str | None = None
 
     def __post_init__(self) -> None:
         _required_text(self.path, "inspect change path")
-        if self.source != WORKING_TREE_SOURCE:
-            raise ValueError("inspect change source must be working_tree")
+        _validated_ref(self.commit_ref, "commit_ref")
+        _validated_ref(self.base_ref, "base_ref")
+        _validated_ref(self.head_ref, "head_ref")
+        _validate_target_shape(
+            self.source,
+            commit_ref=self.commit_ref,
+            base_ref=self.base_ref,
+            head_ref=self.head_ref,
+        )
+
+    def to_json_dict(self) -> dict[str, Any]:
+        result: dict[str, Any] = {"path": self.path, "source": self.source}
+        for name in ("commit_ref", "base_ref", "head_ref"):
+            value = getattr(self, name)
+            if value is not None:
+                result[name] = value
+        return result
 
 
 @dataclass(frozen=True, slots=True)
 class ChangeIdentity:
     source: str
     fingerprint: str
+    commit_ref: str | None = None
+    base_ref: str | None = None
+    head_ref: str | None = None
 
     def __post_init__(self) -> None:
-        if self.source != WORKING_TREE_SOURCE:
-            raise ValueError("change identity source must be working_tree")
+        _validated_ref(self.commit_ref, "change commit_ref")
+        _validated_ref(self.base_ref, "change base_ref")
+        _validated_ref(self.head_ref, "change head_ref")
+        _validate_target_shape(
+            self.source,
+            commit_ref=self.commit_ref,
+            base_ref=self.base_ref,
+            head_ref=self.head_ref,
+        )
         if (
             not isinstance(self.fingerprint, str)
             or len(self.fingerprint) != 64
@@ -69,7 +144,12 @@ class ChangeIdentity:
             raise ValueError("change fingerprint must be 64 lowercase hexadecimal characters")
 
     def to_json_dict(self) -> dict[str, str]:
-        return {"source": self.source, "fingerprint": self.fingerprint}
+        result = {"source": self.source, "fingerprint": self.fingerprint}
+        for name in ("commit_ref", "base_ref", "head_ref"):
+            value = getattr(self, name)
+            if value is not None:
+                result[name] = value
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +238,43 @@ class ChangeUnknown:
 
 
 @dataclass(frozen=True, slots=True)
+class ChangeVerificationHandoff:
+    handoff_id: str
+    verification_id: str
+    category: str
+    reason: str
+    paths: tuple[str, ...]
+    target_plane: str = "work"
+    workflow: str = "run_verification"
+
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.handoff_id, "change handoff id"),
+            (self.verification_id, "change verification id"),
+            (self.category, "change verification category"),
+            (self.reason, "change verification reason"),
+            (self.target_plane, "change handoff target plane"),
+            (self.workflow, "change handoff workflow"),
+        ):
+            _required_text(value, label)
+        if self.target_plane != "work" or self.workflow != "run_verification":
+            raise ValueError("change verification handoff target is fixed")
+        if not self.paths or any(not path.strip() for path in self.paths):
+            raise ValueError("change verification handoff paths must be non-empty")
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "handoff_id": self.handoff_id,
+            "target_plane": self.target_plane,
+            "workflow": self.workflow,
+            "verification_id": self.verification_id,
+            "category": self.category,
+            "reason": self.reason,
+            "paths": list(self.paths),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class InspectChangeResponse:
     available: bool
     project_path: str
@@ -175,6 +292,7 @@ class InspectChangeResponse:
     unknowns: tuple[ChangeUnknown, ...]
     confidence: str
     truncated: bool
+    verification_handoffs: tuple[ChangeVerificationHandoff, ...] = ()
     schema_version: int = INSPECT_CHANGE_SCHEMA_VERSION
     tool: str = INSPECT_CHANGE_TOOL
     source: str = WORKING_TREE_SOURCE
@@ -184,8 +302,10 @@ class InspectChangeResponse:
             raise ValueError("inspect_change schema_version must be 1")
         if self.tool != INSPECT_CHANGE_TOOL:
             raise ValueError("inspect_change tool identity is fixed")
-        if self.source != WORKING_TREE_SOURCE:
-            raise ValueError("inspect_change source must be working_tree")
+        if self.source not in SUPPORTED_CHANGE_SOURCES:
+            raise ValueError("inspect_change source is unsupported")
+        if self.source != self.change.source:
+            raise ValueError("inspect_change source must match change identity")
         _required_text(self.project_path, "inspect change project path")
         if self.repository_root is not None:
             _required_text(self.repository_root, "inspect change repository root")
@@ -196,7 +316,7 @@ class InspectChangeResponse:
             _required_text(str(diagnostic.get("message", "")), "diagnostic message")
 
     def to_json_dict(self) -> dict[str, Any]:
-        return {
+        result: dict[str, Any] = {
             "schema_version": self.schema_version,
             "tool": self.tool,
             "source": self.source,
@@ -217,16 +337,23 @@ class InspectChangeResponse:
             "confidence": self.confidence,
             "truncated": self.truncated,
         }
+        if self.verification_handoffs:
+            result["verification_handoffs"] = [
+                item.to_json_dict() for item in self.verification_handoffs
+            ]
+        return result
 
 
 __all__ = [
     "ChangeIdentity",
     "ChangeImpactSummary",
     "ChangeUnknown",
+    "ChangeVerificationHandoff",
     "ChangedFile",
     "INSPECT_CHANGE_SCHEMA_VERSION",
     "INSPECT_CHANGE_TOOL",
     "InspectChangeRequest",
     "InspectChangeResponse",
+    "SUPPORTED_CHANGE_SOURCES",
     "WORKING_TREE_SOURCE",
 ]

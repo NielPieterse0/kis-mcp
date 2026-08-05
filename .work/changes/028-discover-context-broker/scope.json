@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "change_id": "028-discover-context-broker",
+  "status": "closed",
+  "branch": "change/028-discover-context-broker",
+  "worktree": ".work/worktrees/028-discover-context-broker",
+  "base": "main",
+  "outcome": "Add deterministic budgeted task-scoped code context assembly",
+  "owned_paths": [
+    "src/kis_mcp/discover/context_contracts.py",
+    "src/kis_mcp/discover/context_broker.py",
+    "src/kis_mcp/discover/context_ranking.py",
+    "contracts/discover/get-code-context-request.schema.json",
+    "contracts/discover/get-code-context-response.schema.json",
+    "tests/discover/test_context_contracts.py",
+    "tests/discover/test_context_broker.py",
+    "tests/discover/test_context_determinism.py",
+    ".work/changes/028-discover-context-broker/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

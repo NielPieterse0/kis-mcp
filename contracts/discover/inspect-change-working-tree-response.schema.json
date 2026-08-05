@@ -26,46 +26,106 @@
     "truncated"
   ],
   "properties": {
-    "schema_version": {"const": 1},
-    "tool": {"const": "inspect_change"},
-    "source": {"const": "working_tree"},
-    "available": {"type": "boolean"},
-    "project_path": {"type": "string", "minLength": 1},
-    "repository_root": {"type": ["string", "null"]},
-    "change": {"$ref": "#/$defs/change_identity"},
+    "schema_version": {
+      "const": 1
+    },
+    "tool": {
+      "const": "inspect_change"
+    },
+    "source": {
+      "const": "working_tree"
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "project_path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repository_root": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "change": {
+      "$ref": "#/$defs/change_identity"
+    },
     "changed_files": {
       "type": "array",
-      "items": {"$ref": "#/$defs/changed_file"}
+      "items": {
+        "$ref": "#/$defs/changed_file"
+      }
     },
-    "affected_scopes": {"$ref": "#/$defs/path_list"},
-    "changed_tests": {"$ref": "#/$defs/path_list"},
-    "contract_paths": {"$ref": "#/$defs/path_list"},
-    "documentation_paths": {"$ref": "#/$defs/path_list"},
-    "configuration_paths": {"$ref": "#/$defs/path_list"},
-    "policy_paths": {"$ref": "#/$defs/path_list"},
-    "impact_summary": {"$ref": "#/$defs/impact_summary"},
+    "affected_scopes": {
+      "$ref": "#/$defs/path_list"
+    },
+    "changed_tests": {
+      "$ref": "#/$defs/path_list"
+    },
+    "contract_paths": {
+      "$ref": "#/$defs/path_list"
+    },
+    "documentation_paths": {
+      "$ref": "#/$defs/path_list"
+    },
+    "configuration_paths": {
+      "$ref": "#/$defs/path_list"
+    },
+    "policy_paths": {
+      "$ref": "#/$defs/path_list"
+    },
+    "impact_summary": {
+      "$ref": "#/$defs/impact_summary"
+    },
     "diagnostics": {
       "type": "array",
-      "items": {"$ref": "#/$defs/diagnostic"}
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
     },
     "unknowns": {
       "type": "array",
-      "items": {"$ref": "#/$defs/unknown"}
+      "items": {
+        "$ref": "#/$defs/unknown"
+      }
     },
-    "confidence": {"enum": ["high", "medium", "low"]},
-    "truncated": {"type": "boolean"}
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "verification_handoffs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/verification_handoff"
+      }
+    }
   },
   "$defs": {
     "path_list": {
       "type": "array",
-      "items": {"type": "string", "minLength": 1}
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "change_identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source", "fingerprint"],
+      "required": [
+        "source",
+        "fingerprint"
+      ],
       "properties": {
-        "source": {"const": "working_tree"},
+        "source": {
+          "const": "working_tree"
+        },
         "fingerprint": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$"
@@ -86,8 +146,12 @@
     },
     "nullable_status": {
       "oneOf": [
-        {"$ref": "#/$defs/status"},
-        {"type": "null"}
+        {
+          "$ref": "#/$defs/status"
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "changed_file": {
@@ -102,11 +166,25 @@
         "categories"
       ],
       "properties": {
-        "path": {"type": "string", "minLength": 1},
-        "previous_path": {"type": ["string", "null"]},
-        "staged_status": {"$ref": "#/$defs/nullable_status"},
-        "worktree_status": {"$ref": "#/$defs/nullable_status"},
-        "untracked": {"type": "boolean"},
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "previous_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staged_status": {
+          "$ref": "#/$defs/nullable_status"
+        },
+        "worktree_status": {
+          "$ref": "#/$defs/nullable_status"
+        },
+        "untracked": {
+          "type": "boolean"
+        },
         "categories": {
           "type": "array",
           "minItems": 1,
@@ -139,32 +217,120 @@
         "other_files"
       ],
       "properties": {
-        "total_files": {"type": "integer", "minimum": 0},
-        "source_files": {"type": "integer", "minimum": 0},
-        "test_files": {"type": "integer", "minimum": 0},
-        "contract_files": {"type": "integer", "minimum": 0},
-        "documentation_files": {"type": "integer", "minimum": 0},
-        "configuration_files": {"type": "integer", "minimum": 0},
-        "policy_files": {"type": "integer", "minimum": 0},
-        "other_files": {"type": "integer", "minimum": 0}
+        "total_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "test_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contract_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "documentation_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "configuration_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "policy_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "other_files": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "diagnostic": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
-        "code": {"type": "string", "minLength": 1},
-        "message": {"type": "string", "minLength": 1}
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "unknown": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "reason"],
+      "required": [
+        "code",
+        "reason"
+      ],
       "properties": {
-        "code": {"type": "string", "minLength": 1},
-        "reason": {"type": "string", "minLength": 1}
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "verification_handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handoff_id",
+        "target_plane",
+        "workflow",
+        "verification_id",
+        "category",
+        "reason",
+        "paths"
+      ],
+      "properties": {
+        "handoff_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_plane": {
+          "const": "work"
+        },
+        "workflow": {
+          "const": "run_verification"
+        },
+        "verification_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "source",
+            "test",
+            "contract",
+            "documentation",
+            "configuration",
+            "policy"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "paths": {
+          "$ref": "#/$defs/path_list"
+        }
       }
     }
   }

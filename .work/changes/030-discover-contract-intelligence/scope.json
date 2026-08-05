@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": "030-discover-contract-intelligence",
+  "status": "closed",
+  "branch": "change/030-discover-contract-intelligence",
+  "worktree": ".work/worktrees/030-discover-contract-intelligence",
+  "base": "main",
+  "outcome": "Add bounded OpenAPI JSON Schema and MCP contract topology evidence",
+  "owned_paths": [
+    "src/kis_mcp/discover/contract_intelligence_contracts.py",
+    "src/kis_mcp/discover/contract_intelligence.py",
+    "contracts/discover/inspect-contracts-request.schema.json",
+    "contracts/discover/inspect-contracts-response.schema.json",
+    "tests/discover/test_contract_intelligence_contracts.py",
+    "tests/discover/test_contract_intelligence.py",
+    "tests/discover/test_contract_intelligence_determinism.py",
+    ".work/changes/030-discover-contract-intelligence/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
