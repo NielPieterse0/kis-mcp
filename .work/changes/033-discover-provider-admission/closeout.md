@@ -32,8 +32,9 @@
 - Worktree: `.work/worktrees/033-discover-provider-admission`
 - Implementation commit: `110265b`
 - Integrated verification head before closeout update: `bb9d5f2`
-- Pull request and merge: pending
-- Cleanup: pending
+- Pull request: `#43` (`Discover: add governed provider admission evidence`)
+- Merge commit: `b916d15ac565d37297944b9a1c78101dd0eec28f`
+- Cleanup: governance record closed; isolated worktree and remote branch are removed after this closeout merges.
 
 ## Residual items
 

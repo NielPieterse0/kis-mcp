@@ -7,4 +7,4 @@
 - [x] Add operator/developer documentation and integration guidance.
 - [x] Run focused tests, Discover regressions, scope/whitespace checks, and serialized full verification.
 - [x] Perform security, modularity, simplicity, schema, and forbidden-dependency review.
-- [ ] Merge current `origin/main`, rerun exact-head verification, commit/push/PR/merge, close governance, and clean safely.
+- [x] Merge current `origin/main`, rerun exact-head verification, commit/push/PR/merge, close governance, and clean safely.
