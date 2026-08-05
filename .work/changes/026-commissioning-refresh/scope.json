@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "change_id": "026-commissioning-refresh",
+  "status": "closed",
+  "branch": "change/026-commissioning-refresh",
+  "worktree": ".work/worktrees/026-commissioning-refresh",
+  "base": "main",
+  "outcome": "Present commissioned providers as ready with actionable connection steps",
+  "owned_paths": [
+    "src/kis_mcp/providers/**",
+    "tests/providers/**",
+    "src/kis_mcp/server.py",
+    "docs/OPERATIONS.md",
+    "SPEC.md",
+    "docs/development/github-mcp-provider/**",
+    "docs/development/supabase-mcp-provider/**",
+    ".work/changes/026-commissioning-refresh/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/discover/**",
+    "tests/discover/**",
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

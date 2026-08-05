@@ -3,12 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 import kis_mcp.providers.supabase.runtime as runtime_module
 import kis_mcp.providers.supabase.server as server_module
 from kis_mcp.providers.supabase.config import load_supabase_provider_config
-from kis_mcp.providers.supabase.runtime import SupabaseProviderRuntimeError
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -94,9 +91,27 @@ def test_normal_mode_runs_configured_stdio_server_without_pat(monkeypatch) -> No
     assert captured == {"transport": "stdio"}
 
 
-def test_normal_mode_rejects_missing_project_scope(monkeypatch) -> None:
+def test_normal_mode_runs_health_only_server_without_project_scope(
+    monkeypatch,
+) -> None:
     monkeypatch.delenv("SUPABASE_PROJECT_REF", raising=False)
     monkeypatch.delenv("SUPABASE_ACCESS_TOKEN", raising=False)
+    captured: dict[str, object] = {}
 
-    with pytest.raises(SupabaseProviderRuntimeError, match="SUPABASE_PROJECT_REF"):
-        server_module.main([], config=CONFIG)
+    class FakeServer:
+        def run(self, *, transport: str) -> None:
+            captured["transport"] = transport
+
+    def fake_build_server(config, environment):
+        captured["project_ref_present"] = "SUPABASE_PROJECT_REF" in environment
+        return FakeServer()
+
+    monkeypatch.setattr(server_module, "build_server", fake_build_server)
+
+    result = server_module.main([], config=CONFIG)
+
+    assert result == 0
+    assert captured == {
+        "project_ref_present": False,
+        "transport": "stdio",
+    }

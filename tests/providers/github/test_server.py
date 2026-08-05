@@ -164,9 +164,59 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     assert unavailable.details["executable_present"] is False
     assert unavailable.details["auth_mode"] == "oauth"
     assert unavailable.details["authenticated"] == "not_verified"
+    assert unavailable.details["user_status"] == {
+        "state": "installation_required",
+        "label": "Unavailable — installation required",
+        "required_action": (
+            "Install the pinned GitHub MCP executable before using GitHub operations."
+        ),
+    }
+    assert unavailable.details["commissioning"] == {
+        "installed": "required",
+        "configured": "pending_installation",
+        "authenticated": "pending_installation",
+        "upstream_connected": "pending_installation",
+        "tools_discovered": "pending_installation",
+        "live_verified": "pending_installation",
+    }
 
     executable.write_bytes(b"official-binary-placeholder")
     ready = descriptor.readiness_probe()
     assert ready.state is ProviderState.READY
+    assert ready.summary == (
+        "GitHub MCP is ready; authenticate with OAuth before live operations."
+    )
     assert ready.details["executable_present"] is True
     assert ready.details["authenticated"] == "not_verified"
+    assert ready.details["user_status"] == {
+        "state": "ready_authentication_required",
+        "label": "Ready — authentication required",
+        "required_action": (
+            "Sign in to GitHub through the configured OAuth flow before live operations."
+        ),
+    }
+    assert ready.details["commissioning"] == {
+        "installed": "ready",
+        "configured": "ready",
+        "authenticated": "required",
+        "upstream_connected": "pending_authentication",
+        "tools_discovered": "pending_authentication",
+        "live_verified": "pending_authentication",
+    }
+
+    conflicted_descriptor = github_server.register_github_provider(
+        ProviderRegistry(),
+        settings,
+        environ={"GITHUB_PERSONAL_ACCESS_TOKEN": PAT},
+    )
+    conflicted = conflicted_descriptor.readiness_probe()
+    assert conflicted.state is ProviderState.DEGRADED
+    assert conflicted.details["user_status"] == {
+        "state": "configuration_conflict",
+        "label": "Action required — remove PAT override",
+        "required_action": (
+            "Remove GITHUB_PERSONAL_ACCESS_TOKEN before using the configured OAuth flow."
+        ),
+    }
+    assert conflicted.details["commissioning"]["configured"] == "conflict"
+    assert PAT not in str(conflicted.to_json_dict())

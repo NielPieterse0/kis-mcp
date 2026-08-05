@@ -90,7 +90,8 @@ Normal startup uses the installed package without downloading or updating it.
 Edit only the canonical JSON files:
 
 - `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
-- `settings/providers/platform-runtime.provider.json` for the exact approved external provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
+- `settings/providers/platform-runtime.provider.json` for the exact approved mounted MCP provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
+- `settings/agents/code-review-agent.settings.json` for the one advisory code-review agent, NVIDIA NIM and Codex CLI backend configuration, preferred/fallback order, and evidence/output budgets. Store only the `NVIDIA_API_KEY` environment-variable name, never the API key value.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
 
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
@@ -127,7 +128,7 @@ Startup does not install or update packages. It requires the external locked Pyt
 
 Provider readiness rejects enabled telemetry, a missing or non-loopback feature-flag URL, and missing local Chrome when configured as required because the pinned provider source proves those states cause automatic external activity. It also requires Desktop Commander's persisted `blockedCommands` and `allowedDirectories` fields to remain empty so the provider cannot add independent command or directory restrictions beneath FastMCP.
 
-After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub and Supabase adapter builds in stable provider-ID order. Successful adapters mount as `github_*` and `supabase_*`. Missing binaries, credentials, invalid builder results, or mount failures are recorded by type and do not prevent the Work, Discover, Skills, or gateway surfaces from starting. Invalid runtime JSON remains a startup configuration error.
+After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub and Supabase adapter builds in stable provider-ID order. Successful adapters mount as `github_*` and `supabase_*`. NVIDIA NIM is registered in the provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
 The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
@@ -166,9 +167,69 @@ Call `kis_provider_status` to inspect the current Provider catalogue and runtime
 - `registered` and `enabled` — descriptor and runtime selection state;
 - `build_attempted`, `built`, `mounted`, and `state` — this process's composition result;
 - `readiness` — provider-neutral local preflight evidence;
-- `commissioning` — installation, configuration, authentication, upstream connection, tool discovery, and live verification. These remain `not_verified` until dedicated authenticated commissioning proves them.
+- `user_status` — the current user-facing state and exact next action;
+- `commissioning` — separate installation, configuration, authentication, upstream connection, tool discovery, and live-verification states.
 
-`build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure; inspect the provider's offline readiness details to distinguish a missing executable from invalid configuration or other preflight failures. A mounted provider is not automatically authenticated or live verified. GitHub uses its supervised OAuth commissioning workflow. Supabase uses hosted OAuth/DCR with Windows Credential Manager persistence and requires the explicit commissioning commands below. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+Interpret the normal onboarding states as follows:
+
+- **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and shared-runtime mount are ready. Sign in through the supervised OAuth flow before live GitHub operations. It does not mean the provider is broken.
+- **Supabase: `Ready — project initialization required`** means the commissioned provider is mounted with its local health surface but this repository is not yet linked to a Supabase project. Initialize or link a development/test project, set `SUPABASE_PROJECT_REF` in the supervised environment, then authenticate.
+- **Supabase: `Ready — authentication required`** means project scope and local OAuth prerequisites are ready; browser authentication remains the next step.
+
+A mounted provider is not automatically authenticated, upstream-connected, tool-discovered, or live verified. Reserve degraded, unavailable, or failed states for genuine local faults such as a missing executable, unavailable Windows credential storage, a legacy PAT conflict, invalid configuration, builder failure, mount failure, protocol failure, or runtime failure. `build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure, not a normal sign-in requirement. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+
+## Configure and use the code-review agent
+
+The gateway exposes one additive advisory operation:
+
+```text
+review_change_with_agent
+```
+
+It collects bounded local `AGENTS.md`, Git status, staged diff, and unstaged diff evidence for one repository beneath `C:\Projects`. It is advisory, exposes no mutation or nested-delegation operation, and instructs the selected backend not to edit, commit, merge, or spawn another agent.
+
+The default backend order is defined in `settings/agents/code-review-agent.settings.json`:
+
+```text
+nvidia-nim -> codex-cli
+```
+
+For NVIDIA NIM, provide the key only in the supervised launcher process environment before starting kis-mcp:
+
+```powershell
+$SecureKey = Read-Host 'NVIDIA API key' -AsSecureString
+$KeyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureKey)
+try {
+    $env:NVIDIA_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($KeyPointer)
+    pwsh -File .\scripts\start.ps1
+}
+finally {
+    Remove-Item Env:NVIDIA_API_KEY -ErrorAction SilentlyContinue
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($KeyPointer)
+}
+```
+
+Do not put the key in repository JSON, a command argument, logs, or an MCP request. NVIDIA calls use the configured OpenAI-compatible HTTPS chat-completions endpoint. The provider remains optional; a missing key reports unavailable/degraded readiness and permits fallback.
+
+For Codex CLI, install and authenticate the `codex` executable through an explicit operator-supervised action outside normal Work, then keep the executable name or approved absolute location in the JSON settings. The gateway invokes only `scripts\invoke-codex-agent.ps1`, passes the review prompt through standard input, and requests:
+
+```text
+codex exec --ephemeral --json --sandbox read-only --color never -C <project> -
+```
+
+The read-only Codex sandbox request is defense in depth, not a replacement for operator supervision or OS-level containment. The wrapper fingerprints Git-visible repository state before and after the run, including HEAD, status, tracked diff, and untracked-file content hashes. If the fingerprint changes, the call fails with `CODEX_CLI_MUTATION_DETECTED`; it does not silently accept or automatically overwrite the detected change.
+
+Example call:
+
+```json
+{
+  "path": "C:\\Projects\\example",
+  "instructions": "Prioritize correctness, error handling, and regressions.",
+  "backend": null
+}
+```
+
+Omit `backend` to use preferred/fallback order. Set it to `nvidia-nim` or `codex-cli` to require that backend without silently switching. Tests validate request shape, bounds, fallback, redaction, and additive registration; they do not prove live NVIDIA credentials or live Codex authentication.
 
 ## Commission Supabase OAuth
 
@@ -356,7 +417,8 @@ The repository checks also confirm:
 5. predecessor runtime identities are absent from authoritative and runtime files;
 6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass;
 7. Discover contracts, JSON settings, path identity, link/reparse and hard-link handling, traversal budgets, deterministic detection, fixed local Git reads, pure Python AST indexing, output compaction, evidence integrity, donor independence, architecture boundaries, and tool registration pass;
-8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and additive public-tool registration pass.
+8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and additive public-tool registration pass;
+9. code-review agent settings/schema validation, NVIDIA NIM request and response handling, Codex fixed-script invocation, bounded evidence, fallback behavior, redaction, and additive tool registration pass.
 
 Verification also checks the pinned provider surface under `contracts/desktop-commander/`, including provider identity, all exposed tool schemas and annotations, effect classification coverage, adapter mappings, and the recorded SHA-256 fingerprint. These checks are release evidence only; they do not add a runtime allowlist or a fourth policy rule.
 

@@ -97,20 +97,22 @@ def build_server(
 ) -> FastMCP:
     runtime = config or load_supabase_provider_config()
     runtime_environment = environment if environment is not None else os.environ
-    transport = build_transport(runtime, runtime_environment)
-    server = create_proxy(
-        ProxyClient(transport),
-        name=runtime.server_name,
-    )
+    readiness = provider_specific_readiness(runtime, runtime_environment)
+
+    if readiness.ready:
+        transport = build_transport(runtime, runtime_environment)
+        server = create_proxy(
+            ProxyClient(transport),
+            name=runtime.server_name,
+        )
+    else:
+        server = FastMCP(runtime.server_name)
 
     @server.tool
     def kis_supabase_health() -> dict[str, object]:
         """Report redacted Supabase provider identity, scope, and readiness."""
 
-        return provider_specific_readiness(
-            runtime,
-            runtime_environment,
-        ).as_dict()
+        return readiness.as_dict()
 
     return server
 
@@ -124,16 +126,94 @@ def provider_health(
     runtime = config or load_supabase_provider_config()
     runtime_environment = environment if environment is not None else os.environ
     readiness = provider_specific_readiness(runtime, runtime_environment)
-    state = ProviderState.READY if readiness.ready else ProviderState.DEGRADED
-    summary = (
-        "Supabase OAuth preflight is ready."
-        if readiness.ready
-        else "Supabase OAuth preflight is incomplete."
-    )
+
+    if readiness.legacy_pat_conflict:
+        state = ProviderState.DEGRADED
+        summary = (
+            "Supabase MCP configuration conflicts with the commissioned OAuth flow."
+        )
+        user_status = {
+            "state": "configuration_conflict",
+            "label": "Action required — remove legacy PAT",
+            "required_action": (
+                "Remove SUPABASE_ACCESS_TOKEN before using the commissioned OAuth flow."
+            ),
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "conflict",
+            "authenticated": "blocked_configuration",
+            "upstream_connected": "blocked_configuration",
+            "tools_discovered": "blocked_configuration",
+            "live_verified": "blocked_configuration",
+        }
+    elif not readiness.token_storage_available:
+        state = ProviderState.DEGRADED
+        summary = "Supabase MCP requires Windows credential storage for OAuth."
+        user_status = {
+            "state": "credential_storage_required",
+            "label": "Unavailable — credential storage required",
+            "required_action": (
+                "Restore Windows credential storage before authenticating with Supabase."
+            ),
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "credential_storage_required",
+            "authenticated": "blocked_credential_storage",
+            "upstream_connected": "blocked_credential_storage",
+            "tools_discovered": "blocked_credential_storage",
+            "live_verified": "blocked_credential_storage",
+        }
+    elif not readiness.project_ref_present:
+        state = ProviderState.READY
+        summary = (
+            "Supabase MCP is ready; initialize or link a project before authentication."
+        )
+        user_status = {
+            "state": "ready_project_initialization_required",
+            "label": "Ready — project initialization required",
+            "required_action": (
+                "Initialize or link this repository to a Supabase project, set "
+                "SUPABASE_PROJECT_REF, then authenticate."
+            ),
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "project_initialization_required",
+            "authenticated": "pending_project_initialization",
+            "upstream_connected": "pending_project_initialization",
+            "tools_discovered": "pending_project_initialization",
+            "live_verified": "pending_project_initialization",
+        }
+    else:
+        state = ProviderState.READY
+        summary = (
+            "Supabase MCP is ready; authenticate before live project operations."
+        )
+        user_status = {
+            "state": "ready_authentication_required",
+            "label": "Ready — authentication required",
+            "required_action": (
+                "Authenticate with Supabase for the linked project before live operations."
+            ),
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "ready",
+            "authenticated": "required",
+            "upstream_connected": "pending_authentication",
+            "tools_discovered": "pending_authentication",
+            "live_verified": "pending_authentication",
+        }
+
     details = readiness.as_dict()
     details.pop("provider_id")
     details.pop("server_name")
     details.pop("ready")
+    details["upstream_ready"] = readiness.ready
+    details["user_status"] = user_status
+    details["commissioning"] = commissioning
     return ProviderReadiness(
         provider_id=runtime.provider_id,
         state=state,
