@@ -16,7 +16,7 @@
 
 ### Task 3: Implement the fixed-shape Git workflow CLI
 - Add strict repository, ref, and path validators.
-- Add bounded Git execution and parsers for name-status, numstat, shortstat, commits, ahead/behind, branch, and worktree evidence.
+- Add bounded Git execution and parsers for name-status, numstat, commits, ahead/behind, branch, and worktree evidence.
 - Implement `diff-summary`, `pr-readiness`, and `cleanup-preview` JSON contracts.
 - Add deterministic error envelopes and exit codes.
 

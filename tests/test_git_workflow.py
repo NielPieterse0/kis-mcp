@@ -198,6 +198,23 @@ def test_pr_readiness_blocks_dirty_and_unscoped_branch(tmp_path: Path) -> None:
     assert "CHANGE_CLAIM_MISSING" in result["blockers"]
 
 
+def test_pr_readiness_blocks_branch_not_ahead(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_id = "001-alpha"
+    write_claim(repository, change_id)
+    run_git(repository, "add", f".work/changes/{change_id}")
+    run_git(repository, "commit", "-m", "docs: register future change")
+    run_git(repository, "switch", "-c", f"change/{change_id}")
+
+    result = module.pr_readiness(repository, base="main")
+
+    assert result["ready"] is False
+    assert result["ahead"] == 0
+    assert result["scope_check"]["passed"] is True
+    assert "BRANCH_NOT_AHEAD" in result["blockers"]
+
+
 def test_cleanup_preview_classifies_dirty_and_merged_worktrees(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
@@ -207,8 +224,12 @@ def test_cleanup_preview_classifies_dirty_and_merged_worktrees(tmp_path: Path) -
     write_claim(target, change_id)
     run_git(target, "add", f".work/changes/{change_id}")
     run_git(target, "commit", "-m", "docs: register change")
-    run_git(repository, "merge", "--no-ff", f"change/{change_id}", "-m", "merge alpha")
 
+    unmerged = module.cleanup_preview(repository, change_id=change_id)
+    assert unmerged["worktrees"][0]["eligible"] is False
+    assert "CHANGE_BRANCH_UNMERGED" in unmerged["worktrees"][0]["blockers"]
+
+    run_git(repository, "merge", "--no-ff", f"change/{change_id}", "-m", "merge alpha")
     clean = module.cleanup_preview(repository, change_id=change_id)
     assert clean["worktrees"][0]["eligible"] is True
 
@@ -218,10 +239,12 @@ def test_cleanup_preview_classifies_dirty_and_merged_worktrees(tmp_path: Path) -
     assert "WORKTREE_DIRTY" in dirty["worktrees"][0]["blockers"]
 
 
-def test_name_status_parser_preserves_copy_provenance() -> None:
+def test_name_status_parser_preserves_copy_and_delete_provenance() -> None:
     module = load_module()
 
-    records = module._parse_name_status(b"C100\x00old.txt\x00new.txt\x00")
+    records = module._parse_name_status(
+        b"C100\x00old.txt\x00new.txt\x00D\x00deleted.txt\x00"
+    )
 
     assert records == [
         {
@@ -232,7 +255,16 @@ def test_name_status_parser_preserves_copy_provenance() -> None:
             "added": 0,
             "deleted": 0,
             "binary": False,
-        }
+        },
+        {
+            "path": "deleted.txt",
+            "previous_path": None,
+            "status": "deleted",
+            "similarity": None,
+            "added": 0,
+            "deleted": 0,
+            "binary": False,
+        },
     ]
 
 
@@ -293,6 +325,34 @@ def test_cleanup_preview_rejects_invalid_change_id(tmp_path: Path) -> None:
 
     with pytest.raises(module.GitWorkflowError, match="CHANGE_ID_INVALID"):
         module.cleanup_preview(repository, change_id="../../bad")
+
+
+def test_cleanup_preview_reports_unregistered_change_worktree(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_id = "001-alpha"
+    target = repository / ".work" / "worktrees" / change_id
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        f"change/{change_id}",
+        "main",
+    )
+
+    result = module.cleanup_preview(repository, change_id=change_id)
+
+    assert result["worktrees"][0]["registered"] is False
+    assert result["worktrees"][0]["eligible"] is False
+    assert "CHANGE_CLAIM_MISSING" in result["worktrees"][0]["blockers"]
+
+
+def test_long_path_risk_detects_long_worktree_path_without_traversal() -> None:
+    module = load_module()
+
+    assert module._long_path_risk(Path("C:/" + "x" * 240)) is True
 
 
 def test_cleanup_preview_does_not_depend_on_primary_worktree_order(

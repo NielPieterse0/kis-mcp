@@ -28,17 +28,19 @@ Implementation, PR hardening, and exact-head verification complete; merge and cl
 - Initial red cycle: 7 expected failures proving the missing CLI and cleanup behavior.
 - Focused regression after implementation: 23 tests passed.
 - Aggregate-count and limit-contract regression: 25 tests passed.
-- Expanded PR-review hardening regression: 33 tests passed, covering:
+- Expanded PR-review and traceability regression: 36 tests passed, covering:
   - streaming output limits;
   - structural invalid-repository errors;
-  - copy provenance parsing;
+  - copy and deletion provenance parsing;
   - path-filtered diffs;
-  - detached and scope-violating readiness;
+  - detached, non-ahead, and scope-violating readiness;
   - invalid cleanup IDs;
+  - unregistered and unmerged worktree classification;
+  - long-path-risk detection;
   - primary-worktree order independence.
 - Real worktree smoke checks:
   - committed `diff-summary` returned the exact 11-file branch report;
-  - committed `pr-readiness` returned `ready: true`, ahead 1, behind 0, clean, and scope passed;
+  - final committed `pr-readiness` returned `ready: true`, ahead 3, behind 0, clean, and scope passed;
   - dirty-state `pr-readiness` correctly reported `WORKTREE_DIRTY` and `BRANCH_NOT_AHEAD`;
   - `cleanup-preview` correctly classified active clean, dirty, and unmerged worktrees without mutation.
 - Pre-hardening `scripts/change-workflow.ps1 check`: passed and reported only declared `045` paths.
