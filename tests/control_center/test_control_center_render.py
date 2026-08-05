@@ -13,7 +13,9 @@ def test_renderer_escapes_runtime_text_and_preserves_operational_section_order(
     assert "main&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "Sample &lt;b&gt;diagnostic&lt;/b&gt;" in html
     assert "Sample finding &lt;unsafe&gt;" in html
+    assert "Authenticate &lt;unsafe&gt; before live operations." in html
     assert "<script>" not in html.lower()
+    assert "Authenticate <unsafe>" not in html
 
     headings = [
         "Overview",

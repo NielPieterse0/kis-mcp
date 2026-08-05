@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from kis_mcp.control_center.settings import ControlCenterSettings
@@ -42,7 +43,7 @@ def _settings(tmp_path: Path) -> ControlCenterSettings:
         },
     )
     approvals.write_text(
-        """# Hard Block Approval Register\n\n## HR1-01 — Outside write resolver\n\n**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject\n\nReason: Needs bounded resolver evidence.\n\n## HR2-01 — Network provider\n\n**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject\n""",
+        """# Hard Block Approval Register\n\n## HR1-01 — Outside write resolver\n\n**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject\n\nReason: Needs bounded resolver evidence.\n\n## HR2-01 — Network provider\n\n**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject\n\n## HR3-01 — Deletion wording\n\n**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject\n""",
         encoding="utf-8",
     )
     operation = quarantine / "20260805T010203000000Z-aaaaaaaaaaaa"
@@ -177,3 +178,20 @@ def test_enriched_snapshot_degrades_failed_sources_without_losing_other_sections
     rendered = str(snapshot.to_dict())
     assert "private discover failure detail" not in rendered
     assert any(item.code == "CONTROL_CENTER_DISCOVER_UNAVAILABLE" for item in snapshot.diagnostics)
+
+
+def test_approval_register_is_byte_bounded(tmp_path: Path) -> None:
+    settings = replace(_settings(tmp_path), max_json_bytes=1024)
+    settings.approval_register_path.write_text("x" * 2048, encoding="utf-8")
+
+    snapshot = ControlCenterSnapshotService(
+        settings,
+        discover_source=lambda: {},
+        provider_status_source=lambda: {},
+    ).collect()
+
+    assert snapshot.approvals == ()
+    assert any(
+        item.code == "CONTROL_CENTER_APPROVAL_REGISTER_LIMIT_EXCEEDED"
+        for item in snapshot.diagnostics
+    )

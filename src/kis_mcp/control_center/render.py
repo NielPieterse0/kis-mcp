@@ -254,7 +254,7 @@ def _provider_runtime_entry(item: object) -> str:
     if commissioning.get("authenticated") == "required":
         extra_badges.append(("Authentication required", "warn"))
     detail_rows = "".join(_row(key, value) for key, value in provider.commissioning)
-    detail = provider.action
+    detail = _text(provider.action)
     if detail_rows:
         detail += f'<div class="entries">{detail_rows}</div>'
     return _entry(

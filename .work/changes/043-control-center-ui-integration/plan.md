@@ -121,14 +121,14 @@
 - Test: `tests/control_center/test_gateway_integration.py`
 
 **Interfaces:**
-- Produces: `register_control_center_provider(registry, runtime_config)` and a `control-center` descriptor with `LOCAL_READ_ONLY` boundary.
-- Gateway exposure: namespace `control_center`, model-visible entry tool, and `ui://kis-mcp/control-center.html` resource.
+- Produces: `register_control_center_provider(registry)` and a `control-center` descriptor with `LOCAL_READ_ONLY` boundary.
+- Gateway exposure: namespace `controlcenter`, model-visible `controlcenter_open_kis_control_center`, and `ui://controlcenter/kis-mcp/control-center.html`.
 
 - [ ] Write failing descriptor/readiness tests for provider identity, boundary, capabilities, and builder output.
 - [ ] Write failing platform registry/runtime JSON tests expecting `control-center` registration and enablement.
 - [ ] Write a failing FastMCP integration test that composes the provider runtime and lists the namespaced entry tool and UI resource without launching a second process.
 - [ ] Implement the provider descriptor and register it in the platform registry.
-- [ ] Enable it in provider runtime JSON under namespace `control_center`.
+- [x] Enable it in provider runtime JSON under namespace `controlcenter`.
 - [ ] Run provider and gateway-integration tests until green.
 - [ ] Commit the provider-integration task.
 

@@ -320,12 +320,34 @@ class ControlCenterSnapshotService:
         self, diagnostics: list[Diagnostic]
     ) -> tuple[ApprovalSummary, ...]:
         try:
-            text = self.settings.approval_register_path.read_text(encoding="utf-8")
+            with self.settings.approval_register_path.open("rb") as handle:
+                payload = handle.read(self.settings.max_json_bytes + 1)
         except OSError as exc:
             diagnostics.append(
                 Diagnostic(
                     code="CONTROL_CENTER_APPROVAL_REGISTER_UNAVAILABLE",
                     message=f"Approval register is unavailable: {type(exc).__name__}.",
+                )
+            )
+            return ()
+        if len(payload) > self.settings.max_json_bytes:
+            diagnostics.append(
+                Diagnostic(
+                    code="CONTROL_CENTER_APPROVAL_REGISTER_LIMIT_EXCEEDED",
+                    message=(
+                        "Approval register exceeds the configured "
+                        f"{self.settings.max_json_bytes}-byte limit."
+                    ),
+                )
+            )
+            return ()
+        try:
+            text = payload.decode("utf-8")
+        except UnicodeDecodeError:
+            diagnostics.append(
+                Diagnostic(
+                    code="CONTROL_CENTER_APPROVAL_REGISTER_INVALID",
+                    message="Approval register is not valid UTF-8.",
                 )
             )
             return ()
@@ -339,7 +361,8 @@ class ControlCenterSnapshotService:
                 (line.strip() for line in body.splitlines() if "Operator decision:" in line),
                 "",
             )
-            if "[ ] Approve" not in decision_line:
+            normalized_decision = decision_line.casefold()
+            if "[ ] approve" not in normalized_decision or "[x]" in normalized_decision:
                 continue
             detail = next(
                 (

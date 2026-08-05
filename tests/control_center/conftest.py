@@ -131,7 +131,7 @@ def sample_snapshot() -> ControlCenterSnapshot:
                 mounted=True,
                 state="mounted",
                 readiness="ready",
-                action="Authenticate before live operations.",
+                action="Authenticate <unsafe> before live operations.",
                 commissioning=(("authenticated", "required"),),
             ),
         ),

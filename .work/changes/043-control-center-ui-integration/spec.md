@@ -19,7 +19,7 @@ Integrate the existing KIS Control Center MCP App into the primary provider runt
 
 ## Requirements
 
-- **REQ-001 — Primary gateway integration**: The platform provider registry SHALL register a `control-center` provider with `ProviderBoundary.LOCAL_READ_ONLY`; provider runtime settings SHALL enable it under namespace `control_center` so the normal kis-mcp connector exposes its tool and MCP App resource.
+- **REQ-001 — Primary gateway integration**: The platform provider registry SHALL register a `control-center` provider with `ProviderBoundary.LOCAL_READ_ONLY`; provider runtime settings SHALL enable it under namespace `controlcenter` so the normal kis-mcp connector exposes its namespaced tool and MCP App resource.
 - **REQ-002 — Separation**: The implementation SHALL NOT modify Desktop Commander installation content or duplicate its file, editor, directory, preview, or configuration widgets.
 - **REQ-003 — Runtime health and project**: The dashboard SHALL display current runtime identity, Desktop Commander installation evidence, configured project path, bounded local Git state, and exact snapshot time.
 - **REQ-004 — Policy and approvals**: The dashboard SHALL display the exact HR-001, HR-002, and HR-003 declarations, bounded recent policy decisions, and bounded pending operator decisions parsed from the existing hard-block approval register without modifying that register.
@@ -33,7 +33,7 @@ Integrate the existing KIS Control Center MCP App into the primary provider runt
 
 ## Acceptance
 
-1. **Given** the normal `build_server()` provider composition, **when** tools and resources are listed, **then** the Control Center entry tool and `ui://kis-mcp/control-center.html` resource are available without starting a second process.
+1. **Given** the normal `build_server()` provider composition, **when** tools and resources are listed, **then** `controlcenter_open_kis_control_center` and `ui://controlcenter/kis-mcp/control-center.html` are available without starting a second process.
 2. **Given** recent allowed, blocked, process, and search calls, **when** the dashboard snapshot is collected, **then** bounded redacted runtime records appear and no raw argument value or result body is retained.
 3. **Given** the approval register contains unchecked operator decisions, **when** the snapshot is collected, **then** those entries appear as pending approvals without modifying the document.
 4. **Given** Discover or provider evidence is unavailable, **when** the dashboard opens, **then** the affected section reports an explicit degraded or unknown state while the rest remains usable.
