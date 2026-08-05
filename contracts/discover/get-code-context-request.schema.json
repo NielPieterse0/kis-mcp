@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/get-code-context-request.schema.json",
+  "title": "Discover get code context request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "task", "budget"],
+  "properties": {
+    "project": {"type": "string", "minLength": 1},
+    "task": {"type": "string", "minLength": 1},
+    "budget": {"$ref": "#/$defs/budget"}
+  },
+  "$defs": {
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_chars", "max_files", "max_symbols", "max_relationships"],
+      "properties": {
+        "max_chars": {"type": "integer", "minimum": 2000},
+        "max_files": {"type": "integer", "minimum": 1},
+        "max_symbols": {"type": "integer", "minimum": 1},
+        "max_relationships": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}
