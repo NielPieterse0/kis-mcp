@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/inspect-contracts-request.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "budget"],
+  "properties": {
+    "project": {"type": "string", "minLength": 1},
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_documents", "max_operations", "max_schemas", "max_relationships"],
+      "properties": {
+        "max_documents": {"type": "integer", "minimum": 1},
+        "max_operations": {"type": "integer", "minimum": 1},
+        "max_schemas": {"type": "integer", "minimum": 1},
+        "max_relationships": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}
