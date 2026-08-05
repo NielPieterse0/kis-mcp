@@ -58,6 +58,7 @@ Donor repositories are source material only. `kis-mcp` MUST contain its own adap
 |---|---|---|
 | repository baseline | `26d1a2f` | Current repository intelligence implementation |
 | inspect hardening | `ae73081` | Hardened scanner, Git, output, and release contract behavior |
+| change-impact intelligence | `a6af216bf09c59c659b16697673c2149d6fdbea1` | Ordered analyzers, architecture components, local Python and JavaScript/TypeScript dependencies, change impact, test targeting, and validation strategy |
 
 ### Adaptation matrix
 
@@ -130,8 +131,8 @@ Intentional adaptation differences:
 | Donor | Source behavior adapted | kis-mcp implementation | Passing evidence |
 |---|---|---|---|
 | `sdk-tool` `fd1e6a7` | One provider-neutral repository read boundary with immutable project identity | `src/kis_mcp/discover/read_authority.py` | `tests/discover/test_identity.py`; `tests/discover/test_read_authority.py` |
-| `dev-intel-tool` `ee18566` | Component-by-component link/reparse rejection, regular-file validation, bounded safe open, identity revalidation, configured decoding, and optional hard-link rejection | `src/kis_mcp/discover/read_authority.py` | size-change, missing-file, hard-link, relative-path, and link-chain tests in `tests/discover/test_read_authority.py` |
-| `dev-intel-tool` `ee18566` | Deterministic repository labels, configured file selection, exclusions, and category hints | `src/kis_mcp/discover/scanner.py` | `tests/discover/test_scanner.py::test_scanner_recurses_deterministically_and_reports_exclusions` |
+| `dev-intel-tool` `ae73081` | Component-by-component link/reparse rejection, regular-file validation, bounded safe open, identity revalidation, configured decoding, and optional hard-link rejection | `src/kis_mcp/discover/read_authority.py` | size-change, missing-file, hard-link, relative-path, and link-chain tests in `tests/discover/test_read_authority.py` |
+| `dev-intel-tool` `26d1a2f` | Deterministic repository labels, configured file selection, exclusions, and category hints | `src/kis_mcp/discover/scanner.py` | `tests/discover/test_scanner.py::test_scanner_recurses_deterministically_and_reports_exclusions` |
 | `mcp-tool` `146ee76` | Streaming `os.scandir` traversal, monotonic deadline, visited-entry ceiling, explicit depth/directory/file/byte limits, and Windows hard-link metadata fallback | `src/kis_mcp/discover/scanner.py` | `tests/discover/test_scanner.py`; `tests/discover/test_scanner_hardening.py` |
 
 Intentional adaptation differences:
@@ -146,7 +147,7 @@ Intentional adaptation differences:
 
 | Donor | Source behavior adapted | kis-mcp implementation | Passing evidence |
 |---|---|---|---|
-| `dev-intel-tool` `ee18566` | Language, manifest, framework, package-manager, workspace, entry-point, instruction, documentation, CI, contract-artifact, module, diagnostic, and unknown-state detection | `src/kis_mcp/discover/detectors.py` | `tests/discover/test_detectors.py` |
+| `dev-intel-tool` `26d1a2f` | Language, manifest, framework, package-manager, workspace, entry-point, instruction, documentation, CI, contract-artifact, module, diagnostic, and unknown-state detection | `src/kis_mcp/discover/detectors.py` | `tests/discover/test_detectors.py` |
 | `sdk-tool` `fd1e6a7` | Python, uv, pytest, unittest, Node package-script, PowerShell, and GitHub Actions workflow discovery | `src/kis_mcp/discover/verification.py` | `tests/discover/test_verification_discovery.py` |
 | `sdk-tool` `fd1e6a7` | Discovered commands remain evidence-only with `authority="discovered_only"` and `execution_available=false` | `src/kis_mcp/discover/verification.py` | `test_discovers_python_node_powershell_and_ci_without_execution` |
 | kis-mcp settings authority | Candidate count, file bytes, scanner selection, manifest suffixes, conventional filenames, and exclusions are JSON-controlled | `settings/kis-mcp.settings.json`, `src/kis_mcp/discover/settings.py` | `tests/discover/test_settings.py`; candidate-narrowing and scanner tests |
@@ -178,7 +179,7 @@ Intentional adaptation differences:
 
 | Donor | Source behavior adapted | kis-mcp implementation | Passing evidence |
 |---|---|---|---|
-| `dev-intel-tool` `ee18566` | Fixed local Git templates, branch/head/status/remotes/history, credential redaction, global deadline, and isolated configuration | `src/kis_mcp/discover/git_reader.py` | `tests/discover/test_git_reader.py`; `tests/discover/test_git_hardening.py` |
+| `dev-intel-tool` `ae73081` | Fixed local Git templates, branch/head/status/remotes/history, credential redaction, global deadline, and isolated configuration | `src/kis_mcp/discover/git_reader.py` | `tests/discover/test_git_reader.py`; `tests/discover/test_git_hardening.py` |
 | `mcp-tool` `146ee76` | Linked-worktree metadata validation, project-boundary enforcement, no-follow metadata reads, fixed environment controls, and bounded command output | `src/kis_mcp/discover/git_reader.py` | metadata, hostile configuration, timeout, fixed-command, and short-read tests |
 | kis-mcp settings authority | Git timeout, output bytes, history count, and metadata bytes are JSON-configured | `settings/kis-mcp.settings.json`, `src/kis_mcp/discover/settings.py` | `tests/discover/test_settings.py`; Git limit tests |
 
@@ -195,7 +196,7 @@ Intentional adaptation differences:
 | Donor | Source behavior adapted | kis-mcp implementation | Passing evidence |
 |---|---|---|---|
 | `sdk-tool` `fd1e6a7` | Coordinator-owned deterministic aggregation and partial-result handling | `src/kis_mcp/discover/service.py` | `tests/discover/test_inspect_project.py`; `test_inspect_project_determinism.py`; `test_inspect_project_compaction.py` |
-| `dev-intel-tool` `ee18566` | Evidence linking, findings, recommendations, assumptions, unknowns, confidence, truncation, and output compaction | `src/kis_mcp/discover/service.py`, `src/kis_mcp/discover/budgeting.py` | `tests/discover/test_budgeting.py`; service integrity and exact-capacity tests |
+| `dev-intel-tool` `26d1a2f` + `ae73081` | Evidence linking, findings, recommendations, assumptions, unknowns, confidence, truncation, and output compaction | `src/kis_mcp/discover/service.py`, `src/kis_mcp/discover/budgeting.py` | `tests/discover/test_budgeting.py`; service integrity and exact-capacity tests |
 | kis-mcp authority | Invalid request budgets become corrective `DISCOVER_LIMIT_INVALID` errors, not Work-policy decisions | `src/kis_mcp/discover/service.py` | `tests/discover/test_inspect_project.py::test_invalid_request_limits_return_structural_discover_error` |
 
 Intentional adaptation differences:
@@ -218,6 +219,23 @@ Intentional adaptation differences:
 - FastMCP appears only in `discover/tools.py`; all discovery implementation remains framework-neutral.
 - The public binder returns structured `DISCOVER_*` errors and does not add an HR code, policy rule, command allowlist, or provider restriction.
 - The tool is annotated read-only, non-destructive, idempotent, and closed-world for its bounded local evidence scope.
+
+## Implemented parity checkpoint: change-impact intelligence
+
+| Donor | Source behavior adapted | kis-mcp implementation | Passing evidence |
+|---|---|---|---|
+| `dev-intel-tool` `a6af216` | Immutable analyzer context/output contracts, deterministic registration, and ordered pipeline aggregation | `src/kis_mcp/discover/analyzers/contracts.py`, `registry.py`, `pipeline.py` | `tests/discover/impact_parity/test_analyzer_pipeline.py` |
+| `dev-intel-tool` `a6af216` | Repository map and bounded architecture-component grouping | `src/kis_mcp/discover/analyzers/repository_map.py`, `architecture.py` | `tests/discover/impact_parity/test_architecture_analyzer.py` |
+| `dev-intel-tool` `a6af216` | Local Python imports plus static relative JavaScript/TypeScript `import`, `export-from`, and `require` resolution | `src/kis_mcp/discover/analyzers/dependencies.py` | `tests/discover/impact_parity/test_dependency_analyzer.py` |
+| `dev-intel-tool` `a6af216` | Direct and bounded transitive reverse dependency impact, affected-test targeting, category evidence, and low-confidence task-token candidates | `src/kis_mcp/discover/analyzers/change_impact.py`, `src/kis_mcp/discover/impact_graph.py` | `tests/discover/impact_parity/test_change_impact_parity.py`; existing impact regression and determinism suites |
+
+Intentional adaptation differences:
+
+- The analyzer pipeline consumes existing kis-mcp `ReadAuthority`, repository snapshot, Python index, and verification contracts; donor policy, settings, runtime, and server objects are not imported.
+- JavaScript and TypeScript parsing is static and local. Dynamic imports, package-resolution semantics, aliases, external modules, and unresolved paths remain explicit unknowns.
+- Task-token matches are low-confidence heuristic candidates only and never become deterministic dependency edges.
+- Public `inspect_impact` schema identity remains version 1; JavaScript/TypeScript dependency evidence uses existing dependant records and parser-confirmed affected-test provenance.
+- Standalone donor runtime, GitHub execution, networking, installers, tunnel code, duplicate policy/settings authority, and product-specific wording remain excluded.
 
 ## Required independence test
 
