@@ -1,5 +1,7 @@
 # Provider Composition
 
+> **Historical implementation evidence.** This document records the provider-composition slice before runtime integration and NVIDIA NIM were added. It is preserved as development history and is not current operational guidance. Use [`../../PROVIDER-MODULE-PRODUCT-SPEC.md`](../../PROVIDER-MODULE-PRODUCT-SPEC.md), [`../../../SPEC.md`](../../../SPEC.md), and [`../../OPERATIONS.md`](../../OPERATIONS.md) for the current provider registry, runtime mounting, status, and onboarding model.
+
 ## Purpose
 
 The platform composition layer registers the three approved provider boundaries through one shared `ProviderRegistry`:
