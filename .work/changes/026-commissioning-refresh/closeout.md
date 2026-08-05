@@ -44,8 +44,8 @@
 - Branch: `change/026-commissioning-refresh`
 - Worktree: `.work/worktrees/026-commissioning-refresh`
 - Base: local `main` at `a73a19c6efbaf15b651cb05243f894e2a7623590`
-- Commit: pending final local commit after this closeout record is verified.
-- Pull request: pending publication; no merge is authorized by this closeout.
+- Implementation commit: `b15f49e9c26b25d81ac6c3192397d9481e552a41`.
+- Pull request: `#34 — Clarify provider commissioning readiness` is open for review; no merge is authorized by this closeout.
 - Cleanup: retain the branch/worktree until review and merge; remove them safely from clean `main` after integration.
 
 ## Residual items
