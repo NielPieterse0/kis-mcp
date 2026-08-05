@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "025-stateful-remote-http",
+  "status": "active",
+  "branch": "change/025-stateful-remote-http",
+  "worktree": ".work/worktrees/025-stateful-remote-http",
+  "base": "main",
+  "outcome": "Prevent repeated remote MCP sessions from crashing shared proxy providers",
+  "owned_paths": [
+    "src/kis_mcp/remote_runtime.py",
+    "tests/test_remote_runtime.py",
+    ".work/changes/025-stateful-remote-http/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
