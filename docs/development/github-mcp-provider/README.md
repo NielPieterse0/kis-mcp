@@ -17,6 +17,8 @@ Implemented and live verified:
 
 OAuth tokens remain in the official provider process. Restarting the provider normally requires another interactive authorization. No token, authorization code, client secret, or OAuth state is stored in repository JSON.
 
+When the executable and local configuration are present, `kis_provider_status` reports **`Ready — authentication required`**. This is the normal pre-authentication state: the provider is installed, configured, and mountable, but the current process has not yet proved OAuth identity, upstream connectivity, tool discovery, or live operation. A sign-in requirement is not a degraded or broken provider state.
+
 ## Boundary
 
 ```text

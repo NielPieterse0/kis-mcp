@@ -1,0 +1,22 @@
+# Tasks: Commissioning Refresh
+
+- [x] Read repository authority and the live commissioning report.
+- [x] Load the authorized `develop-code` workflow and reference-only MCP server guidance.
+- [x] Classify the slice as Medium and create the isolated worktree.
+- [x] Record scope, requirements, acceptance criteria, recovery, and implementation plan.
+- [x] Task 1: add failing provider-owned onboarding-state tests.
+- [x] Task 1: implement GitHub and Supabase readiness metadata.
+- [x] Task 2: add failing health-only Supabase mount test.
+- [x] Task 2: implement health-only onboarding mount.
+- [x] Task 3: add failing shared status preservation tests.
+- [x] Task 3: preserve provider-owned status and fallback behavior.
+- [x] Task 4: update existing authoritative and provider guidance.
+- [x] Review the final diff for correctness, redaction, simplicity, and scope.
+- [x] Resolve review findings for GitHub PAT conflict handling and status de-duplication.
+- [x] Run the focused provider suite: 170 tests passed.
+- [x] Run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check`.
+- [x] Run `git diff --check`.
+- [x] Run `pwsh -NoProfile -File .\scripts\verify.ps1` serially.
+- [x] Record closeout evidence and prepare the branch for review/integration.
+- [ ] Commit and publish the verified branch for review.
+- [ ] After merge, clean the change worktree and branch from clean `main`.

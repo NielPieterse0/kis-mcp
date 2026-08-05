@@ -397,6 +397,19 @@ def test_builder_failures_and_invalid_results_are_redacted_and_contained() -> No
 
 def test_provider_runtime_status_separates_mounting_from_commissioning() -> None:
     runtime = _runtime_module()
+    github_user_status = {
+        "state": "ready_authentication_required",
+        "label": "Ready — authentication required",
+        "required_action": "Authenticate before live operations.",
+    }
+    github_commissioning = {
+        "installed": "ready",
+        "configured": "ready",
+        "authenticated": "required",
+        "upstream_connected": "pending_authentication",
+        "tools_discovered": "pending_authentication",
+        "live_verified": "pending_authentication",
+    }
     service = _service(
         _descriptor(
             "github-mcp",
@@ -405,7 +418,11 @@ def test_provider_runtime_status_separates_mounting_from_commissioning() -> None
                 provider_id="github-mcp",
                 state=ProviderState.READY,
                 summary="Local preflight is ready.",
-                details={"configured": True},
+                details={
+                    "configured": True,
+                    "user_status": github_user_status,
+                    "commissioning": github_commissioning,
+                },
             ),
         ),
         _descriptor(
@@ -428,20 +445,32 @@ def test_provider_runtime_status_separates_mounting_from_commissioning() -> None
 
     assert status["schema_version"] == 1
     assert status["platform_health"]["state"] == "degraded"
+    platform_providers = {
+        item["provider_id"]: item
+        for item in status["platform_health"]["providers"]
+    }
+    assert platform_providers["github-mcp"]["details"] == {"configured": True}
+    assert platform_providers["supabase"]["details"] == {}
     providers = {item["provider_id"]: item for item in status["external_providers"]}
-    assert providers["github-mcp"]["mounted"] is True
-    assert providers["github-mcp"]["readiness"]["state"] == "ready"
-    assert providers["supabase"]["mounted"] is True
-    assert providers["supabase"]["readiness"]["state"] == "unavailable"
-    for provider in providers.values():
-        assert provider["commissioning"] == {
-            "installed": "not_verified",
-            "configured": "not_verified",
-            "authenticated": "not_verified",
-            "upstream_connected": "not_verified",
-            "tools_discovered": "not_verified",
-            "live_verified": "not_verified",
-        }
+    github = providers["github-mcp"]
+    assert github["mounted"] is True
+    assert github["readiness"]["state"] == "ready"
+    assert github["readiness"]["details"] == {"configured": True}
+    assert github["user_status"] == github_user_status
+    assert github["commissioning"] == github_commissioning
+
+    supabase = providers["supabase"]
+    assert supabase["mounted"] is True
+    assert supabase["readiness"]["state"] == "unavailable"
+    assert supabase["user_status"] is None
+    assert supabase["commissioning"] == {
+        "installed": "not_verified",
+        "configured": "not_verified",
+        "authenticated": "not_verified",
+        "upstream_connected": "not_verified",
+        "tools_discovered": "not_verified",
+        "live_verified": "not_verified",
+    }
 
 
 def test_build_server_mounts_injected_provider_and_exposes_status(monkeypatch: Any) -> None:

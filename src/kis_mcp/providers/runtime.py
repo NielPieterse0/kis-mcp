@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
@@ -12,6 +13,58 @@ from .service import ProviderService
 
 RUNTIME_SCHEMA_VERSION = 1
 _NOT_VERIFIED = "not_verified"
+_USER_STATUS_KEYS = ("state", "label", "required_action")
+_COMMISSIONING_KEYS = (
+    "installed",
+    "configured",
+    "authenticated",
+    "upstream_connected",
+    "tools_discovered",
+    "live_verified",
+)
+_DEFAULT_COMMISSIONING = {
+    key: _NOT_VERIFIED for key in _COMMISSIONING_KEYS
+}
+_MAX_STATUS_VALUE_LENGTH = 256
+
+
+def _fixed_text_mapping(
+    value: Any,
+    keys: tuple[str, ...],
+) -> dict[str, str] | None:
+    if not isinstance(value, Mapping) or set(value) != set(keys):
+        return None
+    normalized: dict[str, str] = {}
+    for key in keys:
+        item = value.get(key)
+        if not isinstance(item, str):
+            return None
+        text = item.strip()
+        if not text or len(text) > _MAX_STATUS_VALUE_LENGTH:
+            return None
+        normalized[key] = text
+    return normalized
+
+
+def _split_readiness_status(
+    readiness: Mapping[str, Any] | None,
+) -> tuple[dict[str, Any] | None, dict[str, str] | None, dict[str, str] | None]:
+    if readiness is None:
+        return None, None, None
+
+    sanitized = dict(readiness)
+    details_value = sanitized.get("details")
+    details = dict(details_value) if isinstance(details_value, Mapping) else {}
+    user_status = _fixed_text_mapping(
+        details.pop("user_status", None),
+        _USER_STATUS_KEYS,
+    )
+    commissioning = _fixed_text_mapping(
+        details.pop("commissioning", None),
+        _COMMISSIONING_KEYS,
+    )
+    sanitized["details"] = details
+    return sanitized, user_status, commissioning
 
 
 class ProviderMountState(StrEnum):
@@ -213,27 +266,43 @@ def provider_runtime_status(
     composition: ProviderRuntimeComposition,
 ) -> dict[str, Any]:
     health = service.health()
-    readiness_by_provider = {
-        item.provider_id: item.to_json_dict() for item in health.providers
-    }
+    raw_platform_health = health.to_json_dict()
+    readiness_status_by_provider: dict[
+        str,
+        tuple[dict[str, Any] | None, dict[str, str] | None, dict[str, str] | None],
+    ] = {}
+    platform_providers: list[dict[str, Any]] = []
+
+    for readiness in raw_platform_health["providers"]:
+        provider_id = str(readiness["provider_id"])
+        split_status = _split_readiness_status(readiness)
+        readiness_status_by_provider[provider_id] = split_status
+        sanitized, _, _ = split_status
+        if sanitized is not None:
+            platform_providers.append(sanitized)
+
+    platform_health = dict(raw_platform_health)
+    platform_health["providers"] = platform_providers
     external_providers: list[dict[str, Any]] = []
 
     for result in composition.results:
         provider = result.to_json_dict()
-        provider["readiness"] = readiness_by_provider.get(result.provider_id)
-        provider["commissioning"] = {
-            "installed": _NOT_VERIFIED,
-            "configured": _NOT_VERIFIED,
-            "authenticated": _NOT_VERIFIED,
-            "upstream_connected": _NOT_VERIFIED,
-            "tools_discovered": _NOT_VERIFIED,
-            "live_verified": _NOT_VERIFIED,
-        }
+        readiness, user_status, commissioning = readiness_status_by_provider.get(
+            result.provider_id,
+            (None, None, None),
+        )
+        provider["readiness"] = readiness
+        provider["user_status"] = user_status
+        provider["commissioning"] = (
+            commissioning
+            if commissioning is not None
+            else dict(_DEFAULT_COMMISSIONING)
+        )
         external_providers.append(provider)
 
     return {
         "schema_version": RUNTIME_SCHEMA_VERSION,
-        "platform_health": health.to_json_dict(),
+        "platform_health": platform_health,
         "external_providers": external_providers,
     }
 

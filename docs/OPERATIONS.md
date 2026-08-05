@@ -166,9 +166,16 @@ Call `kis_provider_status` to inspect the current Provider catalogue and runtime
 - `registered` and `enabled` — descriptor and runtime selection state;
 - `build_attempted`, `built`, `mounted`, and `state` — this process's composition result;
 - `readiness` — provider-neutral local preflight evidence;
-- `commissioning` — installation, configuration, authentication, upstream connection, tool discovery, and live verification. These remain `not_verified` until dedicated authenticated commissioning proves them.
+- `user_status` — the current user-facing state and exact next action;
+- `commissioning` — separate installation, configuration, authentication, upstream connection, tool discovery, and live-verification states.
 
-`build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure; inspect the provider's offline readiness details to distinguish a missing executable from invalid configuration or other preflight failures. A mounted provider is not automatically authenticated or live verified. GitHub uses its supervised OAuth commissioning workflow. Supabase uses hosted OAuth/DCR with Windows Credential Manager persistence and requires the explicit commissioning commands below. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+Interpret the normal onboarding states as follows:
+
+- **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and shared-runtime mount are ready. Sign in through the supervised OAuth flow before live GitHub operations. It does not mean the provider is broken.
+- **Supabase: `Ready — project initialization required`** means the commissioned provider is mounted with its local health surface but this repository is not yet linked to a Supabase project. Initialize or link a development/test project, set `SUPABASE_PROJECT_REF` in the supervised environment, then authenticate.
+- **Supabase: `Ready — authentication required`** means project scope and local OAuth prerequisites are ready; browser authentication remains the next step.
+
+A mounted provider is not automatically authenticated, upstream-connected, tool-discovered, or live verified. Reserve degraded, unavailable, or failed states for genuine local faults such as a missing executable, unavailable Windows credential storage, a legacy PAT conflict, invalid configuration, builder failure, mount failure, protocol failure, or runtime failure. `build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure, not a normal sign-in requirement. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
 
 ## Commission Supabase OAuth
 
