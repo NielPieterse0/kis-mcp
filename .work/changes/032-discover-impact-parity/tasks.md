@@ -10,4 +10,5 @@
 - [x] Run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check`.
 - [x] Run focused tests and serialized `pwsh -NoProfile -File .\scripts\verify.ps1`.
 - [x] Perform code, security, simplicity, modularity, and scope review.
-- [ ] Update closeout, commit, push, open PR, verify exact head, merge, and clean safely.
+- [x] Update closeout, commit, push, open PR, verify exact head, and merge safely.
+- [ ] Remove the merged local worktree and branches after the primary checkout can advance without overwriting operator changes.

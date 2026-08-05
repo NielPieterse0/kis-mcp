@@ -34,9 +34,10 @@
 
 - Branch: `change/032-discover-impact-parity`
 - Worktree: `.work/worktrees/032-discover-impact-parity`
-- Commit: pending publication
-- Pull request or merge: pending publication
-- Cleanup: pending merge
+- Implementation commit: `444ffbc87de73922e323243b47afc0efdacc43f2`
+- Pull request: `#39` (`Discover: complete change-impact parity`)
+- Merge commit: `4cb183f2a1d79beb73a3a8b9dcbeaee639e4e5b1`
+- Cleanup: governance record closed. Local worktree/branch removal is deferred because the primary `main` checkout contains unrelated operator-owned approval selections and cannot be advanced safely without overwriting or relocating them.
 
 ## Residual items
 
