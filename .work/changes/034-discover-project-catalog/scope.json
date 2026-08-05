@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "034-discover-project-catalog",
+  "status": "active",
+  "branch": "change/034-discover-project-catalog",
+  "worktree": ".work/worktrees/034-discover-project-catalog",
+  "base": "origin/main",
+  "outcome": "Add explicit bounded multi-repository catalog and cross-repository relationship evidence without implicit project-root scanning",
+  "owned_paths": [
+    "src/kis_mcp/discover/project_catalog/**",
+    "tests/discover/project_catalog/**",
+    "contracts/discover/project-catalog-request.schema.json",
+    "contracts/discover/project-catalog-response.schema.json",
+    "docs/development/discover-project-catalog/**",
+    ".work/changes/034-discover-project-catalog/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
