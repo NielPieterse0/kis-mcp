@@ -39,7 +39,7 @@ Operation instance without opening a browser automatically:
 pwsh -NoProfile -File .\scripts\start-mcp-inspector.ps1 -Instance operation -NoBrowser
 ```
 
-The launcher reads the selected target port from `settings/kis-mcp.settings.json`, binds Inspector to `127.0.0.1`, and opens a read-only ad-hoc session for the local `/mcp` endpoint. Default Inspector UI ports are:
+The launcher reads the selected target port from `settings/kis-mcp.settings.json`, binds Inspector to `127.0.0.1`, and supplies a non-persistent ad-hoc local `/mcp` target. Inspector can invoke the tools exposed by that target, including mutation-capable tools, subject to normal kis-mcp policy and approval. Default Inspector UI ports are:
 
 - operation: `6274`
 - development: `6275`
@@ -53,7 +53,7 @@ Inspector runtime state is separated by kis-mcp instance beneath `C:\Projects\.k
 - No arbitrary remote URL is exposed through Work.
 - Installation network access occurs only when the operator runs the installer.
 - Normal launch uses only the already installed local package.
-- Inspector may launch stdio servers when an operator explicitly configures one in its UI; the kis-mcp launcher supplies only the selected local HTTP target.
+- The managed launcher supplies only the selected local HTTP target; direct upstream Inspector invocation may expose other supported target modes.
 
 ## Recovery
 
@@ -75,3 +75,5 @@ Commissioning evidence on August 5, 2026:
 - `@modelcontextprotocol/inspector@2.0.0` installed successfully.
 - The Inspector CLI help smoke passed before activation.
 - Inspector CLI connected to the development kis-mcp endpoint at `http://127.0.0.1:8011/mcp` and returned its tool catalogue.
+- A replacement install quarantined both the previous package and the isolated bootstrap home without leaving per-install temp residue.
+- The managed development launcher served HTTP 200 at `http://127.0.0.1:6275/`; its ephemeral local auth token was redacted from stored smoke evidence.

@@ -53,6 +53,8 @@ def test_mcp_inspector_installer_is_pinned_staged_and_recoverable() -> None:
     assert "MCP_INSPECTOR_ACTIVATION_FAILED" in script
     assert "failed-new-package" in script
     assert "previous-package" in script
+    assert "bootstrap-home" in script
+    assert "Move-Item -LiteralPath $StagingHome" in script
     assert "ReparsePoint" in script
     assert "Move-Item" in script
     assert "Remove-Item" not in script

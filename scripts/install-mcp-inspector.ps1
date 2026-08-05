@@ -146,6 +146,8 @@ if ($LASTEXITCODE -ne 0) {
 $OperationId = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ') + '-' + [guid]::NewGuid().ToString('N')
 $OperationQuarantine = Assert-InProjects (Join-Path $QuarantineRoot $OperationId) 'operation_quarantine'
 New-Item -ItemType Directory -Path $OperationQuarantine -Force | Out-Null
+$StagingHomeQuarantine = Join-Path $OperationQuarantine 'bootstrap-home'
+Move-Item -LiteralPath $StagingHome -Destination $StagingHomeQuarantine
 
 $Status = [ordered]@{
     schema_version = 1
@@ -163,6 +165,7 @@ $Status = [ordered]@{
         namespace = [string]$Settings.kis_mcp_exposure.namespace
     }
     previous_state_quarantine = $OperationQuarantine
+    bootstrap_home_quarantine = $StagingHomeQuarantine
 }
 $StatusPath = Join-Path $StagingInstallRoot 'installation.json'
 $StatusJson = ($Status | ConvertTo-Json -Depth 8) + [Environment]::NewLine
