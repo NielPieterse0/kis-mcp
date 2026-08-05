@@ -16,7 +16,7 @@ Install the complete pinned AgentSys `6.0.1` distribution and agnix `0.45.0` ind
 - Shared paths: none.
 - Excluded paths: `src/kis_mcp/tools/**`, `tests/tools/**`, `settings/tools/**`, `contracts/tools/**`, `src/kis_mcp/server.py`, Providers, Discover, Skills, and policy implementation.
 - Dependencies: Node.js 18+, npm, PowerShell 7, Git, installed Claude Code/OpenCode/Codex commands when launching managed profiles.
-- Integration owner: a later Tools integration slice after `029-tools-code-tooling` merges.
+- Integration owner: a later bounded Tools integration slice using the now-merged generic Tools framework.
 
 ## Architecture
 
@@ -59,7 +59,7 @@ Installation does not mount either component into kis-mcp. Future command exposu
 3. **Given** any generated path, **When** the installer validates it, **Then** `C:\Projects-old` and every other prefix collision or outside path is rejected.
 4. **Given** an installed host profile, **When** the launcher selects `claude`, `opencode`, or `codex`, **Then** it applies only managed environment variables and invokes the corresponding existing host executable.
 5. **Given** repository tests, **When** the bootstrap suite runs, **Then** exact pins, independent roots, three-host configuration, no permanent deletion, no secret persistence, and default-deny future exposure are proven.
-6. **Given** the active parallel changes, **When** scope validation runs, **Then** no path overlaps change `029-tools-code-tooling` or other active slices.
+6. **Given** concurrent active changes, **When** scope validation runs, **Then** no owned path overlaps another active slice.
 
 ## Risks and recovery
 
