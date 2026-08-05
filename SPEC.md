@@ -107,7 +107,7 @@ operator-supervised tunnel-client
 kis-mcp FastMCP gateway -> Desktop Commander
 ```
 
-`settings.remote_mcp` defines exactly two local instances, `operation` and `development`, with separate ports, profile names, tunnel IDs, Windows Credential Manager target names, and explicit `configured` states. Selection is explicit through the launcher `-Instance` argument or the JSON `active_instance`; the runtime does not perform automatic failover.
+`settings.remote_mcp` defines exactly two local instances: internal `operation`, exposed in ChatGPT as `kis-op` on `127.0.0.1:8010`, and internal `development`, exposed as `kis-dev` on `127.0.0.1:8011`. Each record has a distinct app name, port, profile name, tunnel ID, vault secret reference, runtime directory, and explicit `configured` state. Selection is explicit through the launcher instance argument or the JSON `active_instance`; both instances may run concurrently, and the runtime does not perform automatic failover.
 
 Both instances expose the same standard mixed-purpose Desktop Commander and gateway tools. Transport, instance name, profile, catalogue metadata, approval metadata, or risk labels do not reduce the backend tool surface or create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
 

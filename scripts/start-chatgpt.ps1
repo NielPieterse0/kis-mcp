@@ -10,14 +10,6 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
 . (Join-Path $PSScriptRoot 'secret-vault.ps1')
 
-function Assert-KisMcpInstanceName {
-    param(
-        [ValidateSet('operation', 'development')]
-        [string]$Name
-    )
-    return $Name
-}
-
 function Start-OwnedProcess {
     param(
         [string]$Executable,
@@ -144,7 +136,6 @@ function Wait-McpReady {
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
-$null = Assert-KisMcpInstanceName -Name $Remote.name
 if ($TimeoutSeconds -lt 5 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 5 and 300.'
 }
@@ -169,24 +160,13 @@ $Python = Join-Path $Remote.python_environment_root 'Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
     throw "KIS_MCP_PYTHON_MISSING: $Python"
 }
-$OtherInstance = if ($Remote.name -eq 'operation') { 'development' } else { 'operation' }
-$OtherRemote = Get-KisMcpRemoteInstance -Instance $OtherInstance
-$OtherListener = Get-NetTCPConnection `
-    -LocalAddress $OtherRemote.host `
-    -LocalPort $OtherRemote.port `
-    -State Listen `
-    -ErrorAction SilentlyContinue
-if ($OtherListener) {
-    throw "KIS_MCP_OTHER_INSTANCE_ACTIVE: stop '$OtherInstance' before starting '$($Remote.name)'."
-}
-
 $Listener = Get-NetTCPConnection `
     -LocalAddress $Remote.host `
     -LocalPort $Remote.port `
     -State Listen `
     -ErrorAction SilentlyContinue
 if ($Listener) {
-    throw "KIS_MCP_PORT_IN_USE: $($Remote.host):$($Remote.port)"
+    throw "KIS_MCP_PORT_IN_USE: app=$($Remote.app_name) instance=$($Remote.name) endpoint=$($Remote.endpoint_url)"
 }
 
 [System.IO.Directory]::CreateDirectory($Remote.runtime_root) | Out-Null
@@ -315,6 +295,7 @@ try {
     $StartupState = [ordered]@{
         schema_version = 1
         health = 'ready'
+        app = $Remote.app_name
         instance = $Remote.name
         endpoint = $Remote.endpoint_url
         policy_fingerprint = $PolicyFingerprint
@@ -337,6 +318,8 @@ try {
     )
 
     Write-Host 'health=ready'
+    Write-Host "app=$($Remote.app_name)"
+    Write-Host "instance=$($Remote.name)"
     Write-Host "endpoint=$($Remote.endpoint_url)"
     Write-Host "policy_fingerprint=$PolicyFingerprint"
     Write-Host 'tunnel_state=ready'

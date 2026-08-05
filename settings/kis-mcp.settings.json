@@ -191,14 +191,16 @@
         "profile_name": "kis-mcp-operation",
         "configured": true,
         "tunnel_id": "tunnel_6a6806687cf88191bf97c8c3cb0d1f61",
-        "tunnel_secret_ref": "secret://tunnel/operation/authentication-token"
+        "tunnel_secret_ref": "secret://tunnel/operation/authentication-token",
+        "app_name": "kis-op"
       },
       "development": {
         "port": 8011,
         "profile_name": "kis-mcp-development",
         "configured": true,
         "tunnel_id": "tunnel_6a68065a7b688191ba706b86151241ff",
-        "tunnel_secret_ref": "secret://tunnel/development/authentication-token"
+        "tunnel_secret_ref": "secret://tunnel/development/authentication-token",
+        "app_name": "kis-dev"
       }
     }
   }

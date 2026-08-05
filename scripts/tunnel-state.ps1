@@ -18,6 +18,79 @@ function Get-KisMcpSettings {
     return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
+function Resolve-KisMcpInstanceName {
+    [CmdletBinding()]
+    param([string]$Instance)
+
+    if ([string]::IsNullOrWhiteSpace($Instance)) {
+        throw 'KIS_MCP_REMOTE_INSTANCE_INVALID: select kis-op or kis-dev.'
+    }
+    switch ($Instance.Trim().ToLowerInvariant()) {
+        { $_ -in @('kis-op', 'op', 'operation') } { return 'operation' }
+        { $_ -in @('kis-dev', 'dev', 'development') } { return 'development' }
+        default {
+            throw "KIS_MCP_REMOTE_INSTANCE_INVALID: $Instance. Use kis-op or kis-dev."
+        }
+    }
+}
+
+function Assert-KisMcpRemoteConfiguration {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Remote)
+
+    if ($null -eq $Remote.instances) {
+        throw 'KIS_MCP_REMOTE_INSTANCES_MISSING: settings.remote_mcp.instances is required.'
+    }
+    if ([string]$Remote.host -ne '127.0.0.1') {
+        throw 'KIS_MCP_REMOTE_HOST_INVALID: remote MCP instances must bind 127.0.0.1.'
+    }
+    if ([string]$Remote.path -ne '/mcp') {
+        throw 'KIS_MCP_REMOTE_PATH_INVALID: remote MCP instances must use /mcp.'
+    }
+
+    $Expected = [ordered]@{
+        operation = [pscustomobject]@{ app_name = 'kis-op'; port = 8010 }
+        development = [pscustomobject]@{ app_name = 'kis-dev'; port = 8011 }
+    }
+    $InstanceNames = @($Remote.instances.PSObject.Properties.Name)
+    if (
+        $InstanceNames.Count -ne $Expected.Count -or
+        @($Expected.Keys | Where-Object { $_ -notin $InstanceNames }).Count -gt 0
+    ) {
+        throw 'KIS_MCP_REMOTE_INSTANCE_SET_INVALID: exactly operation and development are required.'
+    }
+
+    $PortOwners = @{}
+    foreach ($Name in $Expected.Keys) {
+        $Record = $Remote.instances.PSObject.Properties[$Name].Value
+        $Port = [int]$Record.port
+        if ($PortOwners.ContainsKey($Port)) {
+            throw (
+                "KIS_MCP_INSTANCE_PORT_DUPLICATE: $Name and " +
+                "$($PortOwners[$Port]) both use $Port."
+            )
+        }
+        $PortOwners[$Port] = $Name
+    }
+
+    foreach ($Name in $Expected.Keys) {
+        $Record = $Remote.instances.PSObject.Properties[$Name].Value
+        $Canonical = $Expected[$Name]
+        if ([string]$Record.app_name -cne [string]$Canonical.app_name) {
+            throw (
+                "KIS_MCP_APP_IDENTITY_INVALID: $Name must map to " +
+                "$($Canonical.app_name)."
+            )
+        }
+        if ([int]$Record.port -ne [int]$Canonical.port) {
+            throw (
+                "KIS_MCP_INSTANCE_PORT_INVALID: $($Canonical.app_name) must use " +
+                "127.0.0.1:$($Canonical.port)."
+            )
+        }
+    }
+}
+
 function Get-KisMcpRemoteInstance {
     [CmdletBinding()]
     param(
@@ -30,13 +103,12 @@ function Get-KisMcpRemoteInstance {
     if ($null -eq $Remote) {
         throw 'KIS_MCP_REMOTE_SETTINGS_MISSING: settings.remote_mcp is required.'
     }
+    Assert-KisMcpRemoteConfiguration -Remote $Remote
+
     if ([string]::IsNullOrWhiteSpace($Instance)) {
         $Instance = [string]$Remote.active_instance
     }
-    $Instance = $Instance.Trim().ToLowerInvariant()
-    if ($Instance -notin @('operation', 'development')) {
-        throw "KIS_MCP_REMOTE_INSTANCE_INVALID: $Instance"
-    }
+    $Instance = Resolve-KisMcpInstanceName -Instance $Instance
 
     $Property = $Remote.instances.PSObject.Properties[$Instance]
     if ($null -eq $Property) {
@@ -80,6 +152,7 @@ function Get-KisMcpRemoteInstance {
 
     return [pscustomobject]@{
         name = $Instance
+        app_name = [string]$Property.Value.app_name
         host = [string]$Remote.host
         port = [int]$Property.Value.port
         path = [string]$Remote.path
