@@ -8,4 +8,4 @@
 - [x] Run focused tests and the full Discover suite.
 - [x] Run scope, whitespace, architecture, and full locked verification.
 - [x] Complete whole-diff review and repair truncation-cause attribution.
-- [ ] Merge and run safe cleanup from `main`.
+- [x] Merge and run safe cleanup from `main`.

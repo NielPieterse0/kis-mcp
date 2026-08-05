@@ -31,9 +31,9 @@
 
 - Branch: `change/030-discover-contract-intelligence`
 - Worktree: `.work/worktrees/030-discover-contract-intelligence`
-- Commit: pending publication
-- Pull request: pending publication
-- Cleanup: pending merge
+- Commit: `fae37041b5390b164056547ffbeed15145ae20fb`
+- Pull request: PR `#37`, merged at the exact head using merge commit `e33e3f8305fa1fb39d7b46412654bf74f4a349ee`
+- Cleanup: completed; the local worktree and branch were removed by the repository workflow
 
 ## Residual items
 

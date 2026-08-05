@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "030-discover-contract-intelligence",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/030-discover-contract-intelligence",
   "worktree": ".work/worktrees/030-discover-contract-intelligence",
   "base": "main",
