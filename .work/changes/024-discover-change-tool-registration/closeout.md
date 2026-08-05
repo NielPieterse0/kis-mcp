@@ -26,9 +26,10 @@ Implementation, documentation, review, and verification complete. Publication re
 
 Fresh serialized `pwsh -NoProfile -File .\scripts\verify.ps1` evidence on the integrated branch:
 
-- **526 tests total**: **524 passed**, **2 expected skips**.
+- **529 tests total**: **527 passed**, **2 expected skips**.
+- Repository line endings: canonical LF policy and local Git EOL configuration passed with **0 violations**.
 - Python syntax: **76 files passed**.
-- Change governance: **21 claims validated**.
+- Change governance: **22 claims validated**.
 - FastMCP **3.4.4** and pytest **8.4.2** matched the locked dependency contract.
 - Configuration retained exactly HR-001, HR-002, and HR-003.
 - Verification exited successfully after synchronizing the shared editable environment to this worktree.
