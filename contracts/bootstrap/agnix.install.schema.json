@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/bootstrap/agnix.install.schema.json",
+  "title": "agnix Bootstrap Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "tool_id", "package", "version", "install_root",
+    "npm_cache_root", "temp_root", "quarantine_root", "expected_commands",
+    "kis_mcp_exposure"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool_id": {"const": "agnix"},
+    "package": {"const": "agnix"},
+    "version": {"const": "0.45.0"},
+    "install_root": {"const": "C:\\Projects\\.kis-mcp\\tools\\agnix\\0.45.0"},
+    "npm_cache_root": {"type": "string", "pattern": "^C:\\\\Projects\\\\"},
+    "temp_root": {"type": "string", "pattern": "^C:\\\\Projects\\\\"},
+    "quarantine_root": {"type": "string", "pattern": "^C:\\\\Projects\\\\"},
+    "expected_commands": {"const": ["agnix"]},
+    "kis_mcp_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "namespace"],
+      "properties": {
+        "enabled": {"const": false},
+        "namespace": {"const": "agnix"}
+      }
+    }
+  }
+}
