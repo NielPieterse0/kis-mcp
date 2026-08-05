@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "035-llm-capability",
-  "status": "active",
+  "status": "closed",
   "branch": "change/035-llm-capability",
   "worktree": ".work/worktrees/035-llm-capability",
   "base": "main",

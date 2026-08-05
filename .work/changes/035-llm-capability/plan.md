@@ -116,4 +116,5 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 validate` and `check` from the worktree.
 - [x] Review the full diff for scope, secrets, policy, fallback, error handling, and unnecessary complexity.
 - [x] Run `pwsh -NoProfile -File scripts/verify.ps1` with no concurrent verification process.
-- [ ] Commit, push, create PR, inspect checks/review, merge at the exact verified head, update local main, and run workflow cleanup.
+- [x] Commit, push, create PR #48, and inspect its exact file set and configured checks.
+- [ ] Merge at the exact final verified head, update local main, and run workflow cleanup.

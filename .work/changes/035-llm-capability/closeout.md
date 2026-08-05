@@ -22,7 +22,7 @@
 - PowerShell parser accepted `scripts/invoke-codex-agent.ps1` without syntax errors.
 - Settings and schema JSON parse successfully.
 - `change-workflow.ps1 validate` and `check` passed with all changed paths inside 035 ownership.
-- Full `scripts/verify.ps1` passed on the complete slice: 112 Python files compiled, full pytest passed with two expected skips, and line-ending, configuration, interpreter, dependency, governance, and exact three-rule checks passed.
+- Full `scripts/verify.ps1` passed after integrating current `origin/main`: 125 Python files compiled, full pytest passed with two expected skips, and line-ending, configuration, interpreter, dependency, governance, and exact three-rule checks passed.
 
 ## Commissioning state
 
@@ -37,5 +37,9 @@ Before merge, abandon the unmerged branch and remove the clean worktree normally
 ## Git and merge
 
 - Branch: `change/035-llm-capability`.
-- Pull request and exact final head: pending publication.
-- Cleanup: pending successful merge.
+- Implementation commit: `5948e45`.
+- Verified integration head before this closeout record: `62ce7aae234cf7dc8bb3fc78e2529322be45f567`.
+- Pull request: `#48 — Add NVIDIA NIM and Codex code-review agent`.
+- PR file review found exactly the 34 declared paths; GitHub has no configured check runs for this head.
+- Merge method: merge commit at the exact final verified closeout head.
+- Cleanup: run immediately after merge through `change-workflow.ps1 cleanup 035-llm-capability`, then remove the remote branch without force.
