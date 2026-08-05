@@ -6,7 +6,14 @@ from typing import Any, Protocol
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from .change_analysis import (
+    AnalyzeChangeRequest,
+    AnalyzeChangeResponse,
+    GitHubChangeContext,
+    SuppliedChange,
+)
 from .change_inspection_contracts import InspectChangeRequest, InspectChangeResponse
+from .impact_contracts import ImpactBudget
 from .context_contracts import (
     CodeContextBudget,
     GetCodeContextRequest,
@@ -35,6 +42,10 @@ class InspectProjectPort(Protocol):
 
 class InspectChangePort(Protocol):
     def inspect(self, request: InspectChangeRequest) -> InspectChangeResponse: ...
+
+
+class AnalyzeChangePort(Protocol):
+    def analyze(self, request: AnalyzeChangeRequest) -> AnalyzeChangeResponse: ...
 
 
 def register_discover_tools(server: FastMCP, service: InspectProjectPort) -> None:
@@ -147,6 +158,70 @@ def register_change_tools(server: FastMCP, service: InspectChangePort) -> None:
                 ),
             )
 
+    if callable(getattr(service, "analyze", None)):
+        register_analyze_change_tool(server, service)  # type: ignore[arg-type]
+
+
+def register_analyze_change_tool(server: FastMCP, service: AnalyzeChangePort) -> None:
+    """Register the unified bounded local change-analysis workflow."""
+
+    @server.tool(name="analyze_change", annotations=_READ_ONLY_ANNOTATIONS)
+    def analyze_change(
+        project: str,
+        source: str = "working_tree",
+        commit_ref: str | None = None,
+        base_ref: str | None = None,
+        head_ref: str | None = None,
+        task_terms: list[str] | None = None,
+        supplied_changes: list[dict[str, Any]] | None = None,
+        github_context: dict[str, Any] | None = None,
+        max_symbols: int = 100,
+        max_dependants: int = 100,
+        max_tests: int = 100,
+        max_verifications: int = 50,
+    ) -> dict[str, Any]:
+        """Normalize one local or supplied change and return evidence-backed impact guidance."""
+
+        try:
+            supplied = tuple(SuppliedChange(**item) for item in (supplied_changes or ()))
+            github = None
+            if github_context is not None:
+                payload = dict(github_context)
+                payload["changes"] = tuple(
+                    SuppliedChange(**item) for item in payload.get("changes", ())
+                )
+                github = GitHubChangeContext(**payload)
+            request = AnalyzeChangeRequest(
+                project=project,
+                source=source,
+                commit_ref=commit_ref,
+                base_ref=base_ref,
+                head_ref=head_ref,
+                task_terms=tuple(task_terms or ()),
+                supplied_changes=supplied,
+                github_context=github,
+                budget=ImpactBudget(
+                    max_symbols=max_symbols,
+                    max_dependants=max_dependants,
+                    max_tests=max_tests,
+                    max_verifications=max_verifications,
+                ),
+            )
+            return service.analyze(request).to_json_dict()
+        except DiscoverError as exc:
+            raise _discover_tool_error(exc) from exc
+        except (TypeError, ValueError) as exc:
+            raise _request_tool_error(
+                code="DISCOVER_ANALYZE_CHANGE_REQUEST_INVALID",
+                message="The analyze_change request is invalid.",
+                reason=str(exc),
+                field="request",
+                corrective_actions=(
+                    r"Provide a local project beneath C:\Projects and a supported change source.",
+                    "Use safe local Git refs or bounded supplied/GitHub metadata with positive budgets.",
+                ),
+            )
+
 
 def _discover_tool_error(exc: DiscoverError) -> ToolError:
     return ToolError(
@@ -192,8 +267,10 @@ def _change_request_field(reason: str) -> str:
 
 
 __all__ = [
+    "AnalyzeChangePort",
     "InspectChangePort",
     "InspectProjectPort",
+    "register_analyze_change_tool",
     "register_change_tools",
     "register_discover_tools",
 ]

@@ -16,7 +16,7 @@ This specification defines the complete product boundary, target architecture, w
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative.
 
-Runtime capability is established only by checked-in contracts, settings, tool registration, and fresh tests. As of 2026-08-05, the bounded local Discover v1 runtime exposes exactly `inspect_project`, `inspect_change`, and `get_code_context` through the existing kis-mcp composition seams. Provider-admission evidence and explicit project-catalog services are implemented as internal foundations and are not additional public tools.
+Runtime capability is established only by checked-in contracts, settings, tool registration, and fresh tests. As of 2026-08-05, the bounded local Discover v1 runtime exposes `inspect_project`, `inspect_change`, `get_code_context`, and the unified `analyze_change` workflow through the existing kis-mcp composition seams. `analyze_change` accepts bounded local Git targets or supplied change metadata, including normalized GitHub pull-request context supplied by the caller; Discover does not execute a GitHub connector. Provider-admission evidence, raw `inspect_impact`, and explicit project-catalog services remain internal foundations rather than additional public tools.
 
 Optional semantic-provider, remote-forge, registry, background-index, and process-backed analyzer capabilities remain staged. Their absence must produce bounded degraded evidence or explicit unknowns; it does not make the deterministic local Discover v1 runtime unavailable.
 
@@ -392,7 +392,8 @@ The Discover v1 public surface is deliberately fixed and small:
 
 - `inspect_project`;
 - `inspect_change`;
-- `get_code_context`.
+- `get_code_context`;
+- `analyze_change`.
 
 Provider-admission evidence, explicit project cataloging, and future catalogue operations remain internal service capabilities unless a later approved contract explicitly changes the public surface. Inactive provider operations are not registered.
 
@@ -776,7 +777,7 @@ Generated caches remain beneath `C:\Projects\.kis-mcp` and are never repository 
 | D7 API and contract intelligence | Initial local foundation complete | OpenAPI JSON, JSON Schema, and checked-in MCP contract classification; additional formats remain staged |
 | D8 cross-repository discovery | Local explicit-selection foundation complete | No implicit `C:\Projects` scan; indexes and provider-backed cross-repository impact remain staged |
 
-The bounded local Discover v1 completion gate is the three public workflows, their deterministic local fallbacks, explicit degradation, and internal governed evidence foundations. Optional provider-backed expansion remains roadmap work and MUST NOT be represented as installed or ready until separately admitted and verified.
+The bounded local Discover v1 completion gate is the four public workflows, their deterministic local and supplied-change paths, explicit degradation, and internal governed evidence foundations. Optional provider-backed expansion remains roadmap work and MUST NOT be represented as installed or ready until separately admitted and verified.
 
 ## 15. Delivery roadmap
 
@@ -887,7 +888,7 @@ Discover is product-ready when:
 
 ## 18. Definition of done
 
-The bounded local Discover v1 module is complete when an agent can use the fixed three-workflow surface to:
+The bounded local Discover v1 module is complete when an agent can use the fixed four-workflow surface to:
 
 - establish canonical local project and repository identity;
 - understand bounded repository structure, languages, frameworks, modules, entry points, supported contracts, tests, CI declarations, instructions, documentation, governance artifacts, and local Git state;

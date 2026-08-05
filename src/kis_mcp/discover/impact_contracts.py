@@ -75,6 +75,7 @@ class InspectImpactRequest(_Record):
     project: str
     changed_paths: tuple[str, ...]
     budget: ImpactBudget
+    task_terms: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _required(self.project, "impact project")
@@ -85,6 +86,21 @@ class InspectImpactRequest(_Record):
             object.__setattr__(self, "changed_paths", normalized)
         if not isinstance(self.budget, ImpactBudget):
             raise ValueError("impact budget must be an ImpactBudget")
+        normalized_terms = tuple(
+            dict.fromkeys(
+                item.strip().casefold()
+                for item in self.task_terms
+                if isinstance(item, str) and item.strip()
+            )
+        )
+        if normalized_terms != self.task_terms:
+            object.__setattr__(self, "task_terms", normalized_terms)
+
+    def to_json_dict(self) -> dict[str, Any]:
+        payload = _Record.to_json_dict(self)
+        if not self.task_terms:
+            payload.pop("task_terms")
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +198,47 @@ class ImpactVerificationHandoff(_Record):
 
 
 @dataclass(frozen=True, slots=True)
+class ImpactRelationship(_Record):
+    kind: str
+    source_path: str
+    target_path: str
+    reason: str
+    confidence: Confidence
+    provenance: str
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"contract_reference", "configuration_reference", "task_term"}:
+            raise ValueError("impact relationship kind is unsupported")
+        for value, label in (
+            (self.source_path, "impact relationship source_path"),
+            (self.target_path, "impact relationship target_path"),
+            (self.reason, "impact relationship reason"),
+            (self.provenance, "impact relationship provenance"),
+        ):
+            _required(value, label)
+
+
+@dataclass(frozen=True, slots=True)
+class ImpactImplementationStep(_Record):
+    step_id: str
+    category: str
+    action: str
+    paths: tuple[str, ...]
+    evidence: tuple[str, ...]
+    confidence: Confidence
+
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.step_id, "impact implementation step id"),
+            (self.category, "impact implementation step category"),
+            (self.action, "impact implementation step action"),
+        ):
+            _required(value, label)
+        if not self.paths or not self.evidence:
+            raise ValueError("impact implementation steps require paths and evidence")
+
+
+@dataclass(frozen=True, slots=True)
 class ImpactUnknown(_Record):
     code: str
     reason: str
@@ -209,8 +266,11 @@ class InspectImpactResponse:
     changed_paths: tuple[str, ...]
     changed_symbols: tuple[ImpactSymbol, ...]
     dependants: tuple[ImpactDependant, ...]
+    relationship_impacts: tuple[ImpactRelationship, ...]
+    task_term_matches: tuple[str, ...]
     affected_tests: tuple[ImpactTest, ...]
     verification_handoffs: tuple[ImpactVerificationHandoff, ...]
+    implementation_steps: tuple[ImpactImplementationStep, ...]
     unknowns: tuple[ImpactUnknown, ...]
     omissions: ImpactOmissions
     confidence: Confidence
@@ -240,8 +300,11 @@ class InspectImpactResponse:
             "changed_paths": list(self.changed_paths),
             "changed_symbols": _json(self.changed_symbols),
             "dependants": _json(self.dependants),
+            "relationship_impacts": _json(self.relationship_impacts),
+            "task_term_matches": list(self.task_term_matches),
             "affected_tests": _json(self.affected_tests),
             "verification_handoffs": _json(self.verification_handoffs),
+            "implementation_steps": _json(self.implementation_steps),
             "unknowns": _json(self.unknowns),
             "omissions": self.omissions.to_json_dict(),
             "confidence": self.confidence.value,
@@ -254,7 +317,9 @@ class InspectImpactResponse:
 __all__ = [
     "ImpactBudget",
     "ImpactDependant",
+    "ImpactImplementationStep",
     "ImpactOmissions",
+    "ImpactRelationship",
     "ImpactSymbol",
     "ImpactTest",
     "ImpactUnknown",

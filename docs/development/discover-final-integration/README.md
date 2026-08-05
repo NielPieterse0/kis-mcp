@@ -2,76 +2,70 @@
 
 ## Runtime surface
 
-The bounded local Discover v1 runtime exposes exactly three public workflows:
+The bounded local Discover v1 runtime exposes four public read-only workflows:
 
-| Tool | Purpose | Public request boundary |
+| Tool | Purpose | Request boundary |
 |---|---|---|
 | `inspect_project` | Build bounded repository, code, verification, contract, instruction, Git, finding, recommendation, unknown, and handoff evidence. | One explicit local project and optional supported inspection limits. |
-| `inspect_change` | Inspect a bounded working tree, staged set, commit, range, or branch target and return change/impact/verification evidence. | One explicit local project, one supported source, and only the Git refs required by that source. |
-| `get_code_context` | Assemble the smallest sufficient local evidence bundle for one task. | One explicit local project, a non-empty task, and complete explicit character/file/symbol/relationship budgets. |
+| `inspect_change` | Inspect a working tree, staged set, commit, range, or branch target. | One explicit local project, one supported source, and only the Git refs required by that source. |
+| `get_code_context` | Assemble the smallest sufficient local evidence bundle for one task. | One explicit local project, a non-empty task, and explicit character/file/symbol/relationship budgets. |
+| `analyze_change` | Normalize a local or supplied change and combine change inventory, transitive impact, affected tests, verification handoffs, and evidence-backed implementation steps. | A supported local Git target or bounded supplied change metadata, optional normalized GitHub PR metadata, task terms, and explicit impact budgets. |
 
-All three tools are registered as read-only, non-destructive, idempotent, and closed-world. Structural request failures and Discover retrieval failures return deterministic JSON `ToolError` payloads and never introduce additional `HR-*` decision codes.
+All four operations are read-only, non-destructive, idempotent, and closed-world. Structural failures return deterministic Discover errors and never introduce additional `HR-*` decisions.
 
 ## Composition
 
-The existing top-level server already owns the composition seams:
+The existing top-level server composition remains unchanged:
 
 ```text
 build_server
-├── InspectProjectService
-│   └── register_discover_tools
-│       ├── inspect_project
-│       └── get_code_context
-└── change FastMCP mount
-    └── register_change_tools
-        └── inspect_change
+├── register_discover_tools
+│   ├── inspect_project
+│   └── get_code_context
+└── register_change_tools
+    ├── inspect_change
+    └── analyze_change
 ```
 
-`InspectProjectService` remains the server-created façade. Its context method delegates to `ContextBrokerService` using the same configured Discover boundary and settings. No import from Discover into `server.py` was added, and no second runtime or policy authority was introduced.
+`InspectChangeService` composes the existing hardened Git reader with `ImpactGraphService`. This avoids a shared-file collision with active server work and does not add another runtime, policy authority, tool package, or provider package.
 
-## Change target contract
+## Unified analysis behavior
 
-`inspect_change` preserves the existing working-tree default and exposes all already-supported local target shapes:
+`analyze_change` supports:
 
-| Source | Required refs | Rejected refs |
-|---|---|---|
-| `working_tree` | none | `commit_ref`, `base_ref`, `head_ref` |
-| `staged` | none | `commit_ref`, `base_ref`, `head_ref` |
-| `commit` | `commit_ref` | `base_ref`, `head_ref` |
-| `range` | `base_ref`, `head_ref` | `commit_ref` |
-| `branch` | `base_ref`, `head_ref` | `commit_ref` |
+- working-tree, staged, commit, range, and branch targets through fixed local Git templates;
+- arbitrary supplied file-change records normalized to repository-relative paths;
+- supplied GitHub repository, pull-request number, base/head SHAs, and changed-file records;
+- task terms passed into the impact graph rather than reported as unavailable;
+- Python symbol and reverse dependency impact plus bounded static JavaScript/TypeScript relationships;
+- contract and configuration path relationships using explicit heuristic provenance and confidence;
+- deterministic affected-test selection and non-executable verification handoffs;
+- evidence-backed implementation steps tied to changed paths, relationships, tests, and verification declarations.
 
-Git refs continue to use the strict existing validation contract and fixed non-shell Git templates.
+GitHub context is input normalization only. Discover does not call a connector, access the network, or infer missing remote evidence.
 
 ## Internal foundations
 
-These completed Discover services remain internal and are intentionally not additional public tools:
-
-- provider-candidate evidence, risk classification, pending Govern admission request, and non-executing Work conformance plan;
-- explicit selected-project catalog and static local cross-project relationship evidence;
-- analyzer registry, architecture components, Python and JavaScript/TypeScript dependency and impact evidence;
-- OpenAPI JSON, JSON Schema, and checked-in MCP contract intelligence.
-
-This preserves the small public surface while allowing later approved workflows to compose the evidence services.
+Raw `inspect_impact`, provider admission, and explicit project-catalog services remain internal. They are composed by the public workflows or reserved for later approved integration rather than registered as separate tools.
 
 ## Completion boundary
 
-The deterministic local Discover v1 runtime is complete when the three tools, local fallbacks, explicit degradation, internal evidence foundations, contracts, and verification pass together.
+The local Discover solution is complete for the approved donor capability set when public workflows, local and supplied change normalization, impact relationships, task terms, implementation steps, schemas, parity tests, and repository verification pass together.
 
-Optional semantic providers, remote forge evidence, provider registries, background indexes, process-backed analyzers, and additional contract formats remain separately governed expansion work. They must not be represented as installed or ready until admitted and verified.
+Still excluded by design:
 
-## Shared-document ownership
-
-During this slice, active change `035-llm-capability` owns `src/kis_mcp/server.py`, `SPEC.md`, and `docs/OPERATIONS.md`. Final Discover runtime composition therefore uses the existing server seams and updates only Discover-owned implementation, tests, the Discover product specification, and this integration record. Shared-document synchronization must occur through the active shared-file owner or after that ownership is released; this slice does not overwrite or bypass it.
+- executing GitHub or other forge connectors from Discover;
+- dynamic JavaScript imports, alias/package resolution, and external module resolution;
+- installing or activating semantic providers, tool packages, or provider packages;
+- executing verification commands inside Discover;
+- background indexing or implicit scans of `C:\Projects`.
 
 ## Verification contract
 
-The final integration requires:
+Completion requires:
 
-- exact Discover registration and annotation tests;
-- façade delegation tests;
-- all supported `inspect_change` request shapes and invalid-shape tests;
-- top-level server membership tests proving the three public operations and excluding internal service names;
-- full Discover regressions;
-- governance scope and whitespace checks;
-- serialized full repository verification on the exact published head.
+- request/response schema validation for `analyze_change` and `inspect_impact`;
+- public tool registration and annotations;
+- local target, supplied change, and GitHub metadata normalization tests;
+- task-term, contract/configuration relationship, implementation-step, affected-test, and verification-handoff tests;
+- full Discover regression, governance scope, whitespace, syntax, and repository verification on the published head.

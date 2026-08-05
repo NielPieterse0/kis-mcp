@@ -190,7 +190,7 @@ def test_build_server_mounts_three_discover_operations_additively() -> None:
     server = build_server(config, validate_provider=False)
     names = {tool.name for tool in asyncio.run(server.list_tools())}
 
-    assert {"inspect_project", "inspect_change", "get_code_context"}.issubset(names)
+    assert {"inspect_project", "inspect_change", "get_code_context", "analyze_change"}.issubset(names)
     assert "inspect_provider_candidate" not in names
     assert "inspect_project_catalog" not in names
     assert "kis_health" in names

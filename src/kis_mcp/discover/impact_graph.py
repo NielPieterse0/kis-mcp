@@ -16,7 +16,9 @@ from .errors import DiscoverError
 from .impact_contracts import (
     ImpactBudget,
     ImpactDependant,
+    ImpactImplementationStep,
     ImpactOmissions,
+    ImpactRelationship,
     ImpactSymbol,
     ImpactTest,
     ImpactUnknown,
@@ -122,10 +124,36 @@ class ImpactGraphService:
             if _verification_applicable(item, request.changed_paths)
         )
         handoffs = verification_all[: request.budget.max_verifications]
+        relationships_all = _relationship_impacts(
+            snapshot=snapshot,
+            changed_paths=request.changed_paths,
+            task_terms=request.task_terms,
+        )
+        remaining_relationship_budget = max(
+            0,
+            request.budget.max_dependants - len(dependants),
+        )
+        relationship_impacts = relationships_all[:remaining_relationship_budget]
+        task_term_matches = _task_term_matches(
+            request.task_terms,
+            request.changed_paths,
+            changed_symbols,
+            dependants,
+            tests,
+        )
+        implementation_steps = _implementation_steps(
+            changed_paths=request.changed_paths,
+            relationships=relationship_impacts,
+            tests=tests,
+            handoffs=handoffs,
+        )
 
         omissions = ImpactOmissions(
             symbols=max(0, len(all_changed_symbols) - len(changed_symbols)),
-            dependants=max(0, len(dependants_all) - len(dependants)),
+            dependants=(
+                max(0, len(dependants_all) - len(dependants))
+                + max(0, len(relationships_all) - len(relationship_impacts))
+            ),
             tests=max(0, len(tests_all) - len(tests)),
             verifications=max(0, len(verification_all) - len(handoffs)),
         )
@@ -151,7 +179,7 @@ class ImpactGraphService:
             index_has_modules=bool(index.modules),
             verification_truncated=verification.truncated,
             analysis_unknowns=analysis.unknowns,
-            task_terms_available=False,
+            task_terms_available=bool(request.task_terms),
         )
         confidence = (
             Confidence.LOW
@@ -169,8 +197,11 @@ class ImpactGraphService:
             changed_paths=request.changed_paths,
             changed_symbols=changed_symbols,
             dependants=dependants,
+            relationship_impacts=relationship_impacts,
+            task_term_matches=task_term_matches,
             affected_tests=tests,
             verification_handoffs=handoffs,
+            implementation_steps=implementation_steps,
             unknowns=unknowns,
             omissions=omissions,
             confidence=confidence,
@@ -393,6 +424,112 @@ def _affected_tests(*, snapshot, changed_paths, changed_modules, changed_symbols
     )
 
 
+def _relationship_impacts(*, snapshot, changed_paths, task_terms) -> tuple[ImpactRelationship, ...]:
+    records: dict[tuple[str, str, str], ImpactRelationship] = {}
+    candidates = tuple(record.label.replace("\\", "/") for record in snapshot.files)
+    for changed in changed_paths:
+        category = _path_category(changed)
+        if category not in {"contract", "configuration"}:
+            continue
+        stem_terms = _tokens(Path(changed).stem)
+        for candidate in candidates:
+            if candidate == changed:
+                continue
+            overlap = stem_terms & _tokens(candidate)
+            if not overlap:
+                continue
+            kind = f"{category}_reference"
+            record = ImpactRelationship(
+                kind=kind,
+                source_path=candidate,
+                target_path=changed,
+                reason=f"Path tokens overlap changed {category} evidence: {', '.join(sorted(overlap))}.",
+                confidence=Confidence.MEDIUM,
+                provenance="path_token_reference",
+            )
+            records[(record.kind, record.source_path, record.target_path)] = record
+    for term in task_terms:
+        for candidate in (*changed_paths, *candidates):
+            if term not in _tokens(candidate):
+                continue
+            record = ImpactRelationship(
+                kind="task_term",
+                source_path=candidate,
+                target_path=term,
+                reason=f"The supplied task term '{term}' matches repository path evidence.",
+                confidence=Confidence.LOW,
+                provenance="task_token_match",
+            )
+            records[(record.kind, record.source_path, record.target_path)] = record
+    return tuple(sorted(records.values(), key=lambda item: (item.kind, item.source_path.casefold(), item.target_path.casefold())))
+
+
+def _task_term_matches(task_terms, changed_paths, changed_symbols, dependants, tests) -> tuple[str, ...]:
+    evidence = [*changed_paths]
+    evidence.extend(item.qualified_name for item in changed_symbols)
+    evidence.extend(item.source for item in dependants)
+    evidence.extend(item.path for item in tests)
+    return tuple(
+        term
+        for term in task_terms
+        if any(term in _tokens(value) or term in value.casefold() for value in evidence)
+    )
+
+
+def _implementation_steps(*, changed_paths, relationships, tests, handoffs) -> tuple[ImpactImplementationStep, ...]:
+    steps: list[ImpactImplementationStep] = []
+    categories: dict[str, tuple[str, ...]] = {}
+    for category in ("contract", "configuration", "documentation", "code"):
+        paths = tuple(path for path in changed_paths if _path_category(path) == category)
+        if paths:
+            categories[category] = paths
+    for category, paths in categories.items():
+        related = tuple(
+            item.source_path
+            for item in relationships
+            if item.target_path in paths and item.source_path not in paths
+        )
+        evidence = tuple(dict.fromkeys((*paths, *related)))
+        steps.append(
+            ImpactImplementationStep(
+                step_id=f"impact-step-{category}",
+                category=category,
+                action={
+                    "contract": "Update contract consumers and validate schema compatibility.",
+                    "configuration": "Review configuration consumers and integration defaults.",
+                    "documentation": "Reconcile documentation with the changed behavior.",
+                    "code": "Implement the changed code paths and preserve bounded interfaces.",
+                }[category],
+                paths=paths,
+                evidence=evidence,
+                confidence=Confidence.MEDIUM if related else Confidence.LOW,
+            )
+        )
+    if tests:
+        steps.append(
+            ImpactImplementationStep(
+                step_id="impact-step-tests",
+                category="test",
+                action="Update or run the deterministically selected affected tests.",
+                paths=tuple(item.path for item in tests),
+                evidence=tuple(item.reason for item in tests),
+                confidence=Confidence.HIGH if all(item.confidence == Confidence.HIGH for item in tests) else Confidence.MEDIUM,
+            )
+        )
+    if handoffs:
+        steps.append(
+            ImpactImplementationStep(
+                step_id="impact-step-verification",
+                category="verification",
+                action="Execute the non-mutating verification handoffs through Work after implementation.",
+                paths=tuple(item.source_path for item in handoffs),
+                evidence=tuple(item.verification_id for item in handoffs),
+                confidence=Confidence.HIGH,
+            )
+        )
+    return tuple(steps)
+
+
 def _verification_applicable(item: VerificationDeclaration, changed_paths: tuple[str, ...]) -> bool:
     categories = {_path_category(path) for path in changed_paths}
     if item.category in {"repository_verification", "test", "lint", "typecheck"}:
@@ -492,6 +629,10 @@ def _unknowns(
 def _path_category(path: str) -> str:
     lowered = path.casefold().replace("\\", "/")
     name = lowered.rsplit("/", 1)[-1]
+    if lowered.startswith(("contracts/", "contract/", "schemas/", "schema/")) or name.endswith(".schema.json") or name.startswith(("openapi.", "asyncapi.")) or name.endswith((".proto", ".graphql", ".gql")):
+        return "contract"
+    if lowered.startswith(("settings/", "config/", "configs/", ".github/")) or name in {"pyproject.toml", "package.json", "tox.ini", "dockerfile", "makefile"} or name.endswith((".toml", ".yaml", ".yml", ".ini")):
+        return "configuration"
     if name in {"uv.lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}:
         return "dependency"
     if lowered.startswith(("docs/", "doc/")) or name.endswith((".md", ".rst")):
