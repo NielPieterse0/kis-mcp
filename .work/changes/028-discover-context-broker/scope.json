@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "028-discover-context-broker",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/028-discover-context-broker",
   "worktree": ".work/worktrees/028-discover-context-broker",
   "base": "main",

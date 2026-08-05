@@ -33,9 +33,9 @@
 
 - Branch: `change/028-discover-context-broker`
 - Worktree: `.work/worktrees/028-discover-context-broker`
-- Commit: pending publication
-- Pull request or merge: pending publication
-- Cleanup: pending merge
+- Commit: `0557d9195079bc217201e785ed8b31a9501d8206`
+- Pull request or merge: PR `#35`, merged at the exact head using merge commit `5a64f0db4918be3115df8dfb92545b8e846c2b95`
+- Cleanup: completed; local worktree and branch removed by the repository workflow
 
 ## Residual items
 
