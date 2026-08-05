@@ -2,7 +2,6 @@
 
 ## Prerequisites
 
-
 - Windows with PowerShell.
 - Python 3.11 or newer.
 - `uv` for the Python environment.
@@ -18,14 +17,19 @@
 
 A standalone wheel installation is not a supported deployment model. Starting the runtime without those canonical JSON files fails with `KIS_MCP_SOURCE_CHECKOUT_REQUIRED` and identifies the resolved root and missing files. Run the CLI and scripts from the repository checkout; generated state remains beneath `C:\Projects\.kis-mcp` as described below.
 
-
 ## Generated state
+
 All generated state remains inside the approved write boundary and outside the repository:
 
 ```text
 C:\Projects\.kis-mcp\
 ├── .claude-server-commander\
 ├── desktop-commander\
+├── tools\
+│   ├── agentsys\6.0.1\
+│   └── agnix\0.45.0\
+├── agent-hosts\
+│   └── agentsys\
 ├── python-env\
 ├── uv-cache\
 ├── python-cache\
@@ -44,6 +48,7 @@ C:\Projects\.kis-mcp\
 Do not commit this state. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
 
 ## Install Python dependencies
+
 Run the operator-supervised bootstrap from `C:\Projects\kis-mcp`:
 
 ```powershell
@@ -55,6 +60,7 @@ The script may use external network access, generates or updates `uv.lock`, and 
 Normal startup and verification never resolve or update dependencies from the network. `scripts\verify.ps1` requires `uv.lock` and performs an offline frozen synchronization before testing.
 
 ## Install Desktop Commander
+
 Desktop Commander is installed from the scanned `@wonderwhy-er/desktop-commander` archive, not copied into this repository and not downloaded again by the installer.
 
 Archive acquisition and security scanning are explicit operator-supervised actions outside the normal Work path. The repository installer itself performs no external network access:
@@ -85,12 +91,36 @@ pwsh -File .\scripts\install-desktop-commander.ps1
 
 Normal startup uses the installed package without downloading or updating it.
 
+## Install managed AgentSys and agnix tooling
+
+AgentSys and agnix are optional supervised host tools. They are installed independently, pinned to exact versions, and are not mounted into `build_server()`.
+
+```powershell
+pwsh -NoProfile -File .\scripts\install-agentsys.ps1
+pwsh -NoProfile -File .\scripts\install-agnix.ps1
+```
+
+The installers may use external network access during this explicit bootstrap stage. They stage and validate package and profile state beneath `C:\Projects\.kis-mcp\temp`, reject paths outside `C:\Projects` or through reparse ancestors, and move replaced or failed-new state beneath quarantine rather than deleting it.
+
+AgentSys `6.0.1` creates isolated managed profiles for Claude Code, OpenCode, and Codex. The corresponding host executable and authentication remain separate prerequisites. Start a host through the managed launcher:
+
+```powershell
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform claude
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform opencode
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform codex
+```
+
+agnix `0.45.0` provides the verified `agnix` CLI. Its npm distribution does not include the separate native `agnix-mcp` binary, so MCP mounting remains deferred and must not be inferred from the CLI installation.
+
+See [`development/bootstrap/agentsys.md`](development/bootstrap/agentsys.md) and [`development/bootstrap/agnix.md`](development/bootstrap/agnix.md) for exact managed paths, catalogue counts, launch prerequisites, and recovery.
+
 ## Configure
 
 Edit only the canonical JSON files:
 
 - `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
-- `settings/providers/platform-runtime.provider.json` for the exact approved external provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
+- `settings/providers/platform-runtime.provider.json` for the exact approved mounted MCP provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
+- `settings/agents/code-review-agent.settings.json` for the one advisory code-review agent, NVIDIA NIM and Codex CLI backend configuration, preferred/fallback order, and evidence/output budgets. Store only the `NVIDIA_API_KEY` environment-variable name, never the API key value.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
 
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
@@ -110,13 +140,14 @@ Each instance has its own loopback port, tunnel profile, explicit `configured` s
 C:\Tools\openai-tunnel-client\tunnel-client.exe
 ```
 
-The checked-in instance records remain `configured: false` with blank tunnel IDs until commissioning. Before tunnel setup, populate the real `tunnel_id`, change `configured` to `true`, and store the secret once with `scripts\set-tunnel-credential.ps1` for that instance's configured credential target. Do not commit credential values or generated profile YAML.
+The checked-in `operation` and `development` records contain distinct non-secret tunnel IDs and are marked `configured: true`. This configuration does not prove local credential, generated-profile, external tunnel, ChatGPT discovery, or end-to-end commissioning state. Before tunnel setup or startup, verify the selected record, complete its supervised credential setup, and generate the corresponding profile. Do not commit credential values or generated profile YAML.
 
 `active_instance` controls the default only. Use `-Instance operation` or `-Instance development` for an explicit switch. There is no automatic failover.
 
 Configuration, instance selection, catalogue metadata, profiles, and status fields do not disable otherwise permitted Desktop Commander tools. Both instances expose the same mixed-purpose tool surface and apply only HR-001, HR-002, and HR-003 to concrete invocations.
 
 ## Start local stdio
+
 Run:
 
 ```powershell
@@ -127,7 +158,7 @@ Startup does not install or update packages. It requires the external locked Pyt
 
 Provider readiness rejects enabled telemetry, a missing or non-loopback feature-flag URL, and missing local Chrome when configured as required because the pinned provider source proves those states cause automatic external activity. It also requires Desktop Commander's persisted `blockedCommands` and `allowedDirectories` fields to remain empty so the provider cannot add independent command or directory restrictions beneath FastMCP.
 
-After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub and Supabase adapter builds in stable provider-ID order. Successful adapters mount as `github_*` and `supabase_*`. Missing binaries, credentials, invalid builder results, or mount failures are recorded by type and do not prevent the Work, Discover, Skills, or gateway surfaces from starting. Invalid runtime JSON remains a startup configuration error.
+After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub and Supabase adapter builds in stable provider-ID order. Successful adapters mount as `github_*` and `supabase_*`. NVIDIA NIM is registered in the provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
 The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
@@ -155,7 +186,7 @@ Request limits are optional and may only narrow values in `settings.discover.lim
 }
 ```
 
-The result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. It does not inspect commits, ranges, branches, pull requests, remote checks, changed symbols, dependant modules, or verification handoffs.
+The public result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. The public tool currently exposes only working-tree inspection. Internal contracts and services support staged, commit, range, and branch targets, context brokering, impact analysis, dependant evidence, affected tests, and verification handoffs, but those capabilities are not public tool parameters or operations on the current gateway. Pull-request and trusted remote evidence remain unavailable.
 
 `DISCOVER_*` errors are structural and corrective. They are not HR policy decisions. Resolve the reported path, unsafe link/reparse condition, unsupported or excessive request limit, unreadable text, Git metadata condition, or configured budget rather than changing `policy/kis-mcp.policy.json`.
 
@@ -176,6 +207,76 @@ Interpret the normal onboarding states as follows:
 - **Supabase: `Ready — authentication required`** means project scope and local OAuth prerequisites are ready; browser authentication remains the next step.
 
 A mounted provider is not automatically authenticated, upstream-connected, tool-discovered, or live verified. Reserve degraded, unavailable, or failed states for genuine local faults such as a missing executable, unavailable Windows credential storage, a legacy PAT conflict, invalid configuration, builder failure, mount failure, protocol failure, or runtime failure. `build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure, not a normal sign-in requirement. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+
+## Configure and use the code-review agent
+
+The gateway exposes one additive advisory operation:
+
+```text
+review_change_with_agent
+```
+
+It collects bounded local `AGENTS.md`, Git status, staged diff, and unstaged diff evidence for one repository beneath `C:\Projects`. It is advisory, exposes no mutation or nested-delegation operation, and instructs the selected backend not to edit, commit, merge, or spawn another agent.
+
+The default backend order is defined in `settings/agents/code-review-agent.settings.json`:
+
+```text
+nvidia-nim -> codex-cli
+```
+
+For NVIDIA NIM, provide the key only in the supervised launcher process environment before starting kis-mcp:
+
+```powershell
+$SecureKey = Read-Host 'NVIDIA API key' -AsSecureString
+$KeyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureKey)
+try {
+    $env:NVIDIA_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($KeyPointer)
+    pwsh -File .\scripts\start.ps1
+}
+finally {
+    Remove-Item Env:NVIDIA_API_KEY -ErrorAction SilentlyContinue
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($KeyPointer)
+}
+```
+
+Do not put the key in repository JSON, a command argument, logs, or an MCP request. NVIDIA calls use the configured OpenAI-compatible HTTPS chat-completions endpoint. The provider remains optional; a missing key reports unavailable/degraded readiness and permits fallback.
+
+For Codex CLI, install and authenticate the `codex` executable through an explicit operator-supervised action outside normal Work, then keep the executable name or approved absolute location in the JSON settings. The gateway invokes only `scripts\invoke-codex-agent.ps1`, passes the review prompt through standard input, and requests:
+
+```text
+codex exec --ephemeral --json --sandbox read-only --color never -C <project> -
+```
+
+The read-only Codex sandbox request is defense in depth, not a replacement for operator supervision or OS-level containment. The wrapper fingerprints Git-visible repository state before and after the run, including HEAD, status, tracked diff, and untracked-file content hashes. If the fingerprint changes, the call fails with `CODEX_CLI_MUTATION_DETECTED`; it does not silently accept or automatically overwrite the detected change.
+
+Example call:
+
+```json
+{
+  "path": "C:\\Projects\\example",
+  "instructions": "Prioritize correctness, error handling, and regressions.",
+  "backend": null
+}
+```
+
+Omit `backend` to use preferred/fallback order. Set it to `nvidia-nim` or `codex-cli` to require that backend without silently switching. Tests validate request shape, bounds, fallback, redaction, and additive registration; they do not prove live NVIDIA credentials or live Codex authentication.
+
+## Run the KIS Control Center
+
+The KIS Control Center is a separate read-only MCP App. It is not mounted into the primary gateway and does not participate in Work policy enforcement.
+
+Run it from the source checkout through the locked project interpreter:
+
+```powershell
+C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.control_center
+```
+
+The server reads `settings\control-center.settings.json` and exposes:
+
+- `open_kis_control_center` — a bounded structured local snapshot;
+- `ui://kis-mcp/control-center.html` — a self-contained local MCP App resource.
+
+The snapshot reports runtime identity, configured project and local Git state, the exact three-rule declaration, provider configuration with runtime-check requirements, bounded quarantine counts, verification guidance, and structural diagnostics. It performs no mutation or network access. Provider configuration does not prove provider authentication or commissioning, and verification remains unrecorded until current evidence is run.
 
 ## Commission Supabase OAuth
 
@@ -241,12 +342,13 @@ pwsh -File .\scripts\smoke-chatgpt.ps1 -Instance development -TimeoutSeconds 90
 This proves the local ChatGPT-compatible HTTP path. It does not prove the external tunnel or ChatGPT app connection.
 
 ## Configure a tunnel profile
+
 For the selected instance:
 
-1. Enter its real `tunnel_id` in `settings.remote_mcp.instances`.
-2. Set that instance's `configured` field to `true`.
-3. Store the tunnel secret once in Windows Credential Manager.
-4. Create the project-local tunnel profile.
+1. Verify that its checked-in non-secret `tunnel_id`, credential target, loopback URL, and `configured: true` state are correct.
+2. Complete the supervised Windows credential step for that instance.
+3. Create the project-local tunnel profile.
+4. Run local and external commissioning checks before treating the instance as live.
 
 ```powershell
 pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance development
@@ -267,6 +369,7 @@ pwsh -File .\scripts\setup-tunnel.ps1 -Instance operation
 The two profiles, tunnel IDs, and credential targets must remain distinct. Do not point both instances at one tunnel record.
 
 ## Start the ChatGPT-facing instance
+
 Start the development instance during commissioning:
 
 ```powershell
@@ -346,6 +449,7 @@ pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change
 Cleanup refuses a dirty worktree or an unmerged branch. It performs only normal `git worktree remove`, `git branch -d`, and `git worktree prune` operations; it never forces deletion.
 
 ## Verify
+
 Run:
 
 ```powershell
@@ -363,7 +467,8 @@ The repository checks also confirm:
 5. predecessor runtime identities are absent from authoritative and runtime files;
 6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass;
 7. Discover contracts, JSON settings, path identity, link/reparse and hard-link handling, traversal budgets, deterministic detection, fixed local Git reads, pure Python AST indexing, output compaction, evidence integrity, donor independence, architecture boundaries, and tool registration pass;
-8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and additive public-tool registration pass.
+8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and additive public-tool registration pass;
+9. code-review agent settings/schema validation, NVIDIA NIM request and response handling, Codex fixed-script invocation, bounded evidence, fallback behavior, redaction, and additive tool registration pass.
 
 Verification also checks the pinned provider surface under `contracts/desktop-commander/`, including provider identity, all exposed tool schemas and annotations, effect classification coverage, adapter mappings, and the recorded SHA-256 fingerprint. These checks are release evidence only; they do not add a runtime allowlist or a fourth policy rule.
 

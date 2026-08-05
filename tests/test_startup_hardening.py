@@ -31,7 +31,8 @@ def test_provider_compatibility_behavior_is_localized_to_startup_seam() -> None:
     assert "PROVIDER_ADMINISTRATION_TOOLS" not in adapter
     assert "notifications/message" in adapter
     assert "KIS_MCP_PROVIDER_FLAG_URL" in lifecycle
-    assert "tunnel_credential_target" in configuration
+    assert "tunnel_secret_ref" in configuration
+    assert "tunnel_credential_target" not in configuration
     assert "tunnel_authentication_id" not in configuration
 
     for tool_name in ADMINISTRATION_TOOLS:

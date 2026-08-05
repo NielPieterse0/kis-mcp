@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/agents/code-review-agent.settings.schema.json",
+  "title": "kis-mcp code review agent settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "agent_id",
+    "preferred_backend",
+    "fallback_backend",
+    "max_evidence_chars",
+    "max_output_chars",
+    "nvidia",
+    "codex"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "agent_id": {"const": "code-reviewer"},
+    "preferred_backend": {"enum": ["nvidia-nim", "codex-cli"]},
+    "fallback_backend": {"type": ["string", "null"], "enum": ["nvidia-nim", "codex-cli", null]},
+    "max_evidence_chars": {"type": "integer", "minimum": 1000, "maximum": 500000},
+    "max_output_chars": {"type": "integer", "minimum": 1000, "maximum": 100000},
+    "nvidia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "base_url", "model", "api_key_env", "timeout_seconds", "temperature", "max_tokens"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "base_url": {"type": "string", "pattern": "^https://"},
+        "model": {"type": "string", "minLength": 1},
+        "api_key_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 600},
+        "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+        "max_tokens": {"type": "integer", "minimum": 1, "maximum": 32768}
+      }
+    },
+    "codex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "script_path", "executable", "timeout_seconds", "max_output_chars"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "script_path": {"type": "string", "minLength": 1},
+        "executable": {"type": "string", "minLength": 1},
+        "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 1800},
+        "max_output_chars": {"type": "integer", "minimum": 1000, "maximum": 100000}
+      }
+    }
+  }
+}

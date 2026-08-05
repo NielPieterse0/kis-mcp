@@ -37,8 +37,12 @@ def test_remote_instances_are_distinct_and_settings_driven() -> None:
     assert operation.tunnel_id == "tunnel_6a6806687cf88191bf97c8c3cb0d1f61"
     assert development.tunnel_id == "tunnel_6a68065a7b688191ba706b86151241ff"
     assert operation.configured is development.configured is True
-    assert operation.tunnel_credential_target == "kis-mcp/tunnel/operation"
-    assert development.tunnel_credential_target == "kis-mcp/tunnel/development"
+    assert operation.tunnel_secret_ref == (
+        "secret://tunnel/operation/authentication-token"
+    )
+    assert development.tunnel_secret_ref == (
+        "secret://tunnel/development/authentication-token"
+    )
     assert config.tunnel_client_path == r"C:\Tools\openai-tunnel-client\tunnel-client.exe"
 
 
@@ -50,6 +54,17 @@ def test_remote_transport_rejects_non_loopback_host(tmp_path: Path) -> None:
     settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
 
     with pytest.raises(RuntimeError, match="loopback"):
+        load_runtime_config(root)
+
+
+def test_remote_transport_rejects_noncanonical_secret_reference(tmp_path: Path) -> None:
+    root = _configuration_copy(tmp_path)
+    settings_path = root / "settings" / "kis-mcp.settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["remote_mcp"]["instances"]["operation"]["tunnel_secret_ref"] = "../bad"
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="secret reference"):
         load_runtime_config(root)
 
 

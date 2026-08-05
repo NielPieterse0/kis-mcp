@@ -42,19 +42,19 @@ Each lesson is classified as one of:
 | Keep settings, policy, secrets, and implementation separate | Applied now | Settings and policy use separate JSON files; credentials and generated state are excluded from repository authority. |
 | Centralize runtime state | Applied now in target configuration; repository hygiene requires attention | Canonical runtime state is `C:\Projects\.kis-mcp`. Repository-local `.mcp-command-state` and `.pytest_cache` are generated artifacts and must remain ignored and non-authoritative. |
 | One shared filesystem authority | Applied now | Path resolution and boundary decisions are centralized rather than implemented independently per tool. |
-| Deterministic ordering, bounded collections, deadlines, and explicit truncation | Adopted for future phase | Required for Discover, Govern, evidence, catalogue, and workflow outputs in `docs/PLATFORM-CONCEPT.md`; not yet a current gateway surface. |
-| Portable JSON contracts and backend parity | Adopted for future phase | Relevant when a second backend or normalized provider contract is commissioned. Current runtime has one provider path. |
-| Provider, language, analyzer, and workflow registries | Adopted for future phase | Target platform concern; must not be introduced prematurely into the baseline. |
-| Separate installed, enabled, authorized, ready, and exposed states | Adopted for future phase with boundary | Useful for platform capability management, but none may become a fourth reason to block ordinary Work. |
+| Deterministic ordering, bounded collections, deadlines, and explicit truncation | Applied now and ongoing | Discover, Skills, provider runtime, the advisory agent, and Control Center use bounded deterministic contracts. Govern and future workflows must preserve the same rule. |
+| Portable JSON contracts and backend parity | Applied now, bounded | Discover, Skills, Provider runtime, agent, and Control Center settings and responses use versioned JSON contracts. Semantic parity across future providers remains continuing work. |
+| Provider, language, analyzer, and workflow registries | Partly applied now | Provider, Tools, Skills catalogue, and internal Discover analyzer registries are implemented. A broad language registry and general workflow coordinator remain target work. |
+| Separate installed, enabled, authorized, ready, mounted, exposed, and commissioned states | Applied now | Provider status separates registration, runtime enablement, readiness, build/mount, user action, and commissioning. None may become a fourth reason to block ordinary Work. |
 | Evidence-driven modularity; avoid both monoliths and premature splitting | Advisory trigger | Use change evidence, dependency direction, co-change, and blast radius before introducing or splitting modules. |
 
 ## 3. Tool surface and usability
 
 | Lesson | Classification | Repository application |
 |---|---|---|
-| Flat catalogues and full schemas consume context | Adopted for future phase | The target ToolCatalogue uses progressive discovery. Do not add it to the current baseline without an approved phase. |
-| Small discovery surface and on-demand descriptions | Adopted for future phase | Applies to future SDK-native platform tools, not to duplicating Desktop Commander schemas. |
-| Stable IDs, explicit versions, and deprecation lifecycle | Adopted for future phase | Required when custom public tool contracts begin to evolve. Existing HR IDs and gateway error codes are already stable. |
+| Flat catalogues and full schemas consume context | Partly applied now; progressive exposure remains target | Skills and Provider catalogues project bounded metadata, while the primary gateway still exposes the active tool surface. Do not duplicate Desktop Commander wrappers merely to create another catalogue. |
+| Small discovery surface and on-demand descriptions | Partly applied now | Gateway-native surfaces remain bounded; Skills supports search/load, and Provider metadata is separate from construction. Broader progressive public exposure remains target work. |
+| Stable IDs, explicit versions, and deprecation lifecycle | Applied now and ongoing | HR IDs, gateway errors, module schemas, provider records, Discover contracts, Skills settings, agent settings, and Control Center settings are versioned. Future contract changes require explicit compatibility handling. |
 | Complete metadata for SDK-native tools | Partly applied now; future expansion | Gateway-native operations must document purpose, effects, bounds, recovery, and errors. Provider-native tools retain native contracts. |
 | Corrective errors without raw diagnostics or secrets | Applied now | Public rejections should identify the violated rule, invalid field or path, safe correction, and retryability without exposing sensitive state. |
 | Capability-group size and overlap reviews | Advisory trigger | The historical 12-tool threshold is a review prompt only and is not policy. |
@@ -110,13 +110,13 @@ These triggers require review or renewed verification. They do not independently
 
 | Lesson | Classification | Repository application |
 |---|---|---|
-| Build the smallest useful replacement first | Applied now | Complete and verify Desktop Commander integration and the three-rule gateway before expanding the platform. |
-| Do not import stale predecessor implementation | Applied now | Prior repositories are source material only, never runtime dependencies. |
-| Adopt providers rather than recreating them | Applied now | Desktop Commander remains authoritative for ordinary local operations. |
-| Discover and Govern must not delay useful Work | Applied now | They are approved future phases, not prerequisites for ordinary supervised Work. |
-| Deterministic local features should not require model or network calls | Adopted for future phase | Discovery, recommendation, and governance functions should remain deterministic where metadata and local evidence suffice. |
-| Pure analysis before process-backed analysis | Adopted for future phase | Add execution-backed analyzers only behind proven bounded contracts. |
-| Stop when the approved bounded capability is complete and verified | Applied now | Optional expansion is deferred unless separately approved. |
+| Build the smallest useful replacement first | Applied now | The Work gateway was established first; later modules were added as bounded independent slices. |
+| Do not import stale predecessor implementation | Applied now | Donor repositories remain source material only, never runtime dependencies. |
+| Adopt providers and tools rather than recreating them | Applied now | Desktop Commander, GitHub MCP, Supabase, NVIDIA NIM, Codex CLI, AgentSys, and agnix retain distinct authoritative boundaries and integration states. |
+| Discover and Govern must not delay useful Work | Applied now | Work remained useful while Discover was added incrementally; Govern remains target work rather than a prerequisite for ordinary supervised Work. |
+| Deterministic local features should not require model or network calls | Applied now and ongoing | Public and internal Discover, Skills, provider metadata, and Control Center use local deterministic evidence. Model calls are confined to the optional advisory agent. |
+| Pure analysis before process-backed analysis | Applied now and ongoing | Discover uses bounded file, Git, and AST/static analysis without executing repository code. Future execution-backed analyzers require separate contracts and authority. |
+| Stop when the approved bounded capability is complete and verified | Applied now | Optional expansion is deferred unless separately approved and claimed. |
 
 ## 8. Rejected or constrained lessons
 
@@ -140,31 +140,45 @@ The following interpretations are explicitly rejected for the current scope:
 - closed trust model and exactly three prohibited outcomes;
 - separation of provider capability, effect resolution, and policy decisions;
 - provider reuse and greenfield boundary;
-- JSON settings and policy separation;
-- quarantine and restoration model;
-- current-versus-target documentation boundary;
-- modular baseline implementation and focused tests;
+- strict JSON settings, policy, and versioned contracts;
+- quarantine and restoration;
+- public bounded Discover through `inspect_project` and working-tree `inspect_change`;
+- shared Skills catalogue and Work-backed mutation;
+- Provider registry, catalogue, readiness, runtime composition, and status;
+- optional NVIDIA/Codex advisory review workflow;
+- supervised pinned AgentSys and agnix bootstrap with isolated managed state and recoverable activation;
+- standalone read-only Control Center;
+- current-versus-internal-versus-standalone-versus-target documentation boundaries;
 - canonical verification entry point.
 
 ### Covered but requiring continuing evidence
 
-- complete Desktop Commander schema mapping;
-- command and child-process effect resolution across all supported shapes;
+- complete Desktop Commander schema mapping and provider-upgrade conformance;
+- command and child-process effect resolution across supported shapes;
 - links, junctions, relative paths, redirects, generated files, and indirect writes;
-- live provider startup, transport behavior, and end-to-end forwarding;
+- live provider authentication, upstream connectivity, and end-to-end forwarding;
+- live NVIDIA inference and Codex authentication;
+- tunnel credential/profile presence, ChatGPT discovery, and remote smoke evidence;
 - generated-state containment and post-verification repository cleanliness;
-- provider-upgrade conformance.
+- public composition and compatibility of internal Discover services.
+
+### Implemented internally but not public gateway tools
+
+- staged, commit, range, and branch change-target readers;
+- context brokering;
+- impact analysis, dependant mapping, affected tests, and verification handoffs;
+- contract intelligence;
+- explicit project cataloging;
+- provider-admission evidence with a fixed pending-Govern boundary.
 
 ### Correctly deferred
 
-- progressive catalogue and profiles;
-- normalized provider and evidence registries;
-- Discover and Govern implementation;
-- semantic code intelligence and context brokering;
-- multi-backend parity;
-- SDK-native analyzers and language registries;
-- GitHub and other remote evidence normalization;
-- composed review, audit, debugging, and governance workflows.
+- Govern implementation and authority/ruleset evaluation;
+- broader semantic providers and language intelligence;
+- public context, impact, contract, project-catalog, and provider-admission workflows;
+- trusted remote evidence normalization for Discover;
+- general workflow coordination and composed review, audit, debugging, and governance surfaces;
+- bounded Work planning, proposal, application, and verification workflows beyond ordinary provider operations.
 
 ## 10. Completion rule
 

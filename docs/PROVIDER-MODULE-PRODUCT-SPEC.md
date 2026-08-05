@@ -7,392 +7,311 @@
 | Product | `kis-mcp` Platform |
 | Module | Provider |
 | Repository | `C:\Projects\kis-mcp` |
-| Status | Approved architecture; common foundation implemented in change 010; connector integration remains dependent on changes 008 and 009 |
-| Date | 2026-08-04 |
+| Status | Current architecture and implemented provider foundation, composition, and runtime status model |
+| Date | 2026-08-05 |
 | Parent authority | [`PLATFORM-CONCEPT.md`](PLATFORM-CONCEPT.md) |
+| Current implementation authority | [`../SPEC.md`](../SPEC.md) |
 
-This specification defines the Provider module boundary, contracts, dependency direction, extension model, readiness model, and relationship to Work, Discover, and Govern. The key words **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
+This specification defines the Provider module boundary, contracts, dependency direction, extension model, readiness model, and current integration state. **MUST**, **MUST NOT**, **SHOULD**, and **MAY** are normative.
 
-## 1. Approved platform architecture
+## 1. Current architecture
 
 ```text
-ChatGPT
-   |
-   v
 kis-mcp FastMCP platform
-├── shared tool catalogue / routing
-├── provider registry
-├── health and readiness
-│
-├── Work Module
-│     └── three-rule middleware
-│           ├── HR-001: no writes outside C:\Projects
-│           ├── HR-002: no external network through Work
-│           └── HR-003: no permanent deletion
-│                 |
-│                 v
-│        Desktop Commander MCP
-│        ├── filesystem
-│        ├── editing
-│        ├── search
-│        ├── terminal
-│        ├── process
-│        └── document operations
-│
-├── Providers Module
-│     ├── GitHub MCP provider
-│     ├── Supabase MCP provider
-│     └── future provider adapters
-├── Govern Module
-└── Discover Module
+├── shared gateway and tool catalogue
+├── ProviderRegistry
+│   ├── desktop-commander  local Work backend
+│   ├── github-mcp         approved external connector
+│   ├── nvidia-nim         workflow-only external provider
+│   └── supabase           approved external connector
+├── provider runtime composition
+│   ├── github_*           mounted when enabled and successfully built
+│   └── supabase_*         mounted when enabled and successfully built
+├── Tools registry
+│   └── codex-cli          local executable adapter, not a Provider connector
+└── kis_provider_status
 ```
 
-The platform has one shared catalogue, one provider registry, and one readiness model. Provider adapters remain independently testable modules beneath the Provider boundary.
+The platform has one provider registry, one provider-neutral catalogue and health model, and one deterministic runtime-composition path. Provider adapters remain independently testable modules beneath the Provider boundary.
+
+Desktop Commander remains the Work backend. GitHub and Supabase use approved external connector boundaries. NVIDIA NIM is registered for the advisory code-review workflow and is not mounted as a general provider passthrough. Codex CLI belongs to the Tools module.
 
 ## 2. Purpose
 
-The Provider module supplies a stable platform boundary for external MCP connectors, local backends, semantic engines, and future platform providers.
-
-It answers four questions:
+The Provider module answers four questions:
 
 1. Which providers are registered?
-2. Which provider capabilities are available for discovery and routing?
-3. Is each provider enabled and ready without starting unrelated providers?
-4. How does the platform explicitly build a selected provider?
+2. Which capabilities and trust boundaries do they declare?
+3. What is their local readiness without starting unrelated providers?
+4. Which selected providers built and mounted in the current gateway process?
 
-The Provider module does not replace provider implementations. It normalizes their identity and lifecycle contracts.
+The module normalizes identity and lifecycle contracts. It does not replace provider implementations or prove authentication, upstream connectivity, tool discovery, or live commissioning.
 
 ## 3. Module structure
 
 ```text
 src/kis_mcp/providers/
-├── __init__.py        explicit public Provider module surface
+├── __init__.py        explicit public Provider surface
 ├── contracts.py       provider-neutral identity, capability, and readiness records
 ├── registry.py        deterministic registration and lookup
-├── catalogue.py       immutable progressive catalogue projection
+├── catalogue.py       immutable metadata projection
 ├── health.py          aggregate readiness without provider construction
-├── service.py         thin provider-neutral facade
-├── github/            GitHub MCP adapter owned by change 008
-├── supabase/          Supabase MCP adapter owned by change 009
-└── <future-provider>/ isolated provider-specific adapter
+├── service.py         provider-neutral facade and explicit construction
+├── runtime.py         deterministic external-provider build and mount results
+├── runtime_settings.py strict runtime JSON settings
+├── platform.py        explicit composition root
+├── desktop_commander.py
+├── github/
+├── nvidia/
+└── supabase/
 ```
 
-The common files MUST NOT import provider-specific adapter packages. Adapter packages MAY import the common Provider contracts.
+The provider-neutral contracts, registry, catalogue, health, and service modules MUST NOT depend on provider-specific adapters. The explicit `platform.py` composition root MAY import approved adapters to register them.
 
 ## 4. Responsibility boundary
 
-### 4.1 Provider module ownership
+### 4.1 Provider core
 
-The Provider module owns:
+The Provider core owns:
 
-- provider identity and kind;
-- provider boundary classification;
-- provider capability metadata;
+- provider identity, kind, and boundary classification;
+- capability metadata and provider-native tool names;
 - authoritative source and revision metadata;
 - enabled state;
-- deterministic registration and lookup;
-- progressive catalogue projection;
-- readiness probe contracts and aggregate readiness;
-- explicit provider construction through a selected descriptor;
+- deterministic registration, lookup, and catalogue projection;
+- readiness probe contracts and aggregate health;
+- explicit provider construction;
+- deterministic runtime build and mount results;
 - stable JSON contract snapshots.
 
-### 4.2 Adapter ownership
+### 4.2 Provider adapters
 
-Each provider adapter owns:
+Each adapter owns:
 
-- provider-specific settings and JSON configuration;
+- provider-specific JSON settings;
 - authentication indirection and environment-variable names;
 - transport construction;
-- provider-specific scope validation;
-- authoritative package, binary, or endpoint identity;
-- provider-specific health evidence;
-- FastMCP proxy construction;
-- provider-specific smoke and conformance tests.
+- scope validation;
+- source, version, endpoint, package, or executable identity;
+- provider-specific readiness and user-status evidence;
+- builder behavior and adapter-specific smoke tests.
 
-### 4.3 Responsibilities outside Provider
+### 4.3 Outside the Provider module
 
 The Provider module MUST NOT own:
 
 - HR-001, HR-002, or HR-003 enforcement;
 - Desktop Commander Work middleware;
-- provider credentials or secret values;
+- credential or secret values;
 - provider installation or upgrade actions;
-- arbitrary provider network requests;
-- Discover evidence normalization or repository analysis;
-- Govern admission, policy, or compliance decisions;
-- task workflow orchestration beyond provider selection and construction;
-- provider-specific tool wrappers.
+- arbitrary caller-selected provider URLs, commands, arguments, or environment maps;
+- Discover evidence normalization;
+- Govern admission decisions;
+- general workflow orchestration;
+- the Codex CLI Tool adapter.
 
 ## 5. Dependency direction
 
 ```text
-Platform routing / workflows
-          |
-          v
-ProviderService
+Gateway and workflows
+        |
+        v
+ProviderService and runtime composition
 ├── ProviderRegistry
 ├── ProviderCatalogue
-└── ProviderHealthSummary
-          |
-          v
-ProviderDescriptor contract
-          ^
-          |
-provider adapters
+├── aggregate_provider_health
+└── ProviderDescriptor
+        ^
+        |
+explicit platform composition
+├── desktop_commander
 ├── github
-├── supabase
-└── future adapters
+├── nvidia
+└── supabase
 ```
 
-Dependencies point inward toward provider-neutral contracts. The common Provider core never reaches outward into an adapter to discover it implicitly.
-
-Registration MUST be explicit. Import side effects MUST NOT register or start providers.
+Registration MUST be explicit. Import side effects MUST NOT start, authenticate, probe, or contact a provider.
 
 ## 6. Public contracts
 
-The public Python contract is exposed through `kis_mcp.providers`.
+The public Python contract is exposed through `kis_mcp.providers` and represented by `contracts/providers/module/provider-module.schema.json`.
 
 ### 6.1 Provider descriptor
 
-A `ProviderDescriptor` declares:
+`ProviderDescriptor` declares:
 
-- `provider_id` using lower-case kebab-case;
-- human-readable `display_name`;
+- lower-case kebab-case `provider_id`;
+- `display_name`;
 - `provider_kind`;
 - execution or trust `boundary`;
-- `authoritative_source`;
-- pinned or declared `source_revision`;
+- `authoritative_source` and `source_revision`;
 - zero or more `ProviderCapability` records;
-- explicit `builder` callback;
-- explicit `readiness_probe` callback;
+- explicit `builder` and `readiness_probe` callbacks;
 - `enabled` state;
 - `schema_version`.
 
-Builder and readiness callbacks are runtime implementation references and are excluded from serialized metadata.
+Runtime callbacks are excluded from serialized metadata.
 
 ### 6.2 Provider capability
 
-A `ProviderCapability` declares a stable capability ID, description, effect labels, and provider-native tool names. Capability metadata supports discovery and routing; it does not create a Work authorization rule.
+`ProviderCapability` declares a stable capability ID, description, effect labels, and provider-native tool names. Capability metadata supports discovery and routing. It does not authorize Work or create another policy rule.
 
 ### 6.3 Provider readiness
 
-A `ProviderReadiness` record declares one state:
+`ProviderReadiness` uses one provider-neutral state:
 
 - `ready`;
 - `degraded`;
 - `disabled`;
 - `unavailable`.
 
-Readiness is operational evidence. It MUST NOT be interpreted as HR-001, HR-002, or HR-003 policy authority.
+Readiness is local operational evidence. It is not equivalent to authentication or commissioning and MUST NOT be interpreted as HR policy authority.
 
-### 6.4 Versioned JSON schema
+### 6.4 Runtime mount result
 
-The contract snapshot is stored at:
+`ProviderMountResult` records one external-provider composition attempt:
 
-```text
-contracts/providers/module/provider-module.schema.json
-```
+- registration and runtime enablement;
+- whether build was attempted and succeeded;
+- whether mount succeeded;
+- one state: `disabled`, `unregistered`, `build_failed`, `invalid_builder_result`, `mount_failed`, or `mounted`;
+- bounded exception type when a failure occurs.
 
-Public record objects are closed with `additionalProperties: false`. Runtime callbacks are not represented in the schema.
+Mount state does not prove upstream authentication or live provider behavior.
 
-## 7. Registry
+## 7. Registry, catalogue, and health
 
-`ProviderRegistry` is a deterministic in-memory registry of descriptors.
+`ProviderRegistry` MUST reject duplicate provider IDs, return stable provider-ID order, support exact lookup, avoid implicit package scans, and store descriptors without invoking callbacks.
 
-It MUST:
+`ProviderCatalogue` MUST project immutable descriptor metadata without building or probing providers.
 
-- reject duplicate provider IDs;
-- return providers in stable provider-ID order;
-- provide exact lookup and presence checks;
-- store descriptors without invoking builders or readiness probes;
-- remain independent of provider-specific code.
+`aggregate_provider_health` MUST:
 
-It MUST NOT:
+1. skip probes for disabled providers;
+2. contain probe exceptions as `unavailable` without exposing raw error messages;
+3. reject mismatched provider IDs from probes;
+4. avoid provider builders;
+5. aggregate empty, disabled, ready, degraded, and unavailable states deterministically.
 
-- scan packages for providers;
-- import adapters dynamically from caller input;
-- activate providers during registration;
-- accept credentials;
-- perform network access;
-- silently replace an existing provider.
+## 8. Provider service and explicit composition
 
-## 8. Catalogue
+`ProviderService` exposes catalogue access, capability filtering, aggregate health, and explicit construction of one selected provider. It MUST remain provider-neutral.
 
-`ProviderCatalogue` projects immutable metadata from the registry.
+`build_platform_provider_registry()` explicitly registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase. `build_platform_provider_service()` wraps that registry.
 
-It supports:
+`settings/providers/platform-runtime.provider.json` selects only the external FastMCP adapters that the primary gateway attempts to mount. The current selection is GitHub MCP under `github` and Supabase under `supabase`. Desktop Commander is already the Work proxy. NVIDIA is consumed by the advisory workflow.
 
-- stable provider listing;
-- capability-based filtering;
-- progressive tool or workflow discovery;
-- provider source and revision inspection;
-- enabled-state visibility.
+Runtime composition processes settings in stable provider-ID order and contains unregistered, disabled, builder, invalid-result, and mount failures. One optional provider failure MUST NOT prevent the core Work, Discover, Skills, agent-registration, or gateway surfaces from starting.
 
-Catalogue operations MUST NOT invoke provider builders or readiness probes.
+## 9. User status and commissioning
 
-The catalogue reports what is registered and declared. It does not prove runtime readiness, provider trust, or governance approval.
+`kis_provider_status` keeps these evidence layers separate:
 
-## 9. Health and readiness
+| Layer | Meaning |
+|---|---|
+| Registration | Descriptor exists in the Provider registry. |
+| Runtime enablement | Provider is selected in runtime JSON. |
+| Readiness | Local preflight evidence from the adapter. |
+| Build and mount | Current gateway-process composition result. |
+| User status | Current next action in bounded user-facing language. |
+| Commissioning | Installation, configuration, authentication, upstream connection, tool discovery, and live verification evidence. |
 
-`aggregate_provider_health` evaluates provider readiness probes in stable provider-ID order.
+Normal onboarding states include:
 
-Rules:
+- **GitHub — Ready, authentication required:** executable, configuration, OAuth mode, and mount prerequisites are ready; supervised sign-in remains.
+- **Supabase — Ready, project initialization required:** the provider is available but the current repository is not yet linked or scoped to a Supabase project.
+- **Supabase — Ready, authentication required:** project scope is present and browser OAuth remains.
+- **NVIDIA NIM — unavailable or degraded without `NVIDIA_API_KEY`:** the optional review backend may fall back to Codex; the gateway remains available.
 
-1. Disabled providers are reported as `disabled` and are not probed.
-2. Probe failures are contained as `unavailable` with the exception type only; raw error messages are not exposed.
-3. A probe that reports another provider ID is contained as `unavailable`.
-4. Provider builders are never called during health aggregation.
-5. No providers produces aggregate `unavailable`.
-6. All disabled providers produces aggregate `disabled`.
-7. All active providers ready produces aggregate `ready`.
-8. Mixed ready, degraded, or unavailable active providers produces aggregate `degraded`.
-9. All active providers unavailable produces aggregate `unavailable`.
+Use degraded, unavailable, build-failed, or mount-failed states for genuine local faults. Do not present expected onboarding as breakage.
 
-Provider-specific probes MUST avoid unnecessary external calls when local configuration and credential presence can establish readiness.
+## 10. Provider-specific boundaries
 
-## 10. Provider service
+### 10.1 Desktop Commander
 
-`ProviderService` is a thin facade over registry, catalogue, readiness, and explicit construction.
+Desktop Commander is a `local_backend` at the `work_backend` boundary. Its builder creates the existing Work server. HR-001, HR-002, and HR-003 remain enforced through the Work adapter and middleware, not through Provider metadata.
 
-It exposes four responsibilities:
+### 10.2 GitHub MCP
 
-- return the catalogue;
-- filter catalogue entries by capability;
-- aggregate health;
-- build one explicitly selected provider.
+GitHub MCP is an approved external connector with isolated settings, OAuth behavior, source identity, readiness, builder, and smoke evidence. Successful mount exposes upstream tools under `github_*`.
 
-The service MUST NOT contain `if provider == "github"` or equivalent provider-specific branches. Provider selection is data-driven through descriptors.
+### 10.3 Supabase
 
-## 11. GitHub and Supabase integration
+Supabase is an approved external connector with project-scope validation, hosted OAuth commissioning, isolated settings, readiness, builder, and smoke evidence. Successful mount exposes project-scoped upstream tools under `supabase_*`.
 
-### 11.1 Current placement
+### 10.4 NVIDIA NIM
 
-The active connector slices already use the intended adapter locations:
+NVIDIA NIM is an approved external provider used by `review_change_with_agent`. The adapter reads the API key only from the configured environment-variable name, uses the fixed OpenAI-compatible chat-completions endpoint and model settings, and is not mounted for arbitrary provider passthrough.
 
-```text
-src/kis_mcp/providers/github/
-src/kis_mcp/providers/supabase/
-```
+### 10.5 Codex CLI exclusion
 
-This means the connectors are physically housed beneath the Provider module boundary.
+Codex CLI is a local executable Tool adapter behind a fixed PowerShell wrapper. It is not a Provider descriptor and MUST NOT be added to Provider runtime settings merely because the code-review workflow can select it.
 
-### 11.2 Coordinated migration
+## 11. Relationship to Work, Discover, and Govern
 
-Change 010 does not edit active connector-owned files. After changes 008 and 009 are integrated, each adapter SHOULD expose one registration function that returns or registers a common `ProviderDescriptor`.
+Provider metadata does not alter Work policy. HR-001 applies to writes outside `C:\Projects`; HR-002 applies to external network effects through local Work; HR-003 replaces permanent deletion with quarantine. Approved external connectors operate through separate supervised provider boundaries.
 
-Expected pattern:
+Discover MAY consume registered capability, readiness, and normalized evidence. It MUST NOT install, authenticate, or start a provider implicitly.
 
-```python
-def register_provider(registry: ProviderRegistry) -> ProviderDescriptor:
-    descriptor = ProviderDescriptor(
-        provider_id="github",
-        display_name="GitHub MCP",
-        provider_kind=ProviderKind.CONNECTOR,
-        boundary=ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR,
-        authoritative_source="...",
-        source_revision="...",
-        capabilities=(...),
-        builder=build_server,
-        readiness_probe=provider_health,
-    )
-    return registry.register(descriptor)
-```
+Govern owns provider-admission and compliance decisions. The existing Discover provider-admission service produces bounded evidence with a fixed `pending_govern` decision; it does not approve, install, or activate a provider.
 
-The temporary root-level `src/kis_mcp/provider_registry.py` introduced by change 008 SHOULD become a compatibility shim or be removed through a coordinated follow-up after imports migrate to `kis_mcp.providers.registry`. It is not modified in this slice to avoid an ownership clash.
-
-### 11.3 Connector independence
-
-GitHub and Supabase MUST remain independently startable, testable, and replaceable. Their settings, transports, credentials, scope rules, and smoke tests MUST remain in their adapter packages.
-
-## 12. Relationship to Work
-
-The Work module owns Desktop Commander and the three-rule middleware.
-
-Provider boundaries do not alter Work policy:
-
-- HR-001 applies to writes outside `C:\Projects` through Work.
-- HR-002 applies to external network effects through Work.
-- HR-003 transforms permanent deletion into recoverable quarantine.
-
-Approved external connectors such as GitHub and Supabase use separate supervised provider boundaries. Their existence does not authorize network access through Desktop Commander Work tools.
-
-Provider state, catalogue membership, provider kind, or capability labels MUST NOT become a fourth Work restriction.
-
-## 13. Relationship to Discover
-
-Discover consumes normalized provider evidence and capability availability. It does not own provider lifecycle or connector transport.
-
-```text
-Provider module -> exposes registered capability and readiness
-Discover        -> selects and normalizes relevant evidence
-```
-
-Discover MAY report provider unavailability as an unknown or degraded evidence source. It MUST NOT start or install a provider implicitly.
-
-## 14. Relationship to Govern
-
-Govern evaluates provider admission, provenance, compatibility, declared effects, licensing, trust, and required verification.
-
-```text
-Provider module -> declares source, revision, capabilities, boundary, readiness
-Govern          -> evaluates whether that declaration satisfies standards
-```
-
-The Provider module records operational state. Govern owns compliance decisions.
-
-## 15. Adding a future provider
+## 12. Adding a provider
 
 A new provider slice SHOULD:
 
 1. create `src/kis_mcp/providers/<provider-id>/`;
-2. keep configuration in JSON;
-3. isolate credentials behind environment-variable indirection;
-4. implement provider-specific settings, transport, health, and server construction;
-5. declare common capabilities and a common descriptor;
-6. register explicitly through `ProviderRegistry`;
-7. add provider-specific contracts and tests;
-8. verify that catalogue and health do not build the provider;
-9. avoid changes to Work policy, Discover internals, and unrelated adapters;
-10. use an isolated governed worktree and non-overlapping claim.
+2. keep configuration in strict JSON;
+3. keep secrets behind environment or approved credential indirection;
+4. isolate settings, transport, readiness, builder, and smoke behavior;
+5. declare a common descriptor and capabilities;
+6. register through the explicit platform composition root;
+7. add contracts and provider-specific tests;
+8. prove catalogue and health do not build the provider;
+9. decide explicitly whether it is mounted, workflow-only, or internal;
+10. avoid changes to Work policy and unrelated adapters;
+11. use an isolated governed worktree and non-overlapping ownership claim.
 
-## 16. Non-goals
+## 13. Non-goals
 
 The Provider module will not:
 
-- merge all provider code into one large registry file;
-- duplicate complete GitHub, Supabase, Desktop Commander, or semantic-provider implementations;
-- create provider-specific public wrappers for every upstream tool;
-- auto-install, auto-update, or auto-enable providers;
+- merge all provider code into one registry file;
+- recreate complete upstream provider surfaces;
+- auto-install, auto-update, auto-authenticate, or auto-enable providers;
 - dynamically import caller-selected modules;
-- accept arbitrary provider URLs, executables, arguments, or environment maps through the common contract;
 - store credentials;
-- hide provider-specific validation inside the common registry;
-- make provider readiness an authorization decision;
+- expose arbitrary provider execution parameters;
+- make readiness, registration, mount, or commissioning an authorization decision;
 - add restrictions beyond HR-001, HR-002, and HR-003.
 
-## 17. Acceptance criteria
+## 14. Implementation and delivery status
 
-The Provider module foundation is accepted when:
+| Phase | Status | Evidence boundary |
+|---|---|---|
+| P0 — Common foundation | Implemented | Contracts, registry, catalogue, health, service, schema, and tests. |
+| P1 — GitHub conformance | Implemented | Descriptor, explicit registration, isolated settings and builder, OAuth and smoke paths. |
+| P2 — Supabase conformance | Implemented | Descriptor, explicit registration, project-scoped settings and builder, OAuth and smoke paths. |
+| P3 — Platform composition | Implemented | Explicit four-provider registry, GitHub/Supabase runtime selection, namespaced mount containment, and `kis_provider_status`. |
+| P4 — Workflow provider | Implemented for NVIDIA NIM | Workflow-only descriptor and client for the advisory code-review agent. |
+| Future adapters | Target | Semantic, forge, database, testing, or documentation providers added through separate slices. |
+
+Implementation and tests do not by themselves prove live credentials, authentication, upstream connectivity, or current commissioning. Those states require separate supervised evidence.
+
+## 15. Acceptance criteria
+
+The Provider module is accepted when:
 
 1. provider-neutral records are immutable, validated, and JSON-safe;
-2. duplicate provider IDs and duplicate capability IDs are rejected;
-3. registry and catalogue ordering is deterministic;
-4. catalogue filtering does not build or probe providers;
-5. health aggregation contains probe failures and does not build providers;
-6. disabled providers are not probed;
-7. provider construction occurs only through explicit selection;
-8. the common core imports no provider adapter;
-9. the public JSON schema is valid, versioned, and closed;
-10. GitHub and Supabase remain isolated beneath the Provider package;
-11. the approved platform diagram is versioned in this document;
-12. no provider-specific active slice, Work policy file, Discover implementation, settings file, credential, network operation, or dependency is changed by the foundation slice.
-
-## 18. Delivery sequence
-
-1. **P0 — Common foundation:** contracts, registry, catalogue, health, service, schema, tests, and this specification.
-2. **P1 — GitHub conformance:** migrate change 008 descriptor and registration to the common contract after dependency integration.
-3. **P2 — Supabase conformance:** add common descriptor and registration to change 009 after dependency integration.
-4. **P3 — Platform composition:** register approved providers in the shared platform catalogue and health surface without changing Work enforcement.
-5. **P4 — Future adapters:** add semantic, forge, database, testing, or documentation providers through isolated slices.
-
-Each phase remains independently reviewable and reversible.
+2. duplicate provider and capability IDs are rejected;
+3. registry, catalogue, health, and runtime ordering are deterministic;
+4. catalogue operations do not build or probe providers;
+5. health contains probe failures and does not build providers;
+6. disabled providers are not probed or built;
+7. construction occurs only through explicit selection;
+8. the provider-neutral core imports no adapter;
+9. the platform composition root registers only approved adapters;
+10. runtime build and mount failures are contained and redacted;
+11. GitHub, NVIDIA, and Supabase remain isolated beneath the Provider package;
+12. Codex CLI remains in the Tools module;
+13. provider state never creates a fourth Work restriction;
+14. current guidance distinguishes implementation, readiness, mount, authentication, and commissioning.
