@@ -1,9 +1,11 @@
 # Application-Managed Secrets Closeout
 
 - **Change ID**: `031-application-secrets`
-- **Status**: Merge-ready
+- **Status**: Merged and closed
 - **Branch**: `change/031-application-secrets`
-- **Pull request**: `#42` (ready for review, targets `main`)
+- **Pull request**: `#42` merged into `main`
+- **Reviewed head**: `040c4bc82964aeebd54561e885ff3c5040825649`
+- **Merge commit**: `f159156358ac797b4b53632f5885e307bdceb5db`
 
 ## Delivered
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "031-application-secrets",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/031-application-secrets",
   "worktree": ".work/worktrees/031-application-secrets",
   "base": "main",

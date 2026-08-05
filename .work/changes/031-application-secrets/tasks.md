@@ -18,6 +18,8 @@
 - [x] Canonical repository verification passes on the reviewed branch content.
 - [x] Branch pushed and PR #42 opened against `main`.
 - [x] Current `main` integrated cleanly; PR-completion review and startup hardening completed.
+- [x] PR #42 merged at reviewed head `040c4bc82964aeebd54561e885ff3c5040825649`; merge commit `f159156358ac797b4b53632f5885e307bdceb5db`.
+- [x] Registered cleanup removed the worktree and local branch; the merged remote branch was deleted and pruned.
 
 ## Deferred integration ledger
 
