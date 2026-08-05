@@ -64,3 +64,25 @@ def test_mcp_inspector_installer_is_pinned_staged_and_recoverable() -> None:
     assert script.index("MCP_INSPECTOR_SMOKE_FAILED") < script.index(
         "Move-Item -LiteralPath $InstallRoot"
     )
+
+
+def test_mcp_inspector_launcher_targets_only_configured_local_instances() -> None:
+    script = LAUNCHER.read_text(encoding="utf-8")
+
+    assert "ValidateSet('operation', 'development')" in script
+    assert "settings\\kis-mcp.settings.json" in script
+    assert "remote_mcp.instances" in script
+    assert "MCP_INSPECTOR_INSTANCE_NOT_CONFIGURED" in script
+    assert "MCP_INSPECTOR_HOST_INVALID" in script
+    assert "$env:HOST = '127.0.0.1'" in script
+    assert "$env:CLIENT_PORT" in script
+    assert "$env:MCP_STORAGE_DIR" in script
+    assert "$env:MCP_LOG_FILE" in script
+    assert "$env:MCP_AUTO_OPEN_ENABLED" in script
+    assert "--server-url" in script
+    assert "--transport" in script
+    assert "'http'" in script
+    assert "& $Node.Source $LauncherPath --web" in script
+    assert "npm install" not in script.casefold()
+    assert "Remove-Item" not in script
+    assert "Start-Process" not in script
