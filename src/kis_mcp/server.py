@@ -15,8 +15,11 @@ from fastmcp.server.providers.proxy import ProxyClient
 
 from .config import RuntimeConfig, load_runtime_config
 from .desktop_commander import DesktopCommanderEffectResolver
+from .discover.change_service import InspectChangeService
+from .discover.git_reader import GitReader
+from .discover.read_authority import ReadAuthority
 from .discover.service import InspectProjectService
-from .discover.tools import register_discover_tools
+from .discover.tools import register_change_tools, register_discover_tools
 from .middleware import ThreeRuleMiddleware
 from .models import (
     HealthResponse,
@@ -182,6 +185,20 @@ def build_server(
             settings=runtime.discover_settings,
         ),
     )
+    change_server = FastMCP("kis-mcp-discover-change")
+    register_change_tools(
+        change_server,
+        InspectChangeService(
+            GitReader(
+                authority=ReadAuthority(
+                    Path(runtime.project_boundary),
+                    runtime.discover_settings,
+                ),
+                settings=runtime.discover_settings,
+            )
+        ),
+    )
+    server.mount(change_server)
 
     external_provider_service = provider_service or build_platform_provider_service(
         runtime_config=runtime

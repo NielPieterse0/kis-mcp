@@ -33,7 +33,7 @@ Govern   → evaluate evidence against declared standards
 Work     → perform controlled change under HR-001 / HR-002 / HR-003
 ```
 
-The current Discover foundation provides bounded local repository discovery, deterministic evidence, local Git metadata, verification-command discovery without execution, and a pure Python structural index through one `inspect_project` tool. Future phases may add semantic providers, remote evidence, broader language intelligence, bounded context brokering, governance evaluation, reviews, audits, debugging, and workflow coordination. Those later capabilities remain targets, not current implementation claims.
+The current Discover foundation provides bounded local repository discovery, deterministic evidence, local Git metadata, verification-command discovery without execution, a pure Python structural index through `inspect_project`, and bounded current-working-tree change classification through `inspect_change`. Future phases may add commit and range inspection, semantic providers, remote evidence, broader language intelligence, bounded context brokering, governance evaluation, reviews, audits, debugging, and workflow coordination. Those later capabilities remain targets, not current implementation claims.
 
 The future platform model does not alter the closed Work enforcement decision set. Profiles, catalogues, governance findings, evidence requirements, readiness, or workflow selection must not become additional reasons to block an otherwise permitted invocation.
 
@@ -218,7 +218,7 @@ Skill creation validates a complete proposed entrypoint, stages it beneath `C:\P
 
 ## Public interface
 
-Expose Desktop Commander's normal non-network-only tool surface, approved namespaced provider tools, five gateway operations, one Discover operation, and nine Skills operations:
+Expose Desktop Commander's normal non-network-only tool surface, approved namespaced provider tools, five gateway operations, two Discover operations, and nine Skills operations:
 
 - `kis_health` — report Desktop Commander availability, policy fingerprint, and configured roots;
 - `kis_provider_status` — report provider registration, runtime enablement, build and mount results, provider-neutral readiness, and explicitly unverified commissioning states;
@@ -226,6 +226,7 @@ Expose Desktop Commander's normal non-network-only tool surface, approved namesp
 - `kis_list_quarantine` — list bounded recoverable operations;
 - `kis_restore_quarantine` — restore one intact item without overwrite;
 - `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands;
+- `inspect_change` — return bounded deterministic current-working-tree file classifications, affected scopes, diagnostics, unknowns, confidence, and truncation state without executing repository code or using remote evidence;
 - `list_skills`, `search_skills`, and `load_skill` — discover and load reusable procedures;
 - `search_skill_files` and `read_skill_file` — inspect bounded supporting files;
 - `refresh_skills` and `evaluate_skill` — rebuild or evaluate the immutable catalogue snapshot;
@@ -272,6 +273,8 @@ Verification must run through the locked external project interpreter, not a glo
 The current implementation includes repository authority, JSON configuration, the closed three-rule policy core, the Desktop Commander Work adapter, quarantine support, local stdio startup, settings-driven streamable HTTP startup for separate `operation` and `development` instances, Windows Credential Manager-backed tunnel credential retrieval, the bounded Discover foundation, the shared Skills catalogue with Work-backed create/improve operations, and provider runtime composition.
 
 `inspect_project` is registered on the same gateway and returns deterministic local repository evidence for projects beneath `C:\\Projects`. It applies only JSON-configured retrieval limits, exclusions, text types, encodings, and budgets; rejects unsafe link/reparse and configured hard-link cases structurally; reads local Git metadata through fixed bounded commands; parses Python with `ast`; discovers verification commands without executing them; and performs no network requests or repository-code execution.
+
+`inspect_change` is also registered on the gateway for the current working tree. It consumes the existing bounded local Git inventory and returns deterministic change identity, retained path statuses, conventional classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. Commit, range, branch, pull-request, semantic-symbol, dependant, verification-handoff, and remote-evidence support remain unimplemented.
 
 The verified Skills merge established an additive Work/gateway/Discover/Skills catalogue and preserved fail-open Skills registration. The Provider registry contains Desktop Commander, GitHub MCP, and Supabase descriptors. `build_server()` selects the approved external GitHub and Supabase providers from strict JSON runtime settings, builds enabled adapters in deterministic order, mounts successful FastMCP adapters under `github_*` and `supabase_*`, and contains unavailable or invalid adapters without preventing Work, Discover, Skills, or gateway startup. `kis_provider_status` reports registration, readiness, build, mount, and explicitly unverified commissioning states. Successfully mounted upstream tools extend the core catalogue dynamically and do not alter the three-rule Work policy.
 
