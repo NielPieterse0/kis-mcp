@@ -43,3 +43,13 @@ def test_control_center_snapshot_delegates_storage_interpretation() -> None:
     )
 
     assert [fragment for fragment in forbidden if fragment in source] == []
+
+
+def test_provider_packages_do_not_import_application_server() -> None:
+    offenders = [
+        _relative(path)
+        for path in _python_sources(SOURCE_ROOT / "providers")
+        if "kis_mcp.server" in path.read_text(encoding="utf-8")
+    ]
+
+    assert offenders == []

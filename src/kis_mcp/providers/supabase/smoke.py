@@ -3,16 +3,16 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from fastmcp import Client
 
-from kis_mcp.server import build_server
-
 from .commission import commission_supabase_client
 from .config import SupabaseProviderConfig, load_supabase_provider_config
 from .runtime import legacy_pat_conflict, require_project_scope
+
+ServerFactory = Callable[[], Any]
 
 
 def _result_mapping(result: Any) -> dict[str, Any]:
@@ -58,8 +58,8 @@ def _supabase_mounted(status: dict[str, Any]) -> bool:
 async def _run_live_smoke(
     config: SupabaseProviderConfig,
     environment: Mapping[str, str],
+    server: Any,
 ) -> dict[str, bool]:
-    server = build_server()
     async with Client(server, timeout=120, init_timeout=120) as client:
         status_result = await client.call_tool("kis_provider_status", {})
         if getattr(status_result, "is_error", False):
@@ -79,6 +79,7 @@ async def _run_live_smoke(
 
 
 def run_live_smoke(
+    server_factory: ServerFactory,
     config: SupabaseProviderConfig | None = None,
     *,
     environ: Mapping[str, str] | None = None,
@@ -91,12 +92,8 @@ def run_live_smoke(
             f"SUPABASE_LEGACY_PAT_CONFLICT: clear {runtime.legacy_pat_env} "
             "before shared-runtime OAuth verification"
         )
-    return asyncio.run(_run_live_smoke(runtime, source))
+    server = server_factory()
+    return asyncio.run(_run_live_smoke(runtime, source, server))
 
 
-def main() -> None:
-    print(json.dumps(run_live_smoke(), sort_keys=True))
-
-
-if __name__ == "__main__":
-    main()
+__all__ = ["ServerFactory", "run_live_smoke"]

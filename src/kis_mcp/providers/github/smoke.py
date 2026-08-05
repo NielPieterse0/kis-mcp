@@ -3,15 +3,15 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from fastmcp import Client
 
-from kis_mcp.server import build_server
-
 from .commission import commission_github_client
 from .settings import GitHubProviderSettings, load_github_provider_settings
+
+ServerFactory = Callable[[], Any]
 
 
 def _result_mapping(result: Any) -> dict[str, Any]:
@@ -56,8 +56,8 @@ def _github_mounted(status: dict[str, Any]) -> bool:
 
 async def _run_live_smoke(
     settings: GitHubProviderSettings,
+    server: Any,
 ) -> dict[str, bool | str]:
-    server = build_server()
     async with Client(server, timeout=120, init_timeout=120) as client:
         status_result = await client.call_tool("kis_provider_status", {})
         if getattr(status_result, "is_error", False):
@@ -76,6 +76,7 @@ async def _run_live_smoke(
 
 
 def run_live_smoke(
+    server_factory: ServerFactory,
     settings: GitHubProviderSettings | None = None,
     *,
     environ: Mapping[str, str] | None = None,
@@ -86,12 +87,8 @@ def run_live_smoke(
         raise RuntimeError(
             f"GITHUB_OAUTH_PAT_CONFLICT: clear {runtime.pat_env} before interactive OAuth commissioning"
         )
-    return asyncio.run(_run_live_smoke(runtime))
+    server = server_factory()
+    return asyncio.run(_run_live_smoke(runtime, server))
 
 
-def main() -> None:
-    print(json.dumps(run_live_smoke(), sort_keys=True))
-
-
-if __name__ == "__main__":
-    main()
+__all__ = ["ServerFactory", "run_live_smoke"]

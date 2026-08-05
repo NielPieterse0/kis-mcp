@@ -52,7 +52,7 @@ def test_smoke_script_supports_offline_tests_and_explicit_shared_runtime_live_ch
     assert "pat_env" in source
     assert "GITHUB_OAUTH_PAT_CONFLICT" in source
     assert "tests/providers/github" in source
-    assert "kis_mcp.providers.github.smoke" in source
+    assert "scripts/run-provider-live-smoke.py github" in source
     assert "live_mounted" in source
     assert "live_repository_scope" in source
     assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
