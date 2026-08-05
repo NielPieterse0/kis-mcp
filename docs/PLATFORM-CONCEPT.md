@@ -65,6 +65,7 @@ The current gateway is no longer only the initial Work-plane foundation. It now 
 | Public primary gateway | Desktop Commander Work tools; five gateway operations; `inspect_project`; working-tree `inspect_change`; nine Skills operations; namespaced GitHub and Supabase tools when mounted; `review_change_with_agent`. |
 | Internal Discover services | Staged, commit, range, and branch change targets; context broker; impact graph; contract intelligence; project catalog; provider-admission evidence. |
 | Standalone | KIS Control Center read-only MCP App and UI resource. |
+| Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through supervised bootstrap scripts and remain outside gateway composition. |
 | Target | Govern surface, public context/impact/catalog/admission workflows, broader semantic and remote evidence, progressive workflow coordination. |
 
 The current implementation remains responsible for:
@@ -437,6 +438,7 @@ The sequence remains architectural guidance, but several foundations are already
 | Skills catalogue and mutation workflow | Public and implemented. |
 | NVIDIA/Codex advisory code-review workflow | Public and implemented; live backend commissioning is separate evidence. |
 | KIS Control Center | Implemented as a standalone read-only MCP App. |
+| AgentSys and agnix managed bootstrap | Implemented as supervised, version-pinned host tooling outside gateway composition. |
 | Govern plane, authority registry, rule evaluation, and drift detection | Target. |
 | Broader semantic providers and trusted remote Discover evidence | Target. |
 | Composed public review, audit, debugging, proposal, and verification workflows | Target. |

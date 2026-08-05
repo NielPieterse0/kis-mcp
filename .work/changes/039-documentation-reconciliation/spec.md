@@ -48,7 +48,7 @@ Audit every tracked Markdown document, compare current-state claims with the rep
 ## Out of scope
 
 - Resolving the `stateless_http` executable/configuration contradiction.
-- Editing `docs/HARD-BLOCK-APPROVAL-REGISTER.md` while operator decisions are uncommitted in the primary worktree.
+- Editing, approving, revising, or rejecting entries in `docs/HARD-BLOCK-APPROVAL-REGISTER.md` while active change `040-context7-serena-adapters` owns that file.
 - Editing `docs/DISCOVER-MODULE-PRODUCT-SPEC.md` while change `037-discover-final-integration` owns and modifies it.
 - Updating `settings/kis-mcp.settings.json` while the active secrets workstream owns it.
 - Adding an executable documentation-drift checker; that requires a separate `develop-code` slice.

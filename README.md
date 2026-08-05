@@ -30,6 +30,10 @@ kis-mcp FastMCP gateway
 
 Standalone read-only MCP App
 └── KIS Control Center
+
+Managed host tooling, not mounted into the gateway
+├── AgentSys 6.0.1 profiles for Claude Code, OpenCode, and Codex
+└── agnix 0.45.0 CLI
 ```
 
 Desktop Commander is installed from its authoritative package and is not vendored or forked. Discover, Skills, Providers, Tools, workflows, and the Control Center are implemented natively under `src/kis_mcp`.
@@ -41,6 +45,7 @@ Desktop Commander is installed from its authoritative package and is not vendore
 | Public gateway | Desktop Commander Work surface; `kis_health`; provider status; quarantine list, move, and restore; `inspect_project`; working-tree `inspect_change`; nine Skills operations; `review_change_with_agent`; namespaced GitHub and Supabase tools when their adapters mount successfully. |
 | Internal, not public gateway tools | Commit, range, branch, and staged change readers; context brokering; impact analysis; contract intelligence; explicit project cataloging; provider-admission evidence. |
 | Standalone | KIS Control Center read-only MCP App and UI resource. |
+| Managed host tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through separate supervised bootstrap scripts. They are not mounted into the gateway or automatically authorized to run external workflows. |
 | Target | Govern operations, public context and impact workflows, broader semantic and remote evidence, and composed platform workflows. |
 
 Implementation does not prove commissioning. GitHub requires authentication before live operations. Supabase requires project initialization or project scope, then authentication. NVIDIA NIM requires `NVIDIA_API_KEY`. Codex CLI requires an installed and authenticated `codex` executable. The two remote HTTP instances have distinct configured tunnel IDs, but configuration alone does not prove stored credentials, generated profiles, ChatGPT tool discovery, or live end-to-end commissioning.
@@ -78,6 +83,17 @@ pwsh -File .\scripts\verify.ps1
 ```
 
 Python dependency acquisition and Desktop Commander cache preparation are explicit operator-supervised network stages outside normal Work. Normal startup and verification use the locked external environment and do not resolve, install, or update packages from the network.
+
+## Optional managed host tooling
+
+AgentSys and agnix are separate supervised bootstrap components. Their installers use the network during explicit setup, install only beneath `C:\Projects`, retain replaced state under quarantine, and do not mount either component into the primary gateway.
+
+```powershell
+pwsh -NoProfile -File .\scripts\install-agentsys.ps1
+pwsh -NoProfile -File .\scripts\install-agnix.ps1
+```
+
+Use [`docs/development/bootstrap/agentsys.md`](docs/development/bootstrap/agentsys.md) and [`docs/development/bootstrap/agnix.md`](docs/development/bootstrap/agnix.md) for host profiles, launch commands, status limits, and recovery.
 
 ## Start
 

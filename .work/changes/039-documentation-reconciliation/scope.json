@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "039-documentation-reconciliation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/039-documentation-reconciliation",
   "worktree": ".work/worktrees/039-documentation-reconciliation",
   "base": "origin/main",

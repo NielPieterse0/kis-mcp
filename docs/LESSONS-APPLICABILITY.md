@@ -112,7 +112,7 @@ These triggers require review or renewed verification. They do not independently
 |---|---|---|
 | Build the smallest useful replacement first | Applied now | The Work gateway was established first; later modules were added as bounded independent slices. |
 | Do not import stale predecessor implementation | Applied now | Donor repositories remain source material only, never runtime dependencies. |
-| Adopt providers rather than recreating them | Applied now | Desktop Commander, GitHub MCP, Supabase, NVIDIA NIM, and Codex CLI retain distinct authoritative boundaries. |
+| Adopt providers and tools rather than recreating them | Applied now | Desktop Commander, GitHub MCP, Supabase, NVIDIA NIM, Codex CLI, AgentSys, and agnix retain distinct authoritative boundaries and integration states. |
 | Discover and Govern must not delay useful Work | Applied now | Work remained useful while Discover was added incrementally; Govern remains target work rather than a prerequisite for ordinary supervised Work. |
 | Deterministic local features should not require model or network calls | Applied now and ongoing | Public and internal Discover, Skills, provider metadata, and Control Center use local deterministic evidence. Model calls are confined to the optional advisory agent. |
 | Pure analysis before process-backed analysis | Applied now and ongoing | Discover uses bounded file, Git, and AST/static analysis without executing repository code. Future execution-backed analyzers require separate contracts and authority. |
@@ -146,6 +146,7 @@ The following interpretations are explicitly rejected for the current scope:
 - shared Skills catalogue and Work-backed mutation;
 - Provider registry, catalogue, readiness, runtime composition, and status;
 - optional NVIDIA/Codex advisory review workflow;
+- supervised pinned AgentSys and agnix bootstrap with isolated managed state and recoverable activation;
 - standalone read-only Control Center;
 - current-versus-internal-versus-standalone-versus-target documentation boundaries;
 - canonical verification entry point.

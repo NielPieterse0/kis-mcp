@@ -61,7 +61,7 @@
 - Modify: `docs/OPERATIONS.md`
 - Modify: `docs/LESSONS-APPLICABILITY.md`
 
-**Sources:** Provider runtime composition, GitHub and Supabase commissioning behavior, NVIDIA NIM and Codex agent capability, startup scripts, current verification commands, and merged change records.
+**Sources:** Provider runtime composition, GitHub and Supabase commissioning behavior, NVIDIA NIM and Codex agent capability, AgentSys and agnix bootstrap contracts, startup scripts, current verification commands, and merged change records.
 
 **Produces:** Current provider status, accurate operator actions, and an updated applicability map.
 
@@ -76,14 +76,17 @@
 
 **Files:**
 - Modify: `docs/development/provider-composition/README.md`
+- Modify: `docs/development/skills-module/README.md`
 
-**Sources:** The historical change record, current provider runtime composition, and Task 1 classification.
+**Sources:** Historical change evidence, current provider runtime composition, the repository writing standard, and Task 1 classification.
 
-**Produces:** A clear historical-status banner without altering the original implementation narrative.
+**Produces:** Clear historical status and one consistent H1 hierarchy in owned evidence files.
 
-- [ ] Add a concise banner stating the document records the state of its original slice and is superseded for current guidance.
-- [ ] Link to the current provider specification and product specification.
-- [ ] Confirm no historical assertions are silently rewritten.
+- [ ] Add a concise banner stating the provider-composition document records the state of its original slice and is superseded for current guidance.
+- [ ] Link historical provider evidence to the current provider and product specifications.
+- [ ] Normalize the Skills development-evidence heading hierarchy without rewriting its recorded evidence.
+- [ ] Confirm no historical assertion is silently rewritten.
+- [ ] Record the hard-block register as delegated to active change `040-context7-serena-adapters`; do not edit or claim it.
 
 ### Task 5: Review and verify the complete documentation set
 
@@ -120,5 +123,5 @@
 - [ ] Open a PR with scope, evidence, exclusions, and recovery notes.
 - [ ] Review the exact PR head, changed-file list, checks, and mergeability.
 - [ ] Merge using a merge commit only when the exact head remains current and safe.
-- [ ] Run the repository cleanup command from the primary worktree without modifying the dirty operator approval register.
-- [ ] Confirm the `039` worktree and local branch are removed and `main` still preserves the pre-existing operator change.
+- [ ] Run the repository cleanup command from the clean primary worktree without modifying unrelated active worktrees.
+- [ ] Confirm the `039` worktree and local branch are removed and the active `031`, `037`, and `040` worktrees remain intact.

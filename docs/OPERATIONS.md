@@ -2,7 +2,6 @@
 
 ## Prerequisites
 
-
 - Windows with PowerShell.
 - Python 3.11 or newer.
 - `uv` for the Python environment.
@@ -18,14 +17,19 @@
 
 A standalone wheel installation is not a supported deployment model. Starting the runtime without those canonical JSON files fails with `KIS_MCP_SOURCE_CHECKOUT_REQUIRED` and identifies the resolved root and missing files. Run the CLI and scripts from the repository checkout; generated state remains beneath `C:\Projects\.kis-mcp` as described below.
 
-
 ## Generated state
+
 All generated state remains inside the approved write boundary and outside the repository:
 
 ```text
 C:\Projects\.kis-mcp\
 ├── .claude-server-commander\
 ├── desktop-commander\
+├── tools\
+│   ├── agentsys\6.0.1\
+│   └── agnix\0.45.0\
+├── agent-hosts\
+│   └── agentsys\
 ├── python-env\
 ├── uv-cache\
 ├── python-cache\
@@ -44,6 +48,7 @@ C:\Projects\.kis-mcp\
 Do not commit this state. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
 
 ## Install Python dependencies
+
 Run the operator-supervised bootstrap from `C:\Projects\kis-mcp`:
 
 ```powershell
@@ -55,6 +60,7 @@ The script may use external network access, generates or updates `uv.lock`, and 
 Normal startup and verification never resolve or update dependencies from the network. `scripts\verify.ps1` requires `uv.lock` and performs an offline frozen synchronization before testing.
 
 ## Install Desktop Commander
+
 Desktop Commander is installed from the scanned `@wonderwhy-er/desktop-commander` archive, not copied into this repository and not downloaded again by the installer.
 
 Archive acquisition and security scanning are explicit operator-supervised actions outside the normal Work path. The repository installer itself performs no external network access:
@@ -84,6 +90,29 @@ pwsh -File .\scripts\install-desktop-commander.ps1
 ```
 
 Normal startup uses the installed package without downloading or updating it.
+
+## Install managed AgentSys and agnix tooling
+
+AgentSys and agnix are optional supervised host tools. They are installed independently, pinned to exact versions, and are not mounted into `build_server()`.
+
+```powershell
+pwsh -NoProfile -File .\scripts\install-agentsys.ps1
+pwsh -NoProfile -File .\scripts\install-agnix.ps1
+```
+
+The installers may use external network access during this explicit bootstrap stage. They stage and validate package and profile state beneath `C:\Projects\.kis-mcp\temp`, reject paths outside `C:\Projects` or through reparse ancestors, and move replaced or failed-new state beneath quarantine rather than deleting it.
+
+AgentSys `6.0.1` creates isolated managed profiles for Claude Code, OpenCode, and Codex. The corresponding host executable and authentication remain separate prerequisites. Start a host through the managed launcher:
+
+```powershell
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform claude
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform opencode
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform codex
+```
+
+agnix `0.45.0` provides the verified `agnix` CLI. Its npm distribution does not include the separate native `agnix-mcp` binary, so MCP mounting remains deferred and must not be inferred from the CLI installation.
+
+See [`development/bootstrap/agentsys.md`](development/bootstrap/agentsys.md) and [`development/bootstrap/agnix.md`](development/bootstrap/agnix.md) for exact managed paths, catalogue counts, launch prerequisites, and recovery.
 
 ## Configure
 
@@ -118,6 +147,7 @@ The checked-in `operation` and `development` records contain distinct non-secret
 Configuration, instance selection, catalogue metadata, profiles, and status fields do not disable otherwise permitted Desktop Commander tools. Both instances expose the same mixed-purpose tool surface and apply only HR-001, HR-002, and HR-003 to concrete invocations.
 
 ## Start local stdio
+
 Run:
 
 ```powershell
@@ -312,6 +342,7 @@ pwsh -File .\scripts\smoke-chatgpt.ps1 -Instance development -TimeoutSeconds 90
 This proves the local ChatGPT-compatible HTTP path. It does not prove the external tunnel or ChatGPT app connection.
 
 ## Configure a tunnel profile
+
 For the selected instance:
 
 1. Verify that its checked-in non-secret `tunnel_id`, credential target, loopback URL, and `configured: true` state are correct.
@@ -338,6 +369,7 @@ pwsh -File .\scripts\setup-tunnel.ps1 -Instance operation
 The two profiles, tunnel IDs, and credential targets must remain distinct. Do not point both instances at one tunnel record.
 
 ## Start the ChatGPT-facing instance
+
 Start the development instance during commissioning:
 
 ```powershell
@@ -417,6 +449,7 @@ pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change
 Cleanup refuses a dirty worktree or an unmerged branch. It performs only normal `git worktree remove`, `git branch -d`, and `git worktree prune` operations; it never forces deletion.
 
 ## Verify
+
 Run:
 
 ```powershell

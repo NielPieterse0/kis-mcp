@@ -42,6 +42,7 @@ The current public gateway implements Work, bounded Discover, Skills, provider s
 | Public gateway | Desktop Commander Work tools; five gateway operations; `inspect_project`; working-tree `inspect_change`; nine Skills operations; `review_change_with_agent`; namespaced GitHub and Supabase tools when their adapters mount. |
 | Internal services and versioned contracts | Staged, commit, range, and branch change targets; context brokering; impact analysis; contract intelligence; explicit project cataloging; provider-admission evidence. These services are tested but are not public gateway tools unless separately registered. |
 | Standalone | KIS Control Center read-only MCP App and UI resource. |
+| Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through supervised bootstrap scripts beneath `C:\Projects`; neither is mounted into the gateway. |
 | Target | Govern operations, public context and impact workflows, broader semantic and trusted remote evidence, and composed platform workflows. |
 
 The future platform model does not alter the closed Work enforcement decision set. Profiles, catalogues, governance findings, evidence requirements, readiness, or workflow selection must not become additional reasons to block an otherwise permitted invocation.
@@ -56,6 +57,7 @@ The future platform model does not alter the closed Work enforcement decision se
 | Skills module | Resolves the approved shared catalogue, exposes nine public operations, and routes create/improve mutations back through Work middleware. |
 | Provider runtime | Registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors; mounts enabled GitHub and Supabase adapters under unique namespaces; contains failures; and reports readiness and commissioning separately. |
 | Tools and workflows | Registers local executable adapters such as Codex CLI and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection. |
+| Managed bootstrap tooling | Installs pinned AgentSys and agnix distributions beneath `C:\Projects`, creates isolated host profiles, validates staged state, and preserves replaced state through quarantine without mounting either tool into the gateway. |
 | Control Center | Runs as a separate read-only MCP App with one snapshot tool and one local UI resource; it is not part of the primary Work gateway. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
 | Three-rule policy | Returns only allow, block HR-001, block HR-002, quarantine HR-003, or block HR-003. |
@@ -86,6 +88,7 @@ local development environment
 ```
 
 ## ChatGPT remote transport
+
 The ChatGPT-facing private path uses the same `build_server()` gateway and tool catalogue as local stdio:
 
 ```text
@@ -205,6 +208,7 @@ The adapter examines the concrete executable, arguments, command text, working d
 Tool breadth, arbitrary arguments, incomplete prediction of all possible side effects, or lack of a specialized parser are not independent reasons to block. Direct operator supervision is part of the trust model.
 
 ## Configuration
+
 All project settings and policy declarations are JSON.
 
 - `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, Discover retrieval settings, the local stdio transport, and the ChatGPT remote transport.
@@ -284,6 +288,7 @@ Tests must cover:
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
 ## Current implementation boundary
+
 The current implementation includes:
 
 - repository authority, strict JSON configuration, and the closed HR-001/HR-002/HR-003 policy core;
@@ -296,6 +301,7 @@ The current implementation includes:
 - an NVIDIA NIM provider used only by the advisory code-review workflow;
 - a generic Tools registry with a fixed Codex CLI adapter;
 - `review_change_with_agent`, which collects bounded local evidence, permits one fallback, and grants no mutation or nested-agent authority;
+- pinned AgentSys `6.0.1` and agnix `0.45.0` supervised bootstrap installers with isolated managed paths, staged validation, and recoverable replacement; neither component is mounted into the gateway;
 - the standalone read-only KIS Control Center MCP App.
 
 ### Discover status

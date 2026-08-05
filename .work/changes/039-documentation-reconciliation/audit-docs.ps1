@@ -19,9 +19,11 @@ $categories = [ordered]@{
 
 $missingLinks = [System.Collections.Generic.List[object]]::new()
 $headingIssues = [System.Collections.Generic.List[object]]::new()
+$currentStyleIssues = [System.Collections.Generic.List[object]]::new()
 
 foreach ($file in $files) {
-    if ($file -in @("AGENTS.md", "README.md", "SPEC.md") -or $file -match '^docs/[^/]+\.md$') {
+    $isAuthority = $file -in @("AGENTS.md", "README.md", "SPEC.md") -or $file -match '^docs/[^/]+\.md$'
+    if ($isAuthority) {
         $categories.authorities++
     }
     elseif ($file -like ".agents/skills/*") {
@@ -46,6 +48,42 @@ foreach ($file in $files) {
             issue = "h1_count"
             value = $h1Count
         })
+    }
+
+    if ($isAuthority) {
+        $lines = @($text -split "`r?`n")
+        $insideFence = $false
+        $previousHeadingLevel = 0
+        for ($index = 0; $index -lt $lines.Count; $index++) {
+            $line = $lines[$index]
+            if ($line -match '^```') {
+                $insideFence = -not $insideFence
+                continue
+            }
+            if ($insideFence -or $line -notmatch '^(?<hashes>#{1,6})\s+\S') {
+                continue
+            }
+
+            $headingLevel = $Matches.hashes.Length
+            if ($previousHeadingLevel -gt 0 -and $headingLevel -gt ($previousHeadingLevel + 1)) {
+                $currentStyleIssues.Add([ordered]@{
+                    file = $file
+                    line = $index + 1
+                    issue = "heading_level_jump"
+                    value = "$previousHeadingLevel->$headingLevel"
+                })
+            }
+            $previousHeadingLevel = $headingLevel
+
+            if (($index + 1) -lt $lines.Count -and -not [string]::IsNullOrWhiteSpace($lines[$index + 1])) {
+                $currentStyleIssues.Add([ordered]@{
+                    file = $file
+                    line = $index + 1
+                    issue = "missing_blank_after_heading"
+                    value = $line
+                })
+            }
+        }
     }
 
     foreach ($match in [regex]::Matches($withoutFences, '\[[^\]]*\]\(([^)]+)\)')) {
@@ -81,10 +119,13 @@ $result = [ordered]@{
     missing_link_details = @($missingLinks)
     heading_issues = $headingIssues.Count
     heading_issue_details = @($headingIssues)
+    current_style_issues = $currentStyleIssues.Count
+    current_style_issue_details = @($currentStyleIssues)
     limitations = @(
         "External URL availability was not checked.",
         "Markdown heading anchors were not resolved.",
-        "Inline HTML links were not parsed."
+        "Inline HTML links were not parsed.",
+        "Style checks are limited to current authority documents and do not rewrite historical evidence."
     )
 }
 
