@@ -345,3 +345,82 @@ def test_cleanup_removes_clean_merged_worktree_and_branch(tmp_path: Path) -> Non
     assert not target.exists()
     branches = run_git(repository, "branch", "--list", "change/001-alpha").stdout
     assert not branches.strip()
+
+
+def test_cleanup_recovers_unregistered_long_path_remnant(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+    run_git(target, "add", ".work/changes/001-alpha")
+    run_git(target, "commit", "-m", "docs: register alpha change")
+    run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
+    original_run_git = module._run_git
+
+    def failing_remove(repo: Path, *args: str, check: bool = True):
+        if args[:4] == ("-c", "core.longpaths=true", "worktree", "remove"):
+            original_run_git(repository, "worktree", "remove", str(target))
+            target.mkdir(parents=True)
+            (target / "remnant.txt").write_text("recoverable\n", encoding="utf-8")
+            return subprocess.CompletedProcess(
+                ["git", *args],
+                1,
+                "",
+                "Filename too long",
+            )
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", failing_remove)
+
+    result = module.cleanup_change_worktree(repository, "001-alpha")
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert result.backup_path.parent == tmp_path / ".backup"
+    assert (result.backup_path / "remnant.txt").read_text(encoding="utf-8") == "recoverable\n"
+    assert not target.exists()
+    assert not run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
+
+
+def test_cleanup_does_not_move_or_delete_when_registration_remains(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+    run_git(target, "add", ".work/changes/001-alpha")
+    run_git(target, "commit", "-m", "docs: register alpha change")
+    run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
+    original_run_git = module._run_git
+
+    def failing_remove(repo: Path, *args: str, check: bool = True):
+        if args[:4] == ("-c", "core.longpaths=true", "worktree", "remove"):
+            return subprocess.CompletedProcess(
+                ["git", *args],
+                1,
+                "",
+                "Filename too long",
+            )
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", failing_remove)
+
+    with pytest.raises(module.ClaimError, match="CHANGE_WORKTREE_REMOVE_FAILED"):
+        module.cleanup_change_worktree(repository, "001-alpha")
+
+    assert target.exists()
+    assert run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
+    assert not (tmp_path / ".backup").exists()
