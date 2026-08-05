@@ -75,3 +75,13 @@ def test_local_launcher_uses_anonymous_pipe_not_arguments_or_environment_passphr
     assert "-AsSecureString" in content
     assert "KIS_MCP_VAULT_PASSPHRASE" not in content
     assert "--passphrase" not in content
+
+
+def test_local_launcher_finishes_non_secret_preflight_before_unlock_prompt() -> None:
+    content = _script("start.ps1")
+
+    validation = content.index("load_runtime_config(Path.cwd())")
+    unlock_prompt = content.index("Read-Host 'Unlock kis-mcp secrets'")
+    process_start = content.index("$Process = Start-KisMcpSecretAwareProcess")
+
+    assert validation < unlock_prompt < process_start

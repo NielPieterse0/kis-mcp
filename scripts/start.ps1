@@ -50,15 +50,16 @@ $env:PYTHONPATH = Join-Path $RepositoryRoot 'src'
 $env:NO_UPDATE_NOTIFIER = '1'
 
 $SecurePayload = @{}
-if (-not $env:KIS_MCP_VAULT_KEY) {
-    $SecurePayload['unlock'] = Read-Host 'Unlock kis-mcp secrets' -AsSecureString
-}
 
 Push-Location $RepositoryRoot
 try {
     & $PythonExecutable -c "from pathlib import Path; from kis_mcp.config import load_runtime_config; load_runtime_config(Path.cwd())"
     if ($LASTEXITCODE -ne 0) {
         throw "kis-mcp configuration validation failed with exit code $LASTEXITCODE"
+    }
+
+    if (-not $env:KIS_MCP_VAULT_KEY) {
+        $SecurePayload['unlock'] = Read-Host 'Unlock kis-mcp secrets' -AsSecureString
     }
 
     $Info = [System.Diagnostics.ProcessStartInfo]::new()

@@ -47,6 +47,26 @@ def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
     assert "KIS_MCP_HTTP_NOT_READY" not in content
 
 
+def test_chatgpt_startup_finishes_non_secret_preflight_before_unlock() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    port_check = content.index("if ($Listener)")
+    unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
+    server_start = content.index("$Server = Start-OwnedProcess")
+
+    assert port_check < unlock_payload < server_start
+
+
+def test_tunnel_setup_finishes_non_secret_preflight_before_unlock() -> None:
+    content = _script("setup-tunnel.ps1")
+
+    profile_guard = content.index("if ($ProfileExists -and -not $BackupExistingProfile)")
+    unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
+    credential_read = content.index("$Credential = Resolve-KisMcpSecretInternal")
+
+    assert profile_guard < unlock_payload < credential_read
+
+
 def test_chatgpt_startup_supports_bounded_observation_cleanup() -> None:
     content = _script("start-chatgpt.ps1")
 

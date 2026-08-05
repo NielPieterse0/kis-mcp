@@ -79,7 +79,6 @@ function Wait-KisMcpEndpointReady {
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
-$VaultUnlockPayload = Get-KisMcpUnlockPayload
 if ($TimeoutSeconds -lt 1 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 1 and 300.'
 }
@@ -98,6 +97,7 @@ if ($ProfileExists -and -not $BackupExistingProfile) {
     throw "KIS_MCP_TUNNEL_PROFILE_EXISTS: use -BackupExistingProfile to preserve and replace $ProfilePath"
 }
 
+$VaultUnlockPayload = Get-KisMcpUnlockPayload
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
 $Credential = Resolve-KisMcpSecretInternal `
     -Reference $Remote.tunnel_secret_ref `

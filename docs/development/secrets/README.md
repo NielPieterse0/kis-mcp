@@ -1,6 +1,6 @@
 # Application-Managed Secrets
 
-This document describes the development contract for the kis-mcp encrypted local vault. It is not yet the authoritative operator guide; `SPEC.md` and `docs/OPERATIONS.md` remain owned by the active commissioning change and must be reconciled after that claim closes.
+This document describes the development contract for the kis-mcp encrypted local vault. It is not yet the authoritative operator guide; `SPEC.md` and `docs/OPERATIONS.md` are currently owned by change `039-documentation-reconciliation` and must be reconciled there or after that claim closes.
 
 ## Boundary
 
@@ -90,7 +90,7 @@ kis_lock_secrets
 
 No public tool accepts a secret value, passphrase, bootstrap key, or reference to resolve. No public tool returns plaintext.
 
-Mounting these registrations in `src/kis_mcp/server.py` is deferred until the active commissioning change releases that path.
+Mounting these registrations in `src/kis_mcp/server.py` is deferred until active change `040-context7-serena-adapters` releases that path.
 
 ## Recovery and backups
 
@@ -100,11 +100,11 @@ Loss of all valid external unlock material is unrecoverable by design. Recovery 
 
 ## Deferred integrations
 
-The following work is intentionally excluded from this slice because active changes own the required paths:
+The following work remains intentionally excluded from this slice because it is outside the approved change scope, with shared surfaces still coordinated through active changes:
 
-- Mount metadata-only tools into `server.py`.
-- Make NVIDIA the first provider consumer of `SecretsService.resolve`.
-- Migrate Supabase provider credentials from keyring storage.
-- Reconcile `SPEC.md` and `docs/OPERATIONS.md` with this architecture.
+- Mount metadata-only tools into `server.py` after change `040-context7-serena-adapters` releases the path.
+- Make NVIDIA the first provider consumer of `SecretsService.resolve` through a bounded provider integration change.
+- Migrate Supabase provider credentials from keyring storage through a bounded provider integration change.
+- Reconcile `SPEC.md` and `docs/OPERATIONS.md` through change `039-documentation-reconciliation` or after it releases those authority paths.
 
-These items must be implemented through later scoped changes rather than by crossing active ownership claims.
+These items must be implemented through later scoped changes rather than broadening this merge-ready slice.

@@ -17,6 +17,16 @@ class KdfParameters:
     length: int = 32
 
     def __post_init__(self) -> None:
+        if any(
+            type(value) is not int
+            for value in (
+                self.iterations,
+                self.memory_cost_kib,
+                self.lanes,
+                self.length,
+            )
+        ):
+            raise ValueError("KIS_MCP_SECRET_KDF_PARAMETERS_INVALID")
         if not 1 <= self.iterations <= 10:
             raise ValueError("KIS_MCP_SECRET_KDF_PARAMETERS_INVALID")
         if not 8192 <= self.memory_cost_kib <= 1048576:
@@ -66,13 +76,18 @@ class VaultEnvelope:
     ciphertext: str
 
     def __post_init__(self) -> None:
+        if type(self.version) is not int:
+            raise ValueError("KIS_MCP_SECRET_ENVELOPE_INVALID")
         if self.version != 1:
             raise ValueError("KIS_MCP_SECRET_ENVELOPE_VERSION_UNSUPPORTED")
-        if self.cipher != "AES-256-GCM":
+        if type(self.cipher) is not str or self.cipher != "AES-256-GCM":
             raise ValueError("KIS_MCP_SECRET_CIPHER_UNSUPPORTED")
-        if self.kdf != "argon2id":
+        if type(self.kdf) is not str or self.kdf != "argon2id":
             raise ValueError("KIS_MCP_SECRET_KDF_UNSUPPORTED")
-        if not all(isinstance(value, str) and value for value in (self.salt, self.nonce, self.ciphertext)):
+        if not all(
+            type(value) is str and value
+            for value in (self.salt, self.nonce, self.ciphertext)
+        ):
             raise ValueError("KIS_MCP_SECRET_ENVELOPE_INVALID")
 
     def to_dict(self) -> dict[str, Any]:
@@ -96,20 +111,20 @@ class VaultEnvelope:
         parameters = value["kdf_parameters"]
         if not isinstance(parameters, Mapping):
             raise ValueError("KIS_MCP_SECRET_ENVELOPE_INVALID")
-        try:
-            return cls(
-                version=int(value["version"]),
-                cipher=str(value["cipher"]),
-                kdf=str(value["kdf"]),
-                kdf_parameters=KdfParameters.from_dict(parameters),
-                salt=str(value["salt"]),
-                nonce=str(value["nonce"]),
-                ciphertext=str(value["ciphertext"]),
-            )
-        except (TypeError, ValueError) as exc:
-            if isinstance(exc, ValueError) and str(exc).startswith("KIS_MCP_SECRET_"):
-                raise
-            raise ValueError("KIS_MCP_SECRET_ENVELOPE_INVALID") from exc
+        if type(value["version"]) is not int or any(
+            type(value[field]) is not str
+            for field in ("cipher", "kdf", "salt", "nonce", "ciphertext")
+        ):
+            raise ValueError("KIS_MCP_SECRET_ENVELOPE_INVALID")
+        return cls(
+            version=value["version"],
+            cipher=value["cipher"],
+            kdf=value["kdf"],
+            kdf_parameters=KdfParameters.from_dict(parameters),
+            salt=value["salt"],
+            nonce=value["nonce"],
+            ciphertext=value["ciphertext"],
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,13 +132,22 @@ class SecretReferenceRecord:
     reference: str
     updated_at: str
 
+    def __post_init__(self) -> None:
+        if not all(
+            type(value) is str and value
+            for value in (self.reference, self.updated_at)
+        ):
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
+
     def to_dict(self) -> dict[str, str]:
         return {"reference": self.reference, "updated_at": self.updated_at}
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> "SecretReferenceRecord":
         _exact_keys(value, {"reference", "updated_at"}, "secret_reference_record")
-        return cls(reference=str(value["reference"]), updated_at=str(value["updated_at"]))
+        if any(type(value[field]) is not str for field in ("reference", "updated_at")):
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
+        return cls(reference=value["reference"], updated_at=value["updated_at"])
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,7 +159,19 @@ class VaultMetadata:
     references: tuple[SecretReferenceRecord, ...]
 
     def __post_init__(self) -> None:
+        if type(self.schema_version) is not int or type(self.generation) is not int:
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
         if self.schema_version != 1 or self.generation < 1:
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
+        if not all(
+            type(value) is str and value
+            for value in (self.created_at, self.updated_at)
+        ):
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
+        if type(self.references) is not tuple or any(
+            not isinstance(record, SecretReferenceRecord)
+            for record in self.references
+        ):
             raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
 
     def to_dict(self) -> dict[str, Any]:
@@ -155,13 +191,19 @@ class VaultMetadata:
             "vault_metadata",
         )
         references = value["references"]
-        if not isinstance(references, list) or any(not isinstance(item, Mapping) for item in references):
+        if not isinstance(references, list) or any(
+            not isinstance(item, Mapping) for item in references
+        ):
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
+        if type(value["schema_version"]) is not int or type(value["generation"]) is not int:
+            raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
+        if any(type(value[field]) is not str for field in ("created_at", "updated_at")):
             raise ValueError("KIS_MCP_SECRET_METADATA_INVALID")
         return cls(
-            schema_version=int(value["schema_version"]),
-            generation=int(value["generation"]),
-            created_at=str(value["created_at"]),
-            updated_at=str(value["updated_at"]),
+            schema_version=value["schema_version"],
+            generation=value["generation"],
+            created_at=value["created_at"],
+            updated_at=value["updated_at"],
             references=tuple(SecretReferenceRecord.from_dict(item) for item in references),
         )
 

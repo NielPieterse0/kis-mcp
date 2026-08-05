@@ -116,7 +116,7 @@
 - [ ] Run focused tests and confirm expected failures.
 - [ ] Implement the three metadata-only operations.
 - [ ] Run focused tests and confirm pass.
-- [ ] Record that mounting into `server.py` is deferred because the path is actively owned by change `026`.
+- [ ] Record that mounting into `server.py` remains deferred by scope and is currently coordinated through change `040-context7-serena-adapters`.
 
 ### Task 7: Implement the local Secrets CLI and PowerShell operator scripts
 

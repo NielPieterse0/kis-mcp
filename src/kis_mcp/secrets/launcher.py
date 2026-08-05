@@ -92,6 +92,7 @@ def main(
         sys.stderr.write(f"{exc}\n")
         return 2
     finally:
+        _scrub_unlock_environment(selected_environment)
         payload.clear()
         clear_active_secrets_service()
 

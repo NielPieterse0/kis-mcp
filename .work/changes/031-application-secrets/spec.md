@@ -14,7 +14,7 @@ Replace kis-mcp's tunnel dependency on Windows Credential Manager with a local e
 - Authoritative sources: operator request of 2026-08-05, `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, `docs/OPERATIONS.md`, and `policy/kis-mcp.policy.json`.
 - Owned paths: see `scope.json`.
 - Excluded active claims: provider implementations, Tools module, Discover, `src/kis_mcp/server.py`, `SPEC.md`, and `docs/OPERATIONS.md`.
-- Dependency: active commissioning change `026-commissioning-refresh` owns provider, server, and authoritative operations/specification integration surfaces.
+- Dependency: `026-commissioning-refresh` was the implementation-order dependency for provider, server, and authoritative documentation surfaces and is now closed; this slice still does not broaden into those deferred integrations.
 - Integration owner: none. Deferred integration must be recorded, not silently implemented across active claims.
 
 ## Architecture
@@ -67,7 +67,7 @@ C:\Projects\.kis-mcp\secrets\
 - **REQ-012 — Startup supervision**: Startup scripts prompt with `Read-Host -AsSecureString` when no bootstrap key is present, pass unlock material without command-line exposure, and preserve it only for the child processes that require it.
 - **REQ-013 — Direct dependency**: Declare `cryptography==50.0.0` directly because the Secrets module imports its AES-GCM and Argon2id APIs.
 - **REQ-014 — Internal consumption seam**: Provide a typed internal `SecretsService.resolve(reference)` interface suitable for NVIDIA, OpenAI, tunnel, and future provider adapters without exposing plaintext through MCP.
-- **REQ-015 — Deferred integration**: Do not modify the active provider, Tools, server, `SPEC.md`, or `docs/OPERATIONS.md` claims. Record server mounting, NVIDIA consumption, Supabase migration, and authoritative documentation reconciliation as explicit integration follow-ups after change `026` closes.
+- **REQ-015 — Deferred integration**: Do not modify provider, Tools, server, `SPEC.md`, or `docs/OPERATIONS.md` integration surfaces within this slice. Record server mounting, NVIDIA consumption, Supabase migration, and authoritative documentation reconciliation as explicit later scoped changes.
 - **REQ-016 — Logging**: Exceptions and status output may identify a canonical reference but must never include the supplied secret, passphrase, derived key, decrypted payload, or environment bootstrap value.
 
 ## Acceptance
@@ -96,7 +96,7 @@ C:\Projects\.kis-mcp\secrets\
 - Self-unlocking key files or automatic permanent key storage.
 - Public plaintext retrieval or secret-setting MCP tools.
 - Networked vault services, HSMs, TPM sealing, DPAPI, or Windows Credential Manager.
-- Provider implementation changes while `026-commissioning-refresh` owns `providers/**`.
+- Provider implementation changes; NVIDIA and Supabase consumption remain separate bounded integrations.
 - Actual NVIDIA provider implementation while active Tools/Provider claims exist.
 - Supabase OAuth/keyring migration in this slice.
 - Direct `server.py` mounting and authoritative `SPEC.md`/`docs/OPERATIONS.md` reconciliation until their active claim closes.

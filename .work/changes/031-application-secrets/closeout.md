@@ -1,9 +1,9 @@
 # Application-Managed Secrets Closeout
 
 - **Change ID**: `031-application-secrets`
-- **Status**: In review
+- **Status**: Merge-ready
 - **Branch**: `change/031-application-secrets`
-- **Pull request**: `#42` (draft, targets `main`)
+- **Pull request**: `#42` (ready for review, targets `main`)
 
 ## Delivered
 
@@ -22,7 +22,8 @@
 - Focused final suite: `pwsh -NoProfile -File .\scripts\run-secrets-tests.ps1 tests/test_startup_scripts.py tests/secret_vault tests/test_tunnel_scripts.py tests/test_remote_runtime.py tests/test_startup_hardening.py -q` passed.
 - Lock consistency: `uv lock --check --offline` passed.
 - Scope/governance: `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` passed with all changed paths inside the declared change scope.
-- Canonical repository verification: `pwsh -NoProfile -File .\scripts\verify.ps1` passed. Evidence included 97 Python files compiled, the full pytest suite passing with two expected skips, exact three-rule configuration validation, locked interpreter/dependencies, clean repository line endings, and valid change governance.
+- Canonical repository verification after current-`main` integration and startup hardening: `pwsh -NoProfile -File .\scripts\verify.ps1` passed. Evidence included 137 Python files compiled, the full pytest suite passing with two expected skips, exact three-rule configuration validation, locked interpreter/dependencies, clean repository line endings, and valid change governance.
+- PR-completion review added strict persisted-contract type validation plus startup regression coverage for bootstrap and pipe failure scrubbing, active-service lifetime, runtime-failure cleanup, and preflight-before-unlock ordering.
 
 ## Security evidence
 
@@ -37,14 +38,14 @@
 
 ## Known boundary and deferred integration
 
-This slice removes Windows Credential Manager from the tunnel credential path, but it does **not** yet remove the existing Supabase provider's Windows keyring implementation. The active commissioning change `026-commissioning-refresh` owns `providers/**`, `src/kis_mcp/server.py`, `SPEC.md`, and `docs/OPERATIONS.md`; crossing those claims would violate repository concurrency rules.
+This slice removes Windows Credential Manager from the tunnel credential path, but it does **not** yet remove the existing Supabase provider's Windows keyring implementation. Change `026-commissioning-refresh` is closed. The remaining integrations stay deferred because they are outside this change's approved scope; additionally, active change `040-context7-serena-adapters` owns `src/kis_mcp/server.py`, while active change `039-documentation-reconciliation` owns `SPEC.md` and `docs/OPERATIONS.md`.
 
-Explicit follow-up work after change `026` releases those paths:
+Explicit follow-up work through later bounded changes:
 
-- Mount metadata-only Secrets tools in `src/kis_mcp/server.py`.
+- Mount metadata-only Secrets tools in `src/kis_mcp/server.py` after change `040` releases the path.
 - Integrate NVIDIA as the first provider consumer of `SecretsService.resolve`.
 - Migrate Supabase token storage from Windows keyring to canonical Secrets references.
-- Reconcile `SPEC.md` and `docs/OPERATIONS.md` with the new architecture.
+- Reconcile `SPEC.md` and `docs/OPERATIONS.md` through change `039` or after it releases those authority paths.
 
 Until that follow-up lands, the repository-wide statement “kis-mcp has no Windows credential dependency” is not yet true. The new Secrets kernel and tunnel migration are complete and verified within this slice's safe ownership boundary.
 

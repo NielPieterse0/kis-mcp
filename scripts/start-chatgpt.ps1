@@ -144,7 +144,6 @@ function Wait-McpReady {
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
-$VaultUnlockPayload = Get-KisMcpUnlockPayload
 $null = Assert-KisMcpInstanceName -Name $Remote.name
 if ($TimeoutSeconds -lt 5 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 5 and 300.'
@@ -208,6 +207,7 @@ $ServerEnvironment = @{
     NO_UPDATE_NOTIFIER = '1'
 }
 
+$VaultUnlockPayload = Get-KisMcpUnlockPayload
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
 $Credential = $null
 $TunnelEnvironment = @{}
