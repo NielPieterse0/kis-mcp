@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "change_id": "029-tools-code-tooling",
+  "status": "active",
+  "branch": "change/029-tools-code-tooling",
+  "worktree": ".work/worktrees/029-tools-code-tooling",
+  "base": "main",
+  "outcome": "Create the provider-neutral modular Tools foundation",
+  "owned_paths": [
+    "src/kis_mcp/tools/__init__.py",
+    "src/kis_mcp/tools/contracts.py",
+    "src/kis_mcp/tools/registry.py",
+    "src/kis_mcp/tools/catalogue.py",
+    "src/kis_mcp/tools/health.py",
+    "src/kis_mcp/tools/service.py",
+    "tests/tools/test_tool_module.py",
+    ".work/changes/029-tools-code-tooling/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/tools/codex_cli/**",
+    "tests/tools/codex_cli/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
