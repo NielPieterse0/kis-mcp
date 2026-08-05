@@ -8,15 +8,17 @@
 | Module | Discover |
 | Repository | `C:\Projects\kis-mcp` |
 | Canonical remote | `https://github.com/NielPieterse0/kis-mcp.git` |
-| Status | Approved target direction; implementation is partial |
-| Date | 2026-08-04 |
+| Status | Approved; bounded local Discover v1 runtime complete; optional provider expansion remains staged |
+| Date | 2026-08-05 |
 | Parent platform concept | [`PLATFORM-CONCEPT.md`](PLATFORM-CONCEPT.md) |
 
 This specification defines the complete product boundary, target architecture, workflows, evidence contracts, provider-harvesting model, testing relationship, security posture, migration strategy, delivery roadmap, and acceptance criteria for the Discover plane of `kis-mcp`.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative.
 
-Target behavior described here is not current runtime capability unless `SPEC.md`, checked-in contracts, settings, tool registration, and fresh tests prove it. The current implementation remains the supervised Desktop Commander Work gateway plus the KIS health and quarantine surface.
+Runtime capability is established only by checked-in contracts, settings, tool registration, and fresh tests. As of 2026-08-05, the bounded local Discover v1 runtime exposes exactly `inspect_project`, `inspect_change`, and `get_code_context` through the existing kis-mcp composition seams. Provider-admission evidence and explicit project-catalog services are implemented as internal foundations and are not additional public tools.
+
+Optional semantic-provider, remote-forge, registry, background-index, and process-backed analyzer capabilities remain staged. Their absence must produce bounded degraded evidence or explicit unknowns; it does not make the deterministic local Discover v1 runtime unavailable.
 
 ## 1. Executive summary
 
@@ -386,13 +388,13 @@ It MUST NOT return a repository dump.
 
 ## 6. Public workflows
 
-The long-term Discover public surface is deliberately small:
+The Discover v1 public surface is deliberately fixed and small:
 
 - `inspect_project`;
 - `inspect_change`;
 - `get_code_context`.
 
-Future catalogue operations MAY expose capability discovery without registering inactive provider operations. This is target behavior, not part of the current `kis-mcp` surface.
+Provider-admission evidence, explicit project cataloging, and future catalogue operations remain internal service capabilities unless a later approved contract explicitly changes the public surface. Inactive provider operations are not registered.
 
 ### 6.1 `inspect_project`
 
@@ -760,6 +762,22 @@ Optimization order:
 
 Generated caches remain beneath `C:\Projects\.kis-mcp` and are never repository authority.
 
+### 14.1 Implementation checkpoint — 2026-08-05
+
+| Area | v1 status | Boundary |
+|---|---|---|
+| D0 contracts, read authority, budgeting, architecture, and harvest traceability | Complete | Deterministic local foundation |
+| D1 repository intelligence and public `inspect_project` | Complete | Bounded local repository evidence |
+| D2 local change intelligence and public `inspect_change` | Complete | Working tree, staged, commit, range, and branch targets; remote PR/MR evidence remains provider-dependent |
+| D3 semantic code intelligence | Staged | Python AST plus static JavaScript/TypeScript relationships are available; optional Serena/LSP/SCIP providers are not required for local v1 readiness |
+| D4 context broker and public `get_code_context` | Complete | Explicit task and budget; no repository dump |
+| D5 verification intelligence and Work handoffs | Complete for local declarations | Discover does not execute checks |
+| D6 provider harvesting and admission | Local evidence foundation complete | Explicit checked-in candidate manifest, pending Govern request, and non-executing Work plan; installation and activation remain prohibited |
+| D7 API and contract intelligence | Initial local foundation complete | OpenAPI JSON, JSON Schema, and checked-in MCP contract classification; additional formats remain staged |
+| D8 cross-repository discovery | Local explicit-selection foundation complete | No implicit `C:\Projects` scan; indexes and provider-backed cross-repository impact remain staged |
+
+The bounded local Discover v1 completion gate is the three public workflows, their deterministic local fallbacks, explicit degradation, and internal governed evidence foundations. Optional provider-backed expansion remains roadmap work and MUST NOT be represented as installed or ready until separately admitted and verified.
+
 ## 15. Delivery roadmap
 
 ### Phase D0 — Contract and boundary consolidation
@@ -869,18 +887,20 @@ Discover is product-ready when:
 
 ## 18. Definition of done
 
-The Discover module is complete when an agent can use a small progressive surface to:
+The bounded local Discover v1 module is complete when an agent can use the fixed three-workflow surface to:
 
-- establish canonical project and remote identity;
-- understand repository structure, languages, frameworks, modules, entry points, contracts, tests, CI, instructions, documentation, governance artifacts, and Git state;
-- retrieve exact task-relevant files, symbols, references, relationships, and constraints;
-- inspect a local or remote change and understand likely impact;
+- establish canonical local project and repository identity;
+- understand bounded repository structure, languages, frameworks, modules, entry points, supported contracts, tests, CI declarations, instructions, documentation, governance artifacts, and local Git state;
+- retrieve exact task-relevant files, Python symbols, static local relationships, and constraints under an explicit budget;
+- inspect working-tree, staged, commit, range, and branch changes and understand deterministic or explicitly heuristic impact;
 - produce an evidence-backed verification plan without executing it;
-- identify missing capabilities and recommend bounded tooling without installing it;
-- evaluate candidate providers through a governed admission workflow;
-- preserve provenance, trust, confidence, freshness, unknowns, and truncation;
+- identify missing capabilities and assemble bounded provider-admission evidence without installing or approving a provider;
+- map relationships only among explicitly selected local projects without scanning the project root implicitly;
+- preserve provenance, confidence, unknowns, omissions, and truncation;
 - hand policy questions to Govern and execution or mutation to Work;
-- produce repeatable results across local, semantic, GitHub, GitLab, API-contract, and verification evidence.
+- pass public contract, architecture, isolation, determinism, security, and full repository verification.
+
+Optional provider expansion is complete only after separately approved semantic, forge, additional contract, registry, or indexed providers are admitted, verified, and proven through their own contracts. Those later capabilities extend Discover v1; their absence does not weaken or misrepresent the completed deterministic local runtime.
 
 ## 19. Source and decision traceability
 

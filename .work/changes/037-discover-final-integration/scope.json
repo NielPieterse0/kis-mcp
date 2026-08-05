@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "037-discover-final-integration",
+  "status": "active",
+  "branch": "change/037-discover-final-integration",
+  "worktree": ".work/worktrees/037-discover-final-integration",
+  "base": "origin/main",
+  "outcome": "Complete the bounded Discover three-tool public runtime and end-to-end contract integration without overlapping active shared-file owners",
+  "owned_paths": [
+    "src/kis_mcp/discover/tools.py",
+    "src/kis_mcp/discover/service.py",
+    "tests/discover/test_tool_registration.py",
+    "tests/discover/test_change_tool_registration.py",
+    "tests/discover/test_public_tools_integration.py",
+    "docs/DISCOVER-MODULE-PRODUCT-SPEC.md",
+    "docs/development/discover-final-integration/**",
+    ".work/changes/037-discover-final-integration/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/server.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "policy/**",
+    "settings/**"
+  ],
+  "dependencies": [
+    "032-discover-impact-parity",
+    "033-discover-provider-admission",
+    "034-discover-project-catalog"
+  ],
+  "integration_owner": null
+}
