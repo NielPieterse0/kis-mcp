@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation and PR hardening complete; exact-head verification, merge, and cleanup pending.
+Implementation, PR hardening, and exact-head verification complete; merge and cleanup pending.
 
 ## Implemented scope
 
@@ -47,7 +47,7 @@ Implementation and PR hardening complete; exact-head verification, merge, and cl
   - complete pytest suite passed with 2 expected skips;
   - 158 Python files passed syntax validation;
   - locked dependencies, interpreter, JSON/configuration, line-ending, change-governance, and exact HR-001/HR-002/HR-003 checks passed.
-- Hardened working-tree verification passed:
+- Final committed branch verification passed after PR hardening and closeout reconciliation:
   - complete pytest suite passed with 2 expected skips;
   - 158 Python files passed syntax validation;
   - governance, configuration, dependencies, line endings, whitespace, interpreter, and exact HR-001/HR-002/HR-003 checks passed.
