@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": "041-dual-instance-commissioning",
+  "status": "active",
+  "branch": "change/041-dual-instance-commissioning",
+  "worktree": ".work/worktrees/041-dual-instance-commissioning",
+  "base": "main",
+  "outcome": "Enable concurrent kis-op and kis-dev startup with strict instance port binding and a lean selector launcher",
+  "owned_paths": [
+    "scripts/start-chatgpt.ps1",
+    "scripts/tunnel-state.ps1",
+    "tests/test_startup_scripts.py",
+    "tests/test_tunnel_scripts.py",
+    "settings/kis-mcp.settings.json",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/041-dual-instance-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
