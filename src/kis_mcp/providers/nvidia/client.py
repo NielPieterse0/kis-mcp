@@ -6,7 +6,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from ...workflows.code_review.settings import NvidiaSettings
+from .settings import NvidiaSettings
 
 RequestSender = Callable[[Request, int], bytes]
 

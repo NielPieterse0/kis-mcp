@@ -3,14 +3,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from ..config import RuntimeConfig
-from ..workflows.code_review.settings import (
-    NvidiaSettings,
-    load_agent_settings_or_disabled,
-)
 from .control_center import register_control_center_provider
 from .desktop_commander import register_desktop_commander_provider
 from .github import GitHubProviderSettings, register_github_provider
-from .nvidia import register_nvidia_provider
+from .nvidia import (
+    NvidiaSettings,
+    disabled_nvidia_settings,
+    register_nvidia_provider,
+)
 from .registry import ProviderRegistry
 from .service import ProviderService
 
@@ -50,7 +50,7 @@ def build_platform_provider_registry(
     )
     register_nvidia_provider(
         registry,
-        settings=nvidia_settings or load_agent_settings_or_disabled().nvidia,
+        settings=nvidia_settings or disabled_nvidia_settings(),
         environ=environment,
     )
     register_supabase_provider(registry)
