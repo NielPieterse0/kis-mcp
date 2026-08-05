@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/analyze-change-response.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "normalized_change", "change", "impact"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "analyze_change"},
+    "normalized_change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "changed_paths", "supplied_changes", "github_context"],
+      "properties": {
+        "source": {"enum": ["working_tree", "staged", "commit", "range", "branch", "supplied"]},
+        "changed_paths": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "supplied_changes": {"type": "array"},
+        "github_context": {"type": ["object", "null"]}
+      }
+    },
+    "change": {"type": ["object", "null"]},
+    "impact": {"type": "object"}
+  }
+}

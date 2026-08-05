@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "change_id": "037-discover-final-integration",
+  "status": "active",
+  "branch": "change/037-discover-final-integration",
+  "worktree": ".work/worktrees/037-discover-final-integration",
+  "base": "origin/main",
+  "outcome": "Complete the bounded local Discover change-impact solution, reconcile the pending public integration, add task, contract, configuration, implementation-step, supplied-change, and GitHub-context normalization, expose a unified public analyze_change workflow, and close donor parity evidence without installing tool or provider packages",
+  "owned_paths": [
+    "src/kis_mcp/discover/**",
+    "tests/discover/**",
+    "contracts/discover/**",
+    "docs/DISCOVER-MODULE-PRODUCT-SPEC.md",
+    "docs/development/discover-final-integration/**",
+    ".work/changes/037-discover-final-integration/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "policy/**",
+    "settings/**",
+    "src/kis_mcp/tools/**",
+    "src/kis_mcp/providers/**"
+  ],
+  "dependencies": [
+    "032-discover-impact-parity",
+    "033-discover-provider-admission",
+    "034-discover-project-catalog"
+  ],
+  "integration_owner": "037-discover-final-integration"
+}
