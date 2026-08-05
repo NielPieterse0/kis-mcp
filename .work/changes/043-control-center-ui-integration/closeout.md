@@ -45,7 +45,7 @@ The KIS Control Center is now mounted through the normal provider runtime as a `
 - Primary-gateway integration test proves the normal `build_server()` surface exposes `controlcenter_open_kis_control_center` and `ui://controlcenter/kis-mcp/control-center.html` without a second process.
 - `pwsh -NoProfile -File scripts/change-workflow.ps1 check`: passed and reported only declared paths.
 - `git diff --check`: passed.
-- `pwsh -NoProfile -File scripts/verify.ps1`: passed; repository tests completed with the existing two skips, 140 Python files compiled, 38 governance claims validated, and configuration, dependencies, line endings, and exact three-rule checks were green.
+- After integrating current `origin/main`, `pwsh -NoProfile -File scripts/verify.ps1` passed; repository tests completed with the existing two skips, 141 Python files compiled, 40 governance claims validated, and configuration, dependencies, line endings, and exact three-rule checks were green.
 
 ## Governance history
 

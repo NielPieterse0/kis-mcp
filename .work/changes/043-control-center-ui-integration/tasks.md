@@ -22,5 +22,5 @@
 - Final affected suite: 104 tests passed across Control Center, provider composition, observability, middleware, process state, and Desktop Commander.
 - `scripts/change-workflow.ps1 check`: passed and reported only declared paths.
 - `git diff --check`: passed.
-- `scripts/verify.ps1`: passed with the existing two skips; 140 Python files compiled and 38 governance claims validated.
+- After integrating current `origin/main`, `scripts/verify.ps1` passed with the existing two skips; 141 Python files compiled and 40 governance claims validated.
 - Review fixes: escaped provider action text, byte-bounded approval-register reads, strict pending-decision parsing, and removal of a convenience re-export that introduced an import cycle.
