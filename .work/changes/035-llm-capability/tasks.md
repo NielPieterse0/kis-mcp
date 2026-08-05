@@ -9,4 +9,4 @@
 - [x] Gateway registration and authoritative documentation updated.
 - [x] Scope validation, review, focused tests, and full verification complete.
 - [x] PR #48 created and reviewed at verified integration head `62ce7aae234cf7dc8bb3fc78e2529322be45f567`.
-- [ ] PR merged and branch/worktree cleanup complete.
+- [x] PR merged at the exact final verified head and branch/worktree cleanup completed without force.
