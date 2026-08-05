@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/project-catalog-response.schema.json",
+  "title": "Discover Project Catalog Response",
+  "$defs": {
+    "projectIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "canonical_path", "repository_root", "git_root", "remote_identity"],
+      "properties": {
+        "project_id": {"type": "string", "minLength": 1},
+        "canonical_path": {"type": "string", "minLength": 1},
+        "repository_root": {"type": "string", "minLength": 1},
+        "git_root": {"type": ["string", "null"]},
+        "remote_identity": {"type": ["string", "null"]}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "tool", "projects", "manifests", "relationships",
+    "unknowns", "omissions", "confidence", "truncated",
+    "truncation_reasons", "fingerprint"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "inspect_project_catalog"},
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "selected_path"],
+        "properties": {
+          "project": {"$ref": "#/$defs/projectIdentity"},
+          "selected_path": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "manifests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "path", "kind", "content_digest", "provenance"],
+        "properties": {
+          "project": {"$ref": "#/$defs/projectIdentity"},
+          "path": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["npm", "python", "dotnet"]},
+          "content_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "provenance": {"const": "selected_project_manifest"}
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_project", "target_project", "relationship_type",
+          "source_manifest", "subject", "provenance", "confidence"
+        ],
+        "properties": {
+          "source_project": {"$ref": "#/$defs/projectIdentity"},
+          "target_project": {"$ref": "#/$defs/projectIdentity"},
+          "relationship_type": {
+            "enum": [
+              "npm_local_dependency", "python_path_dependency",
+              "dotnet_project_reference", "contains_selected_project"
+            ]
+          },
+          "source_manifest": {"type": ["string", "null"]},
+          "subject": {"type": ["string", "null"]},
+          "provenance": {"enum": ["static_manifest_reference", "explicit_selection"]},
+          "confidence": {"enum": ["high", "medium", "low"]}
+        }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "reason", "source_project", "source_manifest", "candidate_path"],
+        "properties": {
+          "code": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "source_project": {"oneOf": [{"$ref": "#/$defs/projectIdentity"}, {"type": "null"}]},
+          "source_manifest": {"type": ["string", "null"]},
+          "candidate_path": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "omissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projects", "manifests", "relationships", "unknowns"],
+      "properties": {
+        "projects": {"type": "integer", "minimum": 0},
+        "manifests": {"type": "integer", "minimum": 0},
+        "relationships": {"type": "integer", "minimum": 0},
+        "unknowns": {"type": "integer", "minimum": 0}
+      }
+    },
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "truncated": {"type": "boolean"},
+    "truncation_reasons": {
+      "type": "array",
+      "items": {"enum": ["max_projects", "max_manifests", "max_relationships", "max_unknowns"]},
+      "uniqueItems": true
+    },
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
