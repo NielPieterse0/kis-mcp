@@ -31,6 +31,94 @@ def _release(value: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
+def _line_ending_violations(output: str) -> list[dict[str, str]]:
+    violations: list[dict[str, str]] = []
+    for line in output.splitlines():
+        metadata, separator, path = line.partition("\t")
+        if not separator:
+            continue
+        columns = metadata.split()
+        if len(columns) < 3:
+            continue
+        index = columns[0].removeprefix("i/")
+        worktree = columns[1].removeprefix("w/")
+        attributes = " ".join(columns[2:]).removeprefix("attr/")
+        if "eol=lf" not in attributes:
+            continue
+        if index in {"crlf", "mixed"} or worktree in {"crlf", "mixed"}:
+            violations.append(
+                {"path": path, "index": index, "worktree": worktree}
+            )
+    return violations
+
+
+def verify_repository_line_endings() -> int:
+    required_literals = {
+        ROOT / ".gitattributes": ("* text=auto eol=lf", "*.cmd text eol=crlf"),
+        ROOT / ".editorconfig": ("end_of_line = lf",),
+    }
+    missing_policy: list[str] = []
+    for path, literals in required_literals.items():
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            missing_policy.append(str(path.relative_to(ROOT)))
+            continue
+        missing_policy.extend(
+            f"{path.relative_to(ROOT)}:{literal}"
+            for literal in literals
+            if literal not in content
+        )
+
+    expected_config = {
+        "core.autocrlf": "false",
+        "core.eol": "lf",
+        "core.safecrlf": "true",
+    }
+    actual_config: dict[str, str] = {}
+    for key in expected_config:
+        completed = subprocess.run(
+            ["git", "config", "--local", "--get", key],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        actual_config[key] = (
+            completed.stdout.strip().casefold()
+            if completed.returncode == 0
+            else "<missing>"
+        )
+
+    completed = subprocess.run(
+        ["git", "ls-files", "--eol"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        _emit(
+            "repository-line-endings",
+            False,
+            error=completed.stderr.strip() or "git ls-files --eol failed",
+        )
+        return 1
+
+    violations = _line_ending_violations(completed.stdout)
+    config_ok = actual_config == expected_config
+    ok = not missing_policy and config_ok and not violations
+    _emit(
+        "repository-line-endings",
+        ok,
+        expected_config=expected_config,
+        actual_config=actual_config,
+        missing_policy=missing_policy,
+        violations=violations,
+    )
+    return 0 if ok else 1
+
+
 def verify_configuration() -> int:
     try:
         config = load_runtime_config(ROOT)
@@ -174,6 +262,7 @@ def verify_tests() -> int:
 
 def main() -> int:
     for check in (
+        verify_repository_line_endings,
         verify_configuration,
         verify_interpreter,
         verify_dependency_versions,
