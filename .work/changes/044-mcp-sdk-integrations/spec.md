@@ -3,7 +3,7 @@
 - **Change ID**: `044-mcp-sdk-integrations`
 - **Status**: Approved for implementation by the operator's explicit `GO` directive
 - **Development level**: Complex
-- **Base**: `main` at `b642603`
+- **Base**: rebased onto `main` at `0d49cf6`
 
 ## Outcome
 
