@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "025-line-ending-hygiene",
-  "status": "active",
+  "status": "closed",
   "branch": "change/025-line-ending-hygiene",
   "worktree": ".work/worktrees/025-line-ending-hygiene",
   "base": "main",
