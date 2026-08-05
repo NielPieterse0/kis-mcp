@@ -21,11 +21,13 @@ def build_control_center_server(
     settings: ControlCenterSettings | None = None,
     *,
     snapshot_service: SnapshotService | None = None,
+    app_resource_uri: str | None = None,
 ) -> FastMCP:
-    """Build the standalone read-only KIS Control Center MCP App server."""
+    """Build the read-only KIS Control Center MCP App server."""
 
     resolved_settings = settings or load_control_center_settings()
     service = snapshot_service or ControlCenterSnapshotService(resolved_settings)
+    advertised_resource_uri = app_resource_uri or CONTROL_CENTER_RESOURCE_URI
     server = FastMCP(
         "kis-mcp-control-center",
         instructions=(
@@ -61,7 +63,7 @@ def build_control_center_server(
             "status as structured fallback content."
         ),
         app=AppConfig(
-            resource_uri=CONTROL_CENTER_RESOURCE_URI,
+            resource_uri=advertised_resource_uri,
             visibility=["model"],
             prefers_border=True,
         ),

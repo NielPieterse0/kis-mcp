@@ -9,7 +9,7 @@
 - [x] Task 2: bounded process-local observability.
 - [x] Task 3: provider composition publication and enriched local evidence.
 - [x] Task 4: complete host-themed dashboard.
-- [ ] Task 5: mounted local provider integration.
+- [x] Task 5: mounted local provider integration.
 - [ ] Task 6: documentation, review, verification, PR, merge, and cleanup.
 
 ## Evidence log

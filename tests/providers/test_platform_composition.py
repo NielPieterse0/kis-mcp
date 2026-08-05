@@ -131,12 +131,14 @@ def test_platform_registry_contains_exact_approved_providers_without_probing() -
     )
 
     assert [item.provider_id for item in registry.list()] == [
+        "control-center",
         "desktop-commander",
         "github-mcp",
         "nvidia-nim",
         "supabase",
     ]
     assert [item.provider_id for item in platform_module.ProviderService(registry).catalogue().entries()] == [
+        "control-center",
         "desktop-commander",
         "github-mcp",
         "nvidia-nim",
@@ -178,6 +180,11 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
 
     monkeypatch.setattr(
         platform_module,
+        "register_control_center_provider",
+        registrar("control-center"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_desktop_commander_provider",
         registrar("desktop-commander"),
     )
@@ -203,7 +210,7 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
     )
     entries = platform_module.ProviderService(registry).catalogue().entries()
 
-    assert len(entries) == 4
+    assert len(entries) == 5
     assert builders == 0
     assert probes == 0
 
@@ -241,6 +248,11 @@ def test_platform_health_probes_all_providers_but_builds_none(
 
     monkeypatch.setattr(
         platform_module,
+        "register_control_center_provider",
+        registrar("control-center"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_desktop_commander_provider",
         registrar("desktop-commander"),
     )
@@ -268,6 +280,7 @@ def test_platform_health_probes_all_providers_but_builds_none(
 
     assert health.state is ProviderState.READY
     assert probes == [
+        "control-center",
         "desktop-commander",
         "github-mcp",
         "nvidia-nim",
