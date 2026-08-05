@@ -16,7 +16,7 @@
 - [x] Tunnel credential dependency migrated away from Windows Credential Manager.
 - [x] Focused security review completed.
 - [x] Canonical repository verification passes on the reviewed branch content.
-- [ ] Branch pushed and PR opened at exact reviewed head.
+- [x] Branch pushed and draft PR #42 opened against `main`.
 
 ## Deferred integration ledger
 

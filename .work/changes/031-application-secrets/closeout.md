@@ -1,8 +1,9 @@
 # Application-Managed Secrets Closeout
 
 - **Change ID**: `031-application-secrets`
-- **Status**: Ready for review
+- **Status**: In review
 - **Branch**: `change/031-application-secrets`
+- **Pull request**: `#42` (draft, targets `main`)
 
 ## Delivered
 
