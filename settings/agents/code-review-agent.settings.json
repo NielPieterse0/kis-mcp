@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "agent_id": "code-reviewer",
+  "preferred_backend": "nvidia-nim",
+  "fallback_backend": "codex-cli",
+  "max_evidence_chars": 120000,
+  "max_output_chars": 30000,
+  "nvidia": {
+    "enabled": true,
+    "base_url": "https://integrate.api.nvidia.com/v1",
+    "model": "meta/llama-3.3-70b-instruct",
+    "api_key_env": "NVIDIA_API_KEY",
+    "timeout_seconds": 90,
+    "temperature": 0.1,
+    "max_tokens": 4096
+  },
+  "codex": {
+    "enabled": true,
+    "script_path": "scripts/invoke-codex-agent.ps1",
+    "executable": "codex",
+    "timeout_seconds": 180,
+    "max_output_chars": 30000
+  }
+}

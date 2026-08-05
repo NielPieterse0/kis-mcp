@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/provider-candidate.schema.json",
+  "title": "Discover Provider Candidate Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id", "name", "provider_type", "revision", "license",
+    "maintainer", "capabilities", "requested_effects", "authentication",
+    "installation", "protocols", "platforms", "schema_present",
+    "health_contract_present", "deterministic", "conformance_tests",
+    "evidence", "overlaps", "manifest_path", "content_digest", "provenance"
+  ],
+  "properties": {
+    "candidate_id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "provider_type": {"enum": ["mcp_server", "tool", "provider"]},
+    "revision": {"type": "string", "minLength": 1},
+    "license": {"type": ["string", "null"], "minLength": 1},
+    "maintainer": {"type": "string", "minLength": 1},
+    "capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "requested_effects": {"type": "array", "items": {"enum": ["reads_project", "writes_project", "executes_commands", "network_access", "credentials"]}, "uniqueItems": true},
+    "authentication": {"enum": ["none", "operator_injected", "provider_managed"]},
+    "installation": {"enum": ["bundled", "manual", "external_command"]},
+    "protocols": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "platforms": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "schema_present": {"type": "boolean"},
+    "health_contract_present": {"type": "boolean"},
+    "deterministic": {"type": "boolean"},
+    "conformance_tests": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "path", "summary", "provenance"],
+        "properties": {
+          "kind": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "summary": {"type": "string", "minLength": 1},
+          "provenance": {"const": "candidate_manifest"}
+        }
+      }
+    },
+    "overlaps": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "manifest_path": {"type": "string", "minLength": 1},
+    "content_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "provenance": {"const": "checked_in_candidate_manifest"}
+  }
+}
