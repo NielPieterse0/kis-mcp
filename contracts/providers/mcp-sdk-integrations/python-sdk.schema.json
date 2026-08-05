@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/mcp-sdk-integrations/python-sdk.schema.json",
+  "title": "MCP Python SDK Provider Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "source_repository",
+    "source_revision",
+    "distribution_name",
+    "module_name",
+    "expected_version"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "source_repository": {"const": "https://github.com/modelcontextprotocol/python-sdk"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "distribution_name": {"const": "mcp"},
+    "module_name": {"const": "mcp"},
+    "expected_version": {"const": "1.29.0"}
+  }
+}
