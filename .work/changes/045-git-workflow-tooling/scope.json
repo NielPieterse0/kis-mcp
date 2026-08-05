@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "045-git-workflow-tooling",
-  "status": "active",
+  "status": "closed",
   "branch": "change/045-git-workflow-tooling",
   "worktree": ".work/worktrees/045-git-workflow-tooling",
   "base": "main",
