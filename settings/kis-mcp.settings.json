@@ -189,15 +189,15 @@
       "operation": {
         "port": 8010,
         "profile_name": "kis-mcp-operation",
-        "configured": false,
-        "tunnel_id": "",
+        "configured": true,
+        "tunnel_id": "tunnel_6a6806687cf88191bf97c8c3cb0d1f61",
         "tunnel_credential_target": "kis-mcp/tunnel/operation"
       },
       "development": {
         "port": 8011,
         "profile_name": "kis-mcp-development",
-        "configured": false,
-        "tunnel_id": "",
+        "configured": true,
+        "tunnel_id": "tunnel_6a68065a7b688191ba706b86151241ff",
         "tunnel_credential_target": "kis-mcp/tunnel/development"
       }
     }

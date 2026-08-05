@@ -24,9 +24,13 @@ def test_tunnel_configuration_is_canonical_json() -> None:
         r"C:\Tools\openai-tunnel-client\tunnel-client.exe"
     )
     assert set(remote["instances"]) == {"operation", "development"}
+    expected_tunnel_ids = {
+        "operation": "tunnel_6a6806687cf88191bf97c8c3cb0d1f61",
+        "development": "tunnel_6a68065a7b688191ba706b86151241ff",
+    }
     for name, instance in remote["instances"].items():
-        assert instance["configured"] is False
-        assert instance["tunnel_id"] == ""
+        assert instance["configured"] is True
+        assert instance["tunnel_id"] == expected_tunnel_ids[name]
         assert instance["tunnel_credential_target"] == f"kis-mcp/tunnel/{name}"
         assert "tunnel_authentication_id" not in instance
 
