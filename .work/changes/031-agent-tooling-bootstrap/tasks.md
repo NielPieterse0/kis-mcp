@@ -17,4 +17,4 @@
 - [x] Record review and closeout evidence.
 - [x] Commit the verified change.
 - [x] Push and open pull request `#38`.
-- [ ] After approved merge, run safe cleanup from `main`.
+- [x] After approved merge, run safe cleanup from `main`.

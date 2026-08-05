@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "031-agent-tooling-bootstrap",
-  "status": "active",
+  "status": "closed",
   "branch": "change/031-agent-tooling-bootstrap",
   "worktree": ".work/worktrees/031-agent-tooling-bootstrap",
   "base": "main",

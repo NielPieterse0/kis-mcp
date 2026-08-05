@@ -29,12 +29,11 @@
 
 ## Git and merge
 
-- Branch: `change/031-agent-tooling-bootstrap`
-- Worktree: `.work/worktrees/031-agent-tooling-bootstrap`
-- Commit: reviewed branch head includes the bootstrap implementation, current `main`, and PR-completion remediation.
+- Branch: `change/031-agent-tooling-bootstrap`.
+- Reviewed exact head: `b24b71156608a1d0d51868f14baa32d76e5b19c6`.
 - Pull request: `#38` — `Bootstrap AgentSys and agnix tooling`.
-- Merge: explicitly authorized by the operator after exact-head review and fresh verification.
-- Cleanup: required after merge; the primary worktree must be clean before the workflow can remove the change worktree and branch.
+- Merge commit: `9cc26f357526c5f74f0454abd52086eca026c829`.
+- Cleanup: local `main` fast-forwarded to the merge commit; the clean worktree was removed; local and remote change branches were deleted; change status was closed.
 
 ## Residual items
 
