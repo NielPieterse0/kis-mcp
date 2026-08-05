@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/inspect-impact-response.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "project", "changed_paths", "changed_symbols", "dependants", "affected_tests", "verification_handoffs", "unknowns", "omissions", "confidence", "truncated", "truncation_reasons", "fingerprint"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool": {"const": "inspect_impact"},
+    "project": {"$ref": "#/$defs/project"},
+    "changed_paths": {"$ref": "#/$defs/strings"},
+    "changed_symbols": {"type": "array", "items": {"$ref": "#/$defs/symbol"}},
+    "dependants": {"type": "array", "items": {"$ref": "#/$defs/dependant"}},
+    "affected_tests": {"type": "array", "items": {"$ref": "#/$defs/test"}},
+    "verification_handoffs": {"type": "array", "items": {"$ref": "#/$defs/handoff"}},
+    "unknowns": {"type": "array", "items": {"$ref": "#/$defs/unknown"}},
+    "omissions": {"$ref": "#/$defs/omissions"},
+    "confidence": {"enum": ["high", "medium", "low"]},
+    "truncated": {"type": "boolean"},
+    "truncation_reasons": {"$ref": "#/$defs/strings"},
+    "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "strings": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "project": {
+      "type": "object", "additionalProperties": false,
+      "required": ["project_id", "canonical_path", "repository_root", "git_root", "remote_identity"],
+      "properties": {
+        "project_id": {"type": "string", "minLength": 1},
+        "canonical_path": {"type": "string", "minLength": 1},
+        "repository_root": {"type": "string", "minLength": 1},
+        "git_root": {"type": ["string", "null"]},
+        "remote_identity": {"type": ["string", "null"]}
+      }
+    },
+    "symbol": {
+      "type": "object", "additionalProperties": false,
+      "required": ["qualified_name", "module", "name", "kind", "path", "line", "provenance"],
+      "properties": {
+        "qualified_name": {"type": "string", "minLength": 1}, "module": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1}, "kind": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1}, "line": {"type": "integer", "minimum": 1},
+        "provenance": {"const": "python_ast"}
+      }
+    },
+    "dependant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "source", "target", "path", "line", "confidence", "provenance"],
+      "properties": {
+        "kind": {"enum": ["import", "call", "inheritance"]}, "source": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1}, "path": {"type": "string", "minLength": 1},
+        "line": {"type": "integer", "minimum": 1}, "confidence": {"enum": ["high", "medium", "low"]},
+        "provenance": {"const": "python_ast"}
+      }
+    },
+    "test": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "reason", "confidence", "matched_targets", "provenance"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1},
+        "confidence": {"enum": ["high", "medium", "low"]}, "matched_targets": {"$ref": "#/$defs/strings"},
+        "provenance": {"enum": ["observed", "python_ast", "conventional"]}
+      }
+    },
+    "handoff": {
+      "type": "object", "additionalProperties": false,
+      "required": ["handoff_id", "verification_id", "category", "reason", "profile", "arguments", "source_path", "target_plane", "workflow", "execution_available"],
+      "properties": {
+        "handoff_id": {"type": "string", "minLength": 1}, "verification_id": {"type": "string", "minLength": 1},
+        "category": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1},
+        "profile": {"type": "string", "minLength": 1}, "arguments": {"type": "array", "items": {"type": "string"}},
+        "source_path": {"type": "string", "minLength": 1}, "target_plane": {"const": "work"},
+        "workflow": {"const": "run_verification"}, "execution_available": {"const": false}
+      }
+    },
+    "unknown": {
+      "type": "object", "additionalProperties": false, "required": ["code", "reason"],
+      "properties": {"code": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}}
+    },
+    "omissions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["symbols", "dependants", "tests", "verifications"],
+      "properties": {
+        "symbols": {"type": "integer", "minimum": 0}, "dependants": {"type": "integer", "minimum": 0},
+        "tests": {"type": "integer", "minimum": 0}, "verifications": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
