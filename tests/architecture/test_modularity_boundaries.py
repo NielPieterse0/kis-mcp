@@ -53,3 +53,20 @@ def test_provider_packages_do_not_import_application_server() -> None:
     ]
 
     assert offenders == []
+
+
+def test_root_provider_registry_alias_is_retired() -> None:
+    alias = SOURCE_ROOT / "provider_registry.py"
+    imports = (
+        "kis_mcp.provider_registry",
+        "from kis_mcp import provider_registry",
+    )
+    offenders = [
+        _relative(path)
+        for path in _python_sources(SOURCE_ROOT)
+        if path != alias
+        and any(fragment in path.read_text(encoding="utf-8") for fragment in imports)
+    ]
+
+    assert alias.exists() is False
+    assert offenders == []
