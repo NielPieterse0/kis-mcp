@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "044-mcp-sdk-integrations",
-  "status": "active",
+  "status": "closed",
   "branch": "change/044-mcp-sdk-integrations",
   "worktree": ".work/worktrees/044-mcp-sdk-integrations",
   "base": "main",

@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation complete on `change/044-mcp-sdk-integrations`; implementation PR and governance closure pending.
+Closed after PR #54 merged exact head `e0e14b7e403affec663801a1138809fc94a273a1` into `main` as `99976a0bc1fed927a001d2a4744053409281b74c`.
 
 ## Implemented scope
 
