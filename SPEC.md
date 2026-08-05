@@ -111,7 +111,7 @@ kis-mcp FastMCP gateway -> Desktop Commander
 
 Both instances expose the same standard mixed-purpose Desktop Commander and gateway tools. Transport, instance name, profile, catalogue metadata, approval metadata, or risk labels do not reduce the backend tool surface or create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
 
-The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel secrets are stored as per-user Generic Credentials in Windows Credential Manager. Checked-in JSON stores only a non-secret credential target name; setup and startup read the secret into a process-scoped environment variable used by the tunnel client and do not persist the value in repository files, generated profiles, or runtime state. Generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
+The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel credentials are stored in the application-managed encrypted vault under the non-secret `tunnel_secret_ref` values recorded in checked-in JSON. Setup and startup unlock the vault through the supervised secret-process boundary, resolve only the selected reference, pass the value through process-scoped environment state, and do not persist it in repository files, generated profiles, or runtime state. Generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
 
 ## Desktop Commander integration
 
@@ -216,10 +216,10 @@ All project settings and policy declarations are JSON.
 - `settings/providers/platform-runtime.provider.json` selects exactly the approved mounted MCP provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
 - `settings/agents/code-review-agent.settings.json` defines the single advisory code-review agent, its NVIDIA NIM and Codex CLI backends, preferred/fallback order, fixed script path, and evidence/output budgets. It stores only the NVIDIA API-key environment-variable name, never the key value.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
-- Each remote instance stores its port, profile name, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_credential_target` used to retrieve its per-user Generic Credential from Windows Credential Manager.
+- Each remote instance stores its app name, port, profile name, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_secret_ref` used to resolve its credential from the application-managed encrypted vault.
 - `policy/kis-mcp.policy.json` contains exactly HR-001, HR-002, and HR-003.
 
-A remote instance may have a blank tunnel ID only while `configured` is `false`. Before profile setup or startup, the operator supplies the real tunnel ID, changes `configured` to `true`, and stores the secret once with `scripts\set-tunnel-credential.ps1`. Profile setup and startup fail closed when the instance is unconfigured or the named Windows credential is missing. API keys, credential values, tunnel profile YAML, and generated runtime state are never committed.
+A remote instance may have a blank tunnel ID only while `configured` is `false`. Before profile setup or startup, the operator supplies the real tunnel ID, changes `configured` to `true`, and stores the secret once with `scripts\set-tunnel-credential.ps1`. Profile setup and startup fail closed when the instance is unconfigured, its canonical vault reference is invalid, or the referenced vault entry cannot be resolved after supervised unlock. API keys, credential values, tunnel profile YAML, and generated runtime state are never committed.
 
 Configuration and implementation-status fields do not disable otherwise permitted Desktop Commander tools or create another policy decision.
 

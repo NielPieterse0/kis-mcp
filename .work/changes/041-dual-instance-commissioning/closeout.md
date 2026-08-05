@@ -19,6 +19,8 @@
 - TDD GREEN: `tests/test_startup_scripts.py` and `tests/test_tunnel_scripts.py` passed: 28 tests, 0 failures.
 - Full pytest evidence: 733 passed, 2 skipped in 99.03 seconds.
 - Canonical repository verification: `pwsh -NoProfile -File scripts/verify.ps1` returned 0 and reported that the locked environment, approved Skills root, and exact three-rule implementation are consistent.
+- PR-completion remediation: corrected two stale `SPEC.md` claims that still described Windows Credential Manager instead of the application-managed vault, and added a regression assertion preventing that contradiction from returning.
+- Current-main prospective merge verification: 29 focused startup/tunnel tests passed, and `pwsh -NoProfile -File scripts/verify.ps1` passed on the exact conflict-free merge tree against current `main`.
 - Diff scope check: `pwsh -NoProfile -File scripts/change-workflow.ps1 check` passed with only declared paths.
 - Port preflight while the operational tool remained in use:
   - `kis-op` was listening on `127.0.0.1:8010` through `kis_mcp.remote_runtime --instance operation`;
@@ -46,7 +48,7 @@ Enter the existing vault unlock when prompted, then confirm `kis-op` remains ava
 - Correctness review: peer-port activity is permitted; selected-port activity fails before vault unlock; aliases resolve to one canonical instance; invalid app/port mappings fail structurally.
 - Security/secrets review: app identities and tunnel IDs are non-secret; secret references remain unchanged; no credential material entered the repository or logs.
 - Recovery: stop only the newly started `kis-dev` launcher and revert this branch. The existing `kis-op` launcher is independently owned and remains outside rollback.
-- Blocking findings: none in the implemented and automated scope.
+- Review finding resolved: the stale Windows Credential Manager statements in `SPEC.md` contradicted the implemented application-managed vault; the specification and regression coverage now agree. No blocking findings remain.
 
 ## Git and merge
 
