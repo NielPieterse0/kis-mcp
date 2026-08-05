@@ -3,22 +3,27 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterable
-from typing import Protocol
+from typing import Any, Protocol
 
 from .change_contracts import ChangePathRecord, LocalChangeInventory
 from .change_inspection_contracts import (
     ChangeIdentity,
     ChangeImpactSummary,
     ChangeUnknown,
+    ChangeVerificationHandoff,
     ChangedFile,
     InspectChangeRequest,
     InspectChangeResponse,
-    WORKING_TREE_SOURCE,
 )
+from .change_targets import ChangeTargetInventory
 
 
 class LocalChangeReader(Protocol):
     def inspect_local_changes(self, project_path: str) -> LocalChangeInventory: ...
+
+
+class TargetChangeReader(Protocol):
+    def inspect_change_target(self, request: InspectChangeRequest) -> ChangeTargetInventory: ...
 
 
 _CODE_EXTENSIONS = {
@@ -68,6 +73,7 @@ _CONFIGURATION_EXTENSIONS = {
 }
 _CONTRACT_EXTENSIONS = {".graphql", ".gql", ".proto"}
 _FATAL_DIAGNOSTICS = {
+    "CHANGE_TARGET_READER_UNAVAILABLE",
     "GIT_CHANGE_READ_FAILED",
     "GIT_EXECUTION_FAILED",
     "GIT_METADATA_ENCODING_INVALID",
@@ -79,17 +85,34 @@ _FATAL_DIAGNOSTICS = {
     "GIT_METADATA_UNSAFE",
     "GIT_NOT_REPOSITORY",
     "GIT_REPOSITORY_OUTSIDE_BOUNDARY",
+    "GIT_TARGET_INVALID",
     "GIT_TIMEOUT",
     "GIT_UNAVAILABLE",
 }
+_HANDOFFS = (
+    ("source", "verification.source", "Run verification applicable to changed source files."),
+    ("test", "verification.tests", "Run the affected test verification workflow."),
+    ("contract", "verification.contracts", "Run contract and schema verification."),
+    (
+        "configuration",
+        "verification.configuration",
+        "Run configuration and integration verification.",
+    ),
+    ("policy", "verification.policy", "Run governance and policy verification."),
+    (
+        "documentation",
+        "verification.documentation",
+        "Run documentation validation and drift checks.",
+    ),
+)
 
 
 class InspectChangeService:
-    def __init__(self, reader: LocalChangeReader) -> None:
+    def __init__(self, reader: LocalChangeReader | TargetChangeReader) -> None:
         self._reader = reader
 
     def inspect(self, request: InspectChangeRequest) -> InspectChangeResponse:
-        inventory = self._reader.inspect_local_changes(request.path)
+        inventory = self._read_inventory(request)
         available = _inventory_available(inventory)
         changed_files = tuple(_changed_file(record) for record in inventory.changes)
         categories = {
@@ -126,8 +149,11 @@ class InspectChangeService:
             project_path=inventory.project_path,
             repository_root=inventory.repository_root,
             change=ChangeIdentity(
-                source=WORKING_TREE_SOURCE,
+                source=request.source,
                 fingerprint=_fingerprint(inventory),
+                commit_ref=request.commit_ref,
+                base_ref=request.base_ref,
+                head_ref=request.head_ref,
             ),
             changed_files=changed_files,
             affected_scopes=_affected_scopes(inventory.changes),
@@ -141,10 +167,38 @@ class InspectChangeService:
             unknowns=unknowns,
             confidence=confidence,
             truncated=inventory.truncated,
+            verification_handoffs=_verification_handoffs(changed_files),
+            source=request.source,
+        )
+
+    def _read_inventory(
+        self,
+        request: InspectChangeRequest,
+    ) -> LocalChangeInventory | ChangeTargetInventory:
+        if request.source == "working_tree":
+            local_method = getattr(self._reader, "inspect_local_changes", None)
+            if callable(local_method):
+                return local_method(request.path)
+        target_method = getattr(self._reader, "inspect_change_target", None)
+        if callable(target_method):
+            return target_method(request)
+        return ChangeTargetInventory(
+            project_path=request.path,
+            repository_root=None,
+            source=request.source,
+            commit_ref=request.commit_ref,
+            base_ref=request.base_ref,
+            head_ref=request.head_ref,
+            diagnostics=(
+                {
+                    "code": "CHANGE_TARGET_READER_UNAVAILABLE",
+                    "message": "The configured reader does not support this change target.",
+                },
+            ),
         )
 
 
-def _inventory_available(inventory: LocalChangeInventory) -> bool:
+def _inventory_available(inventory: LocalChangeInventory | ChangeTargetInventory) -> bool:
     if inventory.repository_root is None:
         return False
     return all(
@@ -164,7 +218,7 @@ def _changed_file(record: ChangePathRecord) -> ChangedFile:
     )
 
 
-def _fingerprint(inventory: LocalChangeInventory) -> str:
+def _fingerprint(inventory: Any) -> str:
     canonical = json.dumps(
         inventory.to_json_dict(),
         ensure_ascii=True,
@@ -252,6 +306,28 @@ def _impact_summary(changed_files: tuple[ChangedFile, ...]) -> ChangeImpactSumma
     )
 
 
+def _verification_handoffs(
+    changed_files: tuple[ChangedFile, ...],
+) -> tuple[ChangeVerificationHandoff, ...]:
+    handoffs: list[ChangeVerificationHandoff] = []
+    for category, verification_id, reason in _HANDOFFS:
+        paths = tuple(
+            item.path for item in changed_files if category in item.categories
+        )
+        if not paths:
+            continue
+        handoffs.append(
+            ChangeVerificationHandoff(
+                handoff_id=f"ho-change-{category}",
+                verification_id=verification_id,
+                category=category,
+                reason=reason,
+                paths=paths,
+            )
+        )
+    return tuple(handoffs)
+
+
 def _available_unknowns() -> tuple[ChangeUnknown, ...]:
     return (
         ChangeUnknown(
@@ -261,10 +337,6 @@ def _available_unknowns() -> tuple[ChangeUnknown, ...]:
         ChangeUnknown(
             code="CHANGE_SYMBOL_IMPACT_UNAVAILABLE",
             reason="Symbol impact is not available in this slice.",
-        ),
-        ChangeUnknown(
-            code="CHANGE_VERIFICATION_MAPPING_UNAVAILABLE",
-            reason="Verification impact mapping is not available in this slice.",
         ),
     )
 
@@ -281,4 +353,8 @@ def _suffix(name: str) -> str:
     return name[marker:] if marker >= 0 else ""
 
 
-__all__ = ["InspectChangeService", "LocalChangeReader"]
+__all__ = [
+    "InspectChangeService",
+    "LocalChangeReader",
+    "TargetChangeReader",
+]

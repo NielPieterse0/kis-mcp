@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "change_id": "027-discover-change-targets",
+  "status": "ready",
+  "branch": "change/027-discover-change-targets",
+  "worktree": ".work/worktrees/027-discover-change-targets",
+  "base": "main",
+  "outcome": "Extend inspect_change with bounded local Git targets and typed impact evidence",
+  "owned_paths": [
+    "src/kis_mcp/discover/change_inspection_contracts.py",
+    "src/kis_mcp/discover/change_service.py",
+    "src/kis_mcp/discover/change_targets.py",
+    "src/kis_mcp/discover/git_change_reader.py",
+    "src/kis_mcp/discover/git_reader.py",
+    "contracts/discover/inspect-change-request.schema.json",
+    "contracts/discover/inspect-change-response.schema.json",
+    "contracts/discover/inspect-change-working-tree-response.schema.json",
+    "tests/discover/test_change_targets.py",
+    "tests/discover/test_change_service.py",
+    "tests/discover/test_change_schema_contracts.py",
+    ".work/changes/027-discover-change-targets/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

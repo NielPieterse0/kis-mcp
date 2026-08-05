@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/discover/inspect-change-request.schema.json",
+  "title": "Discover inspect change request",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "source": {"const": "working_tree", "default": "working_tree"}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "source"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "source": {"const": "staged"}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "source", "commit_ref"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "source": {"const": "commit"},
+        "commit_ref": {"$ref": "#/$defs/git_ref"}
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "source", "base_ref", "head_ref"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "source": {"enum": ["range", "branch"]},
+        "base_ref": {"$ref": "#/$defs/git_ref"},
+        "head_ref": {"$ref": "#/$defs/git_ref"}
+      }
+    }
+  ],
+  "$defs": {
+    "git_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._/@+\\-]*$",
+      "not": {
+        "anyOf": [
+          {"pattern": "^\\-"},
+          {"pattern": "\\.\\."},
+          {"pattern": "@\\{"},
+          {"pattern": "//"},
+          {"pattern": "[./]$"}
+        ]
+      }
+    }
+  }
+}
