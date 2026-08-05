@@ -58,7 +58,7 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check` on the final branch state: passed with 43 declared changed paths.
 - [x] Run `pwsh -NoProfile -File scripts/verify.ps1` on the final branch state: passed with two expected skips, 161 Python files compiled, and all configuration, dependency, governance, line-ending, and exact three-rule checks valid.
 - [x] Record the reviewed implementation head, verification evidence, review findings, and residual items in `closeout.md`.
-- [ ] Push the branch and create a pull request to `main`.
+- [x] Push the branch and create pull request `#59` to `main`.
 - [ ] Review the exact remote PR head and required checks.
 - [ ] Merge only if the exact reviewed head remains current and no blocking finding remains.
 - [ ] Verify the merged `main` state.

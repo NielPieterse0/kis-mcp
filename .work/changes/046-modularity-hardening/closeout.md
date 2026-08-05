@@ -46,7 +46,7 @@
   - `682fa34` — retire provider registry compatibility alias;
   - `1d9a671` — preserve behavior and strengthen boundary tests.
 - Reviewed implementation head: `1d9a671`; the final PR head adds only these closeout artifacts after the successful verification run.
-- Pull request: pending publication.
+- Pull request: `#59` — `Harden module boundaries after modularity assessment`.
 - Merge commit: pending exact-head PR review and merge.
 - Cleanup: pending successful merged-state verification.
 
