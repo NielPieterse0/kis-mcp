@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "project_path": "C:\\Projects\\kis-mcp",
+  "runtime_settings_path": "C:\\Projects\\kis-mcp\\settings\\kis-mcp.settings.json",
+  "policy_path": "C:\\Projects\\kis-mcp\\policy\\kis-mcp.policy.json",
+  "provider_settings_path": "C:\\Projects\\kis-mcp\\settings\\providers\\platform-runtime.provider.json",
+  "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine",
+  "verification_command": [
+    "pwsh",
+    "-NoProfile",
+    "-File",
+    "scripts/verify.ps1"
+  ],
+  "limits": {
+    "max_provider_entries": 20,
+    "max_quarantine_records": 20,
+    "git_timeout_seconds": 3,
+    "max_json_bytes": 1000000
+  }
+}
