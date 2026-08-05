@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "042-mcp-inspector-bootstrap",
-  "status": "active",
+  "status": "closed",
   "branch": "change/042-mcp-inspector-bootstrap",
   "worktree": ".work/worktrees/042-mcp-inspector-bootstrap",
   "base": "main",

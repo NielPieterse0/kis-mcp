@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "source_repository": "https://github.com/modelcontextprotocol/python-sdk",
+  "source_revision": "a4f4ccd091138771535e17191123f20b30fda68e",
+  "distribution_name": "mcp",
+  "module_name": "mcp",
+  "expected_version": "1.29.0"
+}

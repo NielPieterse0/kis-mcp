@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/mcp-sdk-integrations/gitlab.schema.json",
+  "title": "Archived GitLab MCP Provider Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "archived",
+    "source_repository",
+    "source_revision",
+    "package_name",
+    "package_version",
+    "executable",
+    "entry_point",
+    "arguments",
+    "environment_names"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "archived": {"const": true},
+    "source_repository": {"const": "https://github.com/modelcontextprotocol/servers-archived"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "package_name": {"const": "@modelcontextprotocol/server-gitlab"},
+    "package_version": {"const": "0.6.2"},
+    "executable": {"type": "string", "minLength": 1},
+    "entry_point": {"type": "string", "minLength": 1},
+    "arguments": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "environment_names": {
+      "type": "array",
+      "items": {"enum": ["GITLAB_API_URL", "GITLAB_PERSONAL_ACCESS_TOKEN"]},
+      "uniqueItems": true,
+      "contains": {"const": "GITLAB_PERSONAL_ACCESS_TOKEN"},
+      "minContains": 1
+    }
+  }
+}
