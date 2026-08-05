@@ -14,7 +14,7 @@
 
 - Provider-admission tests: 8 passed.
 - Discover regression suite: 175 passed, 1 expected skip.
-- Full repository verification: passed; complete pytest suite passed with 2 expected skips, 88 Python files passed syntax validation, and configuration, dependency, governance, line-ending, whitespace, and exact HR-001/HR-002/HR-003 checks passed.
+- Full repository verification passed before and after integration with current `origin/main`. The integrated exact head completed the full pytest suite with 2 expected skips, 102 Python files passed syntax validation, and configuration, dependency, governance, line-ending, whitespace, and exact HR-001/HR-002/HR-003 checks passed.
 - Change scope check: passed with only declared 033 paths.
 
 ## Review
@@ -30,7 +30,8 @@
 
 - Branch: `change/033-discover-provider-admission`
 - Worktree: `.work/worktrees/033-discover-provider-admission`
-- Implementation commit: pending
+- Implementation commit: `110265b`
+- Integrated verification head before closeout update: `bb9d5f2`
 - Pull request and merge: pending
 - Cleanup: pending
 
