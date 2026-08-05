@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "change_id": "035-llm-capability",
+  "status": "active",
+  "branch": "change/035-llm-capability",
+  "worktree": ".work/worktrees/035-llm-capability",
+  "base": "main",
+  "outcome": "Add NVIDIA NIM and Codex CLI capabilities behind one bounded advisory code-review agent",
+  "owned_paths": [
+    "src/kis_mcp/providers/nvidia/**",
+    "src/kis_mcp/tools/codex_cli/**",
+    "src/kis_mcp/workflows/__init__.py",
+    "src/kis_mcp/workflows/code_review/**",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/providers/platform.py",
+    "scripts/invoke-codex-agent.ps1",
+    "settings/agents/code-review-agent.settings.json",
+    "contracts/agents/code-review-agent.settings.schema.json",
+    "tests/providers/nvidia/**",
+    "tests/providers/test_platform_composition.py",
+    "tests/tools/codex_cli/**",
+    "tests/workflows/code_review/**",
+    "tests/test_llm_agent_registration.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/035-llm-capability/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [
+    "029-tools-code-tooling"
+  ],
+  "integration_owner": null
+}

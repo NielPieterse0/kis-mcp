@@ -39,6 +39,16 @@ from .providers.runtime_settings import (
 from .providers.service import ProviderService
 from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
 from .skills import register_skills_tools
+from .tools import ToolRegistry, ToolService
+from .tools.codex_cli import register_codex_tool
+from .workflows.code_review import (
+    AgentSettings,
+    CodeReviewAgent,
+    GitReviewEvidenceCollector,
+    UnavailableReviewBackend,
+    load_agent_settings_or_disabled,
+    register_agent_tools,
+)
 
 
 def _ensure_state_directories(config: RuntimeConfig) -> None:
@@ -150,6 +160,39 @@ def _health_response(
     )
 
 
+def _build_code_review_agent(
+    runtime: RuntimeConfig,
+    settings: AgentSettings,
+    provider_service: ProviderService,
+) -> CodeReviewAgent:
+    nvidia_backend: Any = UnavailableReviewBackend("nvidia-nim")
+    if settings.nvidia.enabled and provider_service.registry.contains("nvidia-nim"):
+        try:
+            nvidia_backend = provider_service.build("nvidia-nim")
+        except Exception:
+            nvidia_backend = UnavailableReviewBackend("nvidia-nim")
+
+    codex_backend: Any = UnavailableReviewBackend("codex-cli")
+    try:
+        tool_registry = ToolRegistry()
+        register_codex_tool(tool_registry, settings=settings.codex)
+        codex_backend = ToolService(tool_registry).build("codex-cli")
+    except Exception:
+        codex_backend = UnavailableReviewBackend("codex-cli")
+
+    return CodeReviewAgent(
+        settings,
+        collector=GitReviewEvidenceCollector(
+            project_boundary=Path(runtime.project_boundary),
+            max_chars=settings.max_evidence_chars,
+        ),
+        backends={
+            "nvidia-nim": nvidia_backend,
+            "codex-cli": codex_backend,
+        },
+    )
+
+
 def build_server(
     config: RuntimeConfig | None = None,
     *,
@@ -158,6 +201,7 @@ def build_server(
     provider_runtime_settings: ProviderRuntimeSettings | None = None,
 ) -> FastMCP:
     runtime = config or load_runtime_config()
+    review_agent_settings = load_agent_settings_or_disabled()
     if validate_provider:
         validate_provider_offline_readiness(runtime)
     _ensure_state_directories(runtime)
@@ -201,7 +245,9 @@ def build_server(
     server.mount(change_server)
 
     external_provider_service = provider_service or build_platform_provider_service(
-        runtime_config=runtime
+        runtime_config=runtime,
+        nvidia_settings=review_agent_settings.nvidia,
+        environment=os.environ,
     )
     external_provider_settings = (
         provider_runtime_settings or load_provider_runtime_settings()
@@ -284,6 +330,14 @@ def build_server(
         )
 
     server.mount(provider_status_server)
+    register_agent_tools(
+        server,
+        _build_code_review_agent(
+            runtime,
+            review_agent_settings,
+            external_provider_service,
+        ),
+    )
     server.add_middleware(
         ThreeRuleMiddleware(
             resolver=resolver,
