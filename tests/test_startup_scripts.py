@@ -163,3 +163,13 @@ def test_operations_documents_one_launcher_for_kis_op_and_kis_dev() -> None:
     assert "start-chatgpt.ps1 kis-dev" in content
     assert "run concurrently" in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
+
+
+def test_spec_documents_application_vault_for_tunnel_credentials() -> None:
+    content = _document("SPEC.md")
+
+    assert "application-managed encrypted vault" in content
+    assert "`tunnel_secret_ref`" in content
+    assert "tunnel_credential_target" not in content
+    assert "per-user Generic Credentials in Windows Credential Manager" not in content
+    assert "named Windows credential is missing" not in content
