@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "034-discover-project-catalog",
-  "status": "active",
+  "status": "closed",
   "branch": "change/034-discover-project-catalog",
   "worktree": ".work/worktrees/034-discover-project-catalog",
   "base": "origin/main",

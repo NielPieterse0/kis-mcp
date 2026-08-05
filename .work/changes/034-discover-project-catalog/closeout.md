@@ -32,9 +32,10 @@
 
 - Branch: `change/034-discover-project-catalog`
 - Worktree: `.work/worktrees/034-discover-project-catalog`
-- Implementation commit: pending
-- Pull request and merge: pending
-- Cleanup: pending
+- Implementation commit: `523badb8e06407b3b837a741e44a2a8aa0ab8049`
+- Pull request: `#46` (`Discover: add explicit bounded project catalog`)
+- Merge commit: `1bf4b76e0a399c2ff97c01946ca3ea09be7a13b3`
+- Cleanup: governance record closed; isolated worktree and remote branch are removed after this closeout merges.
 
 ## Residual items
 
