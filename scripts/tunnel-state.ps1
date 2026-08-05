@@ -44,17 +44,22 @@ function Get-KisMcpRemoteInstance {
     }
     $Configured = [bool]$Property.Value.configured
     $TunnelId = [string]$Property.Value.tunnel_id
-    $CredentialTarget = [string]$Property.Value.tunnel_credential_target
-    if ([string]::IsNullOrWhiteSpace($CredentialTarget)) {
-        throw "KIS_MCP_TUNNEL_CREDENTIAL_TARGET_MISSING: $Instance"
+    $TunnelSecretRef = [string]$Property.Value.tunnel_secret_ref
+    $ExpectedSecretRef = "secret://tunnel/$Instance/authentication-token"
+    if ([string]::IsNullOrWhiteSpace($TunnelSecretRef)) {
+        throw "KIS_MCP_TUNNEL_SECRET_REFERENCE_MISSING: $Instance"
     }
-    if ($CredentialTarget -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{2,127}$') {
-        throw "KIS_MCP_TUNNEL_CREDENTIAL_TARGET_INVALID: $Instance"
+    if (-not [string]::Equals(
+        $TunnelSecretRef,
+        $ExpectedSecretRef,
+        [StringComparison]::Ordinal
+    )) {
+        throw "KIS_MCP_TUNNEL_SECRET_REFERENCE_INVALID: $Instance"
     }
     if ($RequireConfigured -and -not $Configured) {
         throw (
             "KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED: set settings.remote_mcp.instances.$Instance" +
-            '.tunnel_id and .configured, then store the credential with ' +
+            '.tunnel_id and .configured, then store the secret with ' +
             'scripts\set-tunnel-credential.ps1.'
         )
     }
@@ -84,7 +89,7 @@ function Get-KisMcpRemoteInstance {
         runtime_root = $RuntimeRoot
         configured = $Configured
         tunnel_id = $TunnelId
-        tunnel_credential_target = $CredentialTarget
+        tunnel_secret_ref = $TunnelSecretRef
         tunnel_client_path = [string]$Remote.tunnel_client_path
         python_environment_root = [string]$Settings.paths.python_environment_root
         state_root = $StateRoot
