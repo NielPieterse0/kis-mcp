@@ -1,5 +1,6 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'secret-vault.ps1')
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
@@ -11,6 +12,7 @@ $PythonExecutable = Join-Path $PythonEnvironmentRoot 'Scripts\python.exe'
 $UvCacheRoot = Join-Path $CanonicalStateRoot 'uv-cache'
 $PythonCacheRoot = Join-Path $CanonicalStateRoot 'python-cache'
 $TempRoot = Join-Path $CanonicalStateRoot 'temp'
+$SecretPipeEnvironmentName = 'KIS_MCP_SECRET_INPUT_PIPE_HANDLE'
 
 $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
 $Policy = Get-Content -LiteralPath $PolicyPath -Raw | ConvertFrom-Json
@@ -47,6 +49,11 @@ $env:TMP = $TempRoot
 $env:PYTHONPATH = Join-Path $RepositoryRoot 'src'
 $env:NO_UPDATE_NOTIFIER = '1'
 
+$SecurePayload = @{}
+if (-not $env:KIS_MCP_VAULT_KEY) {
+    $SecurePayload['unlock'] = Read-Host 'Unlock kis-mcp secrets' -AsSecureString
+}
+
 Push-Location $RepositoryRoot
 try {
     & $PythonExecutable -c "from pathlib import Path; from kis_mcp.config import load_runtime_config; load_runtime_config(Path.cwd())"
@@ -54,11 +61,34 @@ try {
         throw "kis-mcp configuration validation failed with exit code $LASTEXITCODE"
     }
 
-    & $PythonExecutable -m kis_mcp
-    if ($LASTEXITCODE -ne 0) {
-        throw "kis-mcp exited with code $LASTEXITCODE"
+    $Info = [System.Diagnostics.ProcessStartInfo]::new()
+    $Info.FileName = $PythonExecutable
+    $Info.WorkingDirectory = $RepositoryRoot
+    $Info.UseShellExecute = $false
+    $Info.CreateNoWindow = $false
+    $Info.ArgumentList.Add('-m')
+    $Info.ArgumentList.Add('kis_mcp.secrets.launcher')
+    $Info.Environment['PYTHONPATH'] = Join-Path $RepositoryRoot 'src'
+    $Info.Environment['KIS_MCP_SECRETS_ROOT'] = 'C:\Projects\.kis-mcp\secrets'
+    $Info.Environment.Remove($SecretPipeEnvironmentName)
+
+    $Process = Start-KisMcpSecretAwareProcess `
+        -StartInfo $Info `
+        -SecurePayload $SecurePayload
+    try {
+        $Process.WaitForExit()
+        if ($Process.ExitCode -ne 0) {
+            throw "kis-mcp exited with code $($Process.ExitCode)"
+        }
+    }
+    finally {
+        $Process.Dispose()
     }
 }
 finally {
+    foreach ($Name in @($SecurePayload.Keys)) {
+        $SecurePayload[$Name] = $null
+    }
+    $SecurePayload.Clear()
     Pop-Location
 }

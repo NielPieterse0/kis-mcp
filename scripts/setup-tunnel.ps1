@@ -10,7 +10,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
-. (Join-Path $PSScriptRoot 'windows-credential.ps1')
+. (Join-Path $PSScriptRoot 'secret-vault.ps1')
 
 function Append-SetupLog {
     param(
@@ -79,6 +79,7 @@ function Wait-KisMcpEndpointReady {
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
+$VaultUnlockPayload = Get-KisMcpUnlockPayload
 if ($TimeoutSeconds -lt 1 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 1 and 300.'
 }
@@ -98,7 +99,9 @@ if ($ProfileExists -and -not $BackupExistingProfile) {
 }
 
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
-$Credential = Get-KisMcpWindowsCredential -Target $Remote.tunnel_credential_target
+$Credential = Resolve-KisMcpSecretInternal `
+    -Reference $Remote.tunnel_secret_ref `
+    -SecurePayload $VaultUnlockPayload
 $PreviousCredential = [Environment]::GetEnvironmentVariable(
     $CredentialEnvironmentName,
     [EnvironmentVariableTarget]::Process
@@ -164,6 +167,10 @@ finally {
     $Credential = $null
     $PreviousCredential = $null
     $AuthenticationReference = $null
+    foreach ($Name in @($VaultUnlockPayload.Keys)) {
+        $VaultUnlockPayload[$Name] = $null
+    }
+    $VaultUnlockPayload.Clear()
 }
 
 Write-Host "Tunnel profile created for instance '$($Remote.name)'."

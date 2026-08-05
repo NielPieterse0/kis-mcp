@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .discover.settings import DiscoverSettings
 
+from .secrets.errors import InvalidSecretReferenceError
+from .secrets.references import SecretReference
 from .paths import (
     PathValidationError,
     is_within_windows_boundary,
@@ -49,7 +51,7 @@ class RemoteMcpInstance:
     path: str
     profile_name: str
     tunnel_id: str
-    tunnel_credential_target: str
+    tunnel_secret_ref: str
     configured: bool
 
     @property
@@ -174,7 +176,7 @@ class RuntimeConfig:
             path=str(remote["path"]),
             profile_name=str(instance["profile_name"]),
             tunnel_id=str(instance.get("tunnel_id", "")),
-            tunnel_credential_target=str(instance["tunnel_credential_target"]),
+            tunnel_secret_ref=str(instance["tunnel_secret_ref"]),
             configured=bool(instance.get("configured", False)),
         )
 
@@ -356,7 +358,7 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
     ports: set[int] = set()
     profiles: set[str] = set()
     tunnel_ids: set[str] = set()
-    credential_targets: set[str] = set()
+    secret_references: set[str] = set()
     for name in ("operation", "development"):
         instance = _object(instances[name], f"settings.remote_mcp.instances.{name}")
         port = instance.get("port")
@@ -382,15 +384,24 @@ def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
                 f"settings.remote_mcp.instances.{name}.configured must be boolean"
             )
         tunnel_id = str(instance.get("tunnel_id", "")).strip()
-        credential_target = _string(
-            instance.get("tunnel_credential_target"),
-            f"settings.remote_mcp.instances.{name}.tunnel_credential_target",
+        raw_secret_ref = _string(
+            instance.get("tunnel_secret_ref"),
+            f"settings.remote_mcp.instances.{name}.tunnel_secret_ref",
         )
-        if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{2,127}", credential_target) is None:
-            raise RuntimeError(f"remote MCP tunnel credential target is invalid: {name}")
-        if credential_target in credential_targets:
-            raise RuntimeError("remote MCP tunnel credential targets must be distinct")
-        credential_targets.add(credential_target)
+        try:
+            secret_ref = SecretReference.parse(raw_secret_ref)
+        except InvalidSecretReferenceError as exc:
+            raise RuntimeError(
+                f"remote MCP tunnel secret reference is invalid: {name}"
+            ) from exc
+        expected_secret_ref = f"secret://tunnel/{name}/authentication-token"
+        if secret_ref.uri != expected_secret_ref:
+            raise RuntimeError(
+                f"remote MCP tunnel secret reference is invalid: {name}"
+            )
+        if secret_ref.uri in secret_references:
+            raise RuntimeError("remote MCP tunnel secret references must be distinct")
+        secret_references.add(secret_ref.uri)
 
         if not configured:
             if tunnel_id:

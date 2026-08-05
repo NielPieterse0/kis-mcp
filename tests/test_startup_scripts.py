@@ -29,7 +29,7 @@ def test_tunnel_setup_validates_credential_before_moving_active_profile() -> Non
     profile_exists_guard = content.index(
         "if ($ProfileExists -and -not $BackupExistingProfile)"
     )
-    credential_read = content.index("$Credential = Get-KisMcpWindowsCredential")
+    credential_read = content.index("$Credential = Resolve-KisMcpSecretInternal")
     profile_backup = content.index("[System.IO.File]::Move($ProfilePath, $BackupPath)")
 
     assert profile_exists_guard < credential_read < profile_backup
