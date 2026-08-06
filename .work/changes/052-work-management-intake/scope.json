@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "change_id": "052-work-management-intake",
+  "status": "ready",
+  "branch": "change/052-work-management-intake",
+  "worktree": ".work/worktrees/052-work-management-intake",
+  "base": "main",
+  "outcome": "Implement P2 typed intake and first-class governance records with bounded provider-neutral mutation contracts",
+  "owned_paths": [
+    ".work/changes/052-work-management-intake/**",
+    "src/kis_mcp/work_management/records.py",
+    "src/kis_mcp/work_management/intake.py",
+    "tests/work_management/test_records.py",
+    "tests/work_management/test_intake.py"
+  ],
+  "shared_paths": [
+    ".work/programmes/work-management/**",
+    "src/kis_mcp/work_management/__init__.py",
+    "tests/work_management/test_architecture.py"
+  ],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    "policy/**",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/gateway/**",
+    ".github/**"
+  ],
+  "dependencies": [
+    "051-github-project-inventory"
+  ],
+  "integration_owner": null
+}
