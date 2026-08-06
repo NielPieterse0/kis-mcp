@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "047-capability-composition-and-tool-experience",
-  "status": "active",
+  "status": "closed",
   "branch": "change/047-capability-composition-and-tool-experience",
   "worktree": ".work/worktrees/047-capability-composition-and-tool-experience",
   "base": "main",

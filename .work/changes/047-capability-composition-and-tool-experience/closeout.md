@@ -1,6 +1,6 @@
 # Closeout: Capability Composition and Tool Experience
 
-Status: implementation, review, documentation reconciliation, and local verification complete; remote delivery in progress.
+Status: implementation, documentation reconciliation, local verification, publication, and remote review complete. The claim is closed so its closure metadata can merge before governed cleanup.
 
 ## Implemented
 
@@ -16,18 +16,19 @@ Status: implementation, review, documentation reconciliation, and local verifica
 - Reconciled README, SPEC, PLATFORM-CONCEPT, and OPERATIONS with current implementation.
 
 ## Review
+A findings-first review identified and fixed workflow-step reordering, incorrect effect classification, dispatcher recursion, incomplete cross-domain search, eligibility of unregistered operations, shallow JSON Schema validation, workflow prerequisite visibility, capability availability drift, search truncation reporting, and README encoding corruption.
 
-A findings-first review identified and fixed workflow-step reordering, incorrect effect classification, dispatcher recursion, incomplete cross-domain search, eligibility of unregistered operations, shallow JSON Schema validation, workflow prerequisite visibility, capability availability drift, search truncation reporting, and README encoding corruption. No blocking findings remain after focused and repository-wide reruns.
+PR #61 was confirmed clean and mergeable at the published head, with no configured check runs, issue comments, review comments, or prior reviews. The configured NVIDIA fallback reviewer returned three entries that restated passing invariants rather than implementation defects; the canonical repository gate independently verified those invariants. No blocking finding remains.
 
 ## Verification
-
-Canonical command:
+Canonical commands:
 
 ```powershell
+pwsh -NoProfile -File .\scripts\change-workflow.ps1 check
 pwsh -NoProfile -File .\scripts\verify.ps1
 ```
 
-Latest result on the implementation head before this closeout-only commit:
+Both commands passed on published implementation head `2282f56a977f0b232f66e12eb01f918c1305463c` before the closure-metadata edits:
 
 - line endings, configuration, interpreter, dependencies, and Python syntax: passed;
 - change-governance validation and scope checks: passed;
@@ -35,7 +36,7 @@ Latest result on the implementation head before this closeout-only commit:
 - full pytest suite: passed with two expected skips;
 - final verifier result: `Verification passed: locked environment, approved Skills root, and exact three-rule implementation are consistent.`
 
-The canonical verifier will be rerun after this closeout commit before publication.
+The same scope and canonical gates must be rerun on the closure tree immediately before the final push. The exact closure head and result are recorded in the PR landing comment so the verified tree is not changed merely to record its own commit ID.
 
 ## Dependencies and exclusions
 
@@ -45,8 +46,10 @@ The canonical verifier will be rerun after this closeout commit before publicati
 - No policy file or hard-rule decision set was changed.
 
 ## Delivery state
-
+- Pull request: `#61`
 - Branch: `change/047-capability-composition-and-tool-experience`
 - Worktree: `C:\Projects\kis-mcp\.work\worktrees\047-capability-composition-and-tool-experience`
 - Base: `main`
-- Scope remains active until the PR is merged and repository cleanup completes.
+- Claim status: `closed`
+
+Closure metadata is part of the PR so it reaches `main` before cleanup. After exact-head merge and merged-main verification, governed cleanup may remove only the clean merged 047 worktree and its local branch. Change 040 remains retained.
