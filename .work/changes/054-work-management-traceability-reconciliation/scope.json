@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "054-work-management-traceability-reconciliation",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/054-work-management-traceability-reconciliation",
   "worktree": ".work/worktrees/054-work-management-traceability-reconciliation",
   "base": "main",

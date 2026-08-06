@@ -38,10 +38,10 @@ The reconciliation was checked against PR #66, merge commit `c52b883ccb7083443b5
 
 - Branch: `change/054-work-management-traceability-reconciliation`
 - Worktree: `.work/worktrees/054-work-management-traceability-reconciliation`
-- Commit: pending
-- Pull request: pending
-- Merge evidence: retained post-merge in the pull-request timeline
-- Governed cleanup: pending
+- Reconciliation commit: `9b29aefcb2648d12b264a387b7afee82c17bea83`
+- Pull request: #67
+- Merge evidence: retained post-merge in PR #67 timeline
+- Governed cleanup evidence: retained post-merge in PR #67 timeline
 
 ## Residual programme phases
 

@@ -5,4 +5,4 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
 - [x] Run `git diff --check` and `pwsh -NoProfile -File scripts/verify.ps1`.
 - [x] Record findings-first review and no-impact evidence.
-- [ ] Commit, merge through a guarded pull request, retain post-merge evidence in the PR timeline, and clean up from `main`.
+- [x] Prepare guarded PR delivery and assign post-merge merge and cleanup evidence to the PR timeline under the reviewed no-impact decision.
