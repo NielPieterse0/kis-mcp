@@ -91,3 +91,20 @@ def test_advisory_documentation_allows_done_with_reason() -> None:
 
     assert decision.allowed is True
     assert decision.reasons == ("documentation_advisory_incomplete",)
+
+
+def test_active_record_can_be_superseded() -> None:
+    current = record(state=LifecycleState.ACTIVE)
+
+    updated = transition_record(current, LifecycleState.SUPERSEDED)
+
+    assert updated.state is LifecycleState.SUPERSEDED
+
+
+def test_superseded_record_is_terminal() -> None:
+    decision = evaluate_transition(
+        record(state=LifecycleState.SUPERSEDED), LifecycleState.ACTIVE
+    )
+
+    assert decision.allowed is False
+    assert decision.reasons == ("transition_not_declared",)

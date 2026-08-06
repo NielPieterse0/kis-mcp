@@ -9,6 +9,22 @@ from .contracts import (
     WorkRecord,
 )
 
+_SUPERSEDABLE_STATES = frozenset(
+    {
+        LifecycleState.INBOX,
+        LifecycleState.TRIAGE,
+        LifecycleState.PROPOSED,
+        LifecycleState.APPROVED,
+        LifecycleState.ACTIVE,
+        LifecycleState.REVIEW,
+        LifecycleState.VERIFICATION,
+        LifecycleState.DOCUMENTATION,
+        LifecycleState.BLOCKED,
+        LifecycleState.ON_HOLD,
+        LifecycleState.DEFERRED,
+    }
+)
+
 _ALLOWED_TRANSITIONS: dict[LifecycleState, frozenset[LifecycleState]] = {
     LifecycleState.INBOX: frozenset(
         {LifecycleState.TRIAGE, LifecycleState.DEFERRED, LifecycleState.REJECTED}
@@ -101,6 +117,13 @@ def evaluate_transition(
         raise ValueError("record must be a WorkRecord")
     if not isinstance(target, LifecycleState):
         raise ValueError("target must be a LifecycleState value")
+
+    if target is LifecycleState.SUPERSEDED and record.state in _SUPERSEDABLE_STATES:
+        return TransitionDecision(
+            allowed=True,
+            source=record.state,
+            target=target,
+        )
 
     if target not in _ALLOWED_TRANSITIONS[record.state]:
         return TransitionDecision(
