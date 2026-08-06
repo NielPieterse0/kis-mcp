@@ -41,8 +41,8 @@ A second independent review produced no substantiated code defect. Its claims th
 
 - Branch: `change/053-work-management-traceability`
 - Worktree: `.work/worktrees/053-work-management-traceability`
-- Commit: pending
-- Pull request: pending
+- Implementation commit: `5e8c48900b4a00ca73b8a73548b9306cd9f7f49a`
+- Pull request: #66
 - Merge commit: pending
 - Post-merge documentation reconciliation: pending
 - Governed cleanup: pending
