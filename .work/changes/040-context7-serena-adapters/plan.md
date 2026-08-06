@@ -8,6 +8,24 @@
 
 **Tech Stack:** Python 3.11 stdlib, FastMCP, JSON Schema, PowerShell installers, pytest.
 
+## Held closeout — 2026-08-06
+
+This plan is closed in governance and held unmerged. The branch and worktree are preserved because the full `server.py` modularity update must land before adapter composition can be finalized.
+
+| Plan area | Status at hold point |
+| --- | --- |
+| Approval register and shared resolver corrections | Complete and verified |
+| Pinned upstream contracts and strict settings | Implemented; live provider contract capture remains deferred |
+| Context7 adapter and installation | Installed, descriptor `ready`, provider not executed |
+| Serena adapter, storage invariants, and installation | Installed, descriptor `ready`, provider not executed |
+| HR1-07 and HR2-06 effect mapping | Implemented and covered by focused tests |
+| HR3-07 | Exact deletion/quarantine mapping implemented; restoration and post-quarantine metadata consistency remain deferred |
+| Tools composition seam | Implemented on this branch; final server integration deferred pending whole-server modularity work |
+| Verification | 71 focused tests passed; full `scripts/verify.ps1` passed |
+| PR, merge, and worktree cleanup | Deliberately not performed |
+
+The authoritative completed/deferred checklist is in `tasks.md`; installation and preservation evidence is in `closeout.md`.
+
 ## Global Constraints
 
 - Work only in `.work/worktrees/040-context7-serena-adapters` on `change/040-context7-serena-adapters`.

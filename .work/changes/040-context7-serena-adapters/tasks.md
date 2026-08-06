@@ -1,24 +1,29 @@
 # Tasks
 
-- [x] Create and register the isolated change worktree.
-- [x] Confirm no active path-claim overlap.
-- [x] Inspect the existing hard-block approval register.
-- [x] Verify the Context7 and Serena candidate tool surfaces.
-- [x] Add HR1-07, HR2-06, and HR3-07 to the existing register.
-- [x] Record the operator review outcome: HR1-07 revise; HR2-06 and HR3-07 conditionally approve.
-- [x] Narrow HR1-07 to invocation-controlled mutations and separate provider-managed storage invariants.
-- [x] Add HR2-06 resolver-semantic and dry-run conditions.
-- [x] Add HR3-07 complete-artifact, metadata, quarantine, and consistency conditions.
-- [x] Record final operator approval for the revised HR1-07 wording.
-- [x] Commit the revised approval gate and implementation plan.
-- [x] Close stale merged change records for `041` and `046` so governance validation succeeds.
-- [x] Run Microsoft Defender health and custom-scan preflight before any installation.
-- [ ] Require both installers to scan isolated acquisition trees before promotion or execution.
-- [ ] Freeze pinned Context7 and Serena upstream contracts.
-- [ ] Implement the independent Context7 adapter.
-- [ ] Implement Serena bootstrap and provider-managed storage readiness.
-- [ ] Implement HR1-07 only after final approval.
-- [ ] Activate HR2-06 only after the corrected shared resolver is present and verified.
-- [ ] Activate HR3-07 only after complete artifact-set evidence and consistency tests.
-- [ ] Register both adapters independently.
-- [ ] Verify, review, raise a PR, merge only if safe, and clean the worktree.
+## Completed in this held slice
+
+- [x] Create and register the isolated branch and worktree.
+- [x] Record and obtain operator decisions for HR1-07, HR2-06, and HR3-07.
+- [x] Narrow HR1-07 and implement the approved shared command-resolver corrections.
+- [x] Freeze pinned Context7 `3.2.5` and Serena `1.6.1` identities and contracts.
+- [x] Implement independent Context7 and Serena settings, adapters, descriptors, and effect resolution.
+- [x] Add the Tools-module composition seam and contained mount failure behavior.
+- [x] Implement scan-gated, offline-capable installers under `C:\Projects\.kis-mcp`.
+- [x] Record clean operator scans for the Context7 acquisition and Serena wheelhouse.
+- [x] Install Context7 at `C:\Projects\.kis-mcp\context7` without executing it.
+- [x] Build Serena from the scanned wheelhouse, scan the complete candidate with Defender, and install it at `C:\Projects\.kis-mcp\serena` without executing it.
+- [x] Verify both installed descriptors report `ready`.
+- [x] Run focused verification: 71 tests passed.
+- [x] Run `scripts/verify.ps1`: complete repository verification passed.
+- [x] Preserve prior and failed installation artifacts; no permanent deletion was used.
+- [x] Document the exact hold point and close the governance claim.
+
+## Deferred until server modularity work is complete
+
+- [ ] Refactor and reassess the full `server.py` composition boundary.
+- [ ] Reconcile this branch onto the resulting modular server composition API.
+- [ ] Run live Context7 and Serena MCP contract/smoke verification.
+- [ ] Complete HR3 restoration and post-quarantine Serena metadata-consistency evidence.
+- [ ] Review the rebased final diff and all activation conditions.
+- [ ] Push, raise a PR, review the exact PR head, and merge only if safe.
+- [ ] Remove the worktree and branch only after successful integration; do not clean them while this change is held.

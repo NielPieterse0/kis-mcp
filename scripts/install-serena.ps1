@@ -11,7 +11,8 @@ $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SettingsPath = Join-Path $RepositoryRoot 'settings\tools\serena.tool.json'
 $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
 $TempRoot = 'C:\Projects\.kis-mcp\temp'
-$BootstrapPython = 'C:\Projects\.kis-mcp\python-env\Scripts\python.exe'
+$PythonLauncher = Get-Command 'py.exe' -CommandType Application -ErrorAction Stop |
+    Select-Object -First 1
 
 function Write-Utf8Json([string]$Path, [object]$Value) {
     $json = ($Value | ConvertTo-Json -Depth 10) + [Environment]::NewLine
@@ -33,13 +34,7 @@ function Require-CleanApproval(
     }
 }
 
-if (-not (Test-Path -LiteralPath $BootstrapPython -PathType Leaf)) {
-    throw "SERENA_BOOTSTRAP_PYTHON_MISSING: $BootstrapPython"
-}
-
 if ($Mode -eq 'Acquire') {
-    $PythonLauncher = Get-Command 'py.exe' -CommandType Application -ErrorAction Stop |
-        Select-Object -First 1
     New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
     $AcquisitionRoot = Join-Path $TempRoot (
         'serena-acquisition-' + [guid]::NewGuid().ToString('N')
@@ -131,15 +126,43 @@ if ($Mode -eq 'PrepareInstall') {
         throw "SERENA_CANDIDATE_ALREADY_EXISTS: $CandidateRoot"
     }
     $CandidateVenv = Join-Path $CandidateRoot 'venv'
-    & $BootstrapPython -m venv $CandidateVenv
+    & $PythonLauncher.Source -3.11 -m venv $CandidateVenv
     if ($LASTEXITCODE -ne 0) {
         throw "SERENA_VENV_CREATION_FAILED: Python exited with $LASTEXITCODE."
     }
 
     $CandidatePython = Join-Path $CandidateVenv 'Scripts\python.exe'
+    $ProxyArchives = @(
+        Get-ChildItem -LiteralPath $Wheelhouse -Filter 'proxy_tools-0.1.0.tar.gz' -File
+    )
+    if ($ProxyArchives.Count -ne 1) {
+        throw 'SERENA_PROXY_TOOLS_ARCHIVE_INVALID: expected one scanned source archive.'
+    }
+    $ProxyBuildRoot = Join-Path $AcquisitionRoot 'proxy-tools-build'
+    if (Test-Path -LiteralPath $ProxyBuildRoot) {
+        throw "SERENA_PROXY_TOOLS_BUILD_ALREADY_EXISTS: $ProxyBuildRoot"
+    }
+    New-Item -ItemType Directory -Path $ProxyBuildRoot -Force | Out-Null
+    & tar.exe -xf $ProxyArchives[0].FullName -C $ProxyBuildRoot
+    if ($LASTEXITCODE -ne 0) {
+        throw "SERENA_PROXY_TOOLS_EXTRACT_FAILED: tar exited with $LASTEXITCODE."
+    }
+    $ProxySetup = Join-Path $ProxyBuildRoot 'proxy_tools-0.1.0\setup.py'
+    Push-Location (Split-Path -Parent $ProxySetup)
+    try {
+        & $CandidatePython 'setup.py' install
+        if ($LASTEXITCODE -ne 0) {
+            throw "SERENA_PROXY_TOOLS_INSTALL_FAILED: Python exited with $LASTEXITCODE."
+        }
+    }
+    finally {
+        Pop-Location
+    }
+
     & $CandidatePython -m pip install `
         --no-index `
         --find-links $Wheelhouse `
+        --no-build-isolation `
         "$($Settings.package_name)==$($Settings.package_version)" `
         --disable-pip-version-check
     if ($LASTEXITCODE -ne 0) {

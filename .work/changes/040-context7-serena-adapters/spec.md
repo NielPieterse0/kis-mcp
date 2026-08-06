@@ -1,9 +1,9 @@
 # Change Specification: Context7 and Serena Adapters
 
 - **Change ID:** `040-context7-serena-adapters`
-- **Status:** Approved for complete staged implementation; HR1-07, HR2-06, and HR3-07 remain subject to their recorded verification conditions
+- **Status:** Closed as held and unmerged on 2026-08-06; installed packages and branch/worktree are preserved pending the whole-server modularity update
 - **Risk profile:** Elevated because Serena exposes mutation, shell, and whole-artifact deletion effects
-- **Dependency:** Merged `029-tools-code-tooling` foundation; HR2-06 activation additionally depends on corrected shared command-resolver behavior
+- **Dependency:** Merged `029-tools-code-tooling` foundation and a future whole-server modularity update before final composition review, live activation, or integration
 
 ## Outcome
 
