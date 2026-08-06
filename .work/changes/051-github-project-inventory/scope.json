@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "051-github-project-inventory",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/051-github-project-inventory",
   "worktree": ".work/worktrees/051-github-project-inventory",
   "base": "main",
