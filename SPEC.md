@@ -33,17 +33,18 @@ Govern   → evaluate evidence against declared standards
 Work     → perform controlled change under HR-001 / HR-002 / HR-003
 ```
 
-The current public gateway implements Work, bounded Discover, Skills, provider status and composition, quarantine operations, and one advisory code-review workflow. Govern remains target-state work.
+The current gateway implements Work, bounded Discover, Skills, Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow descriptors and recommendations, effect-specific long-tail dispatch, quarantine operations, and one executable advisory code-review workflow. Govern remains target-state work.
 
 ### Capability exposure
 
 | Exposure | Current capability |
 |---|---|
-| Public gateway | Desktop Commander Work tools; five gateway operations; `inspect_project`; working-tree `inspect_change`; nine Skills operations; `review_change_with_agent`; namespaced GitHub and Supabase tools when their adapters mount. |
-| Internal services and versioned contracts | Staged, commit, range, and branch change targets; context brokering; impact analysis; contract intelligence; explicit project cataloging; provider-admission evidence. These services are tested but are not public gateway tools unless separately registered. |
+| Direct gateway profile | A JSON-bounded set of frequent Desktop Commander, gateway, Discover, advisory-review, capability-discovery, effect-specific dispatch, and Control Center entry points. Only eligible ready or degraded operations enter the normal direct surface. |
+| Discoverable long tail | Remaining registered Desktop Commander, Skills, internal Discover, quarantine, and namespaced provider operations. They retain original schemas and middleware, are searchable by capability, and may be invoked through effect-specific dispatch when eligible. |
+| Status-only | Disabled, unavailable, authentication-gated, build-failed, or mount-failed operations remain visible through provider and capability status but are not normally exposed or recommended. |
 | Standalone | KIS Control Center read-only MCP App and UI resource. |
 | Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through supervised bootstrap scripts beneath `C:\Projects`; neither is mounted into the gateway. |
-| Target | Govern operations, public context and impact workflows, broader semantic and trusted remote evidence, and composed platform workflows. |
+| Target | Govern operations, broader semantic and trusted remote evidence, and additional executable workflow orchestration. |
 
 The future platform model does not alter the closed Work enforcement decision set. Profiles, catalogues, governance findings, evidence requirements, readiness, or workflow selection must not become additional reasons to block an otherwise permitted invocation.
 
@@ -52,13 +53,14 @@ The future platform model does not alter the closed Work enforcement decision se
 | Component | Responsibility |
 |---|---|
 | Desktop Commander | Provides ordinary filesystem, edit, search, process, testing, and local-development tools. |
-| FastMCP gateway | Mirrors provider contracts, exposes gateway, Discover, Skills, provider-status, and agent tools, evaluates concrete Work invocations, and forwards allowed provider calls. |
+| FastMCP gateway | Composes domain platform entry points, owns instance-scoped capability and readiness state, presents the curated tool surface, evaluates concrete Work invocations, and forwards allowed calls through original contracts. |
 | Discover module | Exposes bounded `inspect_project` and working-tree `inspect_change`; also contains tested internal change-target, context, impact, contract, project-catalog, and provider-admission services. |
-| Skills module | Resolves the approved shared catalogue, exposes nine public operations, and routes create/improve mutations back through Work middleware. |
+| Skills module | Resolves the approved shared catalogue, overlays reviewed category and capability metadata, contributes Skills to the normalized catalogue, and routes create/improve mutations back through Work middleware. |
 | Provider runtime | Registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors; mounts enabled GitHub and Supabase adapters under unique namespaces; contains failures; and reports readiness and commissioning separately. |
-| Tools and workflows | Registers local executable adapters such as Codex CLI and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection. |
+| Capability composition | Normalizes Provider, Tool, Discover, Skill, and Workflow contributions; evaluates readiness and eligibility; scores explainable recommendations; and plans direct, discoverable, or status-only exposure. |
+| Tools and workflows | Registers local executable adapters such as Codex CLI, contributes normalized operations, describes complete user workflows, and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection. |
 | Managed bootstrap tooling | Installs pinned AgentSys and agnix distributions beneath `C:\Projects`, creates isolated host profiles, validates staged state, and preserves replaced state through quarantine without mounting either tool into the gateway. |
-| Control Center | Runs as a separate read-only MCP App with one snapshot tool and one local UI resource; it is not part of the primary Work gateway. |
+| Control Center | Provides a read-only MCP App and UI resource through the mounted `controlcenter_*` provider and through the standalone process; it does not authorize Work mutations. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
 | Three-rule policy | Returns only allow, block HR-001, block HR-002, quarantine HR-003, or block HR-003. |
 | Quarantine service | Moves delete targets intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>`. |
@@ -109,7 +111,7 @@ kis-mcp FastMCP gateway -> Desktop Commander
 
 `settings.remote_mcp` defines exactly two local instances: internal `operation`, exposed in ChatGPT as `kis-op` on `127.0.0.1:8010`, and internal `development`, exposed as `kis-dev` on `127.0.0.1:8011`. Each record has a distinct app name, port, profile name, tunnel ID, vault secret reference, runtime directory, and explicit `configured` state. Selection is explicit through the launcher instance argument or the JSON `active_instance`; both instances may run concurrently, and the runtime does not perform automatic failover.
 
-Both instances expose the same standard mixed-purpose Desktop Commander and gateway tools. Transport, instance name, profile, catalogue metadata, approval metadata, or risk labels do not reduce the backend tool surface or create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
+Both instances compose the same backend capabilities and use the same JSON-defined direct profile. Progressive exposure reduces default tool-schema context but does not remove eligible backend operations: long-tail operations remain discoverable and execute through their original schemas and middleware. Transport, instance name, profile, catalogue metadata, approval metadata, recommendation score, or risk labels do not create enforcement decisions. Only provider functionality whose every invocation is necessarily external-network-only may be omitted; the current pinned exceptions remain the feedback tool and `read_file.isUrl` mode.
 
 The tunnel is an operator-supervised connector boundary outside ordinary Work invocations. It does not change the closed HR-001 / HR-002 / HR-003 decision set. Tunnel credentials are stored in the application-managed encrypted vault under the non-secret `tunnel_secret_ref` values recorded in checked-in JSON. Setup and startup unlock the vault through the supervised secret-process boundary, resolve only the selected reference, pass the value through process-scoped environment state, and do not persist it in repository files, generated profiles, or runtime state. Generated profiles and runtime diagnostics remain beneath `C:\Projects\.kis-mcp\tunnel-client`.
 
@@ -227,7 +229,7 @@ Configuration and implementation-status fields do not disable otherwise permitte
 
 The implemented Skills module resolves one reusable procedure catalogue from `C:\Projects\.agents\skills`. It builds a deterministic immutable snapshot after validating `SKILL.md` frontmatter, file paths, configured suffixes, encodings, links, sizes, and limits. Repository-local `.agents/skills` is not part of this runtime catalogue.
 
-The module exposes bounded list, search, load, file-search, file-read, refresh, and structural-evaluation operations. ChatGPT loads the returned instructions and executes their workflows through ordinary kis-mcp Work tools; the server does not import or automatically execute arbitrary skill code.
+The module exposes bounded list, search, load, file-search, file-read, refresh, structural-evaluation, create, and improve operations. Runtime cards are enriched from `settings/capabilities.settings.json` so every current shared Skill has a non-empty category, capability set, activation terms, effects, and workflow roles. ChatGPT loads the returned instructions and executes their workflows through ordinary kis-mcp Work tools; the server does not import or automatically execute arbitrary skill code.
 
 Skill creation validates a complete proposed entrypoint, stages it beneath `C:\Projects\.kis-mcp\temp\skills`, and publishes it with Desktop Commander `create_directory`, `write_file`, and `move_file`. Skill improvement requires the active file SHA-256 and uses Desktop Commander `edit_block` with one exact expected replacement. Every mutation calls `FastMCP.call_tool(..., run_middleware=True)`, so the existing three-rule middleware evaluates the concrete Work effects.
 
@@ -235,25 +237,24 @@ Skill creation validates a complete proposed entrypoint, stages it beneath `C:\P
 
 ## Public interface
 
-Expose Desktop Commander's normal non-network-only tool surface, approved namespaced provider tools, five gateway operations, two Discover operations, nine Skills operations, and one advisory agent operation:
+The public MCP presentation has three layers:
 
-- `kis_health` — report Desktop Commander availability, policy fingerprint, and configured roots;
-- `kis_provider_status` — report provider registration, runtime enablement, build and mount results, provider-neutral readiness, actionable user status, and separate commissioning evidence without equating onboarding with failure;
-- `kis_quarantine_path` — move one eligible path into recoverable quarantine;
-- `kis_list_quarantine` — list bounded recoverable operations;
-- `kis_restore_quarantine` — restore one intact item without overwrite;
-- `review_change_with_agent` — collect bounded current-working-tree evidence and request one advisory code review through NVIDIA NIM or the fixed Codex CLI script, with no mutation or nested delegation authority;
-- `inspect_project` — return bounded deterministic local repository evidence without executing repository code, tests, builds, or discovered verification commands;
-- `inspect_change` — return bounded deterministic current-working-tree file classifications, affected scopes, diagnostics, unknowns, confidence, and truncation state without executing repository code or using remote evidence;
-- `list_skills`, `search_skills`, and `load_skill` — discover and load reusable procedures;
-- `search_skill_files` and `read_skill_file` — inspect bounded supporting files;
-- `refresh_skills` and `evaluate_skill` — rebuild or evaluate the immutable catalogue snapshot;
-- `create_skill` and `improve_skill` — validate and mutate shared skills through the Work backend;
-- `github_*` and `supabase_*` — namespaced upstream provider tools only when the corresponding adapter builds and mounts successfully.
+1. **Direct profile.** `settings/capabilities.settings.json` names a bounded frequent-use surface. It includes health and provider status, primary Discover operations, common file and process operations, advisory review when eligible, the Control Center entry point, and the capability-discovery and dispatch operations below.
+2. **Discoverable long tail.** Other registered Desktop Commander, Skills, internal Discover, quarantine, and mounted-provider operations remain in the normalized catalogue. They are hidden from the normal `tools/list` response but remain callable through their original server contracts and effect-specific dispatch when eligible.
+3. **Status-only records.** Unavailable, disabled, authentication-gated, build-failed, or mount-failed operations remain visible in status and catalogue evidence but are not recommended or dispatched.
 
-Provider catalogue membership or mount success does not prove authentication, upstream connectivity, tool discovery, or live verification.
+Capability user entry points:
 
-Do not add capability-profile permission systems, tiers, approvals, or broad replacement wrapper surfaces. Discover and Skills are approved versioned module contracts and do not alter Work authorization.
+- `search_capabilities` ? search normalized Provider, Tool, Discover, Skill, and Workflow contributions and report readiness and eligibility;
+- `describe_capability` ? describe one contribution, capability, operation, or workflow with normalized metadata;
+- `recommend_workflow` ? rank complete task-level workflows using activation and capability evidence;
+- `execute_read_action` ? execute one eligible read-only long-tail operation through its original schema and middleware;
+- `execute_change_action` ? execute one eligible local-change, quarantine, or process operation through its original schema and middleware;
+- `execute_external_action` ? execute one eligible external operation without bypassing provider readiness or an operation-specific approval requirement.
+
+Scoring is advisory only. Eligibility is evaluated before scoring. Neither intrinsic quality nor contextual suitability can authorize Work, override HR-001, HR-002, or HR-003, bypass approval, weaken original schema validation, or turn an unavailable provider into an operational one. Explicitly requested eligible operations remain reachable through capability search and the matching effect-specific dispatcher.
+
+Provider catalogue membership or mount success does not prove authentication, upstream connectivity, tool discovery, or live verification. Do not add capability profiles, readiness states, scores, or workflow selection as a fourth Work policy rule.
 
 ## Errors
 
@@ -283,7 +284,8 @@ Tests must cover:
 - provider version or schema changes;
 - empty provider command-denylist and directory-allowlist invariants;
 - startup containment for verified automatic external activity;
-- Discover schemas and settings, canonical identity, unsafe links and hard links, bounded traversal and reads, deterministic detection, fixed local Git evidence, pure Python AST indexing, evidence integrity, exact output compaction, donor independence, plane boundaries, and additive tool registration.
+- Discover schemas and settings, canonical identity, unsafe links and hard links, bounded traversal and reads, deterministic detection, fixed local Git evidence, pure Python AST indexing, evidence integrity, exact output compaction, donor independence, plane boundaries, and additive tool registration;
+- capability contribution completeness, settings weight totals, readiness containment, eligibility before scoring, explainable deterministic ranking, direct-profile bounds, status-only suppression, effect-separated dispatch, instance-scoped runtime state, platform-only gateway imports, and the thin `server.py` fa?ade.
 
 Verification must run through the locked external project interpreter, not a globally resolved executable, and must keep caches and generated state beneath `C:\Projects\.kis-mcp`. Verification demonstrates detection quality; it does not create a permission gate for tools outside the three prohibited intents.
 
@@ -295,14 +297,18 @@ The current implementation includes:
 - the Desktop Commander Work adapter, startup containment, provider-contract shaping, quarantine, and restoration;
 - local stdio and settings-driven loopback HTTP startup for `operation` and `development`;
 - public `inspect_project` and working-tree `inspect_change` Discover operations;
-- nine public Skills operations backed by the approved shared catalogue;
-- provider-neutral contracts, registry, catalogue, health, explicit construction, and runtime composition;
+- nine registered Skills operations backed by the approved shared catalogue and enriched with capability-bearing runtime cards;
+- normalized immutable Provider, Tool, Discover, Skill, Operation, Readiness, Exposure, Quality, and Workflow contracts;
+- strict JSON-defined scoring weights, direct-profile limits, and Skills capability metadata;
+- deterministic catalogue, readiness, eligibility, explainable scoring, workflow recommendation, and progressive exposure services;
+- instance-scoped Provider and capability runtime state with no process-global latest-composition singleton;
+- provider-neutral contracts, registry, health, explicit construction, and runtime composition;
 - GitHub MCP and Supabase adapters mounted under `github_*` and `supabase_*` when enabled adapters build successfully;
 - an NVIDIA NIM provider used only by the advisory code-review workflow;
 - a generic Tools registry with a fixed Codex CLI adapter;
 - `review_change_with_agent`, which collects bounded local evidence, permits one fallback, and grants no mutation or nested-agent authority;
 - pinned AgentSys `6.0.1` and agnix `0.45.0` supervised bootstrap installers with isolated managed paths, staged validation, and recoverable replacement; neither component is mounted into the gateway;
-- the standalone read-only KIS Control Center MCP App.
+- the read-only KIS Control Center MCP App through the mounted `controlcenter_*` provider and the standalone process.
 
 ### Discover status
 
@@ -322,7 +328,7 @@ The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Su
 
 Both remote instance records contain distinct configured tunnel IDs and loopback ports. That configuration does not prove the Windows credential exists, a profile has been generated, the external tunnel is connected, ChatGPT has scanned the catalogue, or end-to-end operations have passed. External commissioning requires those separate supervised checks.
 
-The KIS Control Center runs independently with `python -m kis_mcp.control_center`. It exposes one read-only snapshot tool and one local MCP App resource. It performs no mutation or network access and is not mounted into the primary Work gateway.
+The KIS Control Center can run independently with `python -m kis_mcp.control_center` and is also mounted under `controlcenter_*` when enabled in provider-runtime settings. Both forms expose the same read-only evidence model. The mounted form receives the owning gateway instance?s provider status explicitly; no process-global latest-composition state is used.
 
 The `settings.remote_mcp.stateless_http` field and the current runtime startup mode are contradictory. This executable/configuration defect is not resolved by documentation and requires a separate code/configuration change with tests.
 
