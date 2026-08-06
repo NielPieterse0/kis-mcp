@@ -7,8 +7,6 @@
   "base": "main",
   "outcome": "Introduce modular capability composition, readiness-aware exposure, explainable scoring, workflow-first discovery, and a thin gateway entry point",
   "owned_paths": [
-    ".work/changes/041-dual-instance-commissioning/scope.json",
-    ".work/changes/046-modularity-hardening/scope.json",
     ".work/changes/047-capability-composition-and-tool-experience/**",
     "src/kis_mcp/server.py",
     "src/kis_mcp/gateway/**",
@@ -26,8 +24,16 @@
     "tests/test_server.py",
     "SPEC.md",
     "docs/PLATFORM-CONCEPT.md",
-    "docs/OPERATIONS.md",
-    "README.md"
+    "README.md",
+    "src/kis_mcp/providers/runtime.py",
+    "src/kis_mcp/skills/catalogue.py",
+    "src/kis_mcp/tools/__init__.py",
+    "src/kis_mcp/discover/__init__.py",
+    "src/kis_mcp/skills/__init__.py",
+    "src/kis_mcp/workflows/__init__.py",
+    "tests/providers/test_runtime_composition.py",
+    "tests/providers/test_platform_composition.py",
+    "tests/skills/**"
   ],
   "shared_paths": [],
   "excluded_paths": [
@@ -37,6 +43,8 @@
     "settings/tools/context7.tool.json",
     "settings/tools/serena.tool.json"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "048-stale-change-cleanup-hardening"
+  ],
   "integration_owner": null
 }
