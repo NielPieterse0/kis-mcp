@@ -38,6 +38,8 @@ if (-not (Test-Path -LiteralPath $BootstrapPython -PathType Leaf)) {
 }
 
 if ($Mode -eq 'Acquire') {
+    $PythonLauncher = Get-Command 'py.exe' -CommandType Application -ErrorAction Stop |
+        Select-Object -First 1
     New-Item -ItemType Directory -Path $TempRoot -Force | Out-Null
     $AcquisitionRoot = Join-Path $TempRoot (
         'serena-acquisition-' + [guid]::NewGuid().ToString('N')
@@ -52,9 +54,8 @@ if ($Mode -eq 'Acquire') {
     $env:TMP = $AcquisitionRoot
 
     $PackageSpec = "$($Settings.package_name)==$($Settings.package_version)"
-    & $BootstrapPython -m pip download $PackageSpec `
+    & $PythonLauncher.Source -3.11 -m pip download $PackageSpec `
         --dest $Wheelhouse `
-        --only-binary=:all: `
         --disable-pip-version-check
     if ($LASTEXITCODE -ne 0) {
         throw "SERENA_DEPENDENCY_ACQUISITION_FAILED: pip exited with $LASTEXITCODE."

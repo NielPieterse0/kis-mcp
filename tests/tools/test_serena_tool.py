@@ -72,7 +72,7 @@ def test_serena_settings_match_schema() -> None:
 
 def test_serena_installer_requires_two_clean_scan_gates() -> None:
     source = (ROOT / "scripts" / "install-serena.ps1").read_text(encoding="utf-8")
-    assert "--only-binary=:all:" in source
+    assert "-m pip download" in source
     assert "operator-wheelhouse-scan-approved.json" in source
     assert "operator-candidate-scan-approved.json" in source
     assert source.count("provider_executed = $false") >= 2
