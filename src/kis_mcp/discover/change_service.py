@@ -5,6 +5,7 @@ import json
 from collections.abc import Iterable
 from typing import Any, Protocol
 
+from .change_analysis import AnalyzeChangeRequest, AnalyzeChangeResponse, AnalyzeChangeService
 from .change_contracts import ChangePathRecord, LocalChangeInventory
 from .change_inspection_contracts import (
     ChangeIdentity,
@@ -16,6 +17,7 @@ from .change_inspection_contracts import (
     InspectChangeResponse,
 )
 from .change_targets import ChangeTargetInventory
+from .impact_graph import ImpactGraphService
 
 
 class LocalChangeReader(Protocol):
@@ -110,6 +112,26 @@ _HANDOFFS = (
 class InspectChangeService:
     def __init__(self, reader: LocalChangeReader | TargetChangeReader) -> None:
         self._reader = reader
+        authority = getattr(reader, "authority", None)
+        settings = getattr(reader, "settings", None)
+        self._analysis_service = (
+            AnalyzeChangeService(
+                change_service=self,
+                impact_service=ImpactGraphService(
+                    boundary=authority.boundary,
+                    settings=settings,
+                ),
+                max_changes=settings.limits.max_files,
+                max_task_terms=settings.limits.max_evidence,
+            )
+            if authority is not None and settings is not None
+            else None
+        )
+
+    def analyze(self, request: AnalyzeChangeRequest) -> AnalyzeChangeResponse:
+        if self._analysis_service is None:
+            raise ValueError("analyze_change is unavailable for this change reader")
+        return self._analysis_service.analyze(request)
 
     def inspect(self, request: InspectChangeRequest) -> InspectChangeResponse:
         inventory = self._read_inventory(request)

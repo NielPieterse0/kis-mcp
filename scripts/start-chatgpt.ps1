@@ -8,15 +8,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
-. (Join-Path $PSScriptRoot 'windows-credential.ps1')
-
-function Assert-KisMcpInstanceName {
-    param(
-        [ValidateSet('operation', 'development')]
-        [string]$Name
-    )
-    return $Name
-}
+. (Join-Path $PSScriptRoot 'secret-vault.ps1')
 
 function Start-OwnedProcess {
     param(
@@ -24,6 +16,7 @@ function Start-OwnedProcess {
         [string[]]$Arguments,
         [string]$WorkingDirectory,
         [hashtable]$Environment = @{},
+        [hashtable]$SecretPayload = $null,
         [string]$StandardOutputPath,
         [string]$StandardErrorPath
     )
@@ -47,10 +40,18 @@ function Start-OwnedProcess {
     foreach ($Name in $Environment.Keys) {
         $Info.Environment[$Name] = [string]$Environment[$Name]
     }
-    $Process = [System.Diagnostics.Process]::new()
-    $Process.StartInfo = $Info
-    if (-not $Process.Start()) {
-        throw "KIS_MCP_PROCESS_START_FAILED: $Executable"
+
+    if ($null -ne $SecretPayload) {
+        $Process = Start-KisMcpSecretAwareProcess `
+            -StartInfo $Info `
+            -SecurePayload $SecretPayload
+    }
+    else {
+        $Process = [System.Diagnostics.Process]::new()
+        $Process.StartInfo = $Info
+        if (-not $Process.Start()) {
+            throw "KIS_MCP_PROCESS_START_FAILED: $Executable"
+        }
     }
     $Process | Add-Member -NotePropertyName KisStandardOutputPath -NotePropertyValue $StandardOutputPath
     $Process | Add-Member -NotePropertyName KisStandardErrorPath -NotePropertyValue $StandardErrorPath
@@ -135,7 +136,6 @@ function Wait-McpReady {
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
-$null = Assert-KisMcpInstanceName -Name $Remote.name
 if ($TimeoutSeconds -lt 5 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 5 and 300.'
 }
@@ -160,24 +160,13 @@ $Python = Join-Path $Remote.python_environment_root 'Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
     throw "KIS_MCP_PYTHON_MISSING: $Python"
 }
-$OtherInstance = if ($Remote.name -eq 'operation') { 'development' } else { 'operation' }
-$OtherRemote = Get-KisMcpRemoteInstance -Instance $OtherInstance
-$OtherListener = Get-NetTCPConnection `
-    -LocalAddress $OtherRemote.host `
-    -LocalPort $OtherRemote.port `
-    -State Listen `
-    -ErrorAction SilentlyContinue
-if ($OtherListener) {
-    throw "KIS_MCP_OTHER_INSTANCE_ACTIVE: stop '$OtherInstance' before starting '$($Remote.name)'."
-}
-
 $Listener = Get-NetTCPConnection `
     -LocalAddress $Remote.host `
     -LocalPort $Remote.port `
     -State Listen `
     -ErrorAction SilentlyContinue
 if ($Listener) {
-    throw "KIS_MCP_PORT_IN_USE: $($Remote.host):$($Remote.port)"
+    throw "KIS_MCP_PORT_IN_USE: app=$($Remote.app_name) instance=$($Remote.name) endpoint=$($Remote.endpoint_url)"
 }
 
 [System.IO.Directory]::CreateDirectory($Remote.runtime_root) | Out-Null
@@ -198,6 +187,7 @@ $ServerEnvironment = @{
     NO_UPDATE_NOTIFIER = '1'
 }
 
+$VaultUnlockPayload = Get-KisMcpUnlockPayload
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
 $Credential = $null
 $TunnelEnvironment = @{}
@@ -206,16 +196,26 @@ $Tunnel = $null
 try {
     $Server = Start-OwnedProcess `
         -Executable $Python `
-        -Arguments @('-m', 'kis_mcp.remote_runtime', '--instance', $Remote.name) `
+        -Arguments @(
+            '-m',
+            'kis_mcp.secrets.launcher',
+            '--runtime',
+            'remote',
+            '--instance',
+            $Remote.name
+        ) `
         -WorkingDirectory $RepositoryRoot `
         -Environment $ServerEnvironment `
+        -SecretPayload $VaultUnlockPayload `
         -StandardOutputPath $ServerStdoutLog `
         -StandardErrorPath $ServerStderrLog
 
     $Deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     Wait-McpReady -Uri $Remote.endpoint_url -Deadline $Deadline -Process $Server
 
-    $Credential = Get-KisMcpWindowsCredential -Target $Remote.tunnel_credential_target
+    $Credential = Resolve-KisMcpSecretInternal `
+        -Reference $Remote.tunnel_secret_ref `
+        -SecurePayload $VaultUnlockPayload
     $TunnelEnvironment[$CredentialEnvironmentName] = $Credential
     $Credential = $null
     try {
@@ -295,6 +295,7 @@ try {
     $StartupState = [ordered]@{
         schema_version = 1
         health = 'ready'
+        app = $Remote.app_name
         instance = $Remote.name
         endpoint = $Remote.endpoint_url
         policy_fingerprint = $PolicyFingerprint
@@ -317,6 +318,8 @@ try {
     )
 
     Write-Host 'health=ready'
+    Write-Host "app=$($Remote.app_name)"
+    Write-Host "instance=$($Remote.name)"
     Write-Host "endpoint=$($Remote.endpoint_url)"
     Write-Host "policy_fingerprint=$PolicyFingerprint"
     Write-Host 'tunnel_state=ready'
@@ -348,4 +351,8 @@ finally {
     }
     Write-OwnedProcessLogs -Process $Tunnel
     Write-OwnedProcessLogs -Process $Server
+    foreach ($Name in @($VaultUnlockPayload.Keys)) {
+        $VaultUnlockPayload[$Name] = $null
+    }
+    $VaultUnlockPayload.Clear()
 }

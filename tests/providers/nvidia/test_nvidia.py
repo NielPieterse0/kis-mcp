@@ -10,10 +10,10 @@ from kis_mcp.providers import ProviderBoundary, ProviderKind, ProviderRegistry, 
 from kis_mcp.providers.nvidia import (
     NvidiaNimClient,
     NvidiaNimError,
+    NvidiaSettings,
     nvidia_provider_descriptor,
     register_nvidia_provider,
 )
-from kis_mcp.workflows.code_review.settings import NvidiaSettings
 
 
 def _settings() -> NvidiaSettings:
@@ -99,4 +99,5 @@ def test_nvidia_provider_registers_as_approved_external_connector() -> None:
     assert [item.capability_id for item in descriptor.capabilities] == [
         "llm.inference.nvidia-nim"
     ]
+    assert descriptor.capabilities[0].tool_names == ()
     assert registry.get("nvidia-nim") is descriptor

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "source_repository": "https://github.com/modelcontextprotocol/servers",
+  "source_revision": "76d64c822f5125032f89eb71dbdb94e42b434821",
+  "package_name": "@modelcontextprotocol/server-everything",
+  "package_version": "2.0.0",
+  "executable": "C:/Program Files/nodejs/node.exe",
+  "entry_point": "C:/Projects/.kis-mcp/tools/everything/node_modules/@modelcontextprotocol/server-everything/dist/index.js",
+  "arguments": ["stdio"]
+}

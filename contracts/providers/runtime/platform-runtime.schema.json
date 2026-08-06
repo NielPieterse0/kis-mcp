@@ -4,38 +4,24 @@
   "title": "kis-mcp Provider Runtime Composition Settings",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schema_version",
-    "providers"
-  ],
+  "required": ["schema_version", "providers"],
   "properties": {
-    "schema_version": {
-      "const": 1
-    },
+    "schema_version": {"const": 1},
     "providers": {
       "type": "array",
       "minItems": 2,
-      "maxItems": 2,
+      "maxItems": 3,
       "uniqueItems": true,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "provider_id",
-          "enabled",
-          "namespace"
-        ],
+        "required": ["provider_id", "enabled", "namespace"],
         "properties": {
           "provider_id": {
             "type": "string",
-            "enum": [
-              "github-mcp",
-              "supabase"
-            ]
+            "enum": ["control-center", "github-mcp", "supabase"]
           },
-          "enabled": {
-            "type": "boolean"
-          },
+          "enabled": {"type": "boolean"},
           "namespace": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9]*$"
@@ -43,72 +29,22 @@
         },
         "allOf": [
           {
-            "if": {
-              "required": [
-                "provider_id"
-              ],
-              "properties": {
-                "provider_id": {
-                  "const": "github-mcp"
-                }
-              }
-            },
-            "then": {
-              "properties": {
-                "namespace": {
-                  "const": "github"
-                }
-              }
-            }
+            "if": {"properties": {"provider_id": {"const": "control-center"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "controlcenter"}}}
           },
           {
-            "if": {
-              "required": [
-                "provider_id"
-              ],
-              "properties": {
-                "provider_id": {
-                  "const": "supabase"
-                }
-              }
-            },
-            "then": {
-              "properties": {
-                "namespace": {
-                  "const": "supabase"
-                }
-              }
-            }
+            "if": {"properties": {"provider_id": {"const": "github-mcp"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "github"}}}
+          },
+          {
+            "if": {"properties": {"provider_id": {"const": "supabase"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "supabase"}}}
           }
         ]
       },
       "allOf": [
-        {
-          "contains": {
-            "type": "object",
-            "required": [
-              "provider_id"
-            ],
-            "properties": {
-              "provider_id": {
-                "const": "github-mcp"
-              }
-            }
-          }
-        },
-        {
-          "contains": {
-            "type": "object",
-            "required": [
-              "provider_id"
-            ],
-            "properties": {
-              "provider_id": {
-                "const": "supabase"
-              }
-            }
-          }
-        }
+        {"contains": {"properties": {"provider_id": {"const": "github-mcp"}}, "required": ["provider_id"]}},
+        {"contains": {"properties": {"provider_id": {"const": "supabase"}}, "required": ["provider_id"]}}
       ]
     }
   }

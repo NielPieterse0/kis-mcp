@@ -229,3 +229,17 @@ def test_shared_runtime_status_requires_mounted_supabase() -> None:
 
     assert smoke_module._supabase_mounted(mounted) is True
     assert smoke_module._supabase_mounted(not_mounted) is False
+
+
+def test_shared_runtime_smoke_checks_scope_before_building_server() -> None:
+    builds = 0
+
+    def build() -> object:
+        nonlocal builds
+        builds += 1
+        return object()
+
+    with pytest.raises(RuntimeError, match="SUPABASE_PROJECT_REF"):
+        smoke_module.run_live_smoke(build, config=CONFIG, environ={})
+
+    assert builds == 0

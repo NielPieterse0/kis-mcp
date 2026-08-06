@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -12,7 +15,18 @@ def _script(name: str) -> str:
     return (SCRIPTS / name).read_text(encoding="utf-8")
 
 
-def test_tunnel_configuration_is_canonical_json() -> None:
+def _run_tunnel_state(expression: str) -> subprocess.CompletedProcess[str]:
+    script_path = (SCRIPTS / "tunnel-state.ps1").as_posix()
+    return subprocess.run(
+        ["pwsh", "-NoProfile", "-Command", f". '{script_path}'; {expression}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_tunnel_configuration_uses_canonical_secret_references() -> None:
     settings = json.loads(
         (REPOSITORY_ROOT / "settings" / "kis-mcp.settings.json").read_text(
             encoding="utf-8"
@@ -28,50 +42,137 @@ def test_tunnel_configuration_is_canonical_json() -> None:
         "operation": "tunnel_6a6806687cf88191bf97c8c3cb0d1f61",
         "development": "tunnel_6a68065a7b688191ba706b86151241ff",
     }
+    expected_app_names = {
+        "operation": "kis-op",
+        "development": "kis-dev",
+    }
+    expected_ports = {
+        "operation": 8010,
+        "development": 8011,
+    }
     for name, instance in remote["instances"].items():
         assert instance["configured"] is True
+        assert instance["app_name"] == expected_app_names[name]
+        assert instance["port"] == expected_ports[name]
         assert instance["tunnel_id"] == expected_tunnel_ids[name]
-        assert instance["tunnel_credential_target"] == f"kis-mcp/tunnel/{name}"
+        assert instance["tunnel_secret_ref"] == (
+            f"secret://tunnel/{name}/authentication-token"
+        )
+        assert "tunnel_credential_target" not in instance
         assert "tunnel_authentication_id" not in instance
 
 
-def test_tunnel_state_helper_reads_non_secret_identifiers() -> None:
+@pytest.mark.parametrize(
+    ("selector", "expected"),
+    [
+        ("kis-op", "operation"),
+        ("op", "operation"),
+        ("operation", "operation"),
+        ("kis-dev", "development"),
+        ("dev", "development"),
+        ("development", "development"),
+    ],
+)
+def test_tunnel_state_resolves_app_and_instance_aliases(
+    selector: str,
+    expected: str,
+) -> None:
+    result = _run_tunnel_state(
+        f"Write-Output (Resolve-KisMcpInstanceName -Instance '{selector}')"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_error"),
+    [
+        (
+            "$Settings.remote_mcp.instances.operation.app_name = 'kis-dev'",
+            "KIS_MCP_APP_IDENTITY_INVALID",
+        ),
+        (
+            "$Settings.remote_mcp.instances.operation.port = 8012",
+            "KIS_MCP_INSTANCE_PORT_INVALID",
+        ),
+        (
+            "$Settings.remote_mcp.instances.development.port = 8010",
+            "KIS_MCP_INSTANCE_PORT_DUPLICATE",
+        ),
+    ],
+)
+def test_tunnel_state_rejects_invalid_app_port_mappings(
+    mutation: str,
+    expected_error: str,
+) -> None:
+    settings_path = (
+        REPOSITORY_ROOT / "settings" / "kis-mcp.settings.json"
+    ).as_posix()
+    result = _run_tunnel_state(
+        "$Settings = Get-Content -LiteralPath "
+        f"'{settings_path}' -Raw | ConvertFrom-Json; "
+        f"{mutation}; "
+        "Assert-KisMcpRemoteConfiguration -Remote $Settings.remote_mcp"
+    )
+
+    combined = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert expected_error in combined
+
+
+def test_tunnel_state_helper_reads_non_secret_identifiers_and_reference() -> None:
     content = _script("tunnel-state.ps1")
 
     assert "settings\\kis-mcp.settings.json" in content
+    assert "Resolve-KisMcpInstanceName" in content
+    assert "Assert-KisMcpRemoteConfiguration" in content
     assert "Get-KisMcpRemoteInstance" in content
     assert "operation" in content and "development" in content
+    assert "kis-op" in content and "kis-dev" in content
     assert "RequireConfigured" in content
-    assert "tunnel_credential_target" in content
+    assert "app_name" in content
+    assert "tunnel_secret_ref" in content
+    assert "secret://" in content
+    assert "tunnel_credential_target" not in content
     assert "tunnel_authentication_id" not in content
     assert "tunnel_client_path" in content
 
 
-def test_windows_credential_helper_uses_credential_manager_and_zeroes_native_buffer() -> None:
-    content = _script("windows-credential.ps1")
+def test_legacy_windows_credential_helper_is_not_used_by_runtime_scripts() -> None:
+    for name in (
+        "set-tunnel-credential.ps1",
+        "setup-tunnel.ps1",
+        "start-chatgpt.ps1",
+        "start.ps1",
+        "tunnel-state.ps1",
+    ):
+        content = _script(name)
+        assert "windows-credential.ps1" not in content
+        assert "Set-KisMcpWindowsCredential" not in content
+        assert "Get-KisMcpWindowsCredential" not in content
+        assert "tunnel_credential_target" not in content
 
-    assert "CredWriteW" in content
-    assert "CredReadW" in content
-    assert "Set-KisMcpWindowsCredential" in content
-    assert "Get-KisMcpWindowsCredential" in content
-    assert "Marshal.WriteByte" in content
-    assert "Marshal.FreeCoTaskMem" in content
 
-
-def test_set_credential_script_uses_non_secret_settings_target() -> None:
+def test_set_credential_script_writes_vault_reference_through_secure_boundary() -> None:
     content = _script("set-tunnel-credential.ps1")
 
+    assert "secret-vault.ps1" in content
     assert "Read-Host" in content
     assert "-AsSecureString" in content
-    assert "Set-KisMcpWindowsCredential" in content
-    assert "$Remote.tunnel_credential_target" in content
+    assert "Invoke-KisMcpSecretCommand" in content
+    assert "@('set', '--reference', $Remote.tunnel_secret_ref)" in content
+    assert "$Payload['value']" in content
+    assert "--secret" not in content
+    assert "--passphrase" not in content
 
 
-def test_setup_script_uses_windows_credential_without_persisting_secret() -> None:
+def test_setup_script_resolves_vault_secret_without_persisting_plaintext() -> None:
     content = _script("setup-tunnel.ps1")
 
     assert "Get-KisMcpRemoteInstance" in content
-    assert "Get-KisMcpWindowsCredential" in content
+    assert "Resolve-KisMcpSecretInternal" in content
+    assert "Get-KisMcpUnlockPayload" in content
     assert "--profile-dir" in content
     assert "--tunnel-id" in content
     assert "--mcp-server-url" in content
@@ -80,7 +181,8 @@ def test_setup_script_uses_windows_credential_without_persisting_secret() -> Non
     assert "$env:$CredentialEnvironmentName" not in content
     assert "[Environment]::SetEnvironmentVariable" in content
     assert "finally" in content
-    assert "$Remote.tunnel_credential_target" in content
+    assert "$Remote.tunnel_secret_ref" in content
+    assert "tunnel_credential_target" not in content
     assert "tunnel_authentication_id" not in content
     assert "BackupExistingProfile" in content
     assert "doctor" in content
@@ -88,20 +190,23 @@ def test_setup_script_uses_windows_credential_without_persisting_secret() -> Non
     assert "sk-" not in content
 
 
-def test_chatgpt_launcher_owns_http_and_tunnel_processes() -> None:
+def test_chatgpt_launcher_unlocks_once_for_server_and_tunnel() -> None:
     content = _script("start-chatgpt.ps1")
 
-    assert "ValidateSet('operation', 'development')" in content
-    assert "kis_mcp.remote_runtime" in content
+    assert "kis_mcp.secrets.launcher" in content
+    assert "--runtime" in content and "remote" in content
     assert "--mcp.server-url" in content
     assert "--health.url-file" in content
     assert "readyz" in content
     assert "Kill()" in content
-    assert "Get-KisMcpWindowsCredential" in content
-    assert "$Remote.tunnel_credential_target" in content
+    assert "Resolve-KisMcpSecretInternal" in content
+    assert "$Remote.tunnel_secret_ref" in content
+    assert "$VaultUnlockPayload" in content
+    assert "Start-KisMcpSecretAwareProcess" in content
     assert "$TunnelEnvironment" in content
+    assert "tunnel_credential_target" not in content
     assert "tunnel_authentication_id" not in content
-    assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" in content
+    assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
 
 
 def test_smoke_script_checks_full_representative_tool_surface() -> None:

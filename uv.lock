@@ -566,6 +566,7 @@ name = "kis-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "fastmcp" },
 ]
 
@@ -575,7 +576,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "fastmcp", specifier = "==3.4.4" }]
+requires-dist = [
+    { name = "cryptography", specifier = "==50.0.0" },
+    { name = "fastmcp", specifier = "==3.4.4" },
+]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8.4,<9" }]

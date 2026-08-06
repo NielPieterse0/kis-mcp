@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -186,6 +187,22 @@ class WorktreeEntry:
     path: Path
     branch: str | None
     head: str
+
+
+@dataclass(frozen=True, slots=True)
+class CleanupResult:
+    change_id: str
+    branch: str
+    recovered: bool
+    backup_path: Path | None
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {
+            "cleaned": self.change_id,
+            "branch": self.branch,
+            "recovered": self.recovered,
+            "backup_path": str(self.backup_path) if self.backup_path is not None else None,
+        }
 
 
 def find_claim_conflicts(claims: Sequence[ChangeClaim]) -> list[str]:
@@ -430,7 +447,7 @@ def check_current_change(repository: Path) -> list[str]:
     return sorted(set(changed))
 
 
-def cleanup_change_worktree(repository: Path, change_id: str) -> None:
+def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
     root = repository_root(repository)
     normalized_id = _require_change_id(change_id, "change_id")
     target = (root / ".work" / "worktrees" / normalized_id).resolve()
@@ -452,9 +469,51 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> None:
     if ancestor.returncode != 0:
         raise ClaimError(f"CHANGE_BRANCH_UNMERGED: {branch} is not merged into {base}")
 
-    _run_git(root, "worktree", "remove", str(target))
+    removal = _run_git(
+        root,
+        "-c",
+        "core.longpaths=true",
+        "worktree",
+        "remove",
+        str(target),
+        check=False,
+    )
+    recovered = False
+    backup_path: Path | None = None
+    if removal.returncode != 0:
+        remaining = {
+            worktree.branch: worktree
+            for worktree in discover_worktrees(root)
+            if worktree.branch
+        }
+        if branch in remaining:
+            detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+            raise ClaimError(
+                f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered: {detail}"
+            )
+        if target.exists():
+            backup_root = root.parent / ".backup"
+            backup_root.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+            backup_path = backup_root / f"{normalized_id}-worktree-remnant-{timestamp}"
+            if backup_path.exists():
+                raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
+            try:
+                target.replace(backup_path)
+            except OSError as exc:
+                raise ClaimError(
+                    f"CHANGE_WORKTREE_RECOVERY_FAILED: {target} -> {backup_path}: {exc}"
+                ) from exc
+            recovered = True
+
     _run_git(root, "branch", "-d", branch)
     _run_git(root, "worktree", "prune")
+    return CleanupResult(
+        change_id=normalized_id,
+        branch=branch,
+        recovered=recovered,
+        backup_path=backup_path,
+    )
 
 
 def repository_root(path: Path) -> Path:
@@ -705,8 +764,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             ]
             print(json.dumps(claims, indent=2))
         elif args.command == "cleanup":
-            cleanup_change_worktree(args.repository, args.change_id)
-            print(json.dumps({"cleaned": args.change_id}))
+            result = cleanup_change_worktree(args.repository, args.change_id)
+            print(json.dumps(result.to_mapping()))
         else:
             parser.error(f"unsupported command: {args.command}")
     except ClaimError as exc:

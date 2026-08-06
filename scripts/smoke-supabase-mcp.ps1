@@ -25,7 +25,7 @@ $PreviousPythonPath = $env:PYTHONPATH
 try {
     $env:PYTHONPATH = Join-Path $RepositoryRoot 'src'
     if ($SharedRuntime) {
-        & $Python -m kis_mcp.providers.supabase.smoke
+        & $Python scripts/run-provider-live-smoke.py supabase
         $FailureCode = 'SUPABASE_MCP_SHARED_SMOKE_FAILED'
     }
     elseif ($Live) {

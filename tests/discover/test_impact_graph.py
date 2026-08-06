@@ -133,6 +133,34 @@ def test_budgets_truncate_deterministically(project_root: Path, discover_setting
     )
 
 
+def test_relationship_evidence_shares_the_dependant_budget(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    contracts = project_root / "contracts"
+    src = project_root / "src"
+    docs = project_root / "docs"
+    contracts.mkdir()
+    src.mkdir()
+    docs.mkdir()
+    (contracts / "api.schema.json").write_text("{}\n", encoding="utf-8")
+    (src / "api_client.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (docs / "api.md").write_text("# API\n", encoding="utf-8")
+
+    response = _service(project_root, discover_settings).inspect(
+        InspectImpactRequest(
+            project=str(project_root),
+            changed_paths=("contracts/api.schema.json",),
+            task_terms=("api",),
+            budget=_budget(max_dependants=1),
+        )
+    )
+
+    assert len(response.dependants) + len(response.relationship_impacts) <= 1
+    assert response.omissions.dependants >= 1
+    assert "max_dependants" in response.truncation_reasons
+
+
 def test_budget_is_rejected_before_project_resolution(project_root: Path, discover_settings) -> None:
     constrained = replace(
         discover_settings,

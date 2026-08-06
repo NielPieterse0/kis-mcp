@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from threading import RLock
 from typing import Any
 
 from fastmcp import FastMCP
@@ -147,6 +148,23 @@ class ProviderRuntimeComposition:
         }
 
 
+_LATEST_COMPOSITION_LOCK = RLock()
+_LATEST_COMPOSITION = ProviderRuntimeComposition(results=())
+
+
+def latest_provider_runtime_composition() -> ProviderRuntimeComposition:
+    with _LATEST_COMPOSITION_LOCK:
+        return _LATEST_COMPOSITION
+
+
+def _publish_provider_runtime_composition(
+    composition: ProviderRuntimeComposition,
+) -> None:
+    global _LATEST_COMPOSITION
+    with _LATEST_COMPOSITION_LOCK:
+        _LATEST_COMPOSITION = composition
+
+
 def _mount_result(
     *,
     provider_id: str,
@@ -275,7 +293,9 @@ def compose_provider_runtime(
             )
         )
 
-    return ProviderRuntimeComposition(results=tuple(results))
+    composition = ProviderRuntimeComposition(results=tuple(results))
+    _publish_provider_runtime_composition(composition)
+    return composition
 
 
 def provider_runtime_status(
@@ -335,5 +355,6 @@ __all__ = [
     "ProviderRuntimeComposition",
     "RUNTIME_SCHEMA_VERSION",
     "compose_provider_runtime",
+    "latest_provider_runtime_composition",
     "provider_runtime_status",
 ]

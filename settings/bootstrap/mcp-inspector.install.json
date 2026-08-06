@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "tool_id": "mcp-inspector",
+  "authoritative_source": "https://github.com/modelcontextprotocol/inspector",
+  "package": "@modelcontextprotocol/inspector",
+  "version": "2.0.0",
+  "minimum_node_version": "22.19.0",
+  "install_root": "C:\\Projects\\.kis-mcp\\tools\\mcp-inspector\\2.0.0",
+  "managed_home": "C:\\Projects\\.kis-mcp\\mcp-inspector",
+  "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache\\mcp-inspector",
+  "temp_root": "C:\\Projects\\.kis-mcp\\temp\\mcp-inspector",
+  "log_root": "C:\\Projects\\.kis-mcp\\logs\\mcp-inspector",
+  "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine\\mcp-inspector",
+  "launcher_entry_point": "node_modules\\@modelcontextprotocol\\inspector\\clients\\launcher\\build\\index.js",
+  "web_ports": {
+    "operation": 6274,
+    "development": 6275
+  },
+  "kis_mcp_exposure": {
+    "enabled": false,
+    "namespace": "mcp-inspector"
+  }
+}

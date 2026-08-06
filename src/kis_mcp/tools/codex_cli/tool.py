@@ -13,7 +13,7 @@ from .. import (
     ToolRegistry,
     ToolState,
 )
-from ...workflows.code_review.settings import CodexSettings
+from .settings import CodexSettings
 from .adapter import CodexCliAdapter
 
 Which = Callable[[str], str | None]

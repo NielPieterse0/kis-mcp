@@ -43,7 +43,7 @@ def test_smoke_script_supports_preflight_live_and_shared_modes() -> None:
     assert "PYTHONPATH" in text
     assert "-m kis_mcp.providers.supabase --check" in text
     assert "-m kis_mcp.providers.supabase.commission" in text
-    assert "-m kis_mcp.providers.supabase.smoke" in text
+    assert "scripts/run-provider-live-smoke.py supabase" in text
     assert "Live" in text
     assert "SharedRuntime" in text
     assert "Invoke-WebRequest" not in text

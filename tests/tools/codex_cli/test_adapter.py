@@ -11,10 +11,10 @@ from kis_mcp.tools import ToolBoundary, ToolKind, ToolRegistry, ToolState
 from kis_mcp.tools.codex_cli import (
     CodexCliAdapter,
     CodexCliError,
+    CodexSettings,
     codex_tool_descriptor,
     register_codex_tool,
 )
-from kis_mcp.workflows.code_review.settings import CodexSettings
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]

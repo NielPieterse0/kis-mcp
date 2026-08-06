@@ -21,11 +21,14 @@ CONFIG = load_runtime_config(REPOSITORY_ROOT)
 
 
 class _Response:
+    def __init__(self, source: str) -> None:
+        self.source = source
+
     def to_json_dict(self) -> dict[str, Any]:
         return {
             "schema_version": 1,
             "tool": "inspect_change",
-            "source": "working_tree",
+            "source": self.source,
             "available": True,
             "project_path": r"C:\Projects\fixture",
         }
@@ -37,14 +40,14 @@ class _Service:
 
     def inspect(self, request: InspectChangeRequest) -> _Response:
         self.requests.append(request)
-        return _Response()
+        return _Response(request.source)
 
 
 def _local_tools(server: FastMCP) -> list[Any]:
     return list(asyncio.run(server.local_provider.list_tools()))
 
 
-def test_register_change_tools_registers_exact_tool_and_delegates() -> None:
+def test_register_change_tools_registers_exact_tool_and_preserves_default() -> None:
     server = FastMCP("discover-change-registration-test")
     service = _Service()
 
@@ -70,29 +73,115 @@ def test_register_change_tools_registers_exact_tool_and_delegates() -> None:
     assert tool.annotations.openWorldHint is False
 
 
-def test_register_change_tools_normalizes_invalid_path_without_hr_code() -> None:
+@pytest.mark.parametrize(
+    ("arguments", "expected"),
+    [
+        (
+            {"path": r"C:\Projects\fixture", "source": "staged"},
+            InspectChangeRequest(path=r"C:\Projects\fixture", source="staged"),
+        ),
+        (
+            {
+                "path": r"C:\Projects\fixture",
+                "source": "commit",
+                "commit_ref": "abc123",
+            },
+            InspectChangeRequest(
+                path=r"C:\Projects\fixture",
+                source="commit",
+                commit_ref="abc123",
+            ),
+        ),
+        (
+            {
+                "path": r"C:\Projects\fixture",
+                "source": "range",
+                "base_ref": "main",
+                "head_ref": "feature/test",
+            },
+            InspectChangeRequest(
+                path=r"C:\Projects\fixture",
+                source="range",
+                base_ref="main",
+                head_ref="feature/test",
+            ),
+        ),
+        (
+            {
+                "path": r"C:\Projects\fixture",
+                "source": "branch",
+                "base_ref": "main",
+                "head_ref": "feature/test",
+            },
+            InspectChangeRequest(
+                path=r"C:\Projects\fixture",
+                source="branch",
+                base_ref="main",
+                head_ref="feature/test",
+            ),
+        ),
+    ],
+)
+def test_register_change_tools_delegates_all_supported_target_shapes(
+    arguments: dict[str, Any],
+    expected: InspectChangeRequest,
+) -> None:
+    server = FastMCP("discover-change-target-test")
+    service = _Service()
+    register_change_tools(server, service)
+    tool = _local_tools(server)[0]
+
+    result = asyncio.run(tool.run(arguments))
+
+    assert result.structured_content["source"] == expected.source
+    assert service.requests == [expected]
+
+
+@pytest.mark.parametrize(
+    ("arguments", "field"),
+    [
+        ({"path": "  "}, "path"),
+        (
+            {"path": r"C:\Projects\fixture", "source": "unsupported"},
+            "source",
+        ),
+        (
+            {
+                "path": r"C:\Projects\fixture",
+                "source": "commit",
+                "commit_ref": "--unsafe",
+            },
+            "commit_ref",
+        ),
+        (
+            {
+                "path": r"C:\Projects\fixture",
+                "source": "range",
+                "base_ref": "main",
+            },
+            "request",
+        ),
+    ],
+)
+def test_register_change_tools_normalizes_invalid_request_without_hr_code(
+    arguments: dict[str, Any],
+    field: str,
+) -> None:
     server = FastMCP("discover-change-error-test")
     register_change_tools(server, _Service())
     tool = _local_tools(server)[0]
 
     with pytest.raises(ToolError) as raised:
-        asyncio.run(tool.run({"path": "  "}))
+        asyncio.run(tool.run(arguments))
 
     payload = json.loads(str(raised.value))
-    assert payload == {
-        "code": "DISCOVER_CHANGE_REQUEST_INVALID",
-        "message": "The inspect_change request is invalid.",
-        "reason": "inspect change path must be a non-empty string",
-        "field": "path",
-        "corrective_actions": [
-            r"Provide a non-empty local project path beneath C:\Projects."
-        ],
-        "retryable": False,
-    }
+    assert payload["code"] == "DISCOVER_CHANGE_REQUEST_INVALID"
+    assert payload["field"] == field
+    assert payload["retryable"] is False
     assert "HR-" not in str(raised.value)
 
 
-def test_build_server_mounts_inspect_change_additively() -> None:
+def test_build_server_mounts_three_discover_operations_additively() -> None:
     config = RuntimeConfig(
         raw_settings=deepcopy(CONFIG.raw_settings),
         raw_policy=deepcopy(CONFIG.raw_policy),
@@ -101,6 +190,7 @@ def test_build_server_mounts_inspect_change_additively() -> None:
     server = build_server(config, validate_provider=False)
     names = {tool.name for tool in asyncio.run(server.list_tools())}
 
-    assert "inspect_project" in names
-    assert "inspect_change" in names
+    assert {"inspect_project", "inspect_change", "get_code_context", "analyze_change"}.issubset(names)
+    assert "inspect_provider_candidate" not in names
+    assert "inspect_project_catalog" not in names
     assert "kis_health" in names

@@ -11,6 +11,7 @@ from .command_intent import (
     resolve_persistent_shell_startup_state,
 )
 from .models import InvocationEffects
+from .runtime_observability import RuntimeObservability, get_runtime_observability
 from .shell_parser import ShellState, shell_from_command
 
 
@@ -21,9 +22,10 @@ _TERMINATION_TOOLS = frozenset({"kill_process", "force_terminate"})
 class ProcessStateRegistry:
     """Maintain bounded in-memory shell state for provider process identifiers."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, observability: RuntimeObservability | None = None) -> None:
         self._states: dict[int, ShellState] = {}
         self._lock = RLock()
+        self._observability = observability or get_runtime_observability()
 
     def resolve_interaction(
         self,
@@ -75,6 +77,14 @@ class ProcessStateRegistry:
                     self._states.pop(pid, None)
                 else:
                     self._states[pid] = state
+            if state.terminated:
+                self._observability.process_stopped(pid=pid)
+            else:
+                self._observability.process_started(
+                    pid=pid,
+                    cwd=state.cwd,
+                    shell=state.shell,
+                )
             return
 
         if normalized == "interact_with_process":
@@ -96,6 +106,10 @@ class ProcessStateRegistry:
                     self._states.pop(pid, None)
                 else:
                     self._states[pid] = next_state
+            if next_state.terminated:
+                self._observability.process_stopped(pid=pid)
+            else:
+                self._observability.process_interacted(pid=pid)
             return
 
         if normalized in _TERMINATION_TOOLS:
@@ -103,6 +117,7 @@ class ProcessStateRegistry:
             if pid is not None:
                 with self._lock:
                     self._states.pop(pid, None)
+                self._observability.process_stopped(pid=pid)
 
     def snapshot(self) -> dict[int, ShellState]:
         with self._lock:

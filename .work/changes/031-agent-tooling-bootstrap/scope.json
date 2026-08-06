@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "change_id": "031-agent-tooling-bootstrap",
+  "status": "closed",
+  "branch": "change/031-agent-tooling-bootstrap",
+  "worktree": ".work/worktrees/031-agent-tooling-bootstrap",
+  "base": "main",
+  "outcome": "Install complete pinned AgentSys and agnix distributions under C:\\Projects with isolated Claude, OpenCode, and Codex host profiles",
+  "owned_paths": [
+    "scripts/install-agentsys.ps1",
+    "scripts/install-agnix.ps1",
+    "scripts/start-agentsys-host.ps1",
+    "settings/bootstrap/agentsys.install.json",
+    "settings/bootstrap/agnix.install.json",
+    "contracts/bootstrap/agentsys.install.schema.json",
+    "contracts/bootstrap/agnix.install.schema.json",
+    "tests/bootstrap/test_agentsys_install.py",
+    "tests/bootstrap/test_agnix_install.py",
+    "tests/bootstrap/test_agent_host_profiles.py",
+    "docs/development/bootstrap/agentsys.md",
+    "docs/development/bootstrap/agnix.md",
+    ".work/changes/031-agent-tooling-bootstrap/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

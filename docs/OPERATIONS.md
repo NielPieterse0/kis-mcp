@@ -2,7 +2,6 @@
 
 ## Prerequisites
 
-
 - Windows with PowerShell.
 - Python 3.11 or newer.
 - `uv` for the Python environment.
@@ -18,14 +17,19 @@
 
 A standalone wheel installation is not a supported deployment model. Starting the runtime without those canonical JSON files fails with `KIS_MCP_SOURCE_CHECKOUT_REQUIRED` and identifies the resolved root and missing files. Run the CLI and scripts from the repository checkout; generated state remains beneath `C:\Projects\.kis-mcp` as described below.
 
-
 ## Generated state
+
 All generated state remains inside the approved write boundary and outside the repository:
 
 ```text
 C:\Projects\.kis-mcp\
 ├── .claude-server-commander\
 ├── desktop-commander\
+├── tools\
+│   ├── agentsys\6.0.1\
+│   └── agnix\0.45.0\
+├── agent-hosts\
+│   └── agentsys\
 ├── python-env\
 ├── uv-cache\
 ├── python-cache\
@@ -44,6 +48,7 @@ C:\Projects\.kis-mcp\
 Do not commit this state. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
 
 ## Install Python dependencies
+
 Run the operator-supervised bootstrap from `C:\Projects\kis-mcp`:
 
 ```powershell
@@ -55,6 +60,7 @@ The script may use external network access, generates or updates `uv.lock`, and 
 Normal startup and verification never resolve or update dependencies from the network. `scripts\verify.ps1` requires `uv.lock` and performs an offline frozen synchronization before testing.
 
 ## Install Desktop Commander
+
 Desktop Commander is installed from the scanned `@wonderwhy-er/desktop-commander` archive, not copied into this repository and not downloaded again by the installer.
 
 Archive acquisition and security scanning are explicit operator-supervised actions outside the normal Work path. The repository installer itself performs no external network access:
@@ -85,6 +91,29 @@ pwsh -File .\scripts\install-desktop-commander.ps1
 
 Normal startup uses the installed package without downloading or updating it.
 
+## Install managed AgentSys and agnix tooling
+
+AgentSys and agnix are optional supervised host tools. They are installed independently, pinned to exact versions, and are not mounted into `build_server()`.
+
+```powershell
+pwsh -NoProfile -File .\scripts\install-agentsys.ps1
+pwsh -NoProfile -File .\scripts\install-agnix.ps1
+```
+
+The installers may use external network access during this explicit bootstrap stage. They stage and validate package and profile state beneath `C:\Projects\.kis-mcp\temp`, reject paths outside `C:\Projects` or through reparse ancestors, and move replaced or failed-new state beneath quarantine rather than deleting it.
+
+AgentSys `6.0.1` creates isolated managed profiles for Claude Code, OpenCode, and Codex. The corresponding host executable and authentication remain separate prerequisites. Start a host through the managed launcher:
+
+```powershell
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform claude
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform opencode
+pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform codex
+```
+
+agnix `0.45.0` provides the verified `agnix` CLI. Its npm distribution does not include the separate native `agnix-mcp` binary, so MCP mounting remains deferred and must not be inferred from the CLI installation.
+
+See [`development/bootstrap/agentsys.md`](development/bootstrap/agentsys.md) and [`development/bootstrap/agnix.md`](development/bootstrap/agnix.md) for exact managed paths, catalogue counts, launch prerequisites, and recovery.
+
 ## Configure
 
 Edit only the canonical JSON files:
@@ -100,24 +129,25 @@ The normal approved boundary is `C:\Projects`. State and quarantine roots must r
 
 `settings.discover` owns all Discover retrieval behavior: enablement, exclusions, allowed text extensions and conventional filenames, encodings, hard-link handling, and file, directory, byte, depth, traversal-time, Git, Python-index, evidence, and output budgets. Change those values in JSON rather than hard-coding new limits or exclusions. Request-side limits may only narrow configured maxima.
 
-`settings.remote_mcp` contains two named instances:
+`settings.remote_mcp` contains two canonical internal instances and external ChatGPT app identities:
 
-- `operation` — the normal ChatGPT-facing tool instance;
-- `development` — the isolated commissioning and change-validation instance.
+- `operation` — exposed as `kis-op` on `127.0.0.1:8010` for normal operation;
+- `development` — exposed as `kis-dev` on `127.0.0.1:8011` for commissioning and change validation.
 
-Each instance has its own loopback port, tunnel profile, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_credential_target`. The target names a per-user Generic Credential in Windows Credential Manager; the secret is not stored in JSON or generated state. The tunnel executable is read only from:
+Each instance has its own app name, loopback port, tunnel profile, explicit `configured` state, non-secret `tunnel_id`, vault secret reference, runtime directory, and logs. Startup validates the exact app/instance/port mapping and rejects swapped, changed, or duplicate ports. The secret is not stored in JSON or generated state. The tunnel executable is read only from:
 
 ```text
 C:\Tools\openai-tunnel-client\tunnel-client.exe
 ```
 
-The checked-in instance records remain `configured: false` with blank tunnel IDs until commissioning. Before tunnel setup, populate the real `tunnel_id`, change `configured` to `true`, and store the secret once with `scripts\set-tunnel-credential.ps1` for that instance's configured credential target. Do not commit credential values or generated profile YAML.
+The checked-in `operation` and `development` records contain distinct non-secret tunnel IDs and vault secret references and are marked `configured: true`. This configuration does not prove that the referenced vault entries, generated profiles, external tunnels, ChatGPT discovery, or end-to-end commissioning are ready. Before tunnel setup or startup, verify the selected record, store its secret through the supervised vault script, and generate the corresponding profile. Do not commit credential values or generated profile YAML.
 
-`active_instance` controls the default only. Use `-Instance operation` or `-Instance development` for an explicit switch. There is no automatic failover.
+`active_instance` controls the default only. Prefer the external selectors `kis-op` and `kis-dev`; the compatibility names `operation` and `development` and short aliases `op` and `dev` resolve to the same canonical records. There is no automatic failover.
 
 Configuration, instance selection, catalogue metadata, profiles, and status fields do not disable otherwise permitted Desktop Commander tools. Both instances expose the same mixed-purpose tool surface and apply only HR-001, HR-002, and HR-003 to concrete invocations.
 
 ## Start local stdio
+
 Run:
 
 ```powershell
@@ -156,7 +186,7 @@ Request limits are optional and may only narrow values in `settings.discover.lim
 }
 ```
 
-The result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. It does not inspect commits, ranges, branches, pull requests, remote checks, changed symbols, dependant modules, or verification handoffs.
+The public result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. The public tool currently exposes only working-tree inspection. Internal contracts and services support staged, commit, range, and branch targets, context brokering, impact analysis, dependant evidence, affected tests, and verification handoffs, but those capabilities are not public tool parameters or operations on the current gateway. Pull-request and trusted remote evidence remain unavailable.
 
 `DISCOVER_*` errors are structural and corrective. They are not HR policy decisions. Resolve the reported path, unsafe link/reparse condition, unsupported or excessive request limit, unreadable text, Git metadata condition, or configured budget rather than changing `policy/kis-mcp.policy.json`.
 
@@ -231,6 +261,23 @@ Example call:
 
 Omit `backend` to use preferred/fallback order. Set it to `nvidia-nim` or `codex-cli` to require that backend without silently switching. Tests validate request shape, bounds, fallback, redaction, and additive registration; they do not prove live NVIDIA credentials or live Codex authentication.
 
+## Run the KIS Control Center
+
+The KIS Control Center is a separate read-only MCP App. It is not mounted into the primary gateway and does not participate in Work policy enforcement.
+
+Run it from the source checkout through the locked project interpreter:
+
+```powershell
+C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.control_center
+```
+
+The server reads `settings\control-center.settings.json` and exposes:
+
+- `open_kis_control_center` — a bounded structured local snapshot;
+- `ui://kis-mcp/control-center.html` — a self-contained local MCP App resource.
+
+The snapshot reports runtime identity, configured project and local Git state, the exact three-rule declaration, provider configuration with runtime-check requirements, bounded quarantine counts, verification guidance, and structural diagnostics. It performs no mutation or network access. Provider configuration does not prove provider authentication or commissioning, and verification remains unrecorded until current evidence is run.
+
 ## Commission Supabase OAuth
 
 Use only a development or test Supabase project. The project-scoped provider exposes read/write capabilities even though commissioning invokes only a harmless read.
@@ -295,21 +342,22 @@ pwsh -File .\scripts\smoke-chatgpt.ps1 -Instance development -TimeoutSeconds 90
 This proves the local ChatGPT-compatible HTTP path. It does not prove the external tunnel or ChatGPT app connection.
 
 ## Configure a tunnel profile
+
 For the selected instance:
 
-1. Enter its real `tunnel_id` in `settings.remote_mcp.instances`.
-2. Set that instance's `configured` field to `true`.
-3. Store the tunnel secret once in Windows Credential Manager.
-4. Create the project-local tunnel profile.
+1. Verify that its checked-in non-secret `tunnel_id`, vault secret reference, loopback URL, and `configured: true` state are correct.
+2. Store the tunnel credential through the supervised application-vault script for that instance.
+3. Create the project-local tunnel profile.
+4. Run local and external commissioning checks before treating the instance as live.
 
 ```powershell
 pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance development
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance development
 ```
 
-The credential script prompts through `Read-Host -AsSecureString` and stores a per-user Generic Credential at the non-secret `tunnel_credential_target` declared in JSON. The setup script retrieves that credential, exposes it only through a temporary process-scoped environment reference for `tunnel-client init`, restores the prior process environment in `finally`, and writes generated profiles only beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`.
+The credential script prompts through `Read-Host -AsSecureString` and stores the value in the application-managed encrypted vault at the selected instance's non-secret `tunnel_secret_ref`. The setup script resolves that reference only through the secret-process boundary, exposes the value only through a temporary process-scoped environment reference for `tunnel-client init`, restores the prior process environment in `finally`, and writes generated profiles only beneath `C:\Projects\.kis-mcp\tunnel-client\profiles`.
 
-The setup script reads the tunnel client path, profile name, tunnel ID, local MCP URL, and credential target from JSON. It refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement first moves the old YAML profile into a timestamped backup. The Windows credential is not copied into profile backups or repository files.
+The setup script reads the tunnel client path, profile name, tunnel ID, local MCP URL, and vault secret reference from JSON. It refuses to replace an existing profile unless `-BackupExistingProfile` is supplied; replacement first moves the old YAML profile into a timestamped backup. The vault secret is not copied into profile backups or repository files.
 
 Configure the operation profile separately:
 
@@ -318,39 +366,37 @@ pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance operation
 pwsh -File .\scripts\setup-tunnel.ps1 -Instance operation
 ```
 
-The two profiles, tunnel IDs, and credential targets must remain distinct. Do not point both instances at one tunnel record.
+The two profiles, tunnel IDs, and vault secret references must remain distinct. Do not point both instances at one tunnel record or one vault entry.
 
-## Start the ChatGPT-facing instance
-Start the development instance during commissioning:
+## Start the ChatGPT-facing instances
 
-```powershell
-pwsh -File .\scripts\start-chatgpt.ps1 -Instance development
-```
-
-Start the operational instance after commissioning:
+Use the same launcher for both ChatGPT tools. The preferred positional selectors are the external app names:
 
 ```powershell
-pwsh -File .\scripts\start-chatgpt.ps1 -Instance operation
+pwsh -File .\scripts\start-chatgpt.ps1 kis-op
+pwsh -File .\scripts\start-chatgpt.ps1 kis-dev
 ```
 
-Omit `-Instance` to use `settings.remote_mcp.active_instance`. The launcher retrieves the selected instance's tunnel secret from Windows Credential Manager, passes it only in the owned tunnel process environment, and clears the temporary PowerShell value after process creation. It then:
+`kis-op` and `kis-dev` may run concurrently. The compatibility selectors `operation`, `op`, `development`, and `dev` resolve to the same canonical records. Omit the selector to use `settings.remote_mcp.active_instance`.
 
-- validates the selected instance, tunnel ID, configured state, credential target, profile, and local prerequisites;
-- refuses startup while the other ChatGPT-facing instance is listening, enforcing explicit switch-over;
-- starts `python -m kis_mcp.remote_runtime` on its loopback port;
-- proves MCP initialization locally;
-- retrieves the stored Windows credential immediately before creating the owned tunnel process;
-- starts the configured tunnel profile against the exact local `/mcp` URL;
-- waits for the tunnel client's loopback `/readyz` endpoint;
-- owns both processes and stops the peer process when either exits.
+The launcher retrieves only the selected instance's tunnel secret from the application-managed vault, passes it through the owned process boundary, and clears temporary values after process creation. It then:
 
-Keep the launcher window open while ChatGPT uses the tool.
+- validates the exact external app, internal instance, and canonical port mapping;
+- rejects startup only when the selected instance's own port is already listening;
+- starts the selected remote runtime on `127.0.0.1:8010` for `kis-op` or `127.0.0.1:8011` for `kis-dev`;
+- proves MCP initialization at that exact local endpoint;
+- starts only the selected tunnel profile and tunnel ID;
+- waits for the selected tunnel client's loopback `/readyz` endpoint;
+- writes per-instance startup state and logs beneath the selected runtime directory;
+- owns and cleans up only the server and tunnel processes created by that launcher invocation.
+
+There is no automatic failover and no cross-instance process ownership. Keep each launcher window open while ChatGPT uses that tool.
 
 ## Create or switch the ChatGPT app
 
 In ChatGPT developer-mode app settings, create a custom app using the Secure MCP Tunnel connection. Select the available tunnel or paste the instance's configured tunnel ID, then scan the tools. Confirm that the scanned catalogue includes representative filesystem, editing, terminal/process, and gateway operations. Do not accept a reduced profile-based catalogue.
 
-The tunnel must be associated with the same ChatGPT workspace or organization that will use the app. Keep separate custom apps or explicit app configurations for `operation` and `development`; switch by stopping one launcher and starting the other, then selecting the corresponding ChatGPT app. Do not run both against the same tunnel identity.
+The tunnel must be associated with the same ChatGPT workspace or organization that will use the app. Keep separate ChatGPT apps named `kis-op` and `kis-dev`, each associated with its own configured tunnel identity. Both may remain connected concurrently; never point both apps at the same tunnel identity.
 
 A complete external commissioning record requires:
 
@@ -400,6 +446,7 @@ pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change
 Cleanup refuses a dirty worktree or an unmerged branch. It performs only normal `git worktree remove`, `git branch -d`, and `git worktree prune` operations; it never forces deletion.
 
 ## Verify
+
 Run:
 
 ```powershell
@@ -452,11 +499,9 @@ Permanent disposal is intentionally not exposed as a normal Work tool.
 
 ## Troubleshooting
 
-- `KIS_MCP_OTHER_INSTANCE_ACTIVE`: stop the other ChatGPT-facing launcher before switching instances.
-
 - `KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED`: enter the real tunnel ID for the selected instance, set `configured` to `true`, and store its credential before setup or startup.
-- `KIS_MCP_TUNNEL_CREDENTIAL_MISSING`: run `scripts\set-tunnel-credential.ps1` for the selected instance.
-- `KIS_MCP_TUNNEL_CREDENTIAL_TARGET_MISSING` or `KIS_MCP_TUNNEL_CREDENTIAL_TARGET_INVALID`: restore the non-secret `tunnel_credential_target` in canonical JSON.
+- A missing vault entry for the selected tunnel reference: run `scripts\set-tunnel-credential.ps1` for that instance, then retry.
+- `KIS_MCP_TUNNEL_SECRET_REFERENCE_MISSING` or `KIS_MCP_TUNNEL_SECRET_REFERENCE_INVALID`: restore the selected instance's canonical non-secret `tunnel_secret_ref` in JSON.
 - `KIS_MCP_TUNNEL_CLIENT_MISSING`: restore the executable at the settings-defined `C:\Tools\openai-tunnel-client\tunnel-client.exe` path or correct the JSON setting.
 - `KIS_MCP_TUNNEL_PROFILE_EXISTS`: rerun setup with `-BackupExistingProfile` only when replacement is intended.
 - `KIS_MCP_TUNNEL_PROFILE_INVALID`: inspect the tunnel-client doctor output; do not start the profile until all checks pass.

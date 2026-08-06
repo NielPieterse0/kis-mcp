@@ -162,10 +162,9 @@ def test_shared_runtime_smoke_proves_mount_and_namespaced_tools(
                 return _error()
             return _success()
 
-    monkeypatch.setattr(smoke, "build_server", lambda: "shared-server")
     monkeypatch.setattr(smoke, "Client", FakeClient)
 
-    report = asyncio.run(smoke._run_live_smoke(_settings()))
+    report = asyncio.run(smoke._run_live_smoke(_settings(), "shared-server"))
 
     assert report == {
         "ready": True,
@@ -181,3 +180,21 @@ def test_shared_runtime_smoke_proves_mount_and_namespaced_tools(
     assert calls[1][0] == "github_get_me"
     assert calls[2][0] == "github_get_file_contents"
     assert calls[3][0] == "github_get_file_contents"
+
+
+def test_live_smoke_rejects_pat_conflict_before_building_server() -> None:
+    builds = 0
+
+    def build() -> object:
+        nonlocal builds
+        builds += 1
+        return object()
+
+    with pytest.raises(RuntimeError, match="GITHUB_OAUTH_PAT_CONFLICT"):
+        smoke.run_live_smoke(
+            build,
+            settings=_settings(),
+            environ={"GITHUB_PERSONAL_ACCESS_TOKEN": "forbidden-test-token"},
+        )
+
+    assert builds == 0

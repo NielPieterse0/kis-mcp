@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "change_id": "044-mcp-sdk-integrations",
+  "status": "closed",
+  "branch": "change/044-mcp-sdk-integrations",
+  "worktree": ".work/worktrees/044-mcp-sdk-integrations",
+  "base": "main",
+  "outcome": "Implement pinned MCP Spec, Fetch, Everything, Python SDK, and archived GitLab integrations in the Tools and Providers modules without concurrent central-runtime overlap",
+  "owned_paths": [
+    "src/kis_mcp/tools/mcp_spec/**",
+    "src/kis_mcp/tools/fetch/**",
+    "src/kis_mcp/tools/everything/**",
+    "src/kis_mcp/tools/mcp_stdio.py",
+    "src/kis_mcp/providers/python_sdk/**",
+    "src/kis_mcp/providers/gitlab/**",
+    "settings/tools/mcp-spec.tool.json",
+    "settings/tools/fetch.tool.json",
+    "settings/tools/everything.tool.json",
+    "settings/providers/python-sdk.provider.json",
+    "settings/providers/gitlab.provider.json",
+    "contracts/tools/mcp-sdk-integrations/**",
+    "contracts/providers/mcp-sdk-integrations/**",
+    "tests/tools/test_mcp_sdk_integrations.py",
+    "tests/providers/test_mcp_sdk_providers.py",
+    "docs/development/mcp-sdk-integrations/**",
+    ".work/changes/042-mcp-inspector-bootstrap/scope.json",
+    ".work/changes/044-mcp-sdk-integrations/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/tools/__init__.py",
+    "src/kis_mcp/providers/__init__.py",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/providers/runtime.py",
+    "src/kis_mcp/providers/runtime_settings.py",
+    "settings/providers/platform-runtime.provider.json",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "policy/**"
+  ],
+  "dependencies": [
+    "029-tools-code-tooling"
+  ],
+  "integration_owner": null
+}

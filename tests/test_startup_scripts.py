@@ -11,6 +11,10 @@ def _script(name: str) -> str:
     return (SCRIPTS / name).read_text(encoding="utf-8")
 
 
+def _document(name: str) -> str:
+    return (REPOSITORY_ROOT / name).read_text(encoding="utf-8")
+
+
 def test_tunnel_setup_separates_profile_creation_from_live_validation() -> None:
     content = _script("setup-tunnel.ps1")
 
@@ -29,7 +33,7 @@ def test_tunnel_setup_validates_credential_before_moving_active_profile() -> Non
     profile_exists_guard = content.index(
         "if ($ProfileExists -and -not $BackupExistingProfile)"
     )
-    credential_read = content.index("$Credential = Get-KisMcpWindowsCredential")
+    credential_read = content.index("$Credential = Resolve-KisMcpSecretInternal")
     profile_backup = content.index("[System.IO.File]::Move($ProfilePath, $BackupPath)")
 
     assert profile_exists_guard < credential_read < profile_backup
@@ -45,6 +49,49 @@ def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
     assert server_start < server_ready < tunnel_start
     assert "KIS_MCP_ENDPOINT_NOT_READY" in content
     assert "KIS_MCP_HTTP_NOT_READY" not in content
+
+
+def test_chatgpt_startup_finishes_non_secret_preflight_before_unlock() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    port_check = content.index("if ($Listener)")
+    unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
+    server_start = content.index("$Server = Start-OwnedProcess")
+
+    assert port_check < unlock_payload < server_start
+
+
+def test_chatgpt_startup_allows_peer_instance_to_remain_active() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    assert "$OtherInstance" not in content
+    assert "$OtherRemote" not in content
+    assert "$OtherListener" not in content
+    assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
+    assert content.count("-LocalPort $Remote.port") == 1
+
+
+def test_chatgpt_startup_hardens_the_selected_app_port() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    assert "$Remote.app_name" in content
+    assert (
+        "KIS_MCP_PORT_IN_USE: app=$($Remote.app_name) "
+        "instance=$($Remote.name) endpoint=$($Remote.endpoint_url)"
+    ) in content
+    assert "Get-NetTCPConnection" in content
+    assert "-LocalAddress $Remote.host" in content
+    assert "-LocalPort $Remote.port" in content
+
+
+def test_tunnel_setup_finishes_non_secret_preflight_before_unlock() -> None:
+    content = _script("setup-tunnel.ps1")
+
+    profile_guard = content.index("if ($ProfileExists -and -not $BackupExistingProfile)")
+    unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
+    credential_read = content.index("$Credential = Resolve-KisMcpSecretInternal")
+
+    assert profile_guard < unlock_payload < credential_read
 
 
 def test_chatgpt_startup_supports_bounded_observation_cleanup() -> None:
@@ -87,6 +134,8 @@ def test_chatgpt_startup_emits_only_gateway_owned_readiness_fields() -> None:
 
     for field in (
         "health=ready",
+        "app=",
+        "instance=",
         "endpoint=",
         "policy_fingerprint=",
         "tunnel_state=ready",
@@ -95,7 +144,32 @@ def test_chatgpt_startup_emits_only_gateway_owned_readiness_fields() -> None:
         "startup_state=",
     ):
         assert field in content
+    assert "app = $Remote.app_name" in content
+    assert "instance = $Remote.name" in content
     assert "Tunnel authentication ID:" not in content
     assert "Keep this window open" not in content
     assert "ConvertTo-Json" in content
     assert "startup-state-$RunId.json" in content
+
+
+def test_operations_documents_one_launcher_for_kis_op_and_kis_dev() -> None:
+    content = _document("docs/OPERATIONS.md")
+
+    assert "`kis-op`" in content
+    assert "`kis-dev`" in content
+    assert "127.0.0.1:8010" in content
+    assert "127.0.0.1:8011" in content
+    assert "start-chatgpt.ps1 kis-op" in content
+    assert "start-chatgpt.ps1 kis-dev" in content
+    assert "run concurrently" in content
+    assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
+
+
+def test_spec_documents_application_vault_for_tunnel_credentials() -> None:
+    content = _document("SPEC.md")
+
+    assert "application-managed encrypted vault" in content
+    assert "`tunnel_secret_ref`" in content
+    assert "tunnel_credential_target" not in content
+    assert "per-user Generic Credentials in Windows Credential Manager" not in content
+    assert "named Windows credential is missing" not in content

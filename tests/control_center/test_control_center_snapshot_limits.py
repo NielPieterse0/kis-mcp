@@ -45,9 +45,9 @@ def test_snapshot_applies_json_byte_limit_to_quarantine_metadata(
     runtime_path = tmp_path / "runtime.json"
     policy_path = tmp_path / "policy.json"
     providers_path = tmp_path / "providers.json"
-    runtime_path.write_text("{}", encoding="utf-8")
-    policy_path.write_text(json.dumps({"rules": []}), encoding="utf-8")
-    providers_path.write_text(json.dumps({"providers": []}), encoding="utf-8")
+    runtime_path.write_text(json.dumps({"schema_version": 1}), encoding="utf-8")
+    policy_path.write_text(json.dumps({"schema_version": 1, "rules": []}), encoding="utf-8")
+    providers_path.write_text(json.dumps({"schema_version": 1, "providers": []}), encoding="utf-8")
     quarantine_root = tmp_path / "quarantine"
     metadata_path = (
         quarantine_root
@@ -56,7 +56,16 @@ def test_snapshot_applies_json_byte_limit_to_quarantine_metadata(
     )
     metadata_path.parent.mkdir(parents=True)
     metadata_path.write_text(
-        json.dumps({"restored_at": None, "padding": "x" * 2048}),
+        json.dumps(
+            {
+                "schema_version": 2,
+                "operation_id": "20260805T010203000000Z-aaaaaaaaaaaa",
+                "original_path": r"C:\Projects\large.txt",
+                "item_type": "file",
+                "restored_at": None,
+                "padding": "x" * 2048,
+            }
+        ),
         encoding="utf-8",
     )
     settings = ControlCenterSettings(

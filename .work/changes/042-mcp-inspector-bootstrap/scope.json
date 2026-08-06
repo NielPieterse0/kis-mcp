@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "042-mcp-inspector-bootstrap",
+  "status": "closed",
+  "branch": "change/042-mcp-inspector-bootstrap",
+  "worktree": ".work/worktrees/042-mcp-inspector-bootstrap",
+  "base": "main",
+  "outcome": "Install pinned MCP Inspector 2.0.0 as recoverable operator-supervised support tooling with a local kis-mcp launcher",
+  "owned_paths": [
+    "settings/bootstrap/mcp-inspector.install.json",
+    "scripts/install-mcp-inspector.ps1",
+    "scripts/start-mcp-inspector.ps1",
+    "tests/bootstrap/test_mcp_inspector_install.py",
+    "docs/development/tools/mcp-inspector.md",
+    ".work/changes/042-mcp-inspector-bootstrap/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

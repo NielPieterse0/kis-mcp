@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from ...workflows.code_review.settings import CodexSettings
+from .settings import CodexSettings
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 

@@ -62,30 +62,45 @@ def _valid_document() -> dict[str, Any]:
         "providers": [
             {"provider_id": "github-mcp", "enabled": True, "namespace": "github"},
             {"provider_id": "supabase", "enabled": True, "namespace": "supabase"},
+            {
+                "provider_id": "control-center",
+                "enabled": True,
+                "namespace": "controlcenter",
+            },
         ],
     }
 
 
 def _runtime_settings(
     *,
+    control_center_enabled: bool = False,
     github_enabled: bool = True,
     supabase_enabled: bool = True,
 ) -> Any:
     module = _settings_module()
+    providers = [
+        module.ProviderMountSetting(
+            provider_id="github-mcp",
+            enabled=github_enabled,
+            namespace="github",
+        ),
+        module.ProviderMountSetting(
+            provider_id="supabase",
+            enabled=supabase_enabled,
+            namespace="supabase",
+        ),
+    ]
+    if control_center_enabled:
+        providers.append(
+            module.ProviderMountSetting(
+                provider_id="control-center",
+                enabled=True,
+                namespace="controlcenter",
+            )
+        )
     return module.ProviderRuntimeSettings(
         schema_version=1,
-        providers=(
-            module.ProviderMountSetting(
-                provider_id="github-mcp",
-                enabled=github_enabled,
-                namespace="github",
-            ),
-            module.ProviderMountSetting(
-                provider_id="supabase",
-                enabled=supabase_enabled,
-                namespace="supabase",
-            ),
-        ),
+        providers=tuple(providers),
     )
 
 
@@ -143,10 +158,15 @@ def test_canonical_runtime_settings_select_exact_approved_providers() -> None:
 
     assert settings.schema_version == 1
     assert [item.provider_id for item in settings.providers] == [
+        "control-center",
         "github-mcp",
         "supabase",
     ]
-    assert [item.namespace for item in settings.providers] == ["github", "supabase"]
+    assert [item.namespace for item in settings.providers] == [
+        "controlcenter",
+        "github",
+        "supabase",
+    ]
     assert all(item.enabled for item in settings.providers)
 
 
@@ -162,6 +182,7 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
     assert provider_schema["additionalProperties"] is False
     assert set(provider_schema["required"]) == set(provider_schema["properties"])
     assert set(provider_schema["properties"]["provider_id"]["enum"]) == {
+        "control-center",
         "github-mcp",
         "supabase",
     }
@@ -195,7 +216,7 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
                     "namespace": "unknown",
                 }
             ),
-            "approved external provider",
+            "approved provider",
         ),
         (
             lambda document: document["providers"].append(
@@ -236,7 +257,7 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
             "missing required keys",
         ),
         (
-            lambda document: document["providers"].pop(),
+            lambda document: document["providers"].pop(1),
             "exactly the approved external providers",
         ),
     ],
@@ -574,6 +595,33 @@ def test_build_server_mounts_injected_provider_and_exposes_status(monkeypatch: A
     providers = {item["provider_id"]: item for item in status["external_providers"]}
     assert providers["github-mcp"]["state"] == "mounted"
     assert providers["supabase"]["state"] == "disabled"
+
+
+def test_latest_provider_runtime_composition_is_published_after_mounting() -> None:
+    runtime = _runtime_module()
+    service = _service(
+        _descriptor(
+            "control-center",
+            builder=lambda: _child_server("control-center"),
+        ),
+        _descriptor("github-mcp", builder=lambda: _child_server("github")),
+        _descriptor("supabase", builder=lambda: _child_server("supabase")),
+    )
+
+    composition = runtime.compose_provider_runtime(
+        FastMCP("root"),
+        service,
+        _runtime_settings(control_center_enabled=True),
+    )
+
+    published = runtime.latest_provider_runtime_composition()
+    assert published == composition
+    assert [item.provider_id for item in published.results] == [
+        "control-center",
+        "github-mcp",
+        "supabase",
+    ]
+    assert all(item.mounted for item in published.results)
 
 
 def test_build_server_contains_provider_builder_failures(monkeypatch: Any) -> None:

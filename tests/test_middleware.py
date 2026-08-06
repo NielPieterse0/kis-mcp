@@ -11,6 +11,7 @@ from kis_mcp.desktop_commander import DesktopCommanderEffectResolver
 from kis_mcp.middleware import ThreeRuleMiddleware
 from kis_mcp.policy import ThreeRulePolicy
 from kis_mcp.quarantine import QuarantineError
+from kis_mcp.runtime_observability import RuntimeObservability
 
 
 PROJECT_BOUNDARY = r"C:\Projects"
@@ -208,3 +209,57 @@ def test_provider_restriction_fields_are_gateway_managed() -> None:
 
     asyncio.run(run())
     assert calls == [("fileReadLineLimit", 500)]
+
+
+def test_middleware_records_redacted_allowed_and_blocked_calls() -> None:
+    server = FastMCP("middleware-observability-test")
+    registry = RuntimeObservability(max_recent_calls=10, max_policy_decisions=10)
+    resolver = DesktopCommanderEffectResolver(
+        project_boundary=PROJECT_BOUNDARY,
+        provider_state_file=PROVIDER_STATE,
+        observability=registry,
+    )
+
+    @server.tool
+    def read_file(path: str) -> str:
+        return f"result body for {path}"
+
+    @server.tool
+    def execute_command(command: str) -> str:
+        return command
+
+    server.add_middleware(
+        ThreeRuleMiddleware(
+            resolver=resolver,
+            policy=ThreeRulePolicy(
+                project_boundary=PROJECT_BOUNDARY,
+                quarantine_root=QUARANTINE_ROOT,
+            ),
+            quarantine_paths=lambda _paths: [],
+            observability=registry,
+        )
+    )
+
+    async def run() -> None:
+        async with Client(server) as client:
+            await client.call_tool(
+                "read_file",
+                {"path": r"C:\Projects\secret-name.txt"},
+            )
+            with pytest.raises(Exception, match="HR-002"):
+                await client.call_tool(
+                    "execute_command",
+                    {"command": "curl https://example.com/private-token"},
+                )
+
+    asyncio.run(run())
+    snapshot = registry.snapshot()
+
+    assert [(item.tool_name, item.argument_keys, item.decision, item.outcome) for item in snapshot.recent_calls] == [
+        ("execute_command", ("command",), "block", "rejected"),
+        ("read_file", ("path",), "allow", "success"),
+    ]
+    rendered = str(snapshot.to_dict())
+    assert "secret-name" not in rendered
+    assert "private-token" not in rendered
+    assert "result body" not in rendered

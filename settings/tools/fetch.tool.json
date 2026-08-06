@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "source_repository": "https://github.com/modelcontextprotocol/servers",
+  "source_revision": "76d64c822f5125032f89eb71dbdb94e42b434821",
+  "package_name": "mcp-server-fetch",
+  "package_version": "0.6.3",
+  "executable": "C:/Projects/.kis-mcp/tools/fetch/python-env/Scripts/python.exe",
+  "arguments": ["-m", "mcp_server_fetch"],
+  "environment_names": ["PYTHONIOENCODING"]
+}
