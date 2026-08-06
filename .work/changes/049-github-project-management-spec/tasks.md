@@ -10,25 +10,27 @@
 
 ## P0 implementation
 
-- [ ] Write failing project and record contract tests.
-- [ ] Implement immutable provider-neutral contracts and package exports.
-- [ ] Run focused contract tests and fast verification.
-- [ ] Write failing lifecycle and documentation milestone tests.
-- [ ] Implement deterministic lifecycle validation.
-- [ ] Run focused lifecycle tests and fast verification.
-- [ ] Write failing next-work selection tests.
-- [ ] Implement deterministic project-filtered selection and explanations.
-- [ ] Run focused selection tests and fast verification.
-- [ ] Add and pass provider-neutral architecture tests.
+- [x] Write failing project and record contract tests.
+- [x] Implement immutable provider-neutral contracts and package exports.
+- [x] Run focused contract tests and repository verification.
+- [x] Write failing lifecycle and documentation milestone tests.
+- [x] Implement deterministic lifecycle validation.
+- [x] Run focused lifecycle tests and repository verification.
+- [x] Write failing next-work selection tests.
+- [x] Implement deterministic project-filtered selection and explanations.
+- [x] Run focused selection tests and repository verification.
+- [x] Add and pass provider-neutral architecture tests.
+- [x] Correct provider-specific identity assumptions found in review.
+- [x] Correct unreachable supersession and cross-project dependency defects found in review.
 
 ## Review and verification
 
-- [ ] Review the complete diff against the specification, plan, ADR, and modularity assessment.
-- [ ] Run `git diff --check`.
-- [ ] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
-- [ ] Run `pwsh -NoProfile -File scripts/verify.ps1`.
-- [ ] Commit each logical P0 change unit without bypassing hooks.
-- [ ] Record current closeout evidence and residual programme phases.
+- [x] Review the complete diff against the specification, plan, ADR, and modularity assessment.
+- [x] Run `git diff --check`.
+- [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
+- [x] Run `pwsh -NoProfile -File scripts/verify.ps1`.
+- [x] Commit each logical P0 change unit without bypassing hooks.
+- [x] Record current closeout evidence and residual programme phases.
 
 ## Later phases
 

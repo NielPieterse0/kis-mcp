@@ -1,7 +1,7 @@
 # Change Specification: Multi-Project Work Management Foundation
 
 - **Change ID**: `049-github-project-management-spec`
-- **Status**: Active — P0 implementation
+- **Status**: Active — P0 complete; backend integration deferred
 - **Risk Profile**: standard
 - **Development level**: Complex programme; bounded P0 implementation
 

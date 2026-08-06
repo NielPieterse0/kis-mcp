@@ -28,4 +28,4 @@ Each implementation phase uses its own governed change, isolated worktree, bound
 
 ## Current implementation boundary
 
-Change 049 may implement only the provider-neutral foundation under `src/kis_mcp/work_management` and its focused tests. GitHub adapter, workflow registration, gateway exposure, remote mutation, and reader-facing repository documentation remain later phases or integration work after change 047.
+Change 049 implements the provider-neutral P0 foundation under `src/kis_mcp/work_management` with focused contract, lifecycle, selection, and architecture tests. It is not publicly composed or commissioned. GitHub adapter, workflow registration, gateway exposure, remote mutation, and reader-facing repository documentation remain later phases or integration work after change 047.

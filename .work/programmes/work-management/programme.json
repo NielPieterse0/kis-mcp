@@ -18,7 +18,7 @@
     "done_requires_post_merge_complete": true
   },
   "phases": [
-    {"id": "P0", "status": "active", "outcome": "Programme authority and provider-neutral foundation"},
+    {"id": "P0", "status": "completed", "outcome": "Programme authority and provider-neutral foundation"},
     {"id": "P1", "status": "planned", "outcome": "Read-only backend inventory and normalized contracts"},
     {"id": "P2", "status": "planned", "outcome": "Intake, typed records, governance records, and holds"},
     {"id": "P3", "status": "planned", "outcome": "Implementation traceability and documentation milestones"},

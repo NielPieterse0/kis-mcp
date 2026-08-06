@@ -17,4 +17,3 @@ Sampling: all enumerated units
 - Distinct subjects are not RFC kinds; cluster them before scoring.
 - Fan-in and fan-out are M only for Python and JavaScript/TypeScript-only inputs.
 - Read-set/edit-set, hidden coupling, and test isolation remain U until measured separately.
-
