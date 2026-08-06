@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "051-github-project-inventory",
-  "status": "active",
+  "status": "ready",
   "branch": "change/051-github-project-inventory",
   "worktree": ".work/worktrees/051-github-project-inventory",
   "base": "change/049-github-project-management-spec",
@@ -10,10 +10,17 @@
     ".work/changes/051-github-project-inventory/**",
     "src/kis_mcp/work_management/backend.py",
     "src/kis_mcp/providers/github/projects/**",
+    "src/kis_mcp/providers/github/scope.py",
     "src/kis_mcp/providers/github/server.py",
+    "src/kis_mcp/providers/github/settings.py",
+    "settings/providers/github-mcp.provider.json",
+    "contracts/providers/github/provider-settings.schema.json",
     "tests/work_management/test_backend.py",
     "tests/providers/github/projects/**",
-    "tests/providers/github/test_server.py"
+    "tests/providers/github/test_scope.py",
+    "tests/providers/github/test_server.py",
+    "tests/providers/github/test_settings.py",
+    "tests/providers/github/test_live_smoke.py"
   ],
   "shared_paths": [
     ".work/programmes/work-management/**",
@@ -25,8 +32,6 @@
     "src/kis_mcp/server.py",
     "src/kis_mcp/gateway/**",
     "src/kis_mcp/workflows/**",
-    "settings/**",
-    "contracts/**",
     ".github/**",
     "scripts/**",
     "docs/**",

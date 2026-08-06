@@ -19,7 +19,7 @@
   },
   "phases": [
     {"id": "P0", "status": "completed", "outcome": "Programme authority and provider-neutral foundation"},
-    {"id": "P1", "status": "active", "outcome": "Read-only backend inventory and normalized contracts"},
+    {"id": "P1", "status": "completed", "outcome": "Read-only backend inventory and normalized contracts"},
     {"id": "P2", "status": "planned", "outcome": "Intake, typed records, governance records, and holds"},
     {"id": "P3", "status": "planned", "outcome": "Implementation traceability and documentation milestones"},
     {"id": "P4", "status": "planned", "outcome": "Review evidence, triage, and finding extraction"},

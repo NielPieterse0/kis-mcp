@@ -16,5 +16,12 @@
   ],
   "unscoped_tools": [
     "get_me"
+  ],
+  "approved_projects": [
+    {
+      "owner": "NielPieterse0",
+      "owner_type": "user",
+      "project_number": 12
+    }
   ]
 }

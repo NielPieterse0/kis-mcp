@@ -193,6 +193,10 @@ def build_github_provider_server(
     scope = GitHubRepositoryScope(
         runtime.approved_repositories,
         (*runtime.unscoped_tools, "kis_github_health"),
+        tuple(
+            (project.owner, project.owner_type, project.project_number)
+            for project in runtime.approved_projects
+        ),
     )
     server.add_middleware(GitHubRepositoryScopeMiddleware(scope))
 
@@ -227,6 +231,15 @@ def register_github_provider(
                     "the official GitHub MCP provider."
                 ),
                 effects=("external_network", "repository_read", "repository_write"),
+            ),
+            ProviderCapability(
+                capability_id="project_management.read",
+                description=(
+                    "Read GitHub Project metadata, fields, and items through the "
+                    "official GitHub MCP provider."
+                ),
+                effects=("external_network", "project_read"),
+                tool_names=("projects_get", "projects_list"),
             ),
         ),
         builder=lambda: build_github_provider_server(runtime, environ=environ),

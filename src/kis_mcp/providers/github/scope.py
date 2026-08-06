@@ -23,6 +23,11 @@ _REPOSITORY_FIELDS = {
     "head_repository",
 }
 _SCOPE_QUALIFIERS = frozenset({"repo", "org", "user", "owner"})
+_PROJECT_READ_METHODS = {
+    "projects_get": frozenset({"get_project"}),
+    "projects_list": frozenset({"list_project_fields", "list_project_items"}),
+}
+_PROJECT_OWNER_TYPES = frozenset({"user", "org"})
 
 
 class GitHubRepositoryScopeError(RuntimeError):
@@ -168,16 +173,38 @@ class GitHubRepositoryScope:
         self,
         approved_repositories: Sequence[str],
         unscoped_tools: Sequence[str],
+        approved_projects: Sequence[tuple[str, str, int]] = (),
     ) -> None:
         self.approved_repositories = frozenset(
             normalize_repository(value) for value in approved_repositories
         )
         if not self.approved_repositories:
             raise ValueError("At least one approved repository is required")
+        normalized_projects: set[tuple[str, str, int]] = set()
+        for owner, owner_type, project_number in approved_projects:
+            normalized_owner = str(owner).strip().casefold()
+            normalized_owner_type = str(owner_type).strip().casefold()
+            if (
+                _REPOSITORY_PART.fullmatch(normalized_owner) is None
+                or normalized_owner in {".", ".."}
+                or normalized_owner_type not in _PROJECT_OWNER_TYPES
+                or isinstance(project_number, bool)
+                or not isinstance(project_number, int)
+                or project_number <= 0
+            ):
+                raise ValueError("approved_projects contains an invalid project identity")
+            normalized_projects.add(
+                (normalized_owner, normalized_owner_type, project_number)
+            )
+        self.approved_projects = frozenset(normalized_projects)
         self.unscoped_tools = frozenset(value.casefold() for value in unscoped_tools)
 
     def authorize(self, tool_name: str, arguments: Mapping[str, Any]) -> None:
-        if "search" in tool_name.casefold():
+        normalized_tool = tool_name.casefold()
+        if normalized_tool in _PROJECT_READ_METHODS:
+            self._authorize_project_read(normalized_tool, arguments)
+            return
+        if "search" in normalized_tool:
             self._authorize_search(arguments)
             return
 
@@ -204,6 +231,57 @@ class GitHubRepositoryScope:
             "repository_scope_violation",
             "This tool call must include an explicit approved repository target.",
         )
+
+    def _authorize_project_read(
+        self,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+    ) -> None:
+        method = arguments.get("method")
+        if not isinstance(method, str) or method not in _PROJECT_READ_METHODS[tool_name]:
+            raise GitHubRepositoryScopeError(
+                "repository_scope_violation",
+                "Project method is not approved for read-only access.",
+            )
+
+        owner = arguments.get("owner")
+        if (
+            not isinstance(owner, str)
+            or not owner.strip()
+            or owner.strip() in {".", ".."}
+            or _REPOSITORY_PART.fullmatch(owner.strip()) is None
+        ):
+            raise GitHubRepositoryScopeError(
+                "repository_scope_violation",
+                "Project owner must be a valid GitHub owner.",
+            )
+        owner_type = arguments.get("owner_type")
+        if not isinstance(owner_type, str) or owner_type.casefold() not in _PROJECT_OWNER_TYPES:
+            raise GitHubRepositoryScopeError(
+                "repository_scope_violation",
+                "Project owner_type must be user or org.",
+            )
+
+        project_number = arguments.get("project_number")
+        if (
+            isinstance(project_number, bool)
+            or not isinstance(project_number, int)
+            or project_number <= 0
+        ):
+            raise GitHubRepositoryScopeError(
+                "repository_scope_violation",
+                "Project project_number must be a positive integer.",
+            )
+        project_key = (
+            owner.strip().casefold(),
+            owner_type.strip().casefold(),
+            project_number,
+        )
+        if project_key not in self.approved_projects:
+            raise GitHubRepositoryScopeError(
+                "repository_scope_violation",
+                "Project identity is not explicitly approved.",
+            )
 
     def _authorize_search(self, arguments: Mapping[str, Any]) -> None:
         queries = _collect_queries(arguments)

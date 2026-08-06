@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from kis_mcp.capabilities.contracts import OperationEffect
 from kis_mcp.providers import (
     ProviderBoundary,
     ProviderKind,
@@ -13,7 +14,17 @@ from kis_mcp.providers import (
     ProviderState,
 )
 from kis_mcp.providers.github import server as github_server
-from kis_mcp.providers.github.settings import GitHubProviderSettings
+from kis_mcp.providers.github.settings import (
+    GitHubProjectScopeSettings,
+    GitHubProviderSettings,
+)
+from kis_mcp.providers.platform import provider_capability_contributions
+from kis_mcp.providers.runtime import (
+    ProviderMountResult,
+    ProviderMountState,
+    ProviderRuntimeComposition,
+)
+from kis_mcp.providers.service import ProviderService
 
 
 PAT = "not-for-output"
@@ -33,6 +44,13 @@ def _settings(executable: str | None = None) -> GitHubProviderSettings:
         pat_env="GITHUB_PERSONAL_ACCESS_TOKEN",
         toolsets=("all",),
         approved_repositories=("nielpieterse0/kis-mcp",),
+        approved_projects=(
+            GitHubProjectScopeSettings(
+                owner="NielPieterse0",
+                owner_type="user",
+                project_number=12,
+            ),
+        ),
         unscoped_tools=("get_me",),
     )
 
@@ -155,8 +173,16 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     assert descriptor.provider_kind is ProviderKind.CONNECTOR
     assert descriptor.boundary is ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR
     assert [item.capability_id for item in descriptor.capabilities] == [
-        "repository.remote_read_write"
+        "project_management.read",
+        "repository.remote_read_write",
     ]
+    project_read = next(
+        item
+        for item in descriptor.capabilities
+        if item.capability_id == "project_management.read"
+    )
+    assert project_read.effects == ("external_network", "project_read")
+    assert project_read.tool_names == ("projects_get", "projects_list")
     assert registry.get("github-mcp") is descriptor
 
     unavailable = descriptor.readiness_probe()
@@ -220,3 +246,42 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     }
     assert conflicted.details["commissioning"]["configured"] == "conflict"
     assert PAT not in str(conflicted.to_json_dict())
+
+
+def test_project_read_capability_contributes_namespaced_read_operations(
+    tmp_path: Path,
+) -> None:
+    registry = ProviderRegistry()
+    descriptor = github_server.register_github_provider(
+        registry,
+        _settings(str(tmp_path / "github-mcp-server.exe")),
+        environ={},
+    )
+    composition = ProviderRuntimeComposition(
+        results=(
+            ProviderMountResult(
+                provider_id=descriptor.provider_id,
+                namespace="github",
+                registered=True,
+                enabled=True,
+                build_attempted=True,
+                built=True,
+                mounted=True,
+                state=ProviderMountState.MOUNTED,
+            ),
+        )
+    )
+
+    contribution = provider_capability_contributions(
+        ProviderService(registry), composition
+    )[0]
+    operations = {operation.name: operation for operation in contribution.operations}
+
+    assert set(operations) == {"github_projects_get", "github_projects_list"}
+    for operation in operations.values():
+        assert operation.capabilities == ("project_management.read",)
+        assert operation.effects == (
+            OperationEffect.EXTERNAL,
+            OperationEffect.READ_ONLY,
+        )
+        assert operation.approval_required is False

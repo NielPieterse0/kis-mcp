@@ -1,41 +1,37 @@
 # Closeout: GitHub Project Inventory
 
-## Current state
+## Completed scope
 
-P1 is active. The worktree and change claim are registered. Production implementation has not started.
+P1 adds immutable provider-neutral Project inventory contracts and an asynchronous backend protocol. The GitHub adapter invokes only pinned read operations `projects_get` and `projects_list`, uses fixed methods, bounds pagination, normalizes supported response wrappers, redacts upstream errors, and exposes truncation explicitly.
 
-## Implemented scope
+The GitHub provider now advertises a separate `project_management.read` capability. Project calls are authorized only for exact configured `(owner, owner_type, project_number)` identities; repository-owner approval alone is insufficient.
 
-- Stacked isolated branch based on ready change 049.
-- Exact read-only P1 scope and exclusions.
-- P1 specification, plan, tasks, and recovery boundary.
+## Verification
 
-## Validation evidence
+Completed on 2026-08-06:
 
-- Claim validation: pending.
-- Focused tests: pending.
-- Repository verification: pending.
-- Live GitHub read commissioning: intentionally not part of P1 completion.
+- Focused work-management and GitHub provider tests passed.
+- `scripts/change-workflow.ps1 check` passed for all changed paths.
+- `scripts/verify.ps1` passed.
+- Pytest completed with 909 passed and 2 skipped.
+- Configuration, dependency, syntax, governance, line-ending, and exact three-rule checks passed.
 
 ## Review
 
-- Findings: pending.
-- Resolutions: pending.
+The findings-first review returned broad claims without actionable evidence. Direct inspection identified and corrected the substantive scope defect: Project access is now governed by explicit Project bindings rather than inferred repository owners. Regression coverage verifies exact approved identity, invalid methods, malformed identity, and mutation rejection.
 
 ## Git and merge
 
 - Branch: `change/051-github-project-inventory`
 - Worktree: `.work/worktrees/051-github-project-inventory`
 - Base: `change/049-github-project-management-spec`
-- Pull request or merge: not started.
-- Cleanup: prohibited while active.
+- State: ready for stacked review after change 049 lands.
 
-## Recovery
+## Residual programme phases
 
-P1 is additive and read-only. Revert its commits to remove the adapter and metadata. No remote state requires rollback.
+- P2: intake, typed records, governance records, and holds.
+- P3: implementation traceability and documentation milestones.
+- P4: review evidence, triage, and finding extraction.
+- P5: automation, CLI, CI, reconciliation, live commissioning, and status.
 
-## Residual items
-
-- P2 remote record creation and update workflows.
-- Persistent multi-project binding settings.
-- Public workflow composition and live commissioning.
+P1 performs no remote Project mutation and does not claim live GitHub Project commissioning.
