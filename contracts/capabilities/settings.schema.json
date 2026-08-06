@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kis-mcp://contracts/capabilities/settings.schema.json",
+  "title": "kis-mcp capability composition settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "suitability_weights",
+    "quality_weights",
+    "direct_profile",
+    "discovery_operations",
+    "readiness",
+    "skill_metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "suitability_weights": {
+      "type": "object"
+    },
+    "quality_weights": {
+      "type": "object"
+    },
+    "direct_profile": {
+      "type": "object"
+    },
+    "discovery_operations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "readiness": {
+      "type": "object"
+    },
+    "skill_metadata": {
+      "type": "object",
+      "minProperties": 1
+    }
+  }
+}
