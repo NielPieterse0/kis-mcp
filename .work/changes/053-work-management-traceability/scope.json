@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "change_id": "053-work-management-traceability",
+  "status": "closed",
+  "branch": "change/053-work-management-traceability",
+  "worktree": ".work/worktrees/053-work-management-traceability",
+  "base": "main",
+  "outcome": "Implement P3 provider-neutral implementation traceability and documentation milestones",
+  "owned_paths": [
+    ".work/changes/053-work-management-traceability/**",
+    "src/kis_mcp/work_management/traceability.py",
+    "tests/work_management/test_traceability.py"
+  ],
+  "shared_paths": [
+    ".work/programmes/work-management/**",
+    "src/kis_mcp/work_management/contracts.py",
+    "src/kis_mcp/work_management/lifecycle.py",
+    "src/kis_mcp/work_management/__init__.py",
+    "tests/work_management/test_contracts.py",
+    "tests/work_management/test_lifecycle.py",
+    "tests/work_management/test_architecture.py"
+  ],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    "policy/**",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/gateway/**",
+    "src/kis_mcp/providers/**",
+    "src/kis_mcp/workflows/**",
+    ".github/**"
+  ],
+  "dependencies": [
+    "052-work-management-intake"
+  ],
+  "integration_owner": null
+}

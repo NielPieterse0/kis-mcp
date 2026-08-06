@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 
 from .contracts import (
     DocumentationImpact,
+    DocumentationMilestoneState,
     DocumentationMode,
     LifecycleState,
     WorkRecord,
@@ -143,6 +144,47 @@ def evaluate_transition(
             )
 
     if target is LifecycleState.DONE:
+        if record.traceability_required:
+            if (
+                record.documentation_milestone
+                is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+            ):
+                if record.documentation_mode is DocumentationMode.REQUIRED:
+                    return TransitionDecision(
+                        allowed=False,
+                        source=record.state,
+                        target=target,
+                        reasons=("documentation_reconciliation_due",),
+                    )
+                if record.documentation_mode is DocumentationMode.ADVISORY:
+                    return TransitionDecision(
+                        allowed=True,
+                        source=record.state,
+                        target=target,
+                        reasons=("documentation_reconciliation_advisory_due",),
+                    )
+            if (
+                record.documentation_mode is DocumentationMode.REQUIRED
+                and record.documentation_milestone
+                is not DocumentationMilestoneState.POST_MERGE_COMPLETE
+            ):
+                return TransitionDecision(
+                    allowed=False,
+                    source=record.state,
+                    target=target,
+                    reasons=("documentation_reconciliation_unrecorded",),
+                )
+            if (
+                record.documentation_mode is DocumentationMode.ADVISORY
+                and record.documentation_milestone
+                is not DocumentationMilestoneState.POST_MERGE_COMPLETE
+            ):
+                return TransitionDecision(
+                    allowed=True,
+                    source=record.state,
+                    target=target,
+                    reasons=("documentation_reconciliation_advisory_incomplete",),
+                )
         if record.documentation_mode is DocumentationMode.REQUIRED:
             if not _documentation_complete(record):
                 return TransitionDecision(

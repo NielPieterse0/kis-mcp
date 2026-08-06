@@ -7,7 +7,7 @@
   "working_spec": ".work/programmes/work-management/target-spec.md",
   "roadmap": ".work/programmes/work-management/roadmap.md",
   "initial_backend": "github",
-  "current_change": "052-work-management-intake",
+  "current_change": "053-work-management-traceability",
   "dependencies": [
     "047-capability-composition-and-tool-experience"
   ],
@@ -35,7 +35,7 @@
     },
     {
       "id": "P3",
-      "status": "planned",
+      "status": "completed",
       "outcome": "Implementation traceability and documentation milestones"
     },
     {

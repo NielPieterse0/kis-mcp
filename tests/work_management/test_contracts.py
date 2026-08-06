@@ -4,6 +4,7 @@ import pytest
 
 from kis_mcp.work_management import (
     DocumentationImpact,
+    DocumentationMilestoneState,
     DocumentationMode,
     LifecycleState,
     ManagedProject,
@@ -96,4 +97,44 @@ def test_work_record_prefix_must_match_record_type() -> None:
             project_id="alpha-project",
             title="Mismatched record",
             record_type=RecordType.TASK,
+        )
+
+
+def test_work_record_serializes_traceability_documentation_milestone() -> None:
+    record = WorkRecord(
+        record_id="SPEC-053",
+        project_id="kis-mcp",
+        title="Trace implementation evidence",
+        record_type=RecordType.SPECIFICATION_SLICE,
+        traceability_required=True,
+        documentation_milestone=(
+            DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+        ),
+        documentation_event_id="doc-053-work-management-traceability-pr-63",
+    )
+
+    payload = record.to_json_dict()
+
+    assert payload["traceability_required"] is True
+    assert (
+        payload["documentation_milestone"]
+        == "documentation_reconciliation_due"
+    )
+    assert (
+        payload["documentation_event_id"]
+        == "doc-053-work-management-traceability-pr-63"
+    )
+
+
+def test_documentation_milestone_requires_event_identity() -> None:
+    with pytest.raises(ValueError, match="documentation_event_id"):
+        WorkRecord(
+            record_id="SPEC-053",
+            project_id="kis-mcp",
+            title="Trace implementation evidence",
+            record_type=RecordType.SPECIFICATION_SLICE,
+            traceability_required=True,
+            documentation_milestone=(
+                DocumentationMilestoneState.POST_MERGE_COMPLETE
+            ),
         )

@@ -9,7 +9,7 @@
 | Change | `049-github-project-management-spec` |
 | Status | Proposed target-state specification |
 | Date | 2026-08-06 |
-| Current implementation | P0 provider-neutral contracts, lifecycle, documentation milestone, and project-scoped selection implemented; backend and public integration remain planned |
+| Current implementation | Internal P0-P3 provider-neutral identity, lifecycle, inventory, intake, governance records, implementation traceability, exact-revision merge readiness, and documentation milestones implemented; review evidence, automation, provider workflows, and public integration remain planned |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
 | Initial backend | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
 | Applicability | Multiple managed repositories and projects |

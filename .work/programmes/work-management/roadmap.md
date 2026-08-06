@@ -28,4 +28,6 @@ Each implementation phase uses its own governed change, isolated worktree, bound
 
 ## Current implementation boundary
 
-Change 049 implements the provider-neutral P0 foundation under `src/kis_mcp/work_management` with focused contract, lifecycle, selection, and architecture tests. It is not publicly composed or commissioned. GitHub adapter, workflow registration, gateway exposure, remote mutation, and reader-facing repository documentation remain later phases or integration work after change 047.
+Changes 049 through 053 implement the internal provider-neutral P0-P3 foundation under `src/kis_mcp/work_management`: project identity and lifecycle, read-only Project inventory contracts, typed intake and governance records, implementation traceability, exact-revision merge readiness, and pre-merge/post-merge documentation milestones. The P3 validator detects missing, stale, duplicated, and contradictory relationships across specification records, changes, branches, worktrees, pull requests, verification runs, merge evidence, closeout, and documentation reconciliation.
+
+These contracts are not publicly composed or remotely commissioned. P4 review evidence and finding extraction, plus P5 provider workflows, CLI, CI, automation, reconciliation, portfolio status, and stable reader-facing operating documentation remain future governed phases.

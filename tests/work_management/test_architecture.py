@@ -34,6 +34,7 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
         "lifecycle.py",
         "records.py",
         "selection.py",
+        "traceability.py",
     }
 
     imports = {
