@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "050-ignore-import-isolate",
-  "status": "active",
+  "status": "ready",
   "branch": "change/050-ignore-import-isolate",
   "worktree": ".work/worktrees/050-ignore-import-isolate",
   "base": "main",
