@@ -177,6 +177,13 @@ def initialize_repository(tmp_path: Path) -> Path:
     return repository
 
 
+def set_change_status(target: Path, change_id: str, status: str) -> None:
+    scope_path = target / ".work" / "changes" / change_id / "scope.json"
+    scope = json.loads(scope_path.read_text(encoding="utf-8"))
+    scope["status"] = status
+    scope_path.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
+
+
 def test_claim_discovery_ignores_underscore_template_directories(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
@@ -327,6 +334,31 @@ def test_cleanup_refuses_dirty_worktree(tmp_path: Path) -> None:
     assert target.exists()
 
 
+@pytest.mark.parametrize("status", ["active", "ready"])
+def test_cleanup_refuses_merged_claim_until_status_is_closed(
+    tmp_path: Path,
+    status: str,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+    set_change_status(target, "001-alpha", status)
+    run_git(target, "add", ".work/changes/001-alpha")
+    run_git(target, "commit", "-m", f"docs: register {status} alpha change")
+    run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
+
+    with pytest.raises(module.ClaimError, match="CHANGE_STATUS_NOT_CLOSED"):
+        module.cleanup_change_worktree(repository, "001-alpha")
+
+    assert target.exists()
+    assert run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
+
+
 def test_cleanup_removes_clean_merged_worktree_and_branch(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
@@ -336,6 +368,7 @@ def test_cleanup_removes_clean_merged_worktree_and_branch(tmp_path: Path) -> Non
         outcome="Implement alpha",
         owned_paths=["src/**"],
     )
+    set_change_status(target, "001-alpha", "closed")
     run_git(target, "add", ".work/changes/001-alpha")
     run_git(target, "commit", "-m", "docs: register alpha change")
     run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
@@ -359,6 +392,7 @@ def test_cleanup_recovers_unregistered_long_path_remnant(
         outcome="Implement alpha",
         owned_paths=["src/**"],
     )
+    set_change_status(target, "001-alpha", "closed")
     run_git(target, "add", ".work/changes/001-alpha")
     run_git(target, "commit", "-m", "docs: register alpha change")
     run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
@@ -401,6 +435,7 @@ def test_cleanup_does_not_move_or_delete_when_registration_remains(
         outcome="Implement alpha",
         owned_paths=["src/**"],
     )
+    set_change_status(target, "001-alpha", "closed")
     run_git(target, "add", ".work/changes/001-alpha")
     run_git(target, "commit", "-m", "docs: register alpha change")
     run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")

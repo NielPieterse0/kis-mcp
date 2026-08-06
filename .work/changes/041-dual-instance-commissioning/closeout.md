@@ -52,11 +52,15 @@ Enter the existing vault unlock when prompted, then confirm `kis-op` remains ava
 
 ## Git and merge
 
-- Branch: `change/041-dual-instance-commissioning`
-- Worktree: `.work/worktrees/041-dual-instance-commissioning`
-- Implementation commit: `ecfff066dc204d889d8ac841eb73441ff1d9bc7f`
-- Pull request: `#50` — `https://github.com/NielPieterse0/kis-mcp/pull/50`
-- Cleanup: pending merge
+- Branch: `change/041-dual-instance-commissioning`.
+- Worktree: `.work/worktrees/041-dual-instance-commissioning`.
+- Implementation commit: `ecfff066dc204d889d8ac841eb73441ff1d9bc7f`.
+- Exact reviewed PR head: `6cc54e0abf613811c1244252e33fb259baf9750f`.
+- Pull request: `#50` — `https://github.com/NielPieterse0/kis-mcp/pull/50`.
+- Merge commit: `af81d2fdc16ae84635438852c6676654dced48c4`.
+- Current repository evidence: the merge and reviewed head are ancestors of `main`; the local change branch and worktree are absent.
+- Governance reconciliation: claim status corrected from stale `active` to `closed` by change `048-stale-change-cleanup-hardening`.
+- Recovery: all tracked artifacts remain recoverable from Git history and merged `main`; no worktree reconstruction is required.
 
 ## Residual items
 
