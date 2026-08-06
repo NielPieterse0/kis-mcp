@@ -41,7 +41,9 @@
     "src/kis_mcp/tools/codex_cli/tool.py",
     "src/kis_mcp/skills/metadata.py",
     "tests/discover/test_tool_registration.py",
-    "tests/discover/test_change_tool_registration.py"
+    "tests/discover/test_change_tool_registration.py",
+    "docs/OPERATIONS.md",
+    "tests/discover/test_architecture.py"
   ],
   "shared_paths": [],
   "excluded_paths": [
