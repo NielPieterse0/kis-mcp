@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "053-work-management-traceability",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/053-work-management-traceability",
   "worktree": ".work/worktrees/053-work-management-traceability",
   "base": "main",

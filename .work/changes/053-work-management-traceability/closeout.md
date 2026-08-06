@@ -30,6 +30,9 @@ Completed on 2026-08-07:
 - Governance claims checked: 51.
 - Full pytest exit code: 0; two tests skipped.
 - `git diff --check`: passed.
+- GitHub Actions workflow runs for PR #66: none configured.
+- GitHub check runs for the PR head: none configured.
+- GitHub reviews and unresolved review threads: none.
 
 ## Review
 
