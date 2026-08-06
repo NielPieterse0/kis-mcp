@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "change_id": "054-work-management-traceability-reconciliation",
+  "status": "ready",
+  "branch": "change/054-work-management-traceability-reconciliation",
+  "worktree": ".work/worktrees/054-work-management-traceability-reconciliation",
+  "base": "main",
+  "outcome": "Reconcile change 053 post-merge traceability and documentation evidence",
+  "owned_paths": [
+    ".work/changes/054-work-management-traceability-reconciliation/**"
+  ],
+  "shared_paths": [
+    ".work/changes/053-work-management-traceability/closeout.md",
+    ".work/changes/053-work-management-traceability/tasks.md"
+  ],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    "policy/**",
+    "src/**",
+    "tests/**",
+    ".github/**"
+  ],
+  "dependencies": [
+    "053-work-management-traceability"
+  ],
+  "integration_owner": null
+}
