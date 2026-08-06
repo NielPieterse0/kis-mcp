@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "change_id": "049-github-project-management-spec",
+  "status": "ready",
+  "branch": "change/049-github-project-management-spec",
+  "worktree": ".work/worktrees/049-github-project-management-spec",
+  "base": "main",
+  "outcome": "Establish a reusable multi-project work-management programme and implement its provider-neutral foundation",
+  "owned_paths": [
+    ".work/changes/049-github-project-management-spec/**",
+    "docs/development/github-project-management/README.md",
+    "src/kis_mcp/work_management/contracts.py",
+    "src/kis_mcp/work_management/lifecycle.py",
+    "src/kis_mcp/work_management/selection.py",
+    "tests/work_management/__init__.py",
+    "tests/work_management/test_contracts.py",
+    "tests/work_management/test_lifecycle.py",
+    "tests/work_management/test_selection.py"
+  ],
+  "shared_paths": [
+    ".work/programmes/work-management/**",
+    "src/kis_mcp/work_management/__init__.py",
+    "tests/work_management/test_architecture.py"
+  ],
+  "excluded_paths": [
+    "SPEC.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/gateway/**",
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/tools/platform.py",
+    "src/kis_mcp/workflows/platform.py",
+    "policy/**",
+    ".work/changes/040-context7-serena-adapters/**",
+    ".work/changes/047-capability-composition-and-tool-experience/**",
+    ".work/changes/048-stale-change-cleanup-hardening/**"
+  ],
+  "dependencies": [
+    "047-capability-composition-and-tool-experience"
+  ],
+  "integration_owner": null
+}
