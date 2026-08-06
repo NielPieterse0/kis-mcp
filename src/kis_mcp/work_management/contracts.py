@@ -83,6 +83,12 @@ class DocumentationImpact(StrEnum):
     POST_MERGE_COMPLETE = "post_merge_complete"
 
 
+class DocumentationMilestoneState(StrEnum):
+    NOT_REQUIRED = "not_required"
+    DOCUMENTATION_RECONCILIATION_DUE = "documentation_reconciliation_due"
+    POST_MERGE_COMPLETE = "post_merge_complete"
+
+
 def _required_text(value: str, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} must be a non-empty string")
@@ -173,6 +179,11 @@ class WorkRecord:
     approval_complete: bool = False
     documentation_mode: DocumentationMode = DocumentationMode.REQUIRED
     documentation_impact: DocumentationImpact = DocumentationImpact.NOT_ASSESSED
+    traceability_required: bool = False
+    documentation_milestone: DocumentationMilestoneState = (
+        DocumentationMilestoneState.NOT_REQUIRED
+    )
+    documentation_event_id: str | None = None
     documentation_rationale: str | None = None
     documentation_reviewer: str | None = None
     created_order: int = 0
@@ -197,6 +208,38 @@ class WorkRecord:
             DocumentationImpact,
             "documentation_impact",
         )
+        _enum(
+            self.documentation_milestone,
+            DocumentationMilestoneState,
+            "documentation_milestone",
+        )
+        if not isinstance(self.traceability_required, bool):
+            raise ValueError("traceability_required must be a boolean")
+        documentation_event_id = _optional_text(
+            self.documentation_event_id,
+            "documentation_event_id",
+        )
+        object.__setattr__(
+            self,
+            "documentation_event_id",
+            documentation_event_id,
+        )
+        if (
+            self.documentation_milestone
+            is DocumentationMilestoneState.NOT_REQUIRED
+            and documentation_event_id is not None
+        ):
+            raise ValueError(
+                "documentation_event_id requires a documentation milestone"
+            )
+        if (
+            self.documentation_milestone
+            is not DocumentationMilestoneState.NOT_REQUIRED
+            and documentation_event_id is None
+        ):
+            raise ValueError(
+                "documentation_event_id is required for a documentation milestone"
+            )
         if not isinstance(self.approval_required, bool):
             raise ValueError("approval_required must be a boolean")
         if not isinstance(self.approval_complete, bool):
@@ -236,6 +279,9 @@ class WorkRecord:
             "approval_complete": self.approval_complete,
             "documentation_mode": self.documentation_mode.value,
             "documentation_impact": self.documentation_impact.value,
+            "traceability_required": self.traceability_required,
+            "documentation_milestone": self.documentation_milestone.value,
+            "documentation_event_id": self.documentation_event_id,
             "documentation_rationale": self.documentation_rationale,
             "documentation_reviewer": self.documentation_reviewer,
             "created_order": self.created_order,

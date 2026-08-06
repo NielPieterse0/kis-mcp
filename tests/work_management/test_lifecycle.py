@@ -4,6 +4,7 @@ import pytest
 
 from kis_mcp.work_management import (
     DocumentationImpact,
+    DocumentationMilestoneState,
     DocumentationMode,
     LifecycleState,
     RecordType,
@@ -108,3 +109,47 @@ def test_superseded_record_is_terminal() -> None:
 
     assert decision.allowed is False
     assert decision.reasons == ("transition_not_declared",)
+
+
+def test_traceability_due_blocks_done() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        traceability_required=True,
+        documentation_impact=DocumentationImpact.PRE_MERGE_COMPLETE,
+        documentation_milestone=(
+            DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+        ),
+        documentation_event_id="doc-053-pr-63",
+    )
+
+    decision = evaluate_transition(current, LifecycleState.DONE)
+
+    assert decision.allowed is False
+    assert decision.reasons == ("documentation_reconciliation_due",)
+
+
+def test_traceability_requires_recorded_post_merge_reconciliation() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        traceability_required=True,
+        documentation_impact=DocumentationImpact.NONE,
+        documentation_rationale="No reader-facing behavior changed",
+        documentation_reviewer="operator",
+    )
+
+    decision = evaluate_transition(current, LifecycleState.DONE)
+
+    assert decision.allowed is False
+    assert decision.reasons == ("documentation_reconciliation_unrecorded",)
+
+
+def test_traceability_completed_reconciliation_allows_done() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        traceability_required=True,
+        documentation_impact=DocumentationImpact.POST_MERGE_COMPLETE,
+        documentation_milestone=DocumentationMilestoneState.POST_MERGE_COMPLETE,
+        documentation_event_id="doc-053-pr-63",
+    )
+
+    assert transition_record(current, LifecycleState.DONE).state is LifecycleState.DONE
