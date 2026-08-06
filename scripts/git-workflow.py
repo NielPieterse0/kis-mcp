@@ -499,6 +499,8 @@ def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> 
             base = None
             merged = False
         else:
+            if claim.status != "closed":
+                blockers.append("CHANGE_STATUS_NOT_CLOSED")
             base = claim.base
             merged = _run_git(
                 root,

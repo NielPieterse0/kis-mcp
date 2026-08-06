@@ -45,10 +45,12 @@
   - `b916432` — inject provider smoke application composition;
   - `682fa34` — retire provider registry compatibility alias;
   - `1d9a671` — preserve behavior and strengthen boundary tests.
-- Reviewed implementation head: `1d9a671`; the final PR head adds only these closeout artifacts after the successful verification run.
+- Exact reviewed PR head: `53cdebb71fb4ee521b59eba352fd7d6881053ed5`.
 - Pull request: `#59` — `Harden module boundaries after modularity assessment`.
-- Merge commit: pending exact-head PR review and merge.
-- Cleanup: pending successful merged-state verification.
+- Merge commit: `f4475961c44634b17327a934031f98bacc12d3d7`.
+- Current repository evidence: the merge and reviewed head are ancestors of `main`; the local change branch and worktree are absent.
+- Governance reconciliation: claim status corrected from stale `active` to `closed` by change `048-stale-change-cleanup-hardening`.
+- Recovery: all tracked artifacts remain recoverable from Git history and merged `main`; no worktree reconstruction is required.
 
 ## Residual items
 
