@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "046-modularity-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/046-modularity-hardening",
   "worktree": ".work/worktrees/046-modularity-hardening",
   "base": "main",

@@ -148,7 +148,7 @@ Add exact dry-run, help, porcelain/report-only, and no-op classifications. Resol
 
 ## HR1-07 — Serena invocation-controlled mutation outside the boundary
 
-**Implementation:** Proposed provider mapping; revise before production activation.
+**Implementation:** Approved provider mapping; production activation requires the recorded exact-contract tests.
 
 The Serena adapter resolves only destinations controlled by the concrete enabled invocation: explicit file paths, project-relative file or symbol edits, exact memory-file paths, move source and destination entries, and explicit output destinations. Serena tool names, editing capability, provider optionality, and unresolved effect coverage do not establish a write effect.
 
@@ -162,13 +162,15 @@ The Serena adapter resolves only destinations controlled by the concrete enabled
 
 **Reason approval is required:** The mapping must stop proven Serena writes outside the boundary without turning incidental provider-managed storage into a broad per-invocation blocker that suppresses otherwise valid Serena capability.
 
-**Recommended disposition:** Revise and resubmit the narrowed mapping for approval.
+**Recommended disposition:** Approve.
 
 **Operator Comments:**
 
 Separate invocation-controlled mutations from provider-managed storage. Cache, index, log, temporary, configuration, and runtime-state roots belong to installation and startup invariants unless a concrete invocation explicitly selects or alters them. Unknown or unsupported effect resolution is not proof of HR-001.
 
-**Operator decision:** [ ] Approve  [x] Revise  [ ] Reject
+The narrowed wording is approved for implementation on 2026-08-06.
+
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 

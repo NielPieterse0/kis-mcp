@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "041-dual-instance-commissioning",
-  "status": "active",
+  "status": "closed",
   "branch": "change/041-dual-instance-commissioning",
   "worktree": ".work/worktrees/041-dual-instance-commissioning",
   "base": "main",

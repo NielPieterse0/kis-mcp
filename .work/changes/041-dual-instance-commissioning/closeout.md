@@ -51,12 +51,12 @@ Enter the existing vault unlock when prompted, then confirm `kis-op` remains ava
 - Review finding resolved: the stale Windows Credential Manager statements in `SPEC.md` contradicted the implemented application-managed vault; the specification and regression coverage now agree. No blocking findings remain.
 
 ## Git and merge
-
-- Branch: `change/041-dual-instance-commissioning`
-- Worktree: `.work/worktrees/041-dual-instance-commissioning`
-- Implementation commit: `ecfff066dc204d889d8ac841eb73441ff1d9bc7f`
-- Pull request: `#50` — `https://github.com/NielPieterse0/kis-mcp/pull/50`
-- Cleanup: pending merge
+- Branch: `change/041-dual-instance-commissioning`.
+- Worktree: `.work/worktrees/041-dual-instance-commissioning`.
+- Implementation commit: `ecfff066dc204d889d8ac841eb73441ff1d9bc7f`.
+- Pull request: `#50`.
+- Merge commit on `main`: `af81d2f`.
+- Cleanup: completed; the change worktree and local change branch are no longer present.
 
 ## Residual items
 

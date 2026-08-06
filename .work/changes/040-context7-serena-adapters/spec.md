@@ -1,7 +1,7 @@
 # Change Specification: Context7 and Serena Adapters
 
 - **Change ID:** `040-context7-serena-adapters`
-- **Status:** Approved for staged implementation; HR1-07 activation remains pending revised operator approval
+- **Status:** Approved for complete staged implementation; HR1-07, HR2-06, and HR3-07 remain subject to their recorded verification conditions
 - **Risk profile:** Elevated because Serena exposes mutation, shell, and whole-artifact deletion effects
 - **Dependency:** Merged `029-tools-code-tooling` foundation; HR2-06 activation additionally depends on corrected shared command-resolver behavior
 
@@ -45,7 +45,7 @@ The mapping is narrowed to invocation-controlled destinations only:
 
 Provider-managed cache, index, log, temporary, configuration, language-server, and runtime-state roots are installation and readiness invariants. They do not independently create per-invocation HR-001 blocks unless the concrete invocation explicitly selects or changes such a destination.
 
-HR1-07 remains inactive until the operator approves the revised wording. Missing resolver coverage must not become a blanket Serena rejection.
+HR1-07 is operator-approved as of 2026-08-06 and activates only after its exact per-operation contract tests pass. Missing resolver coverage must not become a blanket Serena rejection.
 
 ### HR2-06 — Approved conditionally
 

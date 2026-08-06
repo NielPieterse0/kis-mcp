@@ -36,7 +36,6 @@
 - Remaining blocking review findings: none after focused reruns; final repository verification and remote PR review remain required before merge.
 
 ## Git and merge
-
 - Branch: `change/046-modularity-hardening`.
 - Worktree: `.work/worktrees/046-modularity-hardening`.
 - Implementation commits:
@@ -45,10 +44,9 @@
   - `b916432` — inject provider smoke application composition;
   - `682fa34` — retire provider registry compatibility alias;
   - `1d9a671` — preserve behavior and strengthen boundary tests.
-- Reviewed implementation head: `1d9a671`; the final PR head adds only these closeout artifacts after the successful verification run.
 - Pull request: `#59` — `Harden module boundaries after modularity assessment`.
-- Merge commit: pending exact-head PR review and merge.
-- Cleanup: pending successful merged-state verification.
+- Merge commit on `main`: `f4475961c44634b17327a934031f98bacc12d3d7`.
+- Cleanup: completed; the modularity worktree and local change branch are no longer present.
 
 ## Residual items
 

@@ -9,8 +9,9 @@
 - [x] Narrow HR1-07 to invocation-controlled mutations and separate provider-managed storage invariants.
 - [x] Add HR2-06 resolver-semantic and dry-run conditions.
 - [x] Add HR3-07 complete-artifact, metadata, quarantine, and consistency conditions.
-- [ ] Obtain final operator approval for the revised HR1-07 wording.
+- [x] Record final operator approval for the revised HR1-07 wording.
 - [x] Commit the revised approval gate and implementation plan.
+- [x] Close stale merged change records for `041` and `046` so governance validation succeeds.
 - [ ] Freeze pinned Context7 and Serena upstream contracts.
 - [ ] Implement the independent Context7 adapter.
 - [ ] Implement Serena bootstrap and provider-managed storage readiness.

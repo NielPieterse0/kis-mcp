@@ -17,7 +17,7 @@
 - Do not modify `src/kis_mcp/command_intent.py` or generic resolver tests in this slice.
 - Context7 normal lookups use `ToolBoundary.APPROVED_EXTERNAL_SERVICE`, not the local Work command path.
 - Provider-managed Serena cache, index, log, temporary, configuration, language-server, and runtime-state roots are installation/readiness invariants, not per-invocation hard blocks.
-- HR1-07 remains inactive until the narrowed wording receives explicit operator approval.
+- HR1-07 is approved and activates only after exact per-operation effect tests pass.
 - HR2-06 remains inactive until the corrected shared command resolver is present and its activation tests pass.
 - HR3-07 remains inactive until pinned-contract evidence proves the complete deleted artifact set and consistency behavior.
 
@@ -37,7 +37,7 @@
 - [x] Record HR1-07 as `Revise` and narrow it to invocation-controlled file and entry mutations.
 - [x] Record HR2-06 as approved with corrected-resolver and semantic-preservation conditions.
 - [x] Record HR3-07 as approved with pinned-contract completeness and consistency conditions.
-- [ ] Present the revised HR1-07 wording for final operator approval before enabling Serena mutation forwarding.
+- [x] Record the operator's 2026-08-06 approval of the revised HR1-07 wording.
 - [ ] Commit the approval-state revision separately from production implementation.
 
 ### Task 2: Freeze pinned upstream contracts
@@ -160,8 +160,10 @@
 
 **Files:**
 - Modify: `src/kis_mcp/tools/__init__.py`
+- Create: `src/kis_mcp/tools/platform.py`
 - Modify: `src/kis_mcp/server.py`
 - Create: `tests/tools/test_context7_serena_registration.py`
+- Modify: `tests/architecture/test_modularity_boundaries.py`
 - Create: `docs/development/tools/context7-serena.md`
 - Modify: `.work/changes/040-context7-serena-adapters/closeout.md`
 
@@ -169,7 +171,7 @@
 - Consumes: independent Context7 and Serena descriptors.
 - Produces: optional runtime registration with contained failure domains.
 
-- [ ] Register descriptors independently; neither builder may construct or require the other.
+- [ ] Add one Tools-module platform registration entry point that owns Context7/Serena construction and mounting; `server.py` calls that entry point without importing adapter internals, and neither adapter constructs or requires the other.
 - [ ] Ensure conditionally inactive Serena capabilities remain explicitly inactive rather than broadly disabling Serena.
 - [ ] Run `pytest tests/tools/test_context7_tool.py tests/tools/test_serena_tool.py tests/tools/test_context7_serena_registration.py -v`.
 - [ ] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 validate` and `check`.
