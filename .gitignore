@@ -9,6 +9,7 @@ build/
 
 # Project-local temporary material
 .temp/
+.import-isolate/
 .work/worktrees/
 
 # Generated state must live under C:\Projects\.kis-mcp

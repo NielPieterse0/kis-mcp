@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "050-ignore-import-isolate",
+  "status": "closed",
+  "branch": "change/050-ignore-import-isolate",
+  "worktree": ".work/worktrees/050-ignore-import-isolate",
+  "base": "main",
+  "outcome": "Ignore the operator-created temporary .import-isolate directory",
+  "owned_paths": [
+    ".work/changes/050-ignore-import-isolate/**",
+    ".gitignore"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    ".work/changes/047-capability-composition-and-tool-experience/**",
+    ".work/changes/049-github-project-management-spec/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
