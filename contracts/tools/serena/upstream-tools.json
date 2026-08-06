@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source_revision": "bcac0969fb8685783ea6d0f2642468fcc47e6395",
+  "package_version": "1.6.1",
+  "provider_schema_owner": true,
+  "effect_operations": {
+    "replace_symbol_body": {"path_argument": "relative_path", "effect": "content_write"},
+    "insert_after_symbol": {"path_argument": "relative_path", "effect": "content_write"},
+    "insert_before_symbol": {"path_argument": "relative_path", "effect": "content_write"},
+    "rename_symbol": {"path_argument": "relative_path", "effect": "content_write"},
+    "replace_content": {"path_argument": "relative_path", "effect": "content_write"},
+    "write_memory": {"path_argument": "memory_name", "effect": "content_write"},
+    "edit_memory": {"path_argument": "memory_name", "effect": "content_write"},
+    "rename_memory": {"source_argument": "old_name", "destination_argument": "new_name", "effect": "entry_move_and_reference_updates"},
+    "delete_memory": {"path_argument": "memory_name", "effect": "whole_artifact_delete", "complete_artifact_set": ["memory_markdown_file"]},
+    "execute_shell_command": {"command_argument": "command", "cwd_argument": "cwd", "effect": "shared_command_resolver"}
+  },
+  "memory_contract": {
+    "project_pattern": "<project>/.serena/memories/<memory_name>.md",
+    "global_pattern": "<global_memory_root>/<memory_name_without_global_prefix>.md",
+    "forbidden_segments": ["", ".."],
+    "delete_provider_behavior": "unlink_exact_memory_file_only"
+  }
+}

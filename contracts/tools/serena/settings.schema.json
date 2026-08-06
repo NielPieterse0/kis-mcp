@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/tools/serena/settings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "enabled", "namespace", "source_repository",
+    "source_revision", "package_name", "package_version", "package_sha256",
+    "project_boundary", "install_root", "executable", "arguments",
+    "home_root", "config_root", "cache_root", "log_root", "temp_root",
+    "language_server_root", "global_memory_root", "project_data_directory",
+    "environment_names"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "namespace": {"const": "serena"},
+    "source_repository": {"const": "https://github.com/oraios/serena"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "package_name": {"const": "serena-agent"},
+    "package_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "package_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "project_boundary": {"const": "C:\\Projects"},
+    "install_root": {"type": "string", "pattern": "^C:\\\\Projects\\\\\\.kis-mcp\\\\serena$"},
+    "executable": {"type": "string", "pattern": "^C:\\\\Projects\\\\\\.kis-mcp\\\\serena\\\\"},
+    "arguments": {"type": "array", "minItems": 2, "items": {"type": "string"}},
+    "home_root": {"type": "string"},
+    "config_root": {"type": "string"},
+    "cache_root": {"type": "string"},
+    "log_root": {"type": "string"},
+    "temp_root": {"type": "string"},
+    "language_server_root": {"type": "string"},
+    "global_memory_root": {"type": "string"},
+    "project_data_directory": {"const": ".serena"},
+    "environment_names": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"}}
+  }
+}

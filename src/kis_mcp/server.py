@@ -41,6 +41,7 @@ from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
 from .skills import register_skills_tools
 from .tools import ToolRegistry, ToolService
 from .tools.codex_cli import register_codex_tool
+from .tools.platform import compose_tool_runtime
 from .workflows.code_review import (
     AgentSettings,
     CodeReviewAgent,
@@ -262,10 +263,18 @@ def build_server(
         project_boundary=runtime.project_boundary,
         quarantine_root=runtime.quarantine_root,
     )
-    resolver = DesktopCommanderEffectResolver(
+    desktop_resolver = DesktopCommanderEffectResolver(
         project_boundary=runtime.project_boundary,
         provider_state_file=runtime.provider_state_file,
     )
+    tool_runtime_composition = compose_tool_runtime(
+        server,
+        desktop_resolver,
+        project_root=Path(runtime.project_boundary),
+        repository_root=Path(__file__).resolve().parents[2],
+        environment=os.environ,
+    )
+    resolver = tool_runtime_composition.resolver
     policy = ThreeRulePolicy(
         project_boundary=runtime.project_boundary,
         quarantine_root=runtime.quarantine_root,

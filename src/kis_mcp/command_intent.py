@@ -94,6 +94,7 @@ _NETWORK_FLAG_OPTIONS = {
     "--fail",
     "--head",
     "--compressed",
+    "--dry-run",
     "-usebasicparsing",
     "-batchmode",
     "-n",
