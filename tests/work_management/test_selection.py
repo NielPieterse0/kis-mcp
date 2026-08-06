@@ -88,3 +88,32 @@ def test_selection_returns_none_when_no_record_is_executable() -> None:
 
     assert result.selected is None
     assert result.evaluations[0].eligible is False
+
+
+def test_dependency_completion_is_scoped_to_the_same_project() -> None:
+    records = (
+        item("TASK-040", project_id="beta-project", state=LifecycleState.DONE),
+        item(
+            "TASK-041",
+            project_id="alpha-project",
+            dependency_ids=("TASK-040",),
+        ),
+    )
+
+    result = select_next_work(records, project_id="alpha-project")
+
+    assert result.selected is None
+    evaluations = {item.record_id: item for item in result.evaluations}
+    assert evaluations["TASK-041"].reasons == (
+        "dependency_incomplete:TASK-040",
+    )
+
+
+def test_external_completed_ids_require_a_project_scope() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="project_id"):
+        select_next_work(
+            (item("TASK-050", dependency_ids=("TASK-049",)),),
+            completed_record_ids=("TASK-049",),
+        )

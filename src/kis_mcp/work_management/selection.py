@@ -65,11 +65,16 @@ def select_next_work(
         if not isinstance(project_id, str) or not project_id.strip():
             raise ValueError("project_id must be a non-empty string")
         project_id = project_id.strip()
+    if completed_record_ids and project_id is None:
+        raise ValueError("project_id is required with completed_record_ids")
 
-    completed = set(completed_record_ids)
-    completed.update(
-        record.record_id for record in records if record.state is LifecycleState.DONE
-    )
+    completed = {
+        (record.project_id, record.record_id)
+        for record in records
+        if record.state is LifecycleState.DONE
+    }
+    if project_id is not None:
+        completed.update((project_id, record_id) for record_id in completed_record_ids)
     evaluations: list[CandidateEvaluation] = []
     eligible_records: list[WorkRecord] = []
 
@@ -82,7 +87,7 @@ def select_next_work(
         if record.approval_required and not record.approval_complete:
             reasons.append("approval_incomplete")
         for dependency_id in record.dependency_ids:
-            if dependency_id not in completed:
+            if (record.project_id, dependency_id) not in completed:
                 reasons.append(f"dependency_incomplete:{dependency_id}")
 
         eligible = not reasons
