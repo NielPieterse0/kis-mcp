@@ -230,6 +230,14 @@ def test_cleanup_preview_classifies_dirty_and_merged_worktrees(tmp_path: Path) -
     assert "CHANGE_BRANCH_UNMERGED" in unmerged["worktrees"][0]["blockers"]
 
     run_git(repository, "merge", "--no-ff", f"change/{change_id}", "-m", "merge alpha")
+    active = module.cleanup_preview(repository, change_id=change_id)
+    assert active["worktrees"][0]["eligible"] is False
+    assert "CHANGE_STATUS_NOT_CLOSED" in active["worktrees"][0]["blockers"]
+
+    write_claim(target, change_id, status="closed")
+    run_git(target, "add", f".work/changes/{change_id}")
+    run_git(target, "commit", "-m", "docs: close change")
+    run_git(repository, "merge", "--no-ff", f"change/{change_id}", "-m", "merge closure")
     clean = module.cleanup_preview(repository, change_id=change_id)
     assert clean["worktrees"][0]["eligible"] is True
 
@@ -375,7 +383,7 @@ def test_cleanup_preview_does_not_depend_on_primary_worktree_order(
     fake_governance = SimpleNamespace(
         ClaimError=ClaimError,
         load_worktree_claims=lambda root: [
-            SimpleNamespace(branch=f"change/{change_id}", base="main")
+            SimpleNamespace(branch=f"change/{change_id}", base="main", status="closed")
         ],
         discover_worktrees=lambda root: [
             SimpleNamespace(

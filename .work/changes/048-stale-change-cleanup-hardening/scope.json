@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "change_id": "048-stale-change-cleanup-hardening",
+  "status": "closed",
+  "branch": "change/048-stale-change-cleanup-hardening",
+  "worktree": ".work/worktrees/048-stale-change-cleanup-hardening",
+  "base": "main",
+  "outcome": "Reconcile stale merged change claims and prevent cleanup from removing worktrees before closure metadata is merged",
+  "owned_paths": [
+    ".work/changes/041-dual-instance-commissioning/scope.json",
+    ".work/changes/041-dual-instance-commissioning/closeout.md",
+    ".work/changes/046-modularity-hardening/scope.json",
+    ".work/changes/046-modularity-hardening/closeout.md",
+    ".work/changes/048-stale-change-cleanup-hardening/**",
+    "scripts/change-governance.py",
+    "scripts/git-workflow.py",
+    "tests/test_change_governance.py",
+    "tests/test_git_workflow.py"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    ".work/changes/047-capability-composition-and-tool-experience/**",
+    ".work/worktrees/040-context7-serena-adapters/**",
+    ".work/worktrees/047-capability-composition-and-tool-experience/**",
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

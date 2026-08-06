@@ -464,7 +464,12 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
     claims = [claim for claim in _claims_in_checkout(target) if claim.change_id == normalized_id]
     if len(claims) != 1:
         raise ClaimError(f"CHANGE_SCOPE_MISSING: {normalized_id}")
-    base = claims[0].base
+    claim = claims[0]
+    if claim.status != "closed":
+        raise ClaimError(
+            f"CHANGE_STATUS_NOT_CLOSED: {normalized_id}: status is {claim.status}"
+        )
+    base = claim.base
     ancestor = _run_git(root, "merge-base", "--is-ancestor", branch, base, check=False)
     if ancestor.returncode != 0:
         raise ClaimError(f"CHANGE_BRANCH_UNMERGED: {branch} is not merged into {base}")
