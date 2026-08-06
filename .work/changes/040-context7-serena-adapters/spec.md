@@ -55,7 +55,7 @@ Serena `execute_shell_command` may delegate to the shared command-effect resolve
 2. the adapter preserves command text or argument vectors, working directory, shell type, quoting, argument boundaries, and explicitly represented environment target data;
 3. tests prove that dry-run status alone is not treated as evidence of no network use.
 
-Generic resolver corrections remain outside this slice. If the corrected resolver is absent, Serena shell capability remains inactive while the rest of Serena may proceed.
+This slice implements only the approved resolver corrections required by HR2-06. Serena shell activation remains contingent on the focused shared-resolver and Serena delegation tests passing.
 
 ### HR3-07 — Approved conditionally
 

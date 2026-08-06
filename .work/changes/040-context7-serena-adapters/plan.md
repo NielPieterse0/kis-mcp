@@ -4,7 +4,7 @@
 
 **Goal:** Integrate independent pinned Context7 and Serena adapters through the existing Tools foundation while activating only the operator-approved, evidence-complete HR mappings.
 
-**Architecture:** Context7 is an approved external read-only evidence adapter. Serena is a local stdio MCP adapter whose provider-managed state is contained through settings and readiness invariants, while invocation-controlled mutations, shell effects, and whole-memory deletion are resolved through narrow adapters into the existing HR-001/002/003 enforcement path. Generic command-resolver repair remains outside this slice.
+**Architecture:** Context7 is an approved external read-only evidence adapter. Serena is a local stdio MCP adapter whose provider-managed state is contained through settings and readiness invariants, while invocation-controlled mutations, shell effects, and whole-memory deletion are resolved through narrow adapters into the existing HR-001/002/003 enforcement path. The approved shared resolver corrections required by Serena shell activation are implemented in the same isolated slice with dedicated tests and no broader policy expansion.
 
 **Tech Stack:** Python 3.11 stdlib, FastMCP, JSON Schema, PowerShell installers, pytest.
 
@@ -14,7 +14,7 @@
 - Preserve exactly HR-001, HR-002, and HR-003.
 - Use `docs/HARD-BLOCK-APPROVAL-REGISTER.md` as the only hard-block approval register.
 - Do not create a second policy engine or provider-native restriction layer.
-- Do not modify `src/kis_mcp/command_intent.py` or generic resolver tests in this slice.
+- Implement only the approved shared resolver corrections required by HR2-06; do not broaden command policy beyond the recorded exact contracts.
 - Context7 normal lookups use `ToolBoundary.APPROVED_EXTERNAL_SERVICE`, not the local Work command path.
 - Provider-managed Serena cache, index, log, temporary, configuration, language-server, and runtime-state roots are installation/readiness invariants, not per-invocation hard blocks.
 - HR1-07 is approved and activates only after exact per-operation effect tests pass.
@@ -112,7 +112,7 @@
 **Interfaces:**
 - Produces: `resolve_serena_effects(operation: str, arguments: Mapping[str, object], settings: SerenaSettings) -> InvocationEffects`.
 
-- [ ] Keep this task blocked until the revised HR1-07 wording is explicitly approved.
+- [x] Confirm the revised HR1-07 wording is explicitly approved in the existing register.
 - [ ] Add failing tests for explicit file paths, project-relative symbol edits, exact memory paths, move source/destination, explicit outputs, argument precedence, traversal, links, junctions, and prefix collisions.
 - [ ] Add counterexamples proving provider-managed state roots, reads, unknown effect coverage, and valid in-boundary edits do not create HR-001 blocks.
 - [ ] Implement exact per-operation contracts; do not infer destinations generically from all path-like arguments.
@@ -120,22 +120,26 @@
 - [ ] Commit HR1-07 mapping independently.
 
 ### Task 6: Integrate HR2-06 through the corrected shared resolver
-
 **Files:**
+- Modify: `src/kis_mcp/command_intent.py`
+- Modify: `src/kis_mcp/shell_parser.py`
+- Modify: `tests/test_desktop_commander.py`
+- Modify: `tests/test_shell_parser.py`
 - Modify: `src/kis_mcp/tools/serena/effects.py`
 - Modify: `tests/tools/test_serena_tool.py`
 
 **Interfaces:**
-- Consumes: corrected repository `resolve_command_effects(...)` behavior.
-- Produces: unchanged-semantic delegation for Serena `execute_shell_command`.
+- Produces: corrected shared `resolve_command_effects(...)` behavior and unchanged-semantic Serena delegation.
 
-- [ ] Verify the branch base contains the approved generic resolver corrections for network-bearing options, case-sensitive short options, shell quoting/redirection, and exact operand contracts.
-- [ ] If that verification fails, leave Serena shell activation disabled and do not patch the generic resolver in this slice.
-- [ ] Add tests preserving command text or argument vector, shell type, working directory, quoting, argument boundaries, and explicitly represented environment target data.
-- [ ] Add proxy, connection-routing, DNS override, jump-host, package-source, Git-remote, localhost, URL-as-data, unknown-command, composed-command, and dry-run-network cases.
-- [ ] Delegate to the shared resolver without reconstructing command semantics.
-- [ ] Run `pytest tests/tools/test_serena_tool.py -k shell -v` and confirm pass.
-- [ ] Commit HR2-06 integration independently.
+- [ ] Add failing shared-resolver tests for proxy, connection-routing, DNS override, jump-host, case-sensitive short options, quoted/escaped redirection, and exact command operand contracts.
+- [ ] Run the focused shared-resolver tests and confirm they fail for the approved missing behavior.
+- [ ] Implement the minimal shared resolver corrections without changing unknown-command or URL-as-data behavior.
+- [ ] Run the focused shared-resolver tests and existing command-intent suite and confirm pass.
+- [ ] Add Serena tests preserving command text or argument vector, shell type, working directory, quoting, argument boundaries, and explicitly represented environment target data.
+- [ ] Add Serena proxy, connection-routing, DNS override, jump-host, package-source, Git-remote, localhost, URL-as-data, unknown-command, composed-command, and dry-run-network cases.
+- [ ] Delegate to the corrected shared resolver without reconstructing command semantics.
+- [ ] Run `pytest tests/test_desktop_commander.py tests/test_shell_parser.py tests/tools/test_serena_tool.py -k "network or shell or redirect or command" -v` and confirm pass.
+- [ ] Commit shared resolver and HR2-06 integration independently.
 
 ### Task 7: Implement HR3-07 complete-artifact quarantine
 
