@@ -16,35 +16,94 @@
     "pat_env",
     "toolsets",
     "approved_repositories",
+    "approved_projects",
     "unscoped_tools"
   ],
   "properties": {
-    "schema_version": {"const": 2},
-    "provider_id": {"const": "github-mcp"},
-    "authoritative_source": {"const": "https://github.com/github/github-mcp-server"},
-    "release_tag": {"const": "v1.8.0"},
-    "source_revision": {"const": "ca8ab52dcc45b86fae190398178fd22edb7b1362"},
-    "transport": {"const": "stdio"},
-    "executable": {"type": "string", "minLength": 1},
-    "auth_mode": {"const": "oauth"},
-    "pat_env": {"const": "GITHUB_PERSONAL_ACCESS_TOKEN"},
+    "schema_version": {
+      "const": 2
+    },
+    "provider_id": {
+      "const": "github-mcp"
+    },
+    "authoritative_source": {
+      "const": "https://github.com/github/github-mcp-server"
+    },
+    "release_tag": {
+      "const": "v1.8.0"
+    },
+    "source_revision": {
+      "const": "ca8ab52dcc45b86fae190398178fd22edb7b1362"
+    },
+    "transport": {
+      "const": "stdio"
+    },
+    "executable": {
+      "type": "string",
+      "minLength": 1
+    },
+    "auth_mode": {
+      "const": "oauth"
+    },
+    "pat_env": {
+      "const": "GITHUB_PERSONAL_ACCESS_TOKEN"
+    },
     "toolsets": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"}
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      }
     },
     "approved_repositories": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?$"}
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:\\.git)?$"
+      }
     },
     "unscoped_tools": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"}
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.-]+$"
+      }
+    },
+    "approved_projects": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "owner",
+          "owner_type",
+          "project_number"
+        ],
+        "properties": {
+          "owner": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "owner_type": {
+            "enum": [
+              "user",
+              "org"
+            ]
+          },
+          "project_number": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
     }
   }
 }

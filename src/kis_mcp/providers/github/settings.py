@@ -26,12 +26,40 @@ _SETTINGS_KEYS = {
     "pat_env",
     "toolsets",
     "approved_repositories",
+    "approved_projects",
     "unscoped_tools",
 }
 _ENV_NAME = re.compile(r"^[A-Z_][A-Z0-9_]*$")
 _REVISION = re.compile(r"^[0-9a-fA-F]{40}$")
 _RELEASE_TAG = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+$")
 _NAME = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+@dataclass(frozen=True, slots=True)
+class GitHubProjectScopeSettings:
+    owner: str
+    owner_type: str
+    project_number: int
+
+    def __post_init__(self) -> None:
+        owner = _string(self.owner, "approved_projects[].owner")
+        if _NAME.fullmatch(owner) is None or owner in {".", ".."}:
+            raise RuntimeError("approved_projects[].owner is invalid")
+        owner_type = _string(
+            self.owner_type, "approved_projects[].owner_type"
+        ).casefold()
+        if owner_type not in {"user", "org"}:
+            raise RuntimeError("approved_projects[].owner_type must be user or org")
+        if (
+            isinstance(self.project_number, bool)
+            or not isinstance(self.project_number, int)
+            or self.project_number <= 0
+        ):
+            raise RuntimeError(
+                "approved_projects[].project_number must be a positive integer"
+            )
+        object.__setattr__(self, "owner", owner)
+        object.__setattr__(self, "owner_type", owner_type)
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +75,7 @@ class GitHubProviderSettings:
     pat_env: str
     toolsets: tuple[str, ...]
     approved_repositories: tuple[str, ...]
+    approved_projects: tuple[GitHubProjectScopeSettings, ...]
     unscoped_tools: tuple[str, ...]
 
     def launch_args(self) -> tuple[str, ...]:
@@ -140,6 +169,39 @@ def load_github_provider_settings(
     if len(set(repositories)) != len(repositories):
         raise RuntimeError("approved_repositories contains duplicate repositories")
 
+    raw_projects = document.get("approved_projects")
+    if (
+        not isinstance(raw_projects, Sequence)
+        or isinstance(raw_projects, (str, bytes))
+        or not raw_projects
+    ):
+        raise RuntimeError("approved_projects must be a non-empty array")
+    projects: list[GitHubProjectScopeSettings] = []
+    for raw_project in raw_projects:
+        if not isinstance(raw_project, Mapping):
+            raise RuntimeError("approved_projects[] must be an object")
+        unknown_project_keys = sorted(
+            set(raw_project).difference({"owner", "owner_type", "project_number"})
+        )
+        if unknown_project_keys:
+            raise RuntimeError(
+                "approved_projects[] contains unknown keys: "
+                f"{unknown_project_keys}"
+            )
+        projects.append(
+            GitHubProjectScopeSettings(
+                owner=raw_project.get("owner"),
+                owner_type=raw_project.get("owner_type"),
+                project_number=raw_project.get("project_number"),
+            )
+        )
+    project_keys = [
+        (project.owner.casefold(), project.owner_type, project.project_number)
+        for project in projects
+    ]
+    if len(set(project_keys)) != len(project_keys):
+        raise RuntimeError("approved_projects contains duplicate projects")
+
     unscoped_tools = tuple(
         value.casefold()
         for value in _strings(document.get("unscoped_tools"), "unscoped_tools")
@@ -159,5 +221,6 @@ def load_github_provider_settings(
         pat_env=pat_env,
         toolsets=toolsets,
         approved_repositories=repositories,
+        approved_projects=tuple(projects),
         unscoped_tools=unscoped_tools,
     )

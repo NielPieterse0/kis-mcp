@@ -7,6 +7,7 @@ import pytest
 
 from kis_mcp.providers.github.settings import (
     OFFICIAL_GITHUB_MCP_SOURCE,
+    GitHubProjectScopeSettings,
     GitHubProviderSettings,
     load_github_provider_settings,
 )
@@ -28,6 +29,13 @@ def _document() -> dict[str, object]:
         "pat_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
         "toolsets": ["all"],
         "approved_repositories": ["NielPieterse0/kis-mcp"],
+        "approved_projects": [
+            {
+                "owner": "NielPieterse0",
+                "owner_type": "user",
+                "project_number": 12,
+            }
+        ],
         "unscoped_tools": ["get_me"],
     }
 

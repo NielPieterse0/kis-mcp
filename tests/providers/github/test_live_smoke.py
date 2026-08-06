@@ -7,7 +7,10 @@ from typing import Any
 import pytest
 
 from kis_mcp.providers.github import commission, smoke
-from kis_mcp.providers.github.settings import GitHubProviderSettings
+from kis_mcp.providers.github.settings import (
+    GitHubProjectScopeSettings,
+    GitHubProviderSettings,
+)
 
 
 def _settings() -> GitHubProviderSettings:
@@ -23,6 +26,13 @@ def _settings() -> GitHubProviderSettings:
         pat_env="GITHUB_PERSONAL_ACCESS_TOKEN",
         toolsets=("all",),
         approved_repositories=("nielpieterse0/kis-mcp",),
+        approved_projects=(
+            GitHubProjectScopeSettings(
+                owner="NielPieterse0",
+                owner_type="user",
+                project_number=12,
+            ),
+        ),
         unscoped_tools=("get_me",),
     )
 
