@@ -41,6 +41,10 @@ class CapabilityRuntimeState:
             capability
             for contribution in self.catalogue.contributions
             if self.readiness[contribution.contribution_id].operational
+            and (
+                not contribution.operations
+                or any(operation.enabled for operation in contribution.operations)
+            )
             for capability in contribution.capabilities
         )
 

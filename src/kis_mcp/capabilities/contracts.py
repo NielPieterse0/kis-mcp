@@ -64,6 +64,15 @@ def _unique_text(values: tuple[str, ...], label: str) -> tuple[str, ...]:
     return tuple(sorted(normalized))
 
 
+def _unique_text_preserving_order(
+    values: tuple[str, ...], label: str
+) -> tuple[str, ...]:
+    normalized = tuple(_identifier(value, label) for value in values)
+    if len(set(normalized)) != len(normalized):
+        raise ValueError(f"{label} values must be unique")
+    return normalized
+
+
 def _json_value(value: Any) -> Any:
     if isinstance(value, StrEnum):
         return value.value
@@ -348,7 +357,11 @@ class WorkflowDescriptor:
         object.__setattr__(self, "title", _required_text(self.title, "workflow title"))
         object.__setattr__(self, "description", _required_text(self.description, "workflow description"))
         object.__setattr__(self, "capabilities", _unique_text(self.capabilities, "capability"))
-        object.__setattr__(self, "required_steps", _unique_text(self.required_steps, "required_step"))
+        object.__setattr__(
+            self,
+            "required_steps",
+            _unique_text_preserving_order(self.required_steps, "required_step"),
+        )
         object.__setattr__(self, "completion_criteria", tuple(sorted(_required_text(item, "completion criterion") for item in self.completion_criteria)))
         object.__setattr__(self, "activation_terms", tuple(sorted(_required_text(item, "activation term").casefold() for item in self.activation_terms)))
         if not self.capabilities or not self.required_steps or not self.completion_criteria or not self.activation_terms:

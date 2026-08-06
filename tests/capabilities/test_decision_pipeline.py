@@ -190,5 +190,15 @@ def test_workflow_recommendation_covers_full_user_task() -> None:
     result = resolver.recommend_workflows("review and merge this pull request safely and clean the worktree")
 
     assert result[0].workflow_id == "pull-request-safe-closeout"
-    assert result[0].required_steps == ("github_merge_pull_request", "inspect_change", "run_verification")
+    assert result[0].required_steps == (
+        "inspect_change",
+        "run_verification",
+        "github_merge_pull_request",
+    )
+    assert result[0].eligible is False
+    assert result[0].missing_capabilities == (
+        "github.pull-request.merge",
+        "validation.execute",
+    )
     assert "activation term match" in result[0].reasons
+    assert "2 capability prerequisites unavailable" in result[0].reasons

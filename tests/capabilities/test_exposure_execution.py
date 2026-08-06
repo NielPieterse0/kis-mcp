@@ -21,6 +21,8 @@ from kis_mcp.capabilities.exposure import ExposureMiddleware, ExposurePlanner
 from kis_mcp.capabilities.execution import CapabilityExecutionRouter
 from kis_mcp.capabilities.normalization import default_quality
 from kis_mcp.capabilities.runtime import CapabilityRuntimeState
+from kis_mcp.capabilities.surface import capability_control_contribution
+from kis_mcp.capabilities.tools import register_capability_tools
 from kis_mcp.capabilities.settings import load_capability_settings
 
 
@@ -191,3 +193,83 @@ def test_execution_router_never_bypasses_approval_or_readiness() -> None:
                 "merge_tool", {}
             )
         )
+
+
+
+def test_execution_router_rejects_capability_control_recursion() -> None:
+    server = FastMCP("execution-recursion-test")
+    runtime = state(capability_control_contribution())
+    router = CapabilityExecutionRouter(server, runtime)
+
+    with pytest.raises(ToolError, match="DISPATCH_RECURSION_BLOCKED"):
+        asyncio.run(
+            router.execute_read(
+                "execute_read_action",
+                {"operation": "execute_read_action", "arguments": {}},
+            )
+        )
+
+
+
+def test_runtime_capabilities_exclude_contributions_without_registered_operations() -> None:
+    base = contribution("unregistered", "missing_tool", OperationEffect.READ_ONLY)
+    from dataclasses import replace
+
+    disabled_operation = replace(base.operations[0], enabled=False)
+    unavailable_operation_contribution = replace(
+        base, operations=(disabled_operation,)
+    )
+    skill_like = CapabilityContribution(
+        contribution_id="skill-like",
+        domain=CapabilityDomain.SKILL,
+        category="analysis",
+        capabilities=("analysis.skill",),
+        operations=(),
+        dependencies=(),
+        effects=(OperationEffect.READ_ONLY,),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id="skill-like",
+            state=ReadinessState.READY,
+            summary="ready",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+    )
+
+    runtime = state(unavailable_operation_contribution, skill_like)
+
+    assert "unregistered.operate" not in runtime.available_capabilities
+    assert "analysis.skill" in runtime.available_capabilities
+
+
+
+def test_capability_search_reports_per_category_truncation() -> None:
+    def skill_like(contribution_id: str) -> CapabilityContribution:
+        return CapabilityContribution(
+            contribution_id=contribution_id,
+            domain=CapabilityDomain.SKILL,
+            category="alpha-analysis",
+            capabilities=(f"{contribution_id}.alpha",),
+            operations=(),
+            dependencies=(),
+            effects=(OperationEffect.READ_ONLY,),
+            readiness_probe=lambda: ReadinessSnapshot(
+                contribution_id=contribution_id,
+                state=ReadinessState.READY,
+                summary="ready",
+            ),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+            quality=default_quality(),
+        )
+
+    runtime = state(skill_like("alpha-one"), skill_like("alpha-two"))
+    server = FastMCP("search-truncation-test")
+    register_capability_tools(server, runtime)
+
+    payload = asyncio.run(
+        server.call_tool("search_capabilities", {"query": "alpha", "limit": 1})
+    ).structured_content
+
+    assert payload is not None
+    assert len(payload["contributions"]) == 1
+    assert payload["truncated"] is True

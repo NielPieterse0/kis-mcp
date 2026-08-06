@@ -176,3 +176,30 @@ def test_server_module_is_thin_compatibility_facade() -> None:
     assert "register_discover_tools" not in source
     assert "compose_provider_runtime" not in source
     assert len(source.splitlines()) <= 80
+
+
+
+def test_capability_search_returns_skill_and_workflow_contributions() -> None:
+    composed = compose_gateway(
+        load_runtime_config(),
+        validate_provider=False,
+        provider_service=service(),
+        provider_runtime_settings=runtime_settings(),
+        create_proxy_fn=lambda *_args, **_kwargs: FastMCP("cross-domain-search"),
+    )
+
+    payload = asyncio.run(
+        composed.server.call_tool(
+            "search_capabilities", {"query": "modularity", "limit": 20}
+        )
+    ).structured_content
+
+    assert payload is not None
+    assert any(
+        item["contribution_id"] == "skill.modularity-assessment"
+        for item in payload["contributions"]
+    )
+    assert any(
+        item["workflow_id"] == "assess-repository-modularity"
+        for item in payload["workflows"]
+    )

@@ -48,6 +48,8 @@ class WorkflowRecommendation:
     title: str
     score: int
     required_steps: tuple[str, ...]
+    eligible: bool
+    missing_capabilities: tuple[str, ...]
     reasons: tuple[str, ...]
 
     def to_json_dict(self) -> dict[str, object]:
@@ -56,6 +58,8 @@ class WorkflowRecommendation:
             "title": self.title,
             "score": self.score,
             "required_steps": list(self.required_steps),
+            "eligible": self.eligible,
+            "missing_capabilities": list(self.missing_capabilities),
             "reasons": list(self.reasons),
         }
 
@@ -71,6 +75,10 @@ class CapabilityResolver:
             capability
             for contribution in self.catalogue.contributions
             if self.readiness[contribution.contribution_id].operational
+            and (
+                not contribution.operations
+                or any(operation.enabled for operation in contribution.operations)
+            )
             for capability in contribution.capabilities
         )
 
@@ -136,6 +144,7 @@ class CapabilityResolver:
 
     def recommend_workflows(self, query: str) -> tuple[WorkflowRecommendation, ...]:
         query_tokens = set(_TOKEN.findall(query.casefold()))
+        available = self._available_capabilities()
         recommendations: list[WorkflowRecommendation] = []
         for workflow in self.catalogue.workflows:
             best = 0
@@ -147,18 +156,40 @@ class CapabilityResolver:
                 best = max(best, round(100 * overlap / len(term_tokens)))
             if best < 50:
                 continue
-            reasons = ("activation term match",)
+            missing = tuple(
+                sorted(
+                    capability
+                    for capability in workflow.capabilities
+                    if capability not in available
+                )
+            )
+            coverage = round(
+                100
+                * (len(workflow.capabilities) - len(missing))
+                / len(workflow.capabilities)
+            )
+            score = round(0.75 * best + 0.25 * coverage)
+            reasons = ["activation term match"]
+            if missing:
+                reasons.append(
+                    f"{len(missing)} capability prerequisites unavailable"
+                )
+            else:
+                reasons.append("all capability prerequisites available")
             recommendations.append(
                 WorkflowRecommendation(
                     workflow_id=workflow.workflow_id,
                     title=workflow.title,
-                    score=best,
+                    score=score,
                     required_steps=workflow.required_steps,
-                    reasons=reasons,
+                    eligible=not missing,
+                    missing_capabilities=missing,
+                    reasons=tuple(reasons),
                 )
             )
         recommendations.sort(key=lambda item: (-item.score, item.workflow_id))
         return tuple(recommendations)
+
 
 
 __all__ = [

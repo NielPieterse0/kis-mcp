@@ -24,7 +24,32 @@ def register_capability_tools(server: FastMCP, runtime: CapabilityRuntimeState) 
     @server.tool(name="search_capabilities")
     def search_capabilities(query: str, limit: int = 20) -> dict[str, Any]:
         bounded = max(1, min(limit, 100))
+        contributions: list[dict[str, Any]] = []
         operations: list[dict[str, Any]] = []
+        workflows: list[dict[str, Any]] = []
+
+        for contribution in runtime.catalogue.contributions:
+            if not _matches(
+                query,
+                (
+                    contribution.contribution_id,
+                    contribution.category,
+                    *contribution.capabilities,
+                ),
+            ):
+                continue
+            readiness = runtime.readiness[contribution.contribution_id]
+            contributions.append(
+                {
+                    "contribution_id": contribution.contribution_id,
+                    "domain": contribution.domain.value,
+                    "category": contribution.category,
+                    "capabilities": list(contribution.capabilities),
+                    "readiness": readiness.state.value,
+                    "readiness_summary": readiness.summary,
+                }
+            )
+
         for operation in runtime.catalogue.operations:
             contribution = runtime.catalogue.contribution_for(operation)
             if not _matches(
@@ -54,11 +79,32 @@ def register_capability_tools(server: FastMCP, runtime: CapabilityRuntimeState) 
                     "eligibility_reasons": list(decision.reasons),
                 }
             )
+
+        for workflow in runtime.catalogue.workflows:
+            if not _matches(
+                query,
+                (
+                    workflow.workflow_id,
+                    workflow.title,
+                    workflow.description,
+                    *workflow.capabilities,
+                    *workflow.activation_terms,
+                ),
+            ):
+                continue
+            workflows.append(workflow.to_json_dict())
+
+        truncated = any(
+            len(items) > bounded
+            for items in (contributions, operations, workflows)
+        )
         return {
             "schema_version": 1,
             "query": query,
+            "contributions": contributions[:bounded],
             "operations": operations[:bounded],
-            "truncated": len(operations) > bounded,
+            "workflows": workflows[:bounded],
+            "truncated": truncated,
         }
 
     @server.tool(name="describe_capability")

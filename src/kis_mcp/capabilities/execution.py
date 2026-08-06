@@ -72,6 +72,13 @@ class CapabilityExecutionRouter:
         except KeyError as exc:
             raise ToolError(f"UNKNOWN_CAPABILITY_OPERATION: {operation_name}") from exc
 
+        contribution = self.runtime.catalogue.contribution_for(operation)
+        if contribution.contribution_id == "capability-control":
+            raise ToolError(
+                "DISPATCH_RECURSION_BLOCKED: capability control operations cannot "
+                "be invoked through a generic dispatcher"
+            )
+
         effects = frozenset(operation.effects)
         if required_effect is not None and required_effect not in effects:
             raise ToolError(

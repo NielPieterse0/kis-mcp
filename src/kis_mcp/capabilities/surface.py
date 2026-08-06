@@ -26,26 +26,50 @@ def _annotation(tool: Any, name: str) -> bool:
     return bool(getattr(annotations, name, False))
 
 
-def _runtime_effects(name: str, tool: Any, *, external: bool) -> tuple[OperationEffect, ...]:
+def _runtime_effects(
+    name: str,
+    tool: Any,
+    *,
+    owner_effects: tuple[OperationEffect, ...],
+) -> tuple[OperationEffect, ...]:
     normalized = name.casefold()
-    effects: set[OperationEffect] = set()
+    owner = set(owner_effects)
+    external = OperationEffect.EXTERNAL in owner
+    read_only = _annotation(tool, "readOnlyHint") or normalized.startswith(
+        (
+            "read_",
+            "list_",
+            "get_",
+            "search_",
+            "inspect_",
+            "describe_",
+            "recommend_",
+            "load_",
+            "evaluate_",
+        )
+    ) or normalized in {"kis_health", "kis_provider_status"}
+
     if external:
-        effects.add(OperationEffect.EXTERNAL)
-    if _annotation(tool, "readOnlyHint") or normalized.startswith(
-        ("read_", "list_", "get_", "search_", "inspect_", "describe_", "recommend_", "load_", "evaluate_")
-    ) or normalized in {"kis_health", "kis_provider_status"}:
-        effects.add(OperationEffect.READ_ONLY)
-    if any(term in normalized for term in ("quarantine", "delete_", "remove_")):
-        effects.add(OperationEffect.QUARANTINE)
-    if normalized.startswith(("write_", "edit_", "create_", "move_", "restore_", "improve_", "set_", "refresh_")):
-        effects.add(OperationEffect.LOCAL_CHANGE)
-    if any(term in normalized for term in ("process", "command", "terminate", "kill_", "stop_")):
-        effects.add(OperationEffect.PROCESS)
+        effects = {OperationEffect.EXTERNAL}
+        if read_only:
+            effects.add(OperationEffect.READ_ONLY)
+        return tuple(sorted(effects, key=lambda item: item.value))
+
+    if read_only:
+        return (OperationEffect.READ_ONLY,)
+    if normalized.startswith(("kis_quarantine_", "delete_", "remove_")):
+        return (OperationEffect.QUARANTINE,)
+    if normalized.startswith(
+        ("start_process", "interact_with_process", "kill_process", "terminate_", "stop_")
+    ):
+        return (OperationEffect.PROCESS,)
+    if normalized.startswith(
+        ("write_", "edit_", "create_", "move_", "restore_", "improve_", "set_", "refresh_")
+    ):
+        return (OperationEffect.LOCAL_CHANGE,)
     if normalized == "review_change_with_agent":
-        effects.update({OperationEffect.READ_ONLY, OperationEffect.EXTERNAL})
-    if not effects:
-        effects.add(OperationEffect.PROCESS)
-    return tuple(sorted(effects, key=lambda item: item.value))
+        return (OperationEffect.READ_ONLY, OperationEffect.EXTERNAL)
+    return (OperationEffect.PROCESS,)
 
 
 def _capabilities(name: str, effects: tuple[OperationEffect, ...]) -> tuple[str, ...]:
@@ -113,6 +137,30 @@ def augment_with_runtime_surface(
     provider_namespaces: dict[str, str],
 ) -> tuple[CapabilityContribution, ...]:
     items = {item.contribution_id: item for item in contributions}
+    runtime_tools = tuple(tools)
+    actual_names = {
+        str(getattr(tool, "name", "")) for tool in runtime_tools if getattr(tool, "name", None)
+    }
+    for contribution_id, contribution in tuple(items.items()):
+        if contribution_id == "capability-control":
+            continue
+        operations = tuple(
+            operation
+            if operation.name in actual_names
+            else replace(
+                operation,
+                enabled=False,
+                exposure=ExposurePolicy(
+                    mode=ExposureMode.STATUS_ONLY,
+                    priority=operation.exposure.priority,
+                    status_visible=True,
+                    explicit_request_allowed=False,
+                ),
+            )
+            for operation in contribution.operations
+        )
+        if operations != contribution.operations:
+            items[contribution_id] = replace(contribution, operations=operations)
     known_names = {
         operation.name for contribution in items.values() for operation in contribution.operations
     }
@@ -120,18 +168,19 @@ def augment_with_runtime_surface(
     runtime_capabilities: set[str] = set()
     runtime_effects: set[OperationEffect] = set()
 
-    for tool in sorted(tools, key=lambda item: str(getattr(item, "name", ""))):
+    for tool in sorted(runtime_tools, key=lambda item: str(getattr(item, "name", ""))):
         name = str(getattr(tool, "name", ""))
         if not name or name in known_names:
             continue
         owner_id = None
-        external = False
+        owner_effects: tuple[OperationEffect, ...] = ()
         for provider_id, namespace in provider_namespaces.items():
             if name.startswith(f"{namespace}_"):
                 owner_id = f"provider.{provider_id}"
-                external = True
+                owner = items.get(owner_id)
+                owner_effects = owner.effects if owner is not None else ()
                 break
-        effects = _runtime_effects(name, tool, external=external)
+        effects = _runtime_effects(name, tool, owner_effects=owner_effects)
         capabilities = _capabilities(name, effects)
         operation = OperationDescriptor(
             operation_id=f"runtime.{name}",

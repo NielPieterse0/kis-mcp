@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastmcp import FastMCP
 
-from kis_mcp.capabilities.contracts import ReadinessState
+from kis_mcp.capabilities.contracts import OperationEffect, ReadinessState
 from kis_mcp.capabilities.settings import load_capability_settings
 from kis_mcp.discover.platform import discover_capability_contributions
 from kis_mcp.providers.contracts import (
@@ -22,6 +24,7 @@ from kis_mcp.providers.runtime import (
 )
 from kis_mcp.providers.service import ProviderService
 from kis_mcp.skills.models import SkillCard
+from kis_mcp.capabilities.surface import _runtime_effects, augment_with_runtime_surface
 from kis_mcp.skills.platform import enrich_skill_card, skill_capability_contributions
 from kis_mcp.tools.platform import build_platform_tool_registry, tool_capability_contributions
 from kis_mcp.workflows.platform import workflow_descriptors
@@ -128,3 +131,40 @@ def test_all_registered_shared_skills_gain_capability_metadata() -> None:
     assert all(card.category != "uncategorized" and card.capabilities for card in enriched)
     assert len(contributions) == 17
     assert all(item.domain.value == "skill" for item in contributions)
+
+
+
+def test_runtime_effect_classification_distinguishes_reads_processes_and_external_mutations() -> None:
+    read_tool = SimpleNamespace(annotations={"readOnlyHint": True})
+    plain_tool = SimpleNamespace(annotations={})
+
+    assert _runtime_effects("kis_list_quarantine", read_tool, owner_effects=()) == (
+        OperationEffect.READ_ONLY,
+    )
+    assert _runtime_effects("read_process_output", read_tool, owner_effects=()) == (
+        OperationEffect.READ_ONLY,
+    )
+    assert _runtime_effects("start_process", plain_tool, owner_effects=()) == (
+        OperationEffect.PROCESS,
+    )
+    assert _runtime_effects(
+        "github_create_issue",
+        plain_tool,
+        owner_effects=(OperationEffect.EXTERNAL,),
+    ) == (OperationEffect.EXTERNAL,)
+    assert _runtime_effects(
+        "controlcenter_open_kis_control_center",
+        read_tool,
+        owner_effects=(OperationEffect.READ_ONLY,),
+    ) == (OperationEffect.READ_ONLY,)
+
+
+def test_declared_tool_operations_are_ineligible_until_registered_on_server() -> None:
+    contributions = tool_capability_contributions(build_platform_tool_registry())
+
+    normalized = augment_with_runtime_surface(contributions, (), {})
+    mcp_spec = next(item for item in normalized if item.contribution_id == "tool.mcp-spec-plugin")
+
+    assert mcp_spec.operations
+    assert all(operation.enabled is False for operation in mcp_spec.operations)
+    assert all(operation.exposure.mode.value == "status_only" for operation in mcp_spec.operations)

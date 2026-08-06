@@ -91,12 +91,32 @@ class SkillCapabilityMetadata:
         capabilities = _unique_text_list(value["capabilities"], f"skill_metadata.{skill_id}.capabilities")
         if not capabilities:
             raise CapabilitySettingsError(f"skill_metadata.{skill_id}.capabilities must not be empty")
+        activation_terms = _unique_text_list(
+            value["activation_terms"],
+            f"skill_metadata.{skill_id}.activation_terms",
+        )
+        effects = _unique_text_list(
+            value["effects"], f"skill_metadata.{skill_id}.effects"
+        )
+        workflow_roles = _unique_text_list(
+            value["workflow_roles"],
+            f"skill_metadata.{skill_id}.workflow_roles",
+        )
+        for label, items in (
+            ("activation_terms", activation_terms),
+            ("effects", effects),
+            ("workflow_roles", workflow_roles),
+        ):
+            if not items:
+                raise CapabilitySettingsError(
+                    f"skill_metadata.{skill_id}.{label} must not be empty"
+                )
         return cls(
             category=category,
             capabilities=capabilities,
-            activation_terms=_unique_text_list(value["activation_terms"], f"skill_metadata.{skill_id}.activation_terms"),
-            effects=_unique_text_list(value["effects"], f"skill_metadata.{skill_id}.effects"),
-            workflow_roles=_unique_text_list(value["workflow_roles"], f"skill_metadata.{skill_id}.workflow_roles"),
+            activation_terms=activation_terms,
+            effects=effects,
+            workflow_roles=workflow_roles,
         )
 
 
