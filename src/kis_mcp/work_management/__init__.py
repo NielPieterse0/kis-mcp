@@ -8,6 +8,12 @@ from .contracts import (
     RecordType,
     WorkRecord,
 )
+from .lifecycle import (
+    TransitionDecision,
+    TransitionRejected,
+    evaluate_transition,
+    transition_record,
+)
 
 __all__ = [
     "PUBLIC_SCHEMA_VERSION",
@@ -17,5 +23,9 @@ __all__ = [
     "ManagedProject",
     "Priority",
     "RecordType",
+    "TransitionDecision",
+    "TransitionRejected",
     "WorkRecord",
+    "evaluate_transition",
+    "transition_record",
 ]

@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+import pytest
+
+from kis_mcp.work_management import (
+    DocumentationImpact,
+    DocumentationMode,
+    LifecycleState,
+    RecordType,
+    TransitionRejected,
+    WorkRecord,
+    evaluate_transition,
+    transition_record,
+)
+
+
+def record(**overrides: object) -> WorkRecord:
+    values: dict[str, object] = {
+        "record_id": "TASK-001",
+        "project_id": "alpha-project",
+        "title": "Complete the slice",
+        "record_type": RecordType.TASK,
+        "state": LifecycleState.APPROVED,
+    }
+    values.update(overrides)
+    return WorkRecord(**values)  # type: ignore[arg-type]
+
+
+def test_transition_rejects_undeclared_state_change() -> None:
+    decision = evaluate_transition(
+        record(state=LifecycleState.ACTIVE), LifecycleState.DONE
+    )
+
+    assert decision.allowed is False
+    assert decision.reasons == ("transition_not_declared",)
+
+
+def test_activation_requires_completed_approval() -> None:
+    decision = evaluate_transition(
+        record(approval_required=True, approval_complete=False),
+        LifecycleState.ACTIVE,
+    )
+
+    assert decision.allowed is False
+    assert decision.reasons == ("approval_incomplete",)
+
+
+def test_required_documentation_blocks_done_until_post_merge() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        documentation_mode=DocumentationMode.REQUIRED,
+        documentation_impact=DocumentationImpact.PRE_MERGE_COMPLETE,
+    )
+
+    with pytest.raises(TransitionRejected, match="documentation_incomplete"):
+        transition_record(current, LifecycleState.DONE)
+
+
+def test_no_impact_with_review_evidence_satisfies_required_documentation() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        documentation_mode=DocumentationMode.REQUIRED,
+        documentation_impact=DocumentationImpact.NONE,
+        documentation_rationale="No reader-facing behavior changed",
+        documentation_reviewer="operator",
+    )
+
+    updated = transition_record(current, LifecycleState.DONE)
+
+    assert updated.state is LifecycleState.DONE
+
+
+def test_post_merge_documentation_allows_done() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        documentation_mode=DocumentationMode.REQUIRED,
+        documentation_impact=DocumentationImpact.POST_MERGE_COMPLETE,
+    )
+
+    assert transition_record(current, LifecycleState.DONE).state is LifecycleState.DONE
+
+
+def test_advisory_documentation_allows_done_with_reason() -> None:
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        documentation_mode=DocumentationMode.ADVISORY,
+        documentation_impact=DocumentationImpact.PLANNED,
+    )
+
+    decision = evaluate_transition(current, LifecycleState.DONE)
+
+    assert decision.allowed is True
+    assert decision.reasons == ("documentation_advisory_incomplete",)
