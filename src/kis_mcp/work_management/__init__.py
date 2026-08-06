@@ -21,21 +21,47 @@ from .contracts import (
     RecordType,
     WorkRecord,
 )
+from .intake import (
+    CaptureWorkItem,
+    IntakeBackend,
+    MutationDisposition,
+    MutationResult,
+    capture_work_item,
+)
 from .lifecycle import (
     TransitionDecision,
     TransitionRejected,
     evaluate_transition,
     transition_record,
 )
+from .records import (
+    ApprovalDetails,
+    AssumptionDetails,
+    DecisionDetails,
+    GovernanceDetails,
+    GovernanceRecord,
+    HoldDetails,
+    RiskDetails,
+)
 from .selection import CandidateEvaluation, WorkSelection, select_next_work
 
 __all__ = [
     "PUBLIC_SCHEMA_VERSION",
+    "ApprovalDetails",
+    "AssumptionDetails",
     "CandidateEvaluation",
+    "CaptureWorkItem",
+    "DecisionDetails",
     "DocumentationImpact",
     "DocumentationMode",
+    "GovernanceDetails",
+    "GovernanceRecord",
+    "HoldDetails",
+    "IntakeBackend",
     "LifecycleState",
     "ManagedProject",
+    "MutationDisposition",
+    "MutationResult",
     "Priority",
     "ProjectBinding",
     "ProjectField",
@@ -49,10 +75,12 @@ __all__ = [
     "ProjectItemKind",
     "ProjectOwnerType",
     "RecordType",
+    "RiskDetails",
     "TransitionDecision",
     "TransitionRejected",
     "WorkRecord",
     "WorkSelection",
+    "capture_work_item",
     "evaluate_transition",
     "select_next_work",
     "transition_record",

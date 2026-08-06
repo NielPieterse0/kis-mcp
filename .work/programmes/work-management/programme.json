@@ -7,7 +7,7 @@
   "working_spec": ".work/programmes/work-management/target-spec.md",
   "roadmap": ".work/programmes/work-management/roadmap.md",
   "initial_backend": "github",
-  "current_change": "051-github-project-inventory",
+  "current_change": "052-work-management-intake",
   "dependencies": [
     "047-capability-composition-and-tool-experience"
   ],
@@ -18,11 +18,35 @@
     "done_requires_post_merge_complete": true
   },
   "phases": [
-    {"id": "P0", "status": "completed", "outcome": "Programme authority and provider-neutral foundation"},
-    {"id": "P1", "status": "completed", "outcome": "Read-only backend inventory and normalized contracts"},
-    {"id": "P2", "status": "planned", "outcome": "Intake, typed records, governance records, and holds"},
-    {"id": "P3", "status": "planned", "outcome": "Implementation traceability and documentation milestones"},
-    {"id": "P4", "status": "planned", "outcome": "Review evidence, triage, and finding extraction"},
-    {"id": "P5", "status": "planned", "outcome": "Automation, CLI, CI, reconciliation, and status"}
+    {
+      "id": "P0",
+      "status": "completed",
+      "outcome": "Programme authority and provider-neutral foundation"
+    },
+    {
+      "id": "P1",
+      "status": "completed",
+      "outcome": "Read-only backend inventory and normalized contracts"
+    },
+    {
+      "id": "P2",
+      "status": "completed",
+      "outcome": "Intake, typed records, governance records, and holds"
+    },
+    {
+      "id": "P3",
+      "status": "planned",
+      "outcome": "Implementation traceability and documentation milestones"
+    },
+    {
+      "id": "P4",
+      "status": "planned",
+      "outcome": "Review evidence, triage, and finding extraction"
+    },
+    {
+      "id": "P5",
+      "status": "planned",
+      "outcome": "Automation, CLI, CI, reconciliation, and status"
+    }
   ]
 }

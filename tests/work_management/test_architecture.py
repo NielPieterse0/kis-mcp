@@ -24,13 +24,15 @@ def imported_modules(path: Path) -> set[str]:
     return modules
 
 
-def test_p0_package_has_bounded_files_and_no_platform_dependencies() -> None:
+def test_work_management_package_has_bounded_files_and_no_platform_dependencies() -> None:
     files = {path.name for path in PACKAGE.glob("*.py")}
     assert files == {
         "__init__.py",
         "backend.py",
         "contracts.py",
+        "intake.py",
         "lifecycle.py",
+        "records.py",
         "selection.py",
     }
 
