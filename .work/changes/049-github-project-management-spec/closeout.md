@@ -2,7 +2,7 @@
 
 ## Current state
 
-P0 is implemented and verified. Change 049 remains active and its worktree remains reserved because GitHub adapter, workflow composition, public exposure, remote commissioning, PR integration, and post-merge documentation reconciliation are later programme phases.
+P0 is implemented, verified, and marked `ready`. Its worktree remains reserved as the stacked foundation for later programme phases. GitHub adapter, workflow composition, public exposure, remote commissioning, PR integration, and post-merge documentation reconciliation are separate changes.
 
 ## Implemented scope
 

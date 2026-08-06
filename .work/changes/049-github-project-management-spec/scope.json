@@ -1,19 +1,27 @@
 {
   "schema_version": 1,
   "change_id": "049-github-project-management-spec",
-  "status": "active",
+  "status": "ready",
   "branch": "change/049-github-project-management-spec",
   "worktree": ".work/worktrees/049-github-project-management-spec",
   "base": "main",
   "outcome": "Establish a reusable multi-project work-management programme and implement its provider-neutral foundation",
   "owned_paths": [
     ".work/changes/049-github-project-management-spec/**",
-    ".work/programmes/work-management/**",
     "docs/development/github-project-management/README.md",
-    "src/kis_mcp/work_management/**",
-    "tests/work_management/**"
+    "src/kis_mcp/work_management/__init__.py",
+    "src/kis_mcp/work_management/contracts.py",
+    "src/kis_mcp/work_management/lifecycle.py",
+    "src/kis_mcp/work_management/selection.py",
+    "tests/work_management/__init__.py",
+    "tests/work_management/test_architecture.py",
+    "tests/work_management/test_contracts.py",
+    "tests/work_management/test_lifecycle.py",
+    "tests/work_management/test_selection.py"
   ],
-  "shared_paths": [],
+  "shared_paths": [
+    ".work/programmes/work-management/**"
+  ],
   "excluded_paths": [
     "SPEC.md",
     "docs/PLATFORM-CONCEPT.md",
