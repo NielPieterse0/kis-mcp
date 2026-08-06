@@ -1,65 +1,70 @@
-# GitHub Project Management Capability Documentation Plan
+# Multi-Project Work Management Foundation Plan
 
-**Documentation level:** Complex. The work defines source-of-truth ownership, external-provider use, automation, CI, security boundaries, schemas, migration, and future public workflows.
+**Development level:** Complex programme with a bounded standard-risk P0 change unit. The programme crosses provider, workflow, CI, and persistent operational boundaries, but P0 changes one new provider-neutral package and creates no remote state.
 
-**Decision supported:** Approve or revise the complete target solution before any GitHub Project or runtime implementation begins.
+**Approved outcome:** Relocate working authority into `.work/programmes`, generalize it across managed repositories, add documentation feedback milestones, and implement the P0 domain foundation.
 
-**Primary audiences:** Operator, future implementation agent, architecture reviewer, security reviewer, and PR reviewer.
+**Architecture:** Immutable domain contracts and pure lifecycle/selection functions. Provider, workflow, gateway, settings, persistence, and GitHub integration remain later units.
 
-**Goal:** Produce one machine-readable target specification for a GitHub-native operational project-management capability integrated with the 047 modular composition architecture.
+**Tech stack:** Python 3.11+, dataclasses, enums, pathlib, pytest, repository verification.
 
-**Authority hierarchy:** `AGENTS.md` → `docs/TRUST-MODEL.md` → `SPEC.md` → `docs/PLATFORM-CONCEPT.md` → Provider module specification → current change record.
+## Global constraints
 
-**Canonical output:** `docs/development/github-project-management/README.md`.
+- Stay inside `scope.json`.
+- Do not modify active 047 paths.
+- Use failing tests before production behavior.
+- Add no runtime dependency.
+- Keep the domain independent of FastMCP and external providers.
+- Create no remote GitHub state.
+- Keep documentation milestones separate from HR policy.
 
-**Boundaries:** Documentation only. No remote GitHub mutation, runtime implementation, policy change, credential work, or edit to 047-owned paths.
+## Requirement traceability
 
-## Source inventory and adaptations
-
-| Source | Use | Adaptation or conflict |
+| Task | Requirements | Evidence |
 |---|---|---|
-| Repository authority documents | Product, policy, platform, provider, and Work boundaries | Current authority remains unchanged |
-| Change 047 spec and plan | Capability contribution and workflow composition seams | Runtime integration depends on 047 merge |
-| Change 045 Git workflow spec | Local diff/readiness/cleanup responsibilities | Project automation integrates; does not replace |
-| Official GitHub Projects docs | Views, fields, issues, automation, and APIs | Product facts require implementation-time revalidation |
-| Official GitHub MCP server | Projects/issues/PR/Actions toolsets and scopes | Pinned current KIS release may require upgrade |
-| GitHub ruleset docs | Free/private enforcement limits | Required gates need fallback evidence |
-| Operator discussion | Record types, decisions, holds, intake, reviews, and consolidated view | Converted into normative requirements |
-## Information architecture
+| T1 Programme relocation and generalization | REQ-001, REQ-010 | Programme JSON, target spec, roadmap, scope check |
+| T2 Project and record contracts | REQ-001, REQ-002, REQ-003, REQ-006 | Failing then passing contract tests |
+| T3 Lifecycle and documentation milestone | REQ-004, REQ-005, REQ-006 | Transition tests including required documentation failures |
+| T4 Next-work selection | REQ-007, REQ-008 | Deterministic filtering, ordering, and explanation tests |
+| T5 Architecture and completion review | REQ-009, REQ-010 | Import-boundary test, diff review, full verification |
 
-The specification will define:
+## Task 1: Programme authority
 
-1. product decision and authority model;
-2. scope and non-goals;
-3. record taxonomy, fields, lifecycle, and views;
-4. intake, specification, decisions, assumptions, holds, and traceability;
-5. review-run evidence and finding extraction;
-6. modular architecture and public workflows;
-7. provider, configuration, automation, CLI, CI, and Git integration;
-8. security, consistency, bootstrap, migration, and recovery;
-9. stable normative requirements and acceptance scenarios;
-10. delivery phases, modularity gates, risks, and open decisions.
+- Move the complete target specification from `docs/development` to `.work/programmes/work-management/target-spec.md`.
+- Add `programme.json`, `roadmap.md`, modularity evidence, and ADR-001.
+- Generalize hard-coded repository assumptions into managed-project and backend-binding contracts.
+- Add pre-merge and post-merge documentation milestone requirements.
 
-## Traceable tasks
+## Task 2: Domain contracts — TDD unit 1
 
-| Task | Target | Sources | Review gate | Verification | Recovery |
-|---|---|---|---|---|---|
-| T1 | Change scope and plan | AGENTS, skills, active claims | No overlap with 047-owned paths | Scope JSON parse and governance check | Revert change artifacts |
-| T2 | Product and record model | Operator direction, GitHub Projects docs | One source of operational truth | Heading/ID and terminology review | Revise document |
-| T3 | Review/evidence workflow | Platform concept, review discussions | Reports separated from extracted records | Contract and lifecycle review | Remove unsupported target claims |
-| T4 | Modular architecture | 047 spec/plan, Provider spec, modularity rubric | Explicit contracts and dependency direction | Boundary review; no implementation claim | Re-slice future phases |
-| T5 | CLI/CI/Git/config/security | Change 045, GitHub docs, Trust Model | Configurable without fourth HR rule | Requirement and contradiction scan | Disable or defer features |
-| T6 | Final review and verification | All sources and final diff | No blocking finding | Markdown, JSON, links, diff, scope checks | Amend or revert branch |
+- Write failing tests for project identity, record identity, record types, lifecycle state, and documentation impact.
+- Implement `contracts.py` and package exports only.
+- Run the focused contract tests and fast repository verification.
 
-## Review and verification
+## Task 3: Lifecycle — TDD unit 2
 
-- Review source-to-section traceability and requirement completeness.
-- Check normative statements for one actor, condition, and outcome.
-- Check target-state statements do not claim implementation.
-- Check GitHub Free plan limitations are explicit.
-- Run JSON parsing, placeholder search, Markdown structure checks, `git diff --check`, and change-scope checks.
-- Record stale 041/046 claim conflicts as an external verification limitation until 048 lands.
+- Write failing tests for allowed transitions and documentation completion prerequisites.
+- Implement pure lifecycle validation with bounded structured failures.
+- Run focused lifecycle tests and fast verification.
 
-## Completion boundary
+## Task 4: Next-work selection — TDD unit 3
 
-This documentation stage is complete when the target specification and change artifacts are current, reviewed, and committed on the isolated branch. Runtime implementation remains active/deferred and MUST start only after operator approval and reconciliation with merged 047.
+- Write failing tests for state, dependency, approval, project, priority, and stable-order filtering.
+- Implement pure selection returning the selected record and per-record reasons.
+- Run focused selection tests and fast verification.
+
+## Task 5: Review and verification
+
+- Add an architecture test proving P0 imports no provider, workflow, gateway, FastMCP, or GitHub adapter package.
+- Review specification-to-test traceability, edge cases, error semantics, modular boundaries, and scope.
+- Run `git diff --check` and `scripts/change-workflow.ps1 check`.
+- Run focused tests and `pwsh -NoProfile -File scripts/verify.ps1`.
+- Record residual work as later programme phases rather than claiming full capability completion.
+
+## Documentation feedback milestone
+
+P0 documentation impact is `planned`. The working programme artifacts are updated in this change. Reader-facing repository documents remain deferred because P0 is not publicly composed or commissioned. Before final programme integration, the delivery workflow must update README, operations, product/module specifications, and final implementation status, then record post-merge reconciliation before `Done`.
+
+## Recovery
+
+All P0 behavior is additive and unexposed. Revert the change commits to remove the package and tests. The programme artifacts remain recoverable through Git history. No remote rollback is required.

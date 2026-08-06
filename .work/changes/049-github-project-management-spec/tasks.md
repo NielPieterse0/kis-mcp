@@ -1,35 +1,38 @@
-# Tasks: GitHub Project Management Capability
+# Tasks: Multi-Project Work Management Foundation
 
-## Documentation baseline
+## Programme authority
 
-- [x] Read repository authority and current product/provider architecture.
-- [x] Read the `develop-docs` and approved `modularity-assessment` procedures.
-- [x] Inspect active 047 and 048 scopes and define non-overlapping documentation ownership.
-- [x] Create the isolated `049-github-project-management-spec` worktree and branch.
-- [x] Register `scope.json` before editing the target specification.
-- [x] Record the known external stale-claim validation limitation.
-- [x] Verify current GitHub Projects, API, ruleset, and official MCP capabilities.
-- [x] Define authority, records, lifecycle, fields, views, and intake.
-- [x] Define specification, decision, assumption, risk, approval, hold, and traceability behavior.
-- [x] Define review-run evidence, triage, extraction modes, and finding lifecycle.
-- [x] Define provider-neutral module boundaries aligned with 047.
-- [x] Define public workflow, provider, settings, automation, CLI, CI, and Git requirements.
-- [x] Define security, consistency, migration, recovery, acceptance, and phased delivery.
+- [x] Move the working specification from `docs/development` into `.work/programmes/work-management`.
+- [x] Generalize the capability for multiple managed repositories and backend bindings.
+- [x] Add configurable pre-merge and post-merge documentation milestones.
+- [x] Add programme control, roadmap, modularity evidence, and ADR-001.
+- [x] Update the change scope to own only the programme workspace and P0 domain package.
+
+## P0 implementation
+
+- [ ] Write failing project and record contract tests.
+- [ ] Implement immutable provider-neutral contracts and package exports.
+- [ ] Run focused contract tests and fast verification.
+- [ ] Write failing lifecycle and documentation milestone tests.
+- [ ] Implement deterministic lifecycle validation.
+- [ ] Run focused lifecycle tests and fast verification.
+- [ ] Write failing next-work selection tests.
+- [ ] Implement deterministic project-filtered selection and explanations.
+- [ ] Run focused selection tests and fast verification.
+- [ ] Add and pass provider-neutral architecture tests.
 
 ## Review and verification
 
-- [x] Review final documentation against the plan and source inventory.
-- [x] Check stable IDs, headings, JSON examples, links, placeholders, and terminology.
-- [x] Run `git diff --check`.
-- [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check` and record unrelated blockers.
-- [x] Run applicable documentation/repository verification and record limitations.
-- [x] Commit the documentation baseline on the isolated branch.
+- [ ] Review the complete diff against the specification, plan, ADR, and modularity assessment.
+- [ ] Run `git diff --check`.
+- [ ] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
+- [ ] Run `pwsh -NoProfile -File scripts/verify.ps1`.
+- [ ] Commit each logical P0 change unit without bypassing hooks.
+- [ ] Record current closeout evidence and residual programme phases.
 
-## Future implementation
+## Later phases
 
-- [ ] Obtain operator approval of the target specification.
-- [ ] Reconcile architecture and paths with merged change 047.
-- [ ] Run a measured modularity assessment before P1.
-- [ ] Create separate governed implementation changes for phases P1 through P6.
-- [ ] Create and commission the GitHub Project only through an approved future slice.
-- [ ] Raise, review, merge, and safely clean up change 049 when its reserved work is complete.
+- [ ] Reconcile platform entry points after 047 merges.
+- [ ] Implement read-only GitHub Project inventory and adapter contracts.
+- [ ] Implement mutation workflows, review evidence, traceability, CLI, CI, and reconciliation in separate governed slices.
+- [ ] Update reader-facing repository documentation at the configured integration milestone.

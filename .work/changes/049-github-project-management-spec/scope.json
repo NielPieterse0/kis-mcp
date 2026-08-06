@@ -5,10 +5,13 @@
   "branch": "change/049-github-project-management-spec",
   "worktree": ".work/worktrees/049-github-project-management-spec",
   "base": "main",
-  "outcome": "Specify a modular GitHub-native project-management, review-evidence, and Git workflow capability for the Work surface",
+  "outcome": "Establish a reusable multi-project work-management programme and implement its provider-neutral foundation",
   "owned_paths": [
     ".work/changes/049-github-project-management-spec/**",
-    "docs/development/github-project-management/**"
+    ".work/programmes/work-management/**",
+    "docs/development/github-project-management/README.md",
+    "src/kis_mcp/work_management/**",
+    "tests/work_management/**"
   ],
   "shared_paths": [],
   "excluded_paths": [
@@ -26,8 +29,7 @@
     ".work/changes/048-stale-change-cleanup-hardening/**"
   ],
   "dependencies": [
-    "047-capability-composition-and-tool-experience",
-    "048-stale-change-cleanup-hardening"
+    "047-capability-composition-and-tool-experience"
   ],
   "integration_owner": null
 }

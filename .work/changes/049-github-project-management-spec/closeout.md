@@ -1,40 +1,41 @@
-# Closeout: GitHub Project Management Capability
+# Closeout: Multi-Project Work Management Foundation
 
 ## Current state
 
-This change remains active. The documentation baseline is being completed; runtime implementation, remote GitHub Project mutation, PR integration, merge, and cleanup have not started.
+This change remains active. Programme relocation and generalization are complete. P0 provider-neutral implementation is in progress. GitHub mutation, public composition, PR integration, merge, and cleanup have not started.
 
 ## Implemented scope
 
 - Reserved isolated branch and worktree for change 049.
-- Registered a non-overlapping documentation-only scope.
-- Drafted the complete target-state project-management capability specification.
-- Recorded phased implementation, modularity, provider, CLI, CI, Git, security, and recovery requirements.
+- Moved long-lived working authority to `.work/programmes/work-management`.
+- Generalized the target capability across multiple managed repositories.
+- Added mandatory configurable documentation feedback milestones.
+- Added programme control, roadmap, measured seam evidence, declared modularity assessment, and ADR-001.
 
 ## Validation evidence
 
-- Focused checks: scope JSON parsed; 50 contiguous `PM-REQ` IDs and five contiguous `PM-OPEN` IDs confirmed; Markdown heading and code-fence structure passed; no template placeholders remain.
-- Repository verification: `pwsh -NoProfile -File scripts/verify.ps1` passed all tests and repository checks.
-- Diff scope check: `pwsh -NoProfile -File scripts/change-workflow.ps1 check` passed and reported only the six declared change-049 paths.
-- Diff hygiene: `git diff --check` passed.
-- Global claim validation: blocked by pre-existing stale 041/046 overlaps with active 047; change 049 has no reported overlap.
+- Previous documentation baseline verification passed on commit `5d47273e4464ba8e91c6c7a97ee48059361fe4a5`.
+- Current programme and P0 implementation evidence will be recorded after each test-first unit.
+- Change 047 remains active and owns platform composition paths; this change does not modify them.
 
 ## Review
 
-- Findings: no blocking content, authority, scope, modularity, security, or machine-readability findings.
-- Resolutions: added a declared four-unit modular boundary assessment and explicit implementation-time measurement gate; retained GitHub plan limitations and target-state status as explicit constraints.
+- Current architectural finding: keep provider-neutral state outside Providers and Workflows; defer adapter and public composition.
+- Current recovery: revert additive programme/P0 commits; no remote or migrated state exists.
 
 ## Git and merge
 
 - Branch: `change/049-github-project-management-spec`
 - Worktree: `.work/worktrees/049-github-project-management-spec`
-- Base commit: `f447596`
-- Documentation baseline: committed on the current branch; exact head is reported by Git.
+- Original base commit: `f447596`
+- Main reconciliation: pending before final delivery.
 - Pull request or merge: not started.
-- Cleanup: prohibited while this reserved change remains active.
+- Cleanup: prohibited while this change remains active.
 
-## Residual items
+## Residual programme phases
 
-- Operator review and approval of the target specification.
-- Reconciliation with merged change 047 before runtime implementation.
-- Separate implementation slices for phases P1 through P6.
+- GitHub Project inventory and adapter.
+- Typed remote records and governance workflows.
+- Change/PR/verification/documentation traceability.
+- Review evidence and finding extraction.
+- CLI, CI, automation, reconciliation, public composition, and commissioning.

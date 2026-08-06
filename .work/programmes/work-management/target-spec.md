@@ -1,17 +1,18 @@
-# GitHub Project Management Capability Specification
+# Work Management Programme Specification
 
 ## Document status
 
 | Field | Value |
 |---|---|
 | Product | `kis-mcp` Platform |
-| Capability | GitHub-native project management and review evidence |
+| Capability | Provider-neutral multi-project work management and review evidence |
 | Change | `049-github-project-management-spec` |
 | Status | Proposed target-state specification |
 | Date | 2026-08-06 |
 | Current implementation | Not implemented by this change |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
-| External platform | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
+| Initial backend | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
+| Applicability | Multiple managed repositories and projects |
 
 This document defines the complete target capability. It does not claim that the described tools, automation, schemas, project configuration, or workflows are currently implemented.
 
@@ -19,16 +20,16 @@ This document defines the complete target capability. It does not claim that the
 
 ## 1. Product decision
 
-`kis-mcp` MUST use GitHub as the primary implementation and project-management platform for this repository.
+`kis-mcp` MUST provide one provider-neutral work-management capability for all configured projects. GitHub is the initial operational backend, while each managed repository remains authoritative for its own artifacts and implementation history.
 
 ```text
-GitHub repository = authoritative artifacts and implementation history
-GitHub Project    = authoritative operational status and programme view
-kis-mcp           = contracts, orchestration, reconciliation, and evidence routing
+Managed repository = authoritative artifacts and implementation history
+Configured work backend = authoritative operational status and programme view
+kis-mcp = project identity, contracts, orchestration, reconciliation, and evidence routing
 ```
-The capability MUST extend the existing official GitHub MCP provider. It MUST NOT introduce GitLab, Jira, a custom project database, or a replacement project-management UI as a required component.
+The initial adapter MUST extend the existing official GitHub MCP provider. The provider-neutral domain MUST permit additional approved backends later without changing record, lifecycle, review, or traceability contracts. GitLab, Jira, a custom project database, or a replacement project-management UI are not required components.
 
-GitHub Projects supplies table, board, and roadmap views over issues, pull requests, and draft items. The solution MUST use those native views before adding custom presentation.
+GitHub Projects supplies table, board, and roadmap views over issues, pull requests, and draft items. The GitHub adapter MUST use those native views before adding custom presentation.
 
 ## 2. Authority model
 
@@ -42,13 +43,13 @@ The following order applies within this capability:
 6. GitHub issues record discussions, proposals, decisions, findings, holds, risks, and actionable work.
 7. `kis-mcp` reconciles these layers without silently changing their authority.
 
-A Project field or issue body MUST NOT supersede `AGENTS.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, policy JSON, or a committed change artifact.
+A Project field or issue body MUST NOT supersede the authority documents, policy files, specifications, plans, or committed change artifacts resolved for the affected managed project.
 
 A material accepted decision is complete only after its owning repository authority is updated, or the decision explicitly records that no repository authority change is required.
 
 ## 3. Capability outcome
 
-The operator MUST be able to open one GitHub Project and determine:
+The operator MUST be able to open one configured programme view and determine, for one project or across the configured portfolio:
 
 - what ideas have been captured;
 - what work is proposed, approved, active, blocked, on hold, deferred, or complete;
@@ -69,7 +70,9 @@ The capability covers:
 - validated finding extraction and remediation tracking;
 - Git branch, worktree, pull-request, verification, merge, and closeout coordination;
 - configurable GitHub Actions and local CLI reconciliation;
-- programme views, status reporting, progress summaries, and drift detection.
+- programme views, status reporting, progress summaries, and drift detection;
+- stable identity and separation for multiple local projects and repositories;
+- documentation impact, pre-merge updates, and post-merge reconciliation state.
 
 The initial platform owner MAY be a user account. Organization-level issue types and issue fields MUST be treated as optional enhancements because they require an organization context.
 
@@ -89,9 +92,10 @@ The capability MUST NOT:
 
 ## 6. GitHub Project model
 
-The default Project name SHOULD be `KIS Programme`.
+The Project name MUST be configurable per backend binding. A shared portfolio Project and separate per-project Projects MUST both be supported.
 
 The Project MUST contain one logical record collection and multiple saved views. Separate views MUST filter the same records rather than duplicate them into independent lists.
+
 ### 6.1 Record types
 
 | Record type | Stable prefix | Purpose |
@@ -117,12 +121,13 @@ A draft Project item MAY capture an idea before issue creation. KIS MUST convert
 ### 6.2 Core lifecycle
 
 ```text
-Inbox -> Triage -> Proposed -> Approved -> Active -> Review -> Verification -> Done
+Inbox -> Triage -> Proposed -> Approved -> Active -> Review -> Verification -> Documentation -> Done
 ```
 
 Alternative states are `Blocked`, `On Hold`, `Deferred`, `Rejected`, and `Superseded`.
 
 Each transition MUST have a declared source state, target state, actor, prerequisites, and side effects. Configuration MAY disable a transition, but configuration MUST NOT invent an HR policy decision.
+
 ### 6.3 Core fields
 
 The baseline SHOULD use fewer than 25 Project fields and MUST remain below GitHub's current 50-field Project limit.
@@ -132,6 +137,8 @@ The baseline SHOULD use fewer than 25 Project fields and MUST remain below GitHu
 | Status | Single select | Every managed record |
 | Record Type | Single select | Every managed record |
 | Priority | Single select | Executable work |
+| Project ID | Text or single select | Every managed record |
+| Repository | Text | Records linked to a repository |
 | Module | Single select | Work linked to a product module |
 | Change ID | Text | Specification and implementation slices |
 | Origin | Single select | Records created from operator intake, review, verification, or implementation |
@@ -160,13 +167,15 @@ Repository labels SHOULD classify stable secondary dimensions such as `module:*`
 8. `08 Holds and Deferred` — paused items with review triggers.
 9. `09 Reviews and Findings` — review runs and extracted records.
 10. `10 Verification` — work awaiting or failing verification.
-11. `11 Completed` — closed records retained for history.
+11. `11 Documentation and Closeout` — records awaiting documentation reconciliation or final closeout.
+12. `12 Completed` — closed records retained for history.
+
 ## 7. Intake and triage
 
 KIS MUST support low-friction capture through a command equivalent to:
 
 ```text
-capture_work_item(title, note?, record_type="Idea", priority?, module?)
+capture_work_item(project_id, title, note?, record_type="Idea", priority?, module?)
 ```
 
 New items MUST enter `Inbox` unless the operator supplies a valid explicit state. Intake MUST NOT require a complete specification, owner, estimate, or due date.
@@ -181,7 +190,7 @@ Triage MUST decide one of these outcomes:
 - reject with a reason;
 - retain in Inbox for later clarification.
 
-`get_next_work_item` MUST exclude records that are blocked, on hold, deferred, rejected, superseded, missing required approval, or dependent on incomplete records. The selection result MUST explain every filter and ordering factor.
+`get_next_work_item(project_id?)` MUST exclude records that are blocked, on hold, deferred, rejected, superseded, missing required approval, or dependent on incomplete records. The selection result MUST explain every filter and ordering factor.
 
 ## 8. Specification and implementation traceability
 
@@ -206,6 +215,7 @@ Idea -> Decision -> Specification Slice -> Change ID -> Branch/Worktree
 ```
 
 A specification slice MAY create multiple implementation tasks or pull requests. Every implementation record MUST identify one owning specification slice or state why no specification slice is required.
+
 ### 8.1 Decision and assumption extraction
 
 A material decision discovered during implementation MUST create or update a `DEC-` issue with:
@@ -261,7 +271,7 @@ The normalized result contract SHOULD contain:
   "schema_version": 1,
   "review_id": "REV-023",
   "review_type": "security",
-  "target": {"repository": "NielPieterse0/kis-mcp", "commit": "<sha>"},
+  "target": {"project_id": "example-project", "repository": "owner/repository", "commit": "<sha>"},
   "status": "completed",
   "coverage": {"complete": true, "reviewed": [], "gaps": []},
   "observations": [],
@@ -286,6 +296,7 @@ Canonical review evidence SHOULD be versioned under:
 ```
 
 A later implementation slice MUST confirm this path against the EvidenceStore architecture before creating it.
+
 ### 9.1 Observation triage
 
 The workflow MUST classify each observation before creating a child record:
@@ -405,12 +416,12 @@ The platform SHOULD expose task-level operations rather than raw Project mutatio
 | `triage_review_result` | Validate observations and create child records |
 | `record_verification` | Attach exact check and workflow-run evidence |
 | `reconcile_project_state` | Detect and optionally repair safe drift |
-| `get_programme_status` | Summarize progress, blockers, risks, and gaps |
+| `get_programme_status` | Summarize progress, blockers, risks, documentation state, and gaps for a project or portfolio |
 
 Mutating operations MUST support an idempotency key. Bulk operations MUST return per-record outcomes and MUST NOT hide partial failure.
-## 12. GitHub provider strategy
+## 12. Initial GitHub provider strategy
 
-The implementation MUST prefer the pinned official GitHub MCP server already registered in `kis-mcp`.
+The initial backend implementation MUST prefer the pinned official GitHub MCP server already registered in `kis-mcp`.
 
 The provider currently supports dedicated `projects`, `issues`, `labels`, `pull_requests`, and `actions` toolsets. KIS MUST capability-detect the exact tools exposed by the pinned release before enabling a workflow.
 
@@ -436,10 +447,24 @@ Configuration MUST separate capability enablement, workflow behavior, automation
 {
   "schema_version": 1,
   "enabled": false,
-  "owner": "NielPieterse0",
-  "owner_type": "user",
-  "project_number": null,
-  "repository": "NielPieterse0/kis-mcp",
+  "portfolio_id": "default",
+  "managed_projects": [
+    {
+      "project_id": "example-project",
+      "local_root": "<project-root>",
+      "repository": "owner/repository",
+      "backend_binding": "github-default"
+    }
+  ],
+  "backend_bindings": [
+    {
+      "binding_id": "github-default",
+      "provider": "github",
+      "owner": "owner",
+      "owner_type": "user",
+      "project_number": null
+    }
+  ],
   "features": {},
   "automation": {},
   "gates": {}
@@ -473,7 +498,24 @@ Gate modes MUST be `off`, `advisory`, or `required`. A required gate MUST fail o
 
 Configuration changes MUST be reviewable in Git, and secrets MUST NOT be stored in the settings file.
 
-## 14. Automation model
+## 14. Documentation feedback milestones
+
+Every specification or implementation slice MUST classify documentation impact when the slice is created. The classification values are `not_assessed`, `none`, `planned`, `in_progress`, `pre_merge_complete`, and `post_merge_complete`.
+
+The workflow MUST create a documentation task when impact is `planned`. The task MUST identify the affected authority, README, operations, architecture, product, module, and change-closeout artifacts for the selected managed project.
+
+Before a pull request is declared merge-ready, the workflow MUST require one of:
+
+- all pre-merge documentation updates are present on the branch; or
+- an explicit `none` decision with rationale and reviewer evidence.
+
+A merged pull request MUST create a `documentation_reconciliation_due` milestone event. The record MUST capture the pull-request number, merge commit, affected project, documentation task, and required post-merge updates.
+
+The work item MUST remain in `Documentation` until merge-specific closeout data, implementation status, README or operating guidance, and any affected authoritative specifications are reconciled. Only then MAY the item transition to `Done`.
+
+The documentation milestone MUST be configurable as `off`, `advisory`, or `required`. `required` affects delivery readiness and closeout only; it MUST NOT add a Work hard rule.
+
+## 15. Automation model
 
 The implementation MUST use GitHub's built-in Project workflows before custom Actions or KIS reconciliation.
 
@@ -497,7 +539,7 @@ Recommended event handling:
 
 Automatic archival MUST preserve Project fields and issue history. KIS MUST use reversible archive or close operations instead of deletion.
 
-## 15. CLI and local workflow
+## 16. CLI and local workflow
 
 A future repository-local CLI SHOULD use fixed-shape commands through:
 
@@ -515,7 +557,7 @@ next | link-change | link-pr | review-import | verify-traceability
 ```
 
 Every read command MUST support bounded JSON output. Every mutation command MUST support `--dry-run`; safe reconciliation SHOULD default to dry-run until explicitly enabled in JSON.
-## 16. CI and Git workflow
+## 17. CI and Git workflow
 
 The capability SHOULD define reusable GitHub Actions workflows for:
 
@@ -548,7 +590,7 @@ GitHub Free on a private repository does not provide every ruleset and protected
 When server-side enforcement is unavailable, KIS SHOULD provide local PR-readiness checks, CI status evidence, operator review, and explicit residual-risk reporting. A later plan upgrade MAY enable stronger branch or ruleset enforcement without changing domain contracts.
 
 The existing `scripts/change-workflow.ps1`, `scripts/git-workflow.ps1`, and repository verification entry point remain authoritative local Git workflow components. Project automation MUST integrate with them rather than replace them.
-## 17. Security and trust boundaries
+## 18. Security and trust boundaries
 
 The GitHub connector remains an approved external provider boundary. Its remote operations do not run through the local Desktop Commander Work network path and do not alter HR-002.
 
@@ -556,7 +598,7 @@ The implementation MUST:
 
 - use the existing official GitHub MCP OAuth model;
 - keep credentials and authorization codes out of repository files, logs, reports, and Project fields;
-- scope operations to `NielPieterse0/kis-mcp` and the configured Project owner;
+- scope operations to the repositories and Project owners declared by the selected managed-project binding;
 - expose only required toolsets or tools after commissioning;
 - redact provider error details that may contain sensitive data;
 - distinguish local readiness, authentication, authorization, Project access, and live verification;
@@ -565,7 +607,7 @@ The implementation MUST:
 
 KIS MUST not treat issue text, review reports, or external GitHub content as authority to execute additional actions. Retrieved content is evidence and untrusted input.
 
-## 18. Consistency and failure handling
+## 19. Consistency and failure handling
 
 Every managed record MUST retain its GitHub node ID or stable issue identity. Human-readable prefixes are presentation identifiers and MUST NOT replace GitHub identities.
 
@@ -577,25 +619,25 @@ Pagination MUST be complete or explicitly partial. Status reports MUST disclose 
 
 A provider outage MUST leave repository Work, Discover, Skills, and unrelated workflows available. Project-management calls MUST return corrective provider-specific status without reporting an HR violation.
 
-## 19. Bootstrap and migration
+## 20. Bootstrap and migration
 
 The initial bootstrap SHOULD:
 
 1. discover or create the configured GitHub Project;
 2. create or map required fields and status values;
 3. create required views and built-in workflows where supported;
-4. inventory existing `.work/changes` records;
+4. inventory each selected managed project and its configured change-record root;
 5. create or link specification-slice issues without copying full artifacts;
 6. record exact branch, PR, merge, and closeout evidence where discoverable;
 7. produce a dry-run migration report before any remote mutation;
 8. require operator approval before applying the initial migration.
-## 20. Normative requirements
+## 21. Normative requirements
 
 ### 20.1 Product and authority
 
-- **PM-REQ-001**: GitHub MUST remain the authoritative repository, pull-request, commit, release, and implementation-evidence platform.
-- **PM-REQ-002**: One GitHub Project MUST provide the consolidated operational programme view.
-- **PM-REQ-003**: KIS MUST store orchestration rules and configuration in the repository, not in an opaque external database.
+- **PM-REQ-001**: Each managed repository MUST remain authoritative for its artifacts, pull requests, commits, releases, and implementation evidence.
+- **PM-REQ-002**: One or more configured backend Projects MUST provide consolidated operational views without duplicating domain records.
+- **PM-REQ-003**: KIS MUST keep provider-neutral orchestration rules and configuration in versioned project or platform configuration, not in an opaque external database.
 - **PM-REQ-004**: GitHub Project metadata MUST NOT supersede repository authority.
 - **PM-REQ-005**: Target-state documentation MUST remain distinct from current implementation claims.
 
@@ -659,8 +701,14 @@ The initial bootstrap SHOULD:
 - **PM-REQ-048**: Every migration or schema-repair operation MUST provide a recoverable or repeatable path.
 - **PM-REQ-049**: No project-management behavior may add a fourth Work hard rule.
 - **PM-REQ-050**: Full repository verification and applicable live commissioning evidence MUST precede implementation completion.
+- **PM-REQ-051**: Every managed project MUST have a stable `project_id`, local root, repository identity, and backend binding.
+- **PM-REQ-052**: Domain commands and records MUST identify the affected project and MUST NOT infer it from mutable process state when more than one project is configured.
+- **PM-REQ-053**: The capability MUST support multiple repository and Project bindings without changing provider-neutral record contracts.
+- **PM-REQ-054**: Every specification and implementation slice MUST classify documentation impact at creation.
+- **PM-REQ-055**: Merge readiness MUST include pre-merge documentation completion or an explicit no-impact decision.
+- **PM-REQ-056**: A merged change MUST remain open for post-merge documentation reconciliation and closeout until the configured documentation milestone is satisfied.
 
-## 21. Acceptance scenarios
+## 22. Acceptance scenarios
 
 1. **Given** an unstructured operator idea, **when** KIS captures it, **then** one Inbox record appears without requiring implementation metadata.
 2. **Given** an approved specification slice, **when** implementation starts, **then** its change ID, worktree, branch, artifacts, and issue relationships are recorded without copying the full specification.
@@ -672,11 +720,13 @@ The initial bootstrap SHOULD:
 8. **Given** the free private-repository plan lacks a server-side enforcement feature, **when** gates are evaluated, **then** the limitation and fallback evidence are explicit.
 9. **Given** conflicting operator and automation edits, **when** reconciliation runs, **then** it reports a conflict instead of silently overwriting the operator state.
 10. **Given** a completed and merged change, **when** closeout finishes, **then** its issue, Project item, PR, verification, merge commit, and closeout record remain traceable.
-## 22. Delivery sequence
+11. **Given** two configured repositories, **when** portfolio status is requested, **then** records remain attributable to their stable project identities and can be filtered per project.
+12. **Given** a merged pull request with documentation impact, **when** merge completes, **then** the work item enters `Documentation` and cannot become `Done` until post-merge reconciliation is recorded.
+## 23. Delivery sequence
 
 | Phase | Outcome | Dependency |
 |---|---|---|
-| P0 | Approve this specification and target Project schema | Change 049 |
+| P0 | Approve this specification, multi-project identity model, documentation milestones, and target backend schema | Change 049 |
 | P1 | Read-only GitHub Project inventory and normalized contracts | Change 047 merged |
 | P2 | Intake, typed records, decisions, assumptions, risks, approvals, and holds | P1 |
 | P3 | Change-record, branch, worktree, PR, verification, and closeout traceability | P2 |
@@ -688,7 +738,7 @@ Each phase MUST use a separate governed change ID, isolated worktree, bounded ow
 
 Before each implementation phase, a modularity assessment MUST evaluate the proposed units and seams against the current post-047 codebase. A proposed split MUST identify its contract, dependency direction, verification, and reversal cost. Unmeasured evidence MUST produce a defer trigger rather than a fabricated score.
 
-## 23. Risks and recovery
+## 24. Risks and recovery
 
 | Risk | Mitigation | Recovery |
 |---|---|---|
@@ -703,14 +753,27 @@ Before each implementation phase, a modularity assessment MUST evaluate the prop
 
 The complete capability can be disabled through JSON without deleting GitHub records. Provider operations, Actions workflows, and project reconciliation MUST fail safely when disabled.
 
-## 24. Open implementation decisions
+## 25. Programme workspace
 
-- **PM-OPEN-001**: Confirm whether the long-term Project owner remains the user account or moves to a GitHub organization.
+The long-lived working authority for this capability is:
+
+```text
+.work/programmes/work-management/
+├── programme.json
+├── target-spec.md
+└── roadmap.md
+```
+
+Child implementation slices remain under `.work/changes/<change-id>/` and use independent worktrees, scopes, tests, reviews, verification, pull requests, and closeout. Stable reader-facing documentation is updated only at the configured documentation milestones.
+
+## 26. Open implementation decisions
+
+- **PM-OPEN-001**: Confirm the default topology: one shared portfolio Project, separate per-project Projects, or a configurable mix.
 - **PM-OPEN-002**: Confirm the canonical EvidenceStore path for review artifacts after 047 and the Govern design settle.
 - **PM-OPEN-003**: Select the exact official GitHub MCP release that first implementation will pin and commission for Project tools.
 - **PM-OPEN-004**: Determine which Project views and built-in workflows can be provisioned through supported APIs versus one-time operator setup.
 - **PM-OPEN-005**: Decide whether accepted Project schema changes require an explicit operator approval record.
-## 25. External product sources
+## 27. External product sources
 
 External product facts were verified on 2026-08-06 against:
 

@@ -1,60 +1,62 @@
-# Change Specification: GitHub Project Management Capability
+# Change Specification: Multi-Project Work Management Foundation
 
 - **Change ID**: `049-github-project-management-spec`
-- **Status**: Active — documentation baseline
-- **Risk Profile**: rigorous
-- **Documentation level**: Complex
+- **Status**: Active — P0 implementation
+- **Risk Profile**: standard
+- **Development level**: Complex programme; bounded P0 implementation
 
 ## Outcome
 
-Define the complete target-state requirements, modular boundaries, lifecycle, evidence model, GitHub Project configuration, review extraction, CLI, CI, Git workflow, security, recovery, and phased delivery plan for a GitHub-native project-management capability in `kis-mcp`.
+Establish the long-lived work-management programme outside `docs` and implement the first provider-neutral domain foundation for multiple configured repositories.
 
-This change is documentation-only. It reserves an isolated worktree for future delivery but does not implement, configure, authenticate, or mutate GitHub Projects.
+GitHub remains the initial backend. P0 does not mutate GitHub, register gateway tools, or modify any path owned by active change 047.
 
 ## Authority and scope
 
-- Authority: `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, `docs/PROVIDER-MODULE-PRODUCT-SPEC.md`, and the operator-approved direction in this workstream.
-- Target specification: `docs/development/github-project-management/README.md`.
-- Owned paths: this change record and the target specification directory.
-- Excluded paths: policy, current product authority, gateway, capability composition, provider composition, and active changes 040/047/048.
-- Dependencies: 047 for runtime composition; 048 for stale-claim reconciliation.
-- Integration owner: deferred to a post-047 implementation slice.
+- Authority: `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, and the operator-approved programme direction.
+- Working authority: `.work/programmes/work-management/target-spec.md`.
+- Programme control: `.work/programmes/work-management/programme.json` and `roadmap.md`.
+- Architecture decision: `.work/programmes/work-management/ADR-001-provider-neutral-domain.md`.
+- Owned implementation: `src/kis_mcp/work_management/**`.
+- Owned tests: `tests/work_management/**`.
+- Dependency: active change 047 for later workflow and gateway composition.
 
-## Requirements
+## P0 requirements
 
-- **REQ-001**: Preserve GitHub as the authoritative code, artifact, PR, CI, and implementation-history platform.
-- **REQ-002**: Use one GitHub Project as the consolidated operational programme view.
-- **REQ-003**: Define first-class ideas, work, specification slices, reviews, findings, decisions, assumptions, risks, approvals, holds, and deferments.
-- **REQ-004**: Define immutable traceability from idea through specification, change, PR, verification, merge, and closeout.
-- **REQ-005**: Define a normalized review-run and evidence-extraction workflow.
-- **REQ-006**: Define provider-neutral modular contracts compatible with the 047 platform composition architecture.
-- **REQ-007**: Define configurable feature, automation, and gate modes without adding a fourth Work policy rule.
-- **REQ-008**: Define complete CLI, CI, Git workflow, security, reliability, migration, recovery, and acceptance requirements.
-- **REQ-009**: Distinguish GitHub Free capabilities from optional paid enforcement features.
-- **REQ-010**: Leave runtime implementation, GitHub Project mutation, and commissioning out of this documentation slice.
+- **REQ-001**: The domain MUST identify every managed repository through a stable project identity.
+- **REQ-002**: Project identity MUST include project ID, local root, repository identity, and backend binding without importing provider code.
+- **REQ-003**: Work records MUST identify their managed project and use validated record and lifecycle enums.
+- **REQ-004**: Lifecycle transitions MUST be deterministic and reject undeclared transitions.
+- **REQ-005**: `Done` MUST require a completed documentation milestone when documentation mode is required.
+- **REQ-006**: Documentation impact MUST support `not_assessed`, `none`, `planned`, `in_progress`, `pre_merge_complete`, and `post_merge_complete`.
+- **REQ-007**: Next-work selection MUST exclude blocked, held, deferred, rejected, superseded, and dependency-incomplete records.
+- **REQ-008**: Next-work selection MUST be deterministic, project-filterable, and explain its exclusions and ordering.
+- **REQ-009**: The P0 package MUST import no FastMCP, gateway, provider, workflow, or GitHub adapter module.
+- **REQ-010**: P0 MUST create no remote records, persistent migration, credentials, or policy change.
+
 ## Acceptance
 
-1. **Given** the current repository authority and 047 architecture, **when** the specification is reviewed, **then** the proposed capability has explicit module boundaries and dependency direction without claiming implementation.
-2. **Given** the required project-management use cases, **when** the record model is inspected, **then** intake, delivery, decisions, assumptions, risks, approvals, holds, reviews, findings, and historical traceability are covered.
-3. **Given** adjustable workflow requirements, **when** the configuration model is inspected, **then** features, automation, and gates can be independently disabled, advisory, or required where applicable.
-4. **Given** GitHub Free plan limitations, **when** CI and branch controls are described, **then** unavailable enforcement is capability-detected and residual risk is explicit.
-5. **Given** future implementation phases, **when** the delivery sequence is inspected, **then** each phase is separately bounded, verifiable, reversible, and preceded by current modularity evidence.
-6. **Given** the active 047 restructuring, **when** this change diff is checked, **then** no 047-owned runtime or top-level authority path is modified.
+1. **Given** two managed projects, **when** records are selected, **then** each remains attributable to its project and optional project filtering is exact.
+2. **Given** a record in a non-executable state or with incomplete dependencies, **when** next work is selected, **then** it is excluded with a stable reason.
+3. **Given** documentation mode `required`, **when** a record attempts to transition to `Done` before post-merge reconciliation, **then** the transition is rejected.
+4. **Given** documentation impact `none`, **when** reviewer evidence is recorded, **then** the documentation milestone may satisfy completion without document paths.
+5. **Given** the active 047 restructuring, **when** scope and architecture checks run, **then** no 047-owned path or integration surface is modified.
+6. **Given** the provider-neutral package, **when** imports are inspected, **then** no provider, workflow, gateway, FastMCP, or GitHub-specific dependency exists.
 
 ## Risks and recovery
 
-- Risk: the specification could hard-code a GitHub product detail that changes before implementation.
-- Mitigation: identify external facts, record their verification date, and require revalidation against the pinned provider release.
-- Risk: the project-management domain could become a catch-all module.
-- Mitigation: define provider, domain, workflow, reconciliation, and evidence boundaries; require phase-level modularity assessment.
-- Risk: the operational Project could compete with repository authority.
-- Mitigation: store status, summaries, and immutable links only; keep full artifacts in Git.
-- Recovery: revert or revise this documentation branch. No runtime, remote Project, or credential state is changed by this slice.
+- Risk: the domain becomes a catch-all for adapters and workflows.
+- Mitigation: enforce the ADR and P0 architecture tests; defer adapter, workflow, settings, and automation modules.
+- Risk: documentation status becomes an authorization rule.
+- Mitigation: documentation mode controls delivery readiness only and never changes HR-001, HR-002, or HR-003.
+- Risk: project identity is inferred from mutable current-directory state.
+- Mitigation: require explicit project identity in domain records and commands.
+- Recovery: revert the P0 package, tests, and programme artifacts before public integration. P0 creates no remote or migrated state.
 
 ## Out of scope
 
-- Runtime code, tests, JSON schemas, Actions workflows, issue forms, or project bootstrap.
-- GitHub Project creation or mutation.
-- Provider installation, upgrade, authentication, or scope changes.
-- Changes to 047, 048, 040, policy, or current product authority.
-- Pull-request creation, merge, or worktree cleanup for this reserved active change.
+- GitHub Project inventory, creation, mutation, or commissioning.
+- GitHub adapter, provider registration, workflow registration, gateway exposure, or public tools.
+- Settings schema, CLI, CI, Actions, review evidence persistence, or reconciliation automation.
+- Reader-facing README, operations, product, or module documentation updates before the programme reaches its configured documentation milestone.
+- Changes to 040, 047, policy, or existing platform composition paths.
