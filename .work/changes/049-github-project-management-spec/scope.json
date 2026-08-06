@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "049-github-project-management-spec",
+  "status": "active",
+  "branch": "change/049-github-project-management-spec",
+  "worktree": ".work/worktrees/049-github-project-management-spec",
+  "base": "main",
+  "outcome": "Specify a modular GitHub-native project-management, review-evidence, and Git workflow capability for the Work surface",
+  "owned_paths": [
+    ".work/changes/049-github-project-management-spec/**",
+    "docs/development/github-project-management/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "SPEC.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/gateway/**",
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/tools/platform.py",
+    "src/kis_mcp/workflows/platform.py",
+    "policy/**",
+    ".work/changes/040-context7-serena-adapters/**",
+    ".work/changes/047-capability-composition-and-tool-experience/**",
+    ".work/changes/048-stale-change-cleanup-hardening/**"
+  ],
+  "dependencies": [
+    "047-capability-composition-and-tool-experience",
+    "048-stale-change-cleanup-hardening"
+  ],
+  "integration_owner": null
+}
