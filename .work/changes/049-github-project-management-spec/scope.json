@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "049-github-project-management-spec",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/049-github-project-management-spec",
   "worktree": ".work/worktrees/049-github-project-management-spec",
   "base": "main",
