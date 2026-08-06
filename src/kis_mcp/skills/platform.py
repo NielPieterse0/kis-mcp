@@ -9,21 +9,12 @@ from ..capabilities.contracts import (
     ReadinessState,
 )
 from ..capabilities.normalization import default_quality, normalize_effects
-from ..capabilities.settings import CapabilitySettings
+from ..capabilities.settings import CapabilitySettings, load_capability_settings
+from .metadata import enrich_skill_card
 from .models import SkillCard
+from .service import SkillsService
+from .tools import register_skills_tools
 
-
-def enrich_skill_card(card: SkillCard, settings: CapabilitySettings) -> SkillCard:
-    metadata = settings.skill_metadata.get(card.id)
-    if metadata is None:
-        return card
-    return SkillCard(
-        id=card.id,
-        summary=card.summary,
-        category=metadata.category,
-        capabilities=metadata.capabilities,
-        status=card.status,
-    )
 
 
 def skill_capability_contributions(
@@ -60,4 +51,18 @@ def skill_capability_contributions(
     return tuple(contributions)
 
 
-__all__ = ["enrich_skill_card", "skill_capability_contributions"]
+def register_platform_skills(server):
+    service = register_skills_tools(server)
+    if not isinstance(service, SkillsService):
+        return service, ()
+    response = service.list_skills(limit=service.catalogue.config.limits.list_max_limit)
+    settings = load_capability_settings()
+    cards = tuple(enrich_skill_card(card, settings) for card in response.skills)
+    return service, cards
+
+
+__all__ = [
+    "enrich_skill_card",
+    "register_platform_skills",
+    "skill_capability_contributions",
+]

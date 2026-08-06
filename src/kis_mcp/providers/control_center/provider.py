@@ -19,8 +19,6 @@ from ..contracts import (
     ProviderState,
 )
 from ..registry import ProviderRegistry
-from ..runtime import latest_provider_runtime_composition, provider_runtime_status
-from ..service import ProviderService
 
 ProviderStatusSource = Callable[[], Mapping[str, Any]]
 
@@ -89,19 +87,14 @@ def control_center_provider_descriptor(
 def register_control_center_provider(
     registry: ProviderRegistry,
     *,
+    provider_status_source: ProviderStatusSource | None = None,
     settings_path: str | Path | None = None,
 ) -> ProviderDescriptor:
     """Register Control Center with live evidence from this provider registry."""
 
-    def current_provider_status() -> Mapping[str, Any]:
-        return provider_runtime_status(
-            ProviderService(registry),
-            latest_provider_runtime_composition(),
-        )
-
     return registry.register(
         control_center_provider_descriptor(
-            provider_status_source=current_provider_status,
+            provider_status_source=provider_status_source or (lambda: {"external_providers": []}),
             settings_path=settings_path,
         )
     )

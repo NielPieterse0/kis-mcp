@@ -1,3 +1,6 @@
+from .execution import CapabilityExecutionRouter
+from .exposure import ExposureMiddleware, ExposurePlan, ExposurePlanner
+from .runtime import CapabilityRuntimeState
 from .contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -14,6 +17,11 @@ from .contracts import (
 from .settings import CapabilitySettings, CapabilitySettingsError, load_capability_settings
 
 __all__ = [
+    "CapabilityExecutionRouter",
+    "CapabilityRuntimeState",
+    "ExposureMiddleware",
+    "ExposurePlan",
+    "ExposurePlanner",
     "CapabilityContribution",
     "CapabilityDomain",
     "CapabilityRequirement",

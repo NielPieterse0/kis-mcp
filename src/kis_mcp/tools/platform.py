@@ -13,6 +13,8 @@ from ..capabilities.contracts import (
 )
 from ..capabilities.normalization import default_quality, normalize_effects
 from .contracts import ToolDescriptor, ToolState
+from .codex_cli import register_codex_tool
+from .service import ToolService
 from .everything import EverythingToolSettings, everything_tool_descriptor
 from .fetch import FetchToolSettings, fetch_tool_descriptor
 from .mcp_spec import McpSpecSettings, mcp_spec_tool_descriptor
@@ -43,6 +45,12 @@ def build_platform_tool_registry(repository_root: Path | None = None) -> ToolReg
     )
     return registry
 
+
+
+def build_platform_codex_backend(settings):
+    registry = ToolRegistry()
+    register_codex_tool(registry, settings=settings)
+    return ToolService(registry).build("codex-cli")
 
 def _readiness(descriptor: ToolDescriptor) -> ReadinessSnapshot:
     readiness = descriptor.readiness_probe()
@@ -102,4 +110,8 @@ def tool_capability_contributions(
     return tuple(contributions)
 
 
-__all__ = ["build_platform_tool_registry", "tool_capability_contributions"]
+__all__ = [
+    "build_platform_codex_backend",
+    "build_platform_tool_registry",
+    "tool_capability_contributions",
+]

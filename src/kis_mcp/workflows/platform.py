@@ -1,5 +1,20 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
+from ..config import RuntimeConfig
+from ..providers.platform import ProviderService, build_platform_nvidia_backend
+from ..tools.platform import build_platform_codex_backend
+from .code_review import (
+    AgentSettings,
+    CodeReviewAgent,
+    GitReviewEvidenceCollector,
+    load_agent_settings_or_disabled,
+    UnavailableReviewBackend,
+    register_agent_tools,
+)
+
 from ..capabilities.contracts import (
     ExposureMode,
     ExposurePolicy,
@@ -120,4 +135,50 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
     )
 
 
-__all__ = ["workflow_descriptors"]
+def _build_code_review_agent(
+    runtime: RuntimeConfig,
+    settings: AgentSettings,
+    provider_service: ProviderService,
+) -> CodeReviewAgent:
+    nvidia_backend: Any = UnavailableReviewBackend("nvidia-nim")
+    try:
+        nvidia_backend = build_platform_nvidia_backend(provider_service, settings.nvidia)
+    except Exception:
+        nvidia_backend = UnavailableReviewBackend("nvidia-nim")
+    codex_backend: Any = UnavailableReviewBackend("codex-cli")
+    try:
+        codex_backend = build_platform_codex_backend(settings.codex)
+    except Exception:
+        codex_backend = UnavailableReviewBackend("codex-cli")
+    return CodeReviewAgent(
+        settings,
+        collector=GitReviewEvidenceCollector(
+            project_boundary=Path(runtime.project_boundary),
+            max_chars=settings.max_evidence_chars,
+        ),
+        backends={"nvidia-nim": nvidia_backend, "codex-cli": codex_backend},
+    )
+
+
+def load_platform_workflow_settings():
+    return load_agent_settings_or_disabled()
+
+
+def register_platform_workflows(
+    server,
+    runtime: RuntimeConfig,
+    settings: AgentSettings,
+    provider_service: ProviderService,
+) -> None:
+    register_agent_tools(
+        server,
+        _build_code_review_agent(runtime, settings, provider_service),
+    )
+
+
+__all__ = [
+    "AgentSettings",
+    "load_platform_workflow_settings",
+    "register_platform_workflows",
+    "workflow_descriptors",
+]

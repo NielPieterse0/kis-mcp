@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+from fastmcp import FastMCP
+
+from ..config import RuntimeConfig
+from .change_service import InspectChangeService
+from .git_reader import GitReader
+from .read_authority import ReadAuthority
+from .service import InspectProjectService
+from .tools import register_change_tools, register_discover_tools
+
 from ..capabilities.contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -77,4 +88,28 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
     )
 
 
-__all__ = ["discover_capability_contributions"]
+def register_platform_discover(server: FastMCP, runtime: RuntimeConfig) -> None:
+    register_discover_tools(
+        server,
+        InspectProjectService(
+            boundary=Path(runtime.project_boundary),
+            settings=runtime.discover_settings,
+        ),
+    )
+    change_server = FastMCP("kis-mcp-discover-change")
+    register_change_tools(
+        change_server,
+        InspectChangeService(
+            GitReader(
+                authority=ReadAuthority(
+                    Path(runtime.project_boundary),
+                    runtime.discover_settings,
+                ),
+                settings=runtime.discover_settings,
+            )
+        ),
+    )
+    server.mount(change_server)
+
+
+__all__ = ["discover_capability_contributions", "register_platform_discover"]

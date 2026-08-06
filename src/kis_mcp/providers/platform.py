@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 
 from ..capabilities.contracts import (
     CapabilityContribution,
@@ -23,7 +24,14 @@ from .nvidia import (
     register_nvidia_provider,
 )
 from .registry import ProviderRegistry
-from .runtime import ProviderMountResult, ProviderMountState, ProviderRuntimeComposition
+from .runtime import (
+    ProviderMountResult,
+    ProviderMountState,
+    ProviderRuntimeComposition,
+    compose_provider_runtime,
+    provider_runtime_status,
+)
+from .runtime_settings import ProviderRuntimeSettings, load_provider_runtime_settings
 from .service import ProviderService
 
 
@@ -49,11 +57,14 @@ def build_platform_provider_registry(
     github_settings: GitHubProviderSettings | None = None,
     nvidia_settings: NvidiaSettings | None = None,
     environment: Mapping[str, str] | None = None,
+    control_center_status_source=None,
 ) -> ProviderRegistry:
     """Register approved providers explicitly without building or probing them."""
 
     registry = ProviderRegistry()
-    register_control_center_provider(registry)
+    register_control_center_provider(
+        registry, provider_status_source=control_center_status_source
+    )
     register_desktop_commander_provider(registry, runtime_config)
     register_github_provider(
         registry,
@@ -75,6 +86,7 @@ def build_platform_provider_service(
     github_settings: GitHubProviderSettings | None = None,
     nvidia_settings: NvidiaSettings | None = None,
     environment: Mapping[str, str] | None = None,
+    control_center_status_source=None,
 ) -> ProviderService:
     """Build the provider-neutral service over the explicit platform registry."""
 
@@ -84,9 +96,56 @@ def build_platform_provider_service(
             github_settings=github_settings,
             nvidia_settings=nvidia_settings,
             environment=environment,
+            control_center_status_source=control_center_status_source,
         )
     )
 
+
+
+
+def build_platform_nvidia_backend(service: ProviderService, settings: NvidiaSettings):
+    if not settings.enabled or not service.registry.contains("nvidia-nim"):
+        raise RuntimeError("nvidia-nim is unavailable")
+    return service.build("nvidia-nim")
+
+@dataclass(frozen=True, slots=True)
+class PlatformProviderRuntime:
+    service: ProviderService
+    settings: ProviderRuntimeSettings
+    composition: ProviderRuntimeComposition
+
+
+def compose_platform_providers(
+    server,
+    *,
+    runtime_config: RuntimeConfig,
+    nvidia_settings: NvidiaSettings,
+    provider_service: ProviderService | None = None,
+    provider_runtime_settings: ProviderRuntimeSettings | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> PlatformProviderRuntime:
+    holder: dict[str, object] = {}
+
+    def current_status():
+        active_service = holder.get("service")
+        active_composition = holder.get("composition")
+        if not isinstance(active_service, ProviderService) or not isinstance(
+            active_composition, ProviderRuntimeComposition
+        ):
+            return {"external_providers": []}
+        return provider_runtime_status(active_service, active_composition)
+
+    service = provider_service or build_platform_provider_service(
+        runtime_config=runtime_config,
+        nvidia_settings=nvidia_settings,
+        environment=environment,
+        control_center_status_source=current_status,
+    )
+    holder["service"] = service
+    settings = provider_runtime_settings or load_provider_runtime_settings()
+    composition = compose_provider_runtime(server, service, settings)
+    holder["composition"] = composition
+    return PlatformProviderRuntime(service=service, settings=settings, composition=composition)
 
 def _mount_readiness(result: ProviderMountResult) -> ReadinessSnapshot | None:
     state = {
@@ -198,7 +257,12 @@ def provider_capability_contributions(
 
 
 __all__ = [
+    "PlatformProviderRuntime",
+    "ProviderRuntimeSettings",
+    "ProviderService",
+    "build_platform_nvidia_backend",
     "build_platform_provider_registry",
     "build_platform_provider_service",
+    "compose_platform_providers",
     "provider_capability_contributions",
 ]

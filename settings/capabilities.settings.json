@@ -43,7 +43,8 @@
       "recommend_workflow",
       "execute_read_action",
       "execute_change_action",
-      "execute_external_action"
+      "execute_external_action",
+      "controlcenter_open_kis_control_center"
     ]
   },
   "discovery_operations": [

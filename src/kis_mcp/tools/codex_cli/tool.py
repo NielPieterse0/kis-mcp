@@ -4,15 +4,15 @@ import shutil
 import subprocess
 from collections.abc import Callable
 
-from .. import (
+from ..contracts import (
     ToolBoundary,
     ToolCapability,
     ToolDescriptor,
     ToolKind,
     ToolReadiness,
-    ToolRegistry,
     ToolState,
 )
+from ..registry import ToolRegistry
 from .settings import CodexSettings
 from .adapter import CodexCliAdapter
 

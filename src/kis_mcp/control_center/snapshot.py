@@ -6,7 +6,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from kis_mcp.providers.runtime import latest_provider_runtime_composition
 from kis_mcp.runtime_observability import (
     RuntimeObservability,
     RuntimeObservabilitySnapshot,
@@ -315,19 +314,9 @@ class ControlCenterSnapshotService:
             AvailableAction("Run repository verification", "scripts/verify.ps1", "command"),
         )
 
-    def _default_provider_status_source(self) -> Mapping[str, Any]:
-        composition = latest_provider_runtime_composition()
-        return {
-            "external_providers": [
-                {
-                    **item.to_json_dict(),
-                    "readiness": None,
-                    "user_status": None,
-                    "commissioning": {},
-                }
-                for item in composition.results
-            ]
-        }
+    @staticmethod
+    def _default_provider_status_source() -> Mapping[str, Any]:
+        return {"external_providers": []}
 
     def _default_discover_source(self) -> Mapping[str, Any]:
         from kis_mcp.config import load_runtime_config

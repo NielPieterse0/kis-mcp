@@ -33,7 +33,15 @@
     "src/kis_mcp/workflows/__init__.py",
     "tests/providers/test_runtime_composition.py",
     "tests/providers/test_platform_composition.py",
-    "tests/skills/**"
+    "tests/skills/**",
+    "src/kis_mcp/control_center/snapshot.py",
+    "tests/control_center/**",
+    "src/kis_mcp/providers/control_center/provider.py",
+    "tests/providers/test_control_center_provider.py",
+    "src/kis_mcp/tools/codex_cli/tool.py",
+    "src/kis_mcp/skills/metadata.py",
+    "tests/discover/test_tool_registration.py",
+    "tests/discover/test_change_tool_registration.py"
   ],
   "shared_paths": [],
   "excluded_paths": [

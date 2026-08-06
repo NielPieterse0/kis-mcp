@@ -22,7 +22,7 @@ from .models import (
     SkillRefreshResponse,
     SkillSearchResponse,
 )
-from .platform import enrich_skill_card
+from .metadata import enrich_skill_card
 from .source import SkillSource, SkillSourceReader
 
 
