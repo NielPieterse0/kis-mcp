@@ -56,17 +56,18 @@ Reviews and audits are composed workflows over these planes.
 
 ## 3. Relationship to the current kis-mcp baseline
 
-The current gateway is no longer only the initial Work-plane foundation. It now contains bounded public Discover, Skills, Provider composition, Tools and agent workflow support, plus a separate read-only Control Center. Govern and broader workflow composition remain target-state capabilities.
+The current gateway is no longer only the initial Work-plane foundation. It now contains bounded public Discover, capability-bearing Skills, Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow descriptors and recommendations, effect-specific long-tail dispatch, and a read-only Control Center available both mounted and standalone. Govern and broader executable workflow orchestration remain target-state capabilities.
 
 ### Current capability state
 
 | State | Capability |
 |---|---|
-| Public primary gateway | Desktop Commander Work tools; five gateway operations; `inspect_project`; working-tree `inspect_change`; nine Skills operations; namespaced GitHub and Supabase tools when mounted; `review_change_with_agent`. |
-| Internal Discover services | Staged, commit, range, and branch change targets; context broker; impact graph; contract intelligence; project catalog; provider-admission evidence. |
-| Standalone | KIS Control Center read-only MCP App and UI resource. |
+| Direct primary profile | Frequent Work and Discover operations; health and provider status; capability search, description, and workflow recommendation; effect-specific dispatch; advisory review when ready; and the mounted Control Center entry point. |
+| Discoverable catalogue | Remaining valid Desktop Commander, Skills, internal Discover, quarantine, and mounted provider operations with original schemas, readiness, effects, quality, and exposure metadata. |
+| Status-only catalogue | Disabled, unavailable, authentication-gated, build-failed, or mount-failed operations remain visible but ineligible. |
+| Standalone | KIS Control Center read-only MCP App and UI resource using the same evidence model. |
 | Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through supervised bootstrap scripts and remain outside gateway composition. |
-| Target | Govern surface, public context/impact/catalog/admission workflows, broader semantic and remote evidence, progressive workflow coordination. |
+| Target | Govern surface, broader semantic and trusted remote evidence, and additional executable workflow coordination. |
 
 The current implementation remains responsible for:
 
@@ -78,25 +79,28 @@ The current implementation remains responsible for:
 - exposing bounded local Discover evidence without executing repository code;
 - resolving the approved shared Skills catalogue and routing its mutations through Work;
 - explicitly registering and composing approved providers;
-- exposing one bounded advisory code-review workflow without mutation authority.
+- exposing one bounded advisory code-review workflow without mutation authority;
+- composing all domains through normalized immutable capability contributions;
+- separating registration, readiness, recommendation, and exposure;
+- preserving the long tail through effect-specific dispatch and original middleware while keeping the direct tool-schema surface bounded.
 
-The future platform may add Govern, public context and impact workflows, broader semantic and trusted remote evidence, progressive capability exposure, and workflow coordination. Those additions MUST NOT silently create a fourth policy prohibition.
+The future platform may add Govern, broader semantic and trusted remote evidence, and executable coordination for more declared workflows. Those additions MUST NOT silently create a fourth policy prohibition.
 
 Profiles, catalogues, governance checks, evidence requirements, readiness states, and workflow routing may control what platform functionality is installed, selected, or presented. They MUST NOT be interpreted as independent reasons to block an otherwise permitted Desktop Commander invocation under the three-rule Work policy.
 
 ### Implemented Skills capability
 
-The current platform includes a focused `skills.catalogue` capability. It resolves reusable procedures from `C:\Projects\.agents\skills`, exposes bounded catalogue/read/evaluation operations, and routes create/improve mutations through the existing Work middleware and Desktop Commander backend. Skills remain reusable procedures rather than repository authority, provider plugins, or new policy rules. ChatGPT loads instructions and composes ordinary Work operations; the runtime does not automatically execute arbitrary skill code. Initial catalogue failure leaves the wider Work/gateway server available and surfaces a corrective Skills error.
+The current platform includes a focused `skills.catalogue` capability. It resolves reusable procedures from `C:\Projects\.agents\skills`, enriches every current runtime card with reviewed category, capability, activation, effect, and workflow metadata from JSON, exposes bounded catalogue and read/evaluation operations, and routes create/improve mutations through the existing Work middleware and Desktop Commander backend. Skills remain reusable procedures rather than repository authority, provider plugins, or new policy rules. ChatGPT loads instructions and composes ordinary Work operations; the runtime does not automatically execute arbitrary skill code. Initial catalogue failure leaves the wider Work/gateway server available and surfaces a corrective Skills error.
 
 ### Implemented Provider and agent capability
 
-The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors. GitHub and Supabase may mount under namespaced public tools; NVIDIA is workflow-only. Codex CLI remains a local Tools-registry adapter. Readiness, mounting, authentication, and commissioning are reported separately and do not create Work authorization.
+The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, Supabase, and Control Center descriptors. GitHub, Supabase, and Control Center may mount under namespaced operations; NVIDIA is workflow-only. Codex CLI remains a local Tools-registry adapter. Each gateway owns its exact Provider and capability composition state; no global latest-composition singleton remains. Readiness, mounting, authentication, commissioning, recommendation, and exposure are reported separately and do not create Work authorization.
 
 `review_change_with_agent` collects bounded local Git evidence and requests one advisory review through NVIDIA NIM or Codex CLI. It permits at most one fallback and grants no mutation or nested-delegation authority.
 
-### Standalone Control Center
+### Control Center
 
-The KIS Control Center is a separate read-only MCP App. It reports bounded local runtime, project, policy, provider-configuration, quarantine, and verification guidance. It is not mounted into the primary gateway and is not part of Work enforcement.
+The KIS Control Center is a read-only MCP App available through the mounted `controlcenter_*` provider and through a standalone process. It reports bounded local runtime, project, policy, provider-configuration, quarantine, and verification guidance. The mounted form receives explicit instance-scoped provider status and remains outside Work authorization.
 
 ## 4. Shared platform kernel
 
@@ -139,11 +143,11 @@ Manages optional providers such as Desktop Commander, local filesystem readers, 
 
 ### ToolCatalogue
 
-Provides progressive discovery so inactive capabilities do not consume default tool-schema context.
+Implemented for the current gateway. Provider, Tool, Discover, Skill, and Workflow platform entry points contribute normalized immutable metadata. Eligibility filters readiness, dependencies, credentials, effects, and enablement before deterministic explainable scoring. A JSON-bounded direct profile limits default tool-schema context while the valid long tail remains searchable and effect-dispatched through original schemas and middleware.
 
 ### WorkflowCoordinator
 
-Composes Discover, Govern, and Work operations into task-level workflows while preserving policy and evidence boundaries.
+Partially implemented as first-class workflow descriptors and `recommend_workflow`. Current descriptors cover isolated development, change review, safe pull-request closeout, worktree cleanup, provider commissioning and diagnosis, skill creation or improvement, and modularity assessment. Most workflows are recommendations rather than server-executed orchestration; the advisory code-review workflow remains the bounded executable exception.
 
 ### VerificationRegistry
 
@@ -434,20 +438,22 @@ The sequence remains architectural guidance, but several foundations are already
 | Repository-wide `inspect_project`, local Git evidence, and working-tree `inspect_change` | Public and implemented. |
 | Staged, commit, range, and branch change readers | Internally implemented; not exposed by the public `inspect_change` signature. |
 | Context broker, impact graph, contract intelligence, project catalog, and provider-admission evidence | Internally implemented with versioned contracts; public composition remains target work. |
-| Provider registry, GitHub/Supabase runtime mounting, and provider status | Public and implemented. |
-| Skills catalogue and mutation workflow | Public and implemented. |
+| Provider registry, GitHub, Supabase, and Control Center runtime mounting, and provider status | Public and implemented. |
+| Unified capability contributions, instance-scoped readiness, eligibility, explainable scoring, and progressive exposure | Public and implemented. |
+| Skills catalogue, capability-bearing runtime cards, and mutation workflow | Implemented; operations outside the direct profile remain discoverable. |
+| First-class workflow descriptors and recommendations | Implemented for eight current task workflows; general server-executed orchestration remains target work. |
 | NVIDIA/Codex advisory code-review workflow | Public and implemented; live backend commissioning is separate evidence. |
-| KIS Control Center | Implemented as a standalone read-only MCP App. |
+| KIS Control Center | Implemented as a mounted and standalone read-only MCP App. |
 | AgentSys and agnix managed bootstrap | Implemented as supervised, version-pinned host tooling outside gateway composition. |
 | Govern plane, authority registry, rule evaluation, and drift detection | Target. |
 | Broader semantic providers and trusted remote Discover evidence | Target. |
-| Composed public review, audit, debugging, proposal, and verification workflows | Target. |
+| General executable review, audit, debugging, proposal, and verification orchestration | Target; current workflow descriptors and recommendations are implemented. |
 
 The next architectural stages are:
 
 1. finish public composition of approved internal Discover services without widening read or execution authority;
 2. add Govern authority, rules, findings, exceptions, and documentation-drift detection;
-3. compose repository, change, documentation, architecture, governance, security, and debugging workflows;
+3. turn selected declared workflows into bounded executable orchestration after their evidence and approval contracts are approved;
 4. add bounded Work planning, proposal, application, and verification workflows while preserving ordinary Desktop Commander operations;
 5. normalize trusted remote evidence through approved connectors;
 6. continue provider discovery, conformance, and registry evaluation through isolated slices.

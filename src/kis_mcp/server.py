@@ -1,196 +1,17 @@
 from __future__ import annotations
 
-import hashlib
-import json
-import os
-from collections.abc import Mapping, Sequence
-from pathlib import Path
-from typing import Any
-
 from fastmcp import FastMCP
-from fastmcp.client.transports import StdioTransport
-from fastmcp.exceptions import ToolError
 from fastmcp.server import create_proxy
-from fastmcp.server.providers.proxy import ProxyClient
 
 from .config import RuntimeConfig, load_runtime_config
-from .desktop_commander import DesktopCommanderEffectResolver
-from .discover.change_service import InspectChangeService
-from .discover.git_reader import GitReader
-from .discover.read_authority import ReadAuthority
-from .discover.service import InspectProjectService
-from .discover.tools import register_change_tools, register_discover_tools
-from .middleware import ThreeRuleMiddleware
-from .models import (
-    HealthResponse,
-    PolicyRuleResponse,
-    QuarantineListResponse,
-    QuarantineResponse,
+from .gateway.composition import compose_gateway
+from .gateway.foundation import (
+    provider_environment as _provider_environment,
+    quarantine_response as _quarantine_response,
 )
-from .policy import ThreeRulePolicy
-from .provider_lifecycle import prepare_provider_launch
 from .provider_readiness import validate_provider_offline_readiness
-from .providers.platform import build_platform_provider_service
-from .providers.runtime import compose_provider_runtime, provider_runtime_status
-from .providers.runtime_settings import (
-    ProviderRuntimeSettings,
-    load_provider_runtime_settings,
-)
+from .providers.runtime_settings import ProviderRuntimeSettings
 from .providers.service import ProviderService
-from .quarantine import QuarantineError, QuarantineRecord, QuarantineService
-from .skills import register_skills_tools
-from .tools import ToolRegistry, ToolService
-from .tools.codex_cli import register_codex_tool
-from .workflows.code_review import (
-    AgentSettings,
-    CodeReviewAgent,
-    GitReviewEvidenceCollector,
-    UnavailableReviewBackend,
-    load_agent_settings_or_disabled,
-    register_agent_tools,
-)
-
-
-def _ensure_state_directories(config: RuntimeConfig) -> None:
-    paths = config.raw_settings["paths"]
-    for key in (
-        "state_root",
-        "desktop_commander_root",
-        "desktop_commander_config_root",
-        "quarantine_root",
-        "temp_root",
-        "log_root",
-        "npm_cache_root",
-        "python_environment_root",
-        "uv_cache_root",
-        "python_cache_root",
-        "pytest_cache_root",
-    ):
-        Path(str(paths[key])).mkdir(parents=True, exist_ok=True)
-
-
-def _provider_environment(config: RuntimeConfig) -> dict[str, str]:
-    state_root = Path(config.state_root)
-    temp_root = Path(config.temp_root)
-    appdata = state_root / "AppData" / "Roaming"
-    local_appdata = state_root / "AppData" / "Local"
-    for path in (appdata, local_appdata, temp_root):
-        path.mkdir(parents=True, exist_ok=True)
-
-    forwarded = {
-        key: value
-        for key in ("PATH", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT")
-        if (value := os.environ.get(key))
-    }
-    launch_env = config.desktop_commander_launch.get("env", {})
-    forwarded.update({str(key): str(value) for key, value in launch_env.items()})
-    forwarded.update(
-        {
-            "HOME": str(state_root),
-            "USERPROFILE": str(state_root),
-            "APPDATA": str(appdata),
-            "LOCALAPPDATA": str(local_appdata),
-            "TEMP": str(temp_root),
-            "TMP": str(temp_root),
-            "NPM_CONFIG_CACHE": config.npm_cache_root,
-            "PUPPETEER_CACHE_DIR": config.puppeteer_cache_root,
-            "NO_UPDATE_NOTIFIER": "1",
-        }
-    )
-    return forwarded
-
-
-def _policy_fingerprint(config: RuntimeConfig) -> str:
-    encoded = json.dumps(
-        config.raw_policy, sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _policy_rule_response(rule: Mapping[str, Any]) -> PolicyRuleResponse:
-    return PolicyRuleResponse(
-        id=str(rule["id"]),
-        name=str(rule["name"]),
-        prohibited_outcome=str(rule["prohibited_outcome"]),
-        decision=str(rule["decision"]),
-    )
-
-
-def _quarantine_response(record: QuarantineRecord) -> QuarantineResponse:
-    return QuarantineResponse(
-        operation_id=record.operation_id,
-        original_path=record.original_path,
-        payload_path=record.payload_path,
-        item_type=record.item_type,
-        quarantined_at=record.quarantined_at,
-        restored_at=record.restored_at,
-    )
-
-
-def _quarantine_payload(record: QuarantineRecord) -> dict[str, Any]:
-    response = _quarantine_response(record)
-    return {
-        "operation_id": response.operation_id,
-        "original_path": response.original_path,
-        "payload_path": response.payload_path,
-        "item_type": response.item_type,
-        "quarantined_at": response.quarantined_at,
-        "restored_at": response.restored_at,
-        "schema_version": response.schema_version,
-    }
-
-
-def _health_response(
-    runtime: RuntimeConfig,
-    launch: Mapping[str, Any],
-) -> HealthResponse:
-    entry = Path(str(launch.get("args", [""])[0]))
-    return HealthResponse(
-        ready=entry.is_file(),
-        server=runtime.server_name,
-        project_boundary=runtime.project_boundary,
-        quarantine_root=runtime.quarantine_root,
-        desktop_commander_entry=str(entry),
-        desktop_commander_installed=entry.is_file(),
-        policy_rules=tuple(
-            _policy_rule_response(rule) for rule in runtime.raw_policy["rules"]
-        ),
-        policy_fingerprint=_policy_fingerprint(runtime),
-        implementation_status=dict(runtime.implementation_status),
-    )
-
-
-def _build_code_review_agent(
-    runtime: RuntimeConfig,
-    settings: AgentSettings,
-    provider_service: ProviderService,
-) -> CodeReviewAgent:
-    nvidia_backend: Any = UnavailableReviewBackend("nvidia-nim")
-    if settings.nvidia.enabled and provider_service.registry.contains("nvidia-nim"):
-        try:
-            nvidia_backend = provider_service.build("nvidia-nim")
-        except Exception:
-            nvidia_backend = UnavailableReviewBackend("nvidia-nim")
-
-    codex_backend: Any = UnavailableReviewBackend("codex-cli")
-    try:
-        tool_registry = ToolRegistry()
-        register_codex_tool(tool_registry, settings=settings.codex)
-        codex_backend = ToolService(tool_registry).build("codex-cli")
-    except Exception:
-        codex_backend = UnavailableReviewBackend("codex-cli")
-
-    return CodeReviewAgent(
-        settings,
-        collector=GitReviewEvidenceCollector(
-            project_boundary=Path(runtime.project_boundary),
-            max_chars=settings.max_evidence_chars,
-        ),
-        backends={
-            "nvidia-nim": nvidia_backend,
-            "codex-cli": codex_backend,
-        },
-    )
 
 
 def build_server(
@@ -200,159 +21,19 @@ def build_server(
     provider_service: ProviderService | None = None,
     provider_runtime_settings: ProviderRuntimeSettings | None = None,
 ) -> FastMCP:
-    runtime = config or load_runtime_config()
-    review_agent_settings = load_agent_settings_or_disabled()
-    if validate_provider:
-        validate_provider_offline_readiness(runtime)
-    _ensure_state_directories(runtime)
-
-    launch = runtime.desktop_commander_launch
-    provider_args, provider_environment = prepare_provider_launch(
-        args=launch.get("args", []),
-        environment=_provider_environment(runtime),
-        provider_state_file=runtime.provider_state_file,
-    )
-    transport = StdioTransport(
-        command=str(launch["command"]),
-        args=provider_args,
-        cwd=str(launch["cwd"]),
-        env=provider_environment,
-    )
-    server = create_proxy(
-        ProxyClient(transport),
-        name=runtime.server_name,
-    )
-    register_discover_tools(
-        server,
-        InspectProjectService(
-            boundary=Path(runtime.project_boundary),
-            settings=runtime.discover_settings,
-        ),
-    )
-    change_server = FastMCP("kis-mcp-discover-change")
-    register_change_tools(
-        change_server,
-        InspectChangeService(
-            GitReader(
-                authority=ReadAuthority(
-                    Path(runtime.project_boundary),
-                    runtime.discover_settings,
-                ),
-                settings=runtime.discover_settings,
-            )
-        ),
-    )
-    server.mount(change_server)
-
-    external_provider_service = provider_service or build_platform_provider_service(
-        runtime_config=runtime,
-        nvidia_settings=review_agent_settings.nvidia,
-        environment=os.environ,
-    )
-    external_provider_settings = (
-        provider_runtime_settings or load_provider_runtime_settings()
-    )
-    external_provider_composition = compose_provider_runtime(
-        server,
-        external_provider_service,
-        external_provider_settings,
-    )
-
-    quarantine = QuarantineService(
-        project_boundary=runtime.project_boundary,
-        quarantine_root=runtime.quarantine_root,
-    )
-    resolver = DesktopCommanderEffectResolver(
-        project_boundary=runtime.project_boundary,
-        provider_state_file=runtime.provider_state_file,
-    )
-    policy = ThreeRulePolicy(
-        project_boundary=runtime.project_boundary,
-        quarantine_root=runtime.quarantine_root,
-    )
-
-    def quarantine_paths(paths: Sequence[str]) -> list[dict[str, Any]]:
-        return [
-            _quarantine_payload(record)
-            for record in quarantine.quarantine_many(paths)
-        ]
-
-    def quarantine_or_tool_error(path: str) -> QuarantineResponse:
-        try:
-            return _quarantine_response(quarantine.quarantine(path))
-        except QuarantineError as exc:
-            raise ToolError(f"HR-003_QUARANTINE_FAILED: {exc}") from exc
-
-    def restore_or_tool_error(operation_id: str) -> QuarantineResponse:
-        try:
-            return _quarantine_response(quarantine.restore(operation_id))
-        except QuarantineError as exc:
-            raise ToolError(f"HR-003_QUARANTINE_FAILED: {exc}") from exc
-
-    @server.tool
-    def kis_health() -> HealthResponse:
-        """Report local provider, policy, and generated-state readiness."""
-
-        return _health_response(runtime, launch)
-
-    @server.tool
-    def kis_quarantine_path(path: str) -> QuarantineResponse:
-        """Move one path into recoverable local quarantine."""
-
-        return quarantine_or_tool_error(path)
-
-    @server.tool
-    def kis_list_quarantine(limit: int = 50) -> QuarantineListResponse:
-        """List bounded recoverable quarantine records."""
-
-        return QuarantineListResponse(
-            records=tuple(
-                _quarantine_response(record)
-                for record in quarantine.list_records(limit=limit)
-            )
-        )
-
-    @server.tool
-    def kis_restore_quarantine(operation_id: str) -> QuarantineResponse:
-        """Restore one quarantine record without overwriting its original path."""
-
-        return restore_or_tool_error(operation_id)
-
-    provider_status_server = FastMCP("kis-mcp-provider-status")
-
-    @provider_status_server.tool
-    def kis_provider_status() -> dict[str, Any]:
-        """Report provider readiness, mount state, and actionable connection steps."""
-
-        return provider_runtime_status(
-            external_provider_service,
-            external_provider_composition,
-        )
-
-    server.mount(provider_status_server)
-    register_agent_tools(
-        server,
-        _build_code_review_agent(
-            runtime,
-            review_agent_settings,
-            external_provider_service,
-        ),
-    )
-    server.add_middleware(
-        ThreeRuleMiddleware(
-            resolver=resolver,
-            policy=policy,
-            quarantine_paths=quarantine_paths,
-        )
-    )
-    register_skills_tools(server)
-    return server
+    return compose_gateway(
+        config,
+        validate_provider=validate_provider,
+        provider_service=provider_service,
+        provider_runtime_settings=provider_runtime_settings,
+        create_proxy_fn=create_proxy,
+        provider_validator_fn=validate_provider_offline_readiness,
+    ).server
 
 
 def main() -> None:
     config = load_runtime_config()
-    server = build_server(config)
-    server.run(transport=config.transport)
+    build_server(config).run(transport=config.transport)
 
 
 if __name__ == "__main__":

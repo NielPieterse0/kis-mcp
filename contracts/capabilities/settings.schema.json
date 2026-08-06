@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "kis-mcp://contracts/capabilities/settings.schema.json",
+  "title": "kis-mcp capability composition settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "suitability_weights",
+    "quality_weights",
+    "direct_profile",
+    "discovery_operations",
+    "readiness",
+    "skill_metadata"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "suitability_weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "intent_match",
+        "workflow_coverage",
+        "runtime_readiness",
+        "prerequisite_satisfaction",
+        "safety_reversibility",
+        "observed_reliability",
+        "user_friction",
+        "context_cost"
+      ],
+      "properties": {
+        "intent_match": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "workflow_coverage": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "runtime_readiness": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "prerequisite_satisfaction": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "safety_reversibility": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "observed_reliability": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "user_friction": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "context_cost": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "quality_weights": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_precision",
+        "description_clarity",
+        "effect_accuracy",
+        "bounded_output",
+        "reversibility",
+        "reliability",
+        "workflow_integration",
+        "context_cost"
+      ],
+      "properties": {
+        "schema_precision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "description_clarity": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "effect_accuracy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "bounded_output": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "reversibility": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "reliability": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "workflow_integration": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "context_cost": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "direct_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_operations",
+        "operations"
+      ],
+      "properties": {
+        "max_operations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "discovery_operations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "readiness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "degraded_penalty"
+      ],
+      "properties": {
+        "degraded_penalty": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "skill_metadata": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "capabilities",
+          "activation_terms",
+          "effects",
+          "workflow_roles"
+        ],
+        "properties": {
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "not": {
+              "const": "uncategorized"
+            }
+          },
+          "capabilities": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "activation_terms": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "effects": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "workflow_roles": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -273,5 +273,11 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "kis_list_quarantine",
         "kis_quarantine_path",
         "kis_restore_quarantine",
+        "search_capabilities",
+        "describe_capability",
+        "recommend_workflow",
+        "execute_read_action",
+        "execute_change_action",
+        "execute_external_action",
         *SKILLS_TOOL_NAMES,
     }

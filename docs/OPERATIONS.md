@@ -121,6 +121,7 @@ Edit only the canonical JSON files:
 - `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
 - `settings/providers/platform-runtime.provider.json` for the exact approved mounted MCP provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
 - `settings/agents/code-review-agent.settings.json` for the one advisory code-review agent, NVIDIA NIM and Codex CLI backend configuration, preferred/fallback order, and evidence/output budgets. Store only the `NVIDIA_API_KEY` environment-variable name, never the API key value.
+- `settings/capabilities.settings.json` for suitability and intrinsic-quality weights, the bounded direct profile, discovery operations, readiness penalty, and reviewed capability metadata for every current shared Skill.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
 
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
@@ -144,7 +145,7 @@ The checked-in `operation` and `development` records contain distinct non-secret
 
 `active_instance` controls the default only. Prefer the external selectors `kis-op` and `kis-dev`; the compatibility names `operation` and `development` and short aliases `op` and `dev` resolve to the same canonical records. There is no automatic failover.
 
-Configuration, instance selection, catalogue metadata, profiles, and status fields do not disable otherwise permitted Desktop Commander tools. Both instances expose the same mixed-purpose tool surface and apply only HR-001, HR-002, and HR-003 to concrete invocations.
+Configuration, instance selection, catalogue metadata, profiles, readiness, scores, and status fields do not create another Work rule. Both instances compose the same backend capabilities and use the same bounded direct profile. Eligible long-tail operations remain discoverable and effect-dispatched through their original schemas and middleware; both instances still apply only HR-001, HR-002, and HR-003 to concrete Work invocations.
 
 ## Start local stdio
 
@@ -158,9 +159,26 @@ Startup does not install or update packages. It requires the external locked Pyt
 
 Provider readiness rejects enabled telemetry, a missing or non-loopback feature-flag URL, and missing local Chrome when configured as required because the pinned provider source proves those states cause automatic external activity. It also requires Desktop Commander's persisted `blockedCommands` and `allowedDirectories` fields to remain empty so the provider cannot add independent command or directory restrictions beneath FastMCP.
 
-After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub and Supabase adapter builds in stable provider-ID order. Successful adapters mount as `github_*` and `supabase_*`. NVIDIA NIM is registered in the provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
+After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub, Supabase, and Control Center adapter builds in stable provider-ID order. Successful adapters mount as `github_*`, `supabase_*`, and `controlcenter_*`. NVIDIA NIM is registered in the Provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
-The feedback tool and `read_file.isUrl` mode are absent from the exposed Work contract. Terminal and process tools remain available; the gateway blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
+The feedback tool and `read_file.isUrl` mode are absent from the Work contract. Terminal and process tools remain available. The gateway first registers the complete supported backend surface, builds instance-scoped capability and readiness state, then filters only `tools/list`; it blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
+
+## Use capability discovery and long-tail execution
+
+The normal MCP tool list is deliberately bounded by `settings/capabilities.settings.json`. Frequent file, process, health, provider-status, primary Discover, advisory-review, capability-discovery, effect-specific dispatch, and Control Center entry points remain direct. Other valid operations remain registered but do not consume equal default context.
+
+Use:
+
+- `search_capabilities(query, limit)` to locate operations across Providers, Tools, Discover, Skills, and Workflows and inspect readiness and eligibility;
+- `describe_capability(capability_id)` to inspect normalized contribution, operation, and workflow metadata;
+- `recommend_workflow(task)` to retrieve complete task-level workflow recommendations;
+- `execute_read_action(operation, arguments)` for eligible read-only long-tail operations;
+- `execute_change_action(operation, arguments)` for eligible local-change, quarantine, or process operations;
+- `execute_external_action(operation, arguments)` for eligible external operations.
+
+Dispatch always re-enters the original FastMCP tool with `run_middleware=True`. Original schemas remain authoritative. A generic parameters object does not weaken validation. The external dispatcher refuses operations that still require their own approval workflow. Unavailable, disabled, authentication-gated, build-failed, and mount-failed operations remain visible in status and catalogue results but are not dispatched.
+
+Tool quality and suitability scores are recommendation evidence only. They never authorize a call, override HR-001, HR-002, or HR-003, or replace provider authentication and commissioning.
 
 ## Use Discover
 
@@ -458,14 +476,15 @@ Verification requires `uv.lock`, synchronizes the external Python environment of
 The repository checks also confirm:
 
 1. the policy contains exactly HR-001, HR-002, and HR-003;
-2. repository skills are not referenced by runtime or configuration;
+2. repository-local skills are not used as the runtime catalogue and every shared runtime Skill has reviewed capability metadata;
 3. Desktop Commander is not vendored;
 4. generated-state paths remain canonical and outside the repository;
 5. predecessor runtime identities are absent from authoritative and runtime files;
 6. path, exact network-target, allowed negative-case, quarantine, provider-readiness, exposed-schema, middleware, modular-boundary, and provider-contract regression tests pass;
 7. Discover contracts, JSON settings, path identity, link/reparse and hard-link handling, traversal budgets, deterministic detection, fixed local Git reads, pure Python AST indexing, output compaction, evidence integrity, donor independence, architecture boundaries, and tool registration pass;
-8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and additive public-tool registration pass;
-9. code-review agent settings/schema validation, NVIDIA NIM request and response handling, Codex fixed-script invocation, bounded evidence, fallback behavior, redaction, and additive tool registration pass.
+8. provider runtime settings/schema validation, deterministic namespaced mounting, disabled/unregistered behavior, builder and mount failure containment, status redaction, parent-middleware routing, and instance-scoped composition pass;
+9. capability settings/schema validation, complete contributions, readiness containment, hard eligibility before scoring, deterministic explainable ranking, bounded direct exposure, status-only suppression, original-schema long-tail dispatch, workflow metadata, and architecture boundaries pass;
+10. code-review agent settings/schema validation, NVIDIA NIM request and response handling, Codex fixed-script invocation, bounded evidence, fallback behavior, redaction, and additive registration pass.
 
 Verification also checks the pinned provider surface under `contracts/desktop-commander/`, including provider identity, all exposed tool schemas and annotations, effect classification coverage, adapter mappings, and the recorded SHA-256 fingerprint. These checks are release evidence only; they do not add a runtime allowlist or a fourth policy rule.
 
