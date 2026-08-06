@@ -64,7 +64,7 @@ def test_fastmcp_and_subprocess_are_confined_to_approved_adapters() -> None:
     for path in sorted(DISCOVER_ROOT.glob("*.py")):
         imported = _imports(path)
         if any(name == "fastmcp" or name.startswith("fastmcp.") for name in imported):
-            if path.name != "tools.py":
+            if path.name not in {"tools.py", "platform.py"}:
                 violations.append(f"FastMCP import in {path.name}")
         if any(name == "subprocess" or name.startswith("subprocess.") for name in imported):
             if path.name != "git_reader.py":

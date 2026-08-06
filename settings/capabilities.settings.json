@@ -1,0 +1,386 @@
+{
+  "schema_version": 1,
+  "suitability_weights": {
+    "intent_match": 30,
+    "workflow_coverage": 15,
+    "runtime_readiness": 15,
+    "prerequisite_satisfaction": 10,
+    "safety_reversibility": 10,
+    "observed_reliability": 10,
+    "user_friction": 5,
+    "context_cost": 5
+  },
+  "quality_weights": {
+    "schema_precision": 15,
+    "description_clarity": 15,
+    "effect_accuracy": 15,
+    "bounded_output": 10,
+    "reversibility": 15,
+    "reliability": 15,
+    "workflow_integration": 10,
+    "context_cost": 5
+  },
+  "direct_profile": {
+    "max_operations": 24,
+    "operations": [
+      "kis_health",
+      "kis_provider_status",
+      "inspect_project",
+      "inspect_change",
+      "review_change_with_agent",
+      "read_file",
+      "read_multiple_files",
+      "list_directory",
+      "start_search",
+      "get_more_search_results",
+      "edit_block",
+      "write_file",
+      "start_process",
+      "interact_with_process",
+      "read_process_output",
+      "search_capabilities",
+      "describe_capability",
+      "recommend_workflow",
+      "execute_read_action",
+      "execute_change_action",
+      "execute_external_action",
+      "controlcenter_open_kis_control_center"
+    ]
+  },
+  "discovery_operations": [
+    "search_capabilities",
+    "describe_capability",
+    "recommend_workflow"
+  ],
+  "readiness": {
+    "degraded_penalty": 15
+  },
+  "skill_metadata": {
+    "build-mcp-app": {
+      "category": "mcp-development",
+      "capabilities": [
+        "mcp.app.design",
+        "mcp.ui.compose"
+      ],
+      "activation_terms": [
+        "mcp app",
+        "widget",
+        "interactive ui"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "design",
+        "implementation"
+      ]
+    },
+    "build-mcpb": {
+      "category": "mcp-development",
+      "capabilities": [
+        "mcp.bundle.design",
+        "mcp.local.package"
+      ],
+      "activation_terms": [
+        "mcpb",
+        "bundle mcp",
+        "local mcp"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "design",
+        "implementation"
+      ]
+    },
+    "build-mcp-server": {
+      "category": "mcp-development",
+      "capabilities": [
+        "mcp.server.design",
+        "mcp.tool.design"
+      ],
+      "activation_terms": [
+        "mcp server",
+        "model context protocol",
+        "tool server"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "design",
+        "implementation"
+      ]
+    },
+    "code-as-docs-governance": {
+      "category": "governance",
+      "capabilities": [
+        "documentation.authority.assess",
+        "documentation.drift.detect"
+      ],
+      "activation_terms": [
+        "code as docs",
+        "documentation governance",
+        "authority"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "analysis"
+      ]
+    },
+    "code-review": {
+      "category": "review",
+      "capabilities": [
+        "code.change.review",
+        "regression.detect"
+      ],
+      "activation_terms": [
+        "code review",
+        "pull request review",
+        "diff review"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "review"
+      ]
+    },
+    "create-skill": {
+      "category": "skills",
+      "capabilities": [
+        "skill.create",
+        "skill.metadata.design"
+      ],
+      "activation_terms": [
+        "create skill",
+        "new skill",
+        "skill authoring"
+      ],
+      "effects": [
+        "local_change"
+      ],
+      "workflow_roles": [
+        "implementation"
+      ]
+    },
+    "develop-code": {
+      "category": "development",
+      "capabilities": [
+        "code.change.plan",
+        "code.change.implement",
+        "verification.execute"
+      ],
+      "activation_terms": [
+        "develop code",
+        "implement",
+        "fix code"
+      ],
+      "effects": [
+        "read_only",
+        "local_change",
+        "process"
+      ],
+      "workflow_roles": [
+        "orchestration"
+      ]
+    },
+    "develop-docs": {
+      "category": "documentation",
+      "capabilities": [
+        "documentation.change.plan",
+        "documentation.change.implement"
+      ],
+      "activation_terms": [
+        "develop docs",
+        "update documentation",
+        "write docs"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "orchestration"
+      ]
+    },
+    "evaluate-plugin": {
+      "category": "evaluation",
+      "capabilities": [
+        "plugin.evaluate",
+        "plugin.value.assess"
+      ],
+      "activation_terms": [
+        "evaluate plugin",
+        "plugin audit",
+        "plugin score"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "analysis"
+      ]
+    },
+    "evaluate-skill": {
+      "category": "evaluation",
+      "capabilities": [
+        "skill.evaluate",
+        "skill.quality.assess"
+      ],
+      "activation_terms": [
+        "evaluate skill",
+        "skill audit",
+        "skill score"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "analysis"
+      ]
+    },
+    "improve-skill": {
+      "category": "skills",
+      "capabilities": [
+        "skill.improve",
+        "skill.rewrite.plan"
+      ],
+      "activation_terms": [
+        "improve skill",
+        "rewrite skill",
+        "skill findings"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "analysis",
+        "implementation"
+      ]
+    },
+    "modularity-assessment": {
+      "category": "architecture",
+      "capabilities": [
+        "architecture.modularity.assess",
+        "architecture.boundary.recommend"
+      ],
+      "activation_terms": [
+        "modularity",
+        "decomposition",
+        "module boundary",
+        "god module"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "analysis"
+      ]
+    },
+    "security-guide": {
+      "category": "security",
+      "capabilities": [
+        "security.guidance",
+        "security.boundary.review"
+      ],
+      "activation_terms": [
+        "security",
+        "threat",
+        "hardening"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "analysis"
+      ]
+    },
+    "simpler-code": {
+      "category": "code-quality",
+      "capabilities": [
+        "code.simplify",
+        "complexity.reduce"
+      ],
+      "activation_terms": [
+        "simplify code",
+        "reduce complexity",
+        "clean code"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "review",
+        "implementation"
+      ]
+    },
+    "smarter-code": {
+      "category": "code-quality",
+      "capabilities": [
+        "code.design.improve",
+        "maintainability.improve"
+      ],
+      "activation_terms": [
+        "smarter code",
+        "improve design",
+        "maintainability"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "review",
+        "implementation"
+      ]
+    },
+    "tdd-change-discipline": {
+      "category": "testing",
+      "capabilities": [
+        "test.tdd.apply",
+        "regression.test.design"
+      ],
+      "activation_terms": [
+        "tdd",
+        "test first",
+        "regression test"
+      ],
+      "effects": [
+        "read_only",
+        "local_change",
+        "process"
+      ],
+      "workflow_roles": [
+        "implementation",
+        "verification"
+      ]
+    },
+    "use-doc-solution": {
+      "category": "documentation",
+      "capabilities": [
+        "document.solution.use",
+        "document.content.extract"
+      ],
+      "activation_terms": [
+        "use document",
+        "document solution",
+        "source document"
+      ],
+      "effects": [
+        "read_only"
+      ],
+      "workflow_roles": [
+        "analysis"
+      ]
+    }
+  }
+}

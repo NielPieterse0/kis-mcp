@@ -577,14 +577,16 @@ def test_build_server_mounts_injected_provider_and_exposes_status(monkeypatch: A
 
     names = {tool.name for tool in _all_tools(server)}
     assert {
-        "github_echo",
         "inspect_project",
+        "inspect_change",
         "kis_health",
-        "kis_list_quarantine",
         "kis_provider_status",
-        "kis_quarantine_path",
-        "kis_restore_quarantine",
+        "search_capabilities",
+        "describe_capability",
+        "recommend_workflow",
     }.issubset(names)
+    assert "github_echo" not in names
+    assert "kis_quarantine_path" not in names
 
     result = asyncio.run(server.call_tool("github_echo", {"value": "through-root"}))
     assert result.content[0].text == "github:through-root"
@@ -597,7 +599,7 @@ def test_build_server_mounts_injected_provider_and_exposes_status(monkeypatch: A
     assert providers["supabase"]["state"] == "disabled"
 
 
-def test_latest_provider_runtime_composition_is_published_after_mounting() -> None:
+def test_provider_runtime_compositions_are_instance_scoped() -> None:
     runtime = _runtime_module()
     service = _service(
         _descriptor(
@@ -608,20 +610,34 @@ def test_latest_provider_runtime_composition_is_published_after_mounting() -> No
         _descriptor("supabase", builder=lambda: _child_server("supabase")),
     )
 
-    composition = runtime.compose_provider_runtime(
-        FastMCP("root"),
+    first = runtime.compose_provider_runtime(
+        FastMCP("first-root"),
         service,
         _runtime_settings(control_center_enabled=True),
     )
+    second = runtime.compose_provider_runtime(
+        FastMCP("second-root"),
+        service,
+        _runtime_settings(control_center_enabled=False),
+    )
 
-    published = runtime.latest_provider_runtime_composition()
-    assert published == composition
-    assert [item.provider_id for item in published.results] == [
+    assert not hasattr(runtime, "latest_provider_runtime_composition")
+    assert [item.provider_id for item in first.results] == [
         "control-center",
         "github-mcp",
         "supabase",
     ]
-    assert all(item.mounted for item in published.results)
+    assert {item.provider_id for item in first.results} == {
+        "control-center",
+        "github-mcp",
+        "supabase",
+    }
+    assert {item.provider_id for item in second.results} == {
+        "github-mcp",
+        "supabase",
+    }
+    assert all(item.mounted for item in first.results)
+    assert all(item.mounted for item in second.results)
 
 
 def test_build_server_contains_provider_builder_failures(monkeypatch: Any) -> None:
