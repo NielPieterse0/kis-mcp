@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any
 
 PUBLIC_SCHEMA_VERSION = 1
@@ -24,6 +25,23 @@ class RecordType(StrEnum):
     RESEARCH = "research"
     DEFECT = "defect"
     SECURITY_FINDING = "security_finding"
+
+
+_RECORD_PREFIXES = {
+    RecordType.IDEA: "IDEA",
+    RecordType.TASK: "TASK",
+    RecordType.SPECIFICATION_SLICE: "SPEC",
+    RecordType.REVIEW_RUN: "REV",
+    RecordType.FINDING: "FIND",
+    RecordType.DECISION: "DEC",
+    RecordType.ASSUMPTION: "ASM",
+    RecordType.RISK: "RISK",
+    RecordType.APPROVAL: "APP",
+    RecordType.HOLD: "HOLD",
+    RecordType.RESEARCH: "RES",
+    RecordType.DEFECT: "BUG",
+    RecordType.SECURITY_FINDING: "SEC",
+}
 
 
 class LifecycleState(StrEnum):
@@ -110,12 +128,17 @@ class ManagedProject:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("managed project schema_version must be 1")
         object.__setattr__(self, "project_id", _project_id(self.project_id))
-        object.__setattr__(
-            self, "local_root", _required_text(self.local_root, "local_root")
-        )
+        local_root = _required_text(self.local_root, "local_root")
+        windows_root = PureWindowsPath(local_root)
+        posix_root = PurePosixPath(local_root)
+        if not windows_root.is_absolute() and not posix_root.is_absolute():
+            raise ValueError("local_root must be an absolute path")
+        if ".." in windows_root.parts or ".." in posix_root.parts:
+            raise ValueError("local_root must not contain parent traversal")
+        object.__setattr__(self, "local_root", local_root)
         repository = _required_text(self.repository, "repository")
-        if repository.count("/") != 1 or any(char.isspace() for char in repository):
-            raise ValueError("repository must use owner/name form")
+        if any(char.isspace() for char in repository):
+            raise ValueError("repository must not contain whitespace")
         object.__setattr__(self, "repository", repository)
         object.__setattr__(
             self,
@@ -158,10 +181,14 @@ class WorkRecord:
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("work record schema_version must be 1")
-        object.__setattr__(self, "record_id", _record_id(self.record_id))
+        record_id = _record_id(self.record_id)
+        object.__setattr__(self, "record_id", record_id)
         object.__setattr__(self, "project_id", _project_id(self.project_id))
         object.__setattr__(self, "title", _required_text(self.title, "title"))
         _enum(self.record_type, RecordType, "record_type")
+        expected_prefix = f"{_RECORD_PREFIXES[self.record_type]}-"
+        if not record_id.startswith(expected_prefix):
+            raise ValueError("record_id prefix must match record_type")
         _enum(self.state, LifecycleState, "state")
         _enum(self.priority, Priority, "priority")
         _enum(self.documentation_mode, DocumentationMode, "documentation_mode")

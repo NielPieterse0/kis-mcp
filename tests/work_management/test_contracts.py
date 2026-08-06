@@ -66,3 +66,34 @@ def test_work_record_rejects_wrong_enum_types() -> None:
             title="Invalid record",
             record_type="task",  # type: ignore[arg-type]
         )
+
+
+def test_managed_project_accepts_provider_neutral_repository_identity() -> None:
+    project = ManagedProject(
+        project_id="nested-project",
+        local_root=r"C:\Projects\nested",
+        repository="group/subgroup/repository",
+        backend_binding="future-backend",
+    )
+
+    assert project.repository == "group/subgroup/repository"
+
+
+def test_managed_project_rejects_relative_local_root() -> None:
+    with pytest.raises(ValueError, match="local_root"):
+        ManagedProject(
+            project_id="alpha-project",
+            local_root="relative/project",
+            repository="owner/alpha",
+            backend_binding="github-default",
+        )
+
+
+def test_work_record_prefix_must_match_record_type() -> None:
+    with pytest.raises(ValueError, match="record_id prefix"):
+        WorkRecord(
+            record_id="DEC-001",
+            project_id="alpha-project",
+            title="Mismatched record",
+            record_type=RecordType.TASK,
+        )
