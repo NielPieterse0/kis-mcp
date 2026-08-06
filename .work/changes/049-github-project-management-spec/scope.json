@@ -9,18 +9,18 @@
   "owned_paths": [
     ".work/changes/049-github-project-management-spec/**",
     "docs/development/github-project-management/README.md",
-    "src/kis_mcp/work_management/__init__.py",
     "src/kis_mcp/work_management/contracts.py",
     "src/kis_mcp/work_management/lifecycle.py",
     "src/kis_mcp/work_management/selection.py",
     "tests/work_management/__init__.py",
-    "tests/work_management/test_architecture.py",
     "tests/work_management/test_contracts.py",
     "tests/work_management/test_lifecycle.py",
     "tests/work_management/test_selection.py"
   ],
   "shared_paths": [
-    ".work/programmes/work-management/**"
+    ".work/programmes/work-management/**",
+    "src/kis_mcp/work_management/__init__.py",
+    "tests/work_management/test_architecture.py"
   ],
   "excluded_paths": [
     "SPEC.md",
