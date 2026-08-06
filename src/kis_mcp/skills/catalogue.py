@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..capabilities.settings import load_capability_settings
 from .config import SkillsConfig
 from .errors import SkillsError
 from .models import (
@@ -21,6 +22,7 @@ from .models import (
     SkillRefreshResponse,
     SkillSearchResponse,
 )
+from .platform import enrich_skill_card
 from .source import SkillSource, SkillSourceReader
 
 
@@ -56,6 +58,7 @@ class SkillCatalogue:
 
     def __init__(self, config: SkillsConfig) -> None:
         self.config = config
+        self.capability_settings = load_capability_settings()
         self.source_reader = SkillSourceReader(config)
         self.root = self.source_reader.root
         self._snapshot: _Snapshot | None = None
@@ -333,25 +336,27 @@ class SkillCatalogue:
             )
         return int(raw_offset)
 
-    @staticmethod
-    def _card(entry: SkillSource) -> SkillCard:
-        return SkillCard(
-            id=entry.id,
-            summary=entry.summary,
-            category=entry.category,
-            capabilities=entry.capabilities,
-            status=entry.status,
+    def _card(self, entry: SkillSource) -> SkillCard:
+        return enrich_skill_card(
+            SkillCard(
+                id=entry.id,
+                summary=entry.summary,
+                category=entry.category,
+                capabilities=entry.capabilities,
+                status=entry.status,
+            ),
+            self.capability_settings,
         )
 
-    @staticmethod
-    def _fingerprint_record(entry: SkillSource) -> dict[str, Any]:
+    def _fingerprint_record(self, entry: SkillSource) -> dict[str, Any]:
+        card = self._card(entry)
         return {
             "id": entry.id,
             "source_directory": entry.source_directory,
-            "summary": entry.summary,
-            "category": entry.category,
-            "capabilities": list(entry.capabilities),
-            "status": entry.status,
+            "summary": card.summary,
+            "category": card.category,
+            "capabilities": list(card.capabilities),
+            "status": card.status,
             "files": [
                 {"path": item.path, "size": item.size, "sha256": item.sha256}
                 for item in entry.files
