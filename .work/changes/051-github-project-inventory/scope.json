@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "change_id": "051-github-project-inventory",
+  "status": "active",
+  "branch": "change/051-github-project-inventory",
+  "worktree": ".work/worktrees/051-github-project-inventory",
+  "base": "change/049-github-project-management-spec",
+  "outcome": "Add read-only GitHub Project inventory through provider-neutral work-management contracts and the pinned official GitHub MCP surface",
+  "owned_paths": [
+    ".work/changes/051-github-project-inventory/**",
+    "src/kis_mcp/work_management/backend.py",
+    "src/kis_mcp/providers/github/projects/**",
+    "src/kis_mcp/providers/github/server.py",
+    "tests/work_management/test_backend.py",
+    "tests/providers/github/projects/**",
+    "tests/providers/github/test_server.py"
+  ],
+  "shared_paths": [
+    ".work/programmes/work-management/**",
+    "src/kis_mcp/work_management/__init__.py",
+    "tests/work_management/test_architecture.py"
+  ],
+  "excluded_paths": [
+    "policy/**",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/gateway/**",
+    "src/kis_mcp/workflows/**",
+    "settings/**",
+    "contracts/**",
+    ".github/**",
+    "scripts/**",
+    "docs/**",
+    "README.md",
+    "SPEC.md"
+  ],
+  "dependencies": [
+    "049-github-project-management-spec"
+  ],
+  "integration_owner": "049-github-project-management-spec"
+}

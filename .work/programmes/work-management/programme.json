@@ -7,7 +7,7 @@
   "working_spec": ".work/programmes/work-management/target-spec.md",
   "roadmap": ".work/programmes/work-management/roadmap.md",
   "initial_backend": "github",
-  "current_change": "049-github-project-management-spec",
+  "current_change": "051-github-project-inventory",
   "dependencies": [
     "047-capability-composition-and-tool-experience"
   ],
@@ -19,7 +19,7 @@
   },
   "phases": [
     {"id": "P0", "status": "completed", "outcome": "Programme authority and provider-neutral foundation"},
-    {"id": "P1", "status": "planned", "outcome": "Read-only backend inventory and normalized contracts"},
+    {"id": "P1", "status": "active", "outcome": "Read-only backend inventory and normalized contracts"},
     {"id": "P2", "status": "planned", "outcome": "Intake, typed records, governance records, and holds"},
     {"id": "P3", "status": "planned", "outcome": "Implementation traceability and documentation milestones"},
     {"id": "P4", "status": "planned", "outcome": "Review evidence, triage, and finding extraction"},
