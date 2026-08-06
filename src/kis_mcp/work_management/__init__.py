@@ -14,9 +14,11 @@ from .lifecycle import (
     evaluate_transition,
     transition_record,
 )
+from .selection import CandidateEvaluation, WorkSelection, select_next_work
 
 __all__ = [
     "PUBLIC_SCHEMA_VERSION",
+    "CandidateEvaluation",
     "DocumentationImpact",
     "DocumentationMode",
     "LifecycleState",
@@ -26,6 +28,8 @@ __all__ = [
     "TransitionDecision",
     "TransitionRejected",
     "WorkRecord",
+    "WorkSelection",
     "evaluate_transition",
+    "select_next_work",
     "transition_record",
 ]
