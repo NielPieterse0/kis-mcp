@@ -19,23 +19,23 @@ ChatGPT or local MCP client
         |
         v
 kis-mcp FastMCP gateway
-??? curated direct profile for frequent Work and Discover operations
-??? capability search, description, and workflow recommendation
-??? effect-specific read/change/external long-tail dispatch
-??? instance-scoped provider readiness and exposure planning
-??? Skills catalogue with category and capability metadata
-??? optional namespaced GitHub and Supabase provider operations
-??? read-only KIS Control Center resource
-??? review_change_with_agent
-        ??? NVIDIA NIM backend
-        ??? Codex CLI backend
+|- curated direct profile for frequent Work and Discover operations
+|- capability search, description, and workflow recommendation
+|- effect-specific read/change/external long-tail dispatch
+|- instance-scoped provider readiness and exposure planning
+|- Skills catalogue with category and capability metadata
+|- optional namespaced GitHub and Supabase provider operations
+|- read-only KIS Control Center resource
+`- review_change_with_agent
+        |- NVIDIA NIM backend
+        `- Codex CLI backend
 
 Standalone read-only MCP App
-??? KIS Control Center using the same local evidence model
+`- KIS Control Center using the same local evidence model
 
 Managed host tooling, not mounted into the gateway
-??? AgentSys 6.0.1 profiles for Claude Code, OpenCode, and Codex
-??? agnix 0.45.0 CLI
+|- AgentSys 6.0.1 profiles for Claude Code, OpenCode, and Codex
+`- agnix 0.45.0 CLI
 ```
 
 Desktop Commander is installed from its authoritative package and is not vendored or forked. Discover, Skills, Providers, Tools, workflows, capability composition, and the Control Center are implemented natively under `src/kis_mcp`.
