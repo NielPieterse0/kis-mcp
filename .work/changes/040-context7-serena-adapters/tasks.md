@@ -12,6 +12,8 @@
 - [x] Record final operator approval for the revised HR1-07 wording.
 - [x] Commit the revised approval gate and implementation plan.
 - [x] Close stale merged change records for `041` and `046` so governance validation succeeds.
+- [x] Run Microsoft Defender health and custom-scan preflight before any installation.
+- [ ] Require both installers to scan isolated acquisition trees before promotion or execution.
 - [ ] Freeze pinned Context7 and Serena upstream contracts.
 - [ ] Implement the independent Context7 adapter.
 - [ ] Implement Serena bootstrap and provider-managed storage readiness.

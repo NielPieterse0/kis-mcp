@@ -81,6 +81,7 @@ Context7's two read-only documentation operations use the approved external-prov
 - Use a fixed approved provider identity and endpoint configuration.
 - Do not expose arbitrary endpoint, credential, setup, removal, or provider-passthrough operations.
 - Keep installation and package state beneath `C:\Projects\.kis-mcp\context7`.
+- Require healthy Microsoft Defender protection and a clean custom scan of each isolated acquisition tree before package promotion or executable use.
 - Bound outputs and redact credential information from readiness and errors.
 
 ### Serena bootstrap and provider storage

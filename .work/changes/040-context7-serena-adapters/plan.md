@@ -77,6 +77,8 @@
 - [ ] Add tests for fixed provider identity, pinned source revision, settings validation, bounded outputs, redacted credentials, readiness containment, and exact two-operation exposure.
 - [ ] Implement the minimal adapter and descriptor using `ToolBoundary.APPROVED_EXTERNAL_SERVICE`.
 - [ ] Keep installation/package state beneath `C:\Projects\.kis-mcp\context7`.
+- [x] Run Microsoft Defender health and custom-scan preflight before any installation.
+- [ ] Require installers to scan each isolated acquisition tree and fail before promotion or executable use on any Defender failure or detection.
 - [ ] Verify arbitrary endpoint mutation, arbitrary provider passthrough, and local Work command routing are absent.
 - [ ] Run `pytest tests/tools/test_context7_tool.py -v` and confirm pass.
 - [ ] Commit Context7 independently.
@@ -97,6 +99,7 @@
 
 - [ ] Add failing tests requiring Serena home, project data, cache, index, log, temporary, language-server, configuration, and memory roots beneath `C:\Projects`.
 - [ ] Implement installation and readiness checks that fail Serena readiness without creating per-invocation HR decisions.
+- [ ] Require a clean Microsoft Defender scan of Serena's isolated acquisition tree before promotion or executable use.
 - [ ] Launch the pinned provider over stdio and preserve upstream operation schemas.
 - [ ] Confirm provider absence or readiness failure does not prevent Context7 or wider runtime startup.
 - [ ] Run the Serena readiness and storage tests and confirm pass.
