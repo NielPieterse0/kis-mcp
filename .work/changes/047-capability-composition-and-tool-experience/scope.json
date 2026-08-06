@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "change_id": "047-capability-composition-and-tool-experience",
+  "status": "active",
+  "branch": "change/047-capability-composition-and-tool-experience",
+  "worktree": ".work/worktrees/047-capability-composition-and-tool-experience",
+  "base": "main",
+  "outcome": "Introduce modular capability composition, readiness-aware exposure, explainable scoring, workflow-first discovery, and a thin gateway entry point",
+  "owned_paths": [
+    ".work/changes/041-dual-instance-commissioning/scope.json",
+    ".work/changes/046-modularity-hardening/scope.json",
+    ".work/changes/047-capability-composition-and-tool-experience/**",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/gateway/**",
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/tools/platform.py",
+    "src/kis_mcp/discover/platform.py",
+    "src/kis_mcp/skills/platform.py",
+    "src/kis_mcp/workflows/platform.py",
+    "settings/capabilities.settings.json",
+    "contracts/capabilities/**",
+    "tests/capabilities/**",
+    "tests/architecture/**",
+    "tests/integration/**",
+    "tests/test_server.py",
+    "SPEC.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "docs/OPERATIONS.md",
+    "README.md"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "src/kis_mcp/tools/context7/**",
+    "src/kis_mcp/tools/serena/**",
+    "settings/tools/context7.tool.json",
+    "settings/tools/serena.tool.json"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
