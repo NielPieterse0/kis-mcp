@@ -95,6 +95,14 @@ class GitHubProjectBinding:
         object.__setattr__(self, "owner", owner)
         object.__setattr__(self, "owner_type", owner_type)
 
+    def to_json_dict(self) -> dict[str, str | int]:
+        return {
+            "binding_id": self.binding_id,
+            "owner": self.owner,
+            "owner_type": self.owner_type,
+            "project_number": self.project_number,
+        }
+
 
 @dataclass(frozen=True, slots=True)
 class RepositorySettings:
@@ -111,6 +119,15 @@ class RepositorySettings:
     @property
     def github_name(self) -> str:
         return self.github_repository.split("/", 1)[1]
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "repository_root": str(self.repository_root),
+            "repository_id": self.repository_id,
+            "github_repository": self.github_repository,
+            "gh_projects": [project.to_json_dict() for project in self.gh_projects],
+        }
 
 
 def _load_document(path: Path) -> Mapping[str, Any]:
@@ -158,6 +175,20 @@ def _origin_repository(repository_root: Path) -> str | None:
     if not parser.has_option(section, "url"):
         return None
     return normalize_github_repository(parser.get(section, "url"))
+
+
+def _bounded_root(repository_root: Path, boundary: Path | None) -> Path:
+    root = repository_root.resolve()
+    if boundary is None:
+        return root
+    approved = boundary.resolve()
+    try:
+        root.relative_to(approved)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Repository root must remain beneath the approved boundary: {approved}"
+        ) from exc
+    return root
 
 
 def load_repository_settings(
@@ -240,10 +271,12 @@ class SelectedRepositorySettings:
         repository_root: Path,
         *,
         validate_remote: bool = True,
+        boundary: Path | None = None,
     ) -> None:
         self._validate_remote = validate_remote
+        self._boundary = boundary.resolve() if boundary is not None else None
         self._settings = load_repository_settings(
-            repository_root,
+            _bounded_root(repository_root, self._boundary),
             validate_remote=validate_remote,
         )
 
@@ -252,7 +285,7 @@ class SelectedRepositorySettings:
 
     def select(self, repository_root: Path) -> RepositorySettings:
         selected = load_repository_settings(
-            repository_root,
+            _bounded_root(repository_root, self._boundary),
             validate_remote=self._validate_remote,
         )
         self._settings = selected
