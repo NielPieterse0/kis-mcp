@@ -49,6 +49,16 @@ from .records import (
     HoldDetails,
     RiskDetails,
 )
+from .reconciliation import (
+    DesiredProjection,
+    ObservedProjection,
+    ReconciliationAction,
+    ReconciliationBackend,
+    ReconciliationDecision,
+    ReconciliationOutcome,
+    plan_reconciliation,
+    run_reconciliation,
+)
 from .reviews import (
     ExtractionMode,
     ExtractedReviewRecord,
@@ -76,6 +86,12 @@ from .reviews import (
     transition_finding,
 )
 from .selection import CandidateEvaluation, WorkSelection, select_next_work
+from .service import (
+    EvidenceStoreFactory,
+    WorkManagementBackend,
+    WorkManagementService,
+    WorkManagementUnavailable,
+)
 from .settings import (
     BackendBindingSettings,
     EvidenceSettings,
@@ -83,6 +99,11 @@ from .settings import (
     GateMode,
     WorkManagementSettings,
     load_work_management_settings,
+)
+from .status import (
+    PortfolioStatus,
+    ProjectProgrammeStatus,
+    build_portfolio_status,
 )
 from .traceability import (
     CloseoutEvidence,
@@ -114,11 +135,13 @@ __all__ = [
     "CaptureWorkItem",
     "CloseoutEvidence",
     "DecisionDetails",
+    "DesiredProjection",
     "DocumentationImpact",
     "DocumentationMilestoneState",
     "DocumentationMode",
     "DocumentationReconciliationEvent",
     "EvidenceSettings",
+    "EvidenceStoreFactory",
     "EvidenceWriteDisposition",
     "EvidenceWriteResult",
     "ExtractionMode",
@@ -142,7 +165,9 @@ __all__ = [
     "MergeReadiness",
     "MutationDisposition",
     "MutationResult",
+    "ObservedProjection",
     "ObservationDisposition",
+    "PortfolioStatus",
     "Priority",
     "ProjectBinding",
     "ProjectField",
@@ -155,8 +180,13 @@ __all__ = [
     "ProjectItem",
     "ProjectItemKind",
     "ProjectOwnerType",
+    "ProjectProgrammeStatus",
     "PullRequestEvidence",
     "PullRequestState",
+    "ReconciliationAction",
+    "ReconciliationBackend",
+    "ReconciliationDecision",
+    "ReconciliationOutcome",
     "RecordType",
     "ReviewArtifact",
     "ReviewArtifactKind",
@@ -179,10 +209,14 @@ __all__ = [
     "TransitionRejected",
     "VerificationEvidence",
     "VerificationStatus",
+    "WorkManagementBackend",
+    "WorkManagementService",
     "WorkManagementSettings",
+    "WorkManagementUnavailable",
     "WorkRecord",
     "WorkSelection",
     "apply_documentation_reconciliation_event",
+    "build_portfolio_status",
     "capture_work_item",
     "complete_documentation_reconciliation",
     "create_documentation_reconciliation_due",
@@ -193,6 +227,8 @@ __all__ = [
     "evaluate_transition",
     "extract_review_records",
     "load_work_management_settings",
+    "plan_reconciliation",
+    "run_reconciliation",
     "select_next_work",
     "transition_finding",
     "transition_record",
