@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "061-empty-process-preflight",
+  "status": "ready",
+  "branch": "change/061-empty-process-preflight",
+  "worktree": ".work/worktrees/061-empty-process-preflight",
+  "base": "main",
+  "outcome": "Repair the selected-instance startup and GitHub runtime authentication lifecycle so clean starts, persistent OAuth, progressive tool discovery, live readiness, and supervised startup timing agree",
+  "owned_paths": [
+    "scripts/startup-instance-lifecycle.ps1",
+    "scripts/start-chatgpt.ps1",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/providers/client_runtime.py",
+    "src/kis_mcp/providers/contracts.py",
+    "src/kis_mcp/providers/github/server.py",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/capabilities/runtime.py",
+    "src/kis_mcp/capabilities/resolver.py",
+    "src/kis_mcp/capabilities/tools.py",
+    "tests/test_startup_scripts.py",
+    "tests/providers/test_client_runtime.py",
+    "tests/providers/github/test_server.py",
+    "tests/providers/test_platform_composition.py",
+    "tests/providers/test_runtime_tool_surface.py",
+    "tests/capabilities/**",
+    "docs/OPERATIONS.md",
+    ".work/changes/061-empty-process-preflight/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

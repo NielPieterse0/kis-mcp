@@ -19,7 +19,12 @@ def _document(name: str) -> str:
 def _run_startup_lifecycle(expression: str) -> subprocess.CompletedProcess[str]:
     script_path = (SCRIPTS / "startup-instance-lifecycle.ps1").as_posix()
     return subprocess.run(
-        ["pwsh", "-NoProfile", "-Command", f". '{script_path}'; {expression}"],
+        [
+            "pwsh",
+            "-NoProfile",
+            "-Command",
+            f"$ErrorActionPreference='Stop'; . '{script_path}'; {expression}",
+        ],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
@@ -79,6 +84,24 @@ def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
     assert "KIS_MCP_HTTP_NOT_READY" not in content
 
 
+def test_chatgpt_startup_separates_supervised_authentication_from_tunnel_deadline() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    assert "[int]$AuthenticationTimeoutSeconds = 900" in content
+    assert "KIS_MCP_AUTHENTICATION_TIMEOUT_INVALID" in content
+    auth_deadline = content.index("$AuthenticationDeadline =")
+    server_ready = content.index(
+        "Wait-McpReady -Uri $Remote.endpoint_url -Deadline $AuthenticationDeadline"
+    )
+    tunnel_deadline = content.index("$TunnelDeadline =")
+
+    assert auth_deadline < server_ready < tunnel_deadline
+    assert "AddSeconds($AuthenticationTimeoutSeconds)" in content
+    assert "AddSeconds($TimeoutSeconds)" in content[tunnel_deadline:]
+    assert "while ([DateTime]::UtcNow -lt $TunnelDeadline)" in content
+    assert "if ([DateTime]::UtcNow -ge $TunnelDeadline)" in content
+
+
 def test_chatgpt_startup_finishes_non_secret_preflight_before_unlock() -> None:
     content = _script("start-chatgpt.ps1")
 
@@ -136,6 +159,63 @@ def test_startup_lifecycle_matches_only_selected_server_instance() -> None:
 
     assert result.returncode == 0, result.stderr
     assert result.stdout.splitlines() == ["True", "False"]
+
+
+def test_endpoint_owner_accepts_listener_descendant_of_canonical_python_launcher() -> None:
+    python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
+    base_python = r"C:\\Users\\operator\\AppData\\Roaming\\uv\\python\\cpython-3.13\\python.exe"
+    command = (
+        f'\\"{python}\\" -m kis_mcp.secrets.launcher '
+        "--runtime remote --instance operation"
+    )
+    result = _run_startup_lifecycle(
+        "$script:TestProcesses=@("
+        "[pscustomobject]@{ProcessId=100;ParentProcessId=1;Name='python.exe';ExecutablePath='"
+        + python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'},"
+        "[pscustomobject]@{ProcessId=101;ParentProcessId=100;Name='python.exe';ExecutablePath='"
+        + base_python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'}); "
+        "function Get-KisMcpProcessSnapshot { return @($script:TestProcesses) }; "
+        "$remote=[pscustomobject]@{endpoint_url='http://127.0.0.1:8010/mcp';app_name='kis-op';name='operation'}; "
+        "$listener=[pscustomobject]@{OwningProcess=101}; "
+        "Write-Output (Assert-KisMcpSelectedEndpointOwner -Remote $remote -PythonPath '"
+        + python
+        + "' -ServerProcessId 100 -Listener $listener)"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "101"
+
+
+def test_endpoint_owner_rejects_listener_outside_selected_server_tree() -> None:
+    python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
+    command = (
+        f'\\"{python}\\" -m kis_mcp.secrets.launcher '
+        "--runtime remote --instance operation"
+    )
+    result = _run_startup_lifecycle(
+        "$script:TestProcesses=@("
+        "[pscustomobject]@{ProcessId=100;ParentProcessId=1;Name='python.exe';ExecutablePath='"
+        + python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'},"
+        "[pscustomobject]@{ProcessId=201;ParentProcessId=2;Name='python.exe';ExecutablePath='C:\\Python\\python.exe';CommandLine='python -m unrelated'}); "
+        "function Get-KisMcpProcessSnapshot { return @($script:TestProcesses) }; "
+        "$remote=[pscustomobject]@{endpoint_url='http://127.0.0.1:8010/mcp';app_name='kis-op';name='operation'}; "
+        "$listener=[pscustomobject]@{OwningProcess=201}; "
+        "Write-Output (Assert-KisMcpSelectedEndpointOwner -Remote $remote -PythonPath '"
+        + python
+        + "' -ServerProcessId 100 -Listener $listener)"
+    )
+
+    assert result.returncode == 1
+    assert "KIS_MCP_ENDPOINT_OWNER_STALE" in result.stderr
 
 
 def test_startup_lifecycle_empty_process_set_has_no_roots() -> None:
@@ -275,13 +355,17 @@ def test_tunnel_setup_captures_provider_cli_output() -> None:
     assert "setup_log=" in content
 
 
-def test_chatgpt_startup_redirects_owned_process_output() -> None:
+def test_chatgpt_startup_drains_owned_process_output_live_and_retains_logs() -> None:
     content = _script("start-chatgpt.ps1")
 
     assert "RedirectStandardOutput = $true" in content
     assert "RedirectStandardError = $true" in content
-    assert "ReadToEndAsync()" in content
-    assert "Write-OwnedProcessLogs" in content
+    assert "Register-ObjectEvent" in content
+    assert "BeginOutputReadLine()" in content
+    assert "BeginErrorReadLine()" in content
+    assert "Drain-OwnedProcessLogs" in content
+    assert "-EchoStandardError" in content
+    assert "ReadToEndAsync()" not in content
     assert "server-stdout-$RunId.log" in content
     assert "server-stderr-$RunId.log" in content
     assert "tunnel-stdout-$RunId.log" in content

@@ -2,6 +2,7 @@
 param(
     [string]$Instance = '',
     [int]$TimeoutSeconds = 60,
+    [int]$AuthenticationTimeoutSeconds = 900,
     [int]$ObservationSeconds = 0
 )
 
@@ -54,31 +55,100 @@ function Start-OwnedProcess {
             throw "KIS_MCP_PROCESS_START_FAILED: $Executable"
         }
     }
+
+    $OutputSource = "kis-mcp-process-$($Process.Id)-stdout-$([Guid]::NewGuid().ToString('N'))"
+    $ErrorSource = "kis-mcp-process-$($Process.Id)-stderr-$([Guid]::NewGuid().ToString('N'))"
+    $OutputJob = Register-ObjectEvent `
+        -InputObject $Process `
+        -EventName OutputDataReceived `
+        -SourceIdentifier $OutputSource `
+        -Action {
+            if ($null -ne $EventArgs.Data) {
+                Write-Output $EventArgs.Data
+            }
+        }
+    $ErrorJob = Register-ObjectEvent `
+        -InputObject $Process `
+        -EventName ErrorDataReceived `
+        -SourceIdentifier $ErrorSource `
+        -Action {
+            if ($null -ne $EventArgs.Data) {
+                Write-Output $EventArgs.Data
+            }
+        }
+
     $Process | Add-Member -NotePropertyName KisStandardOutputPath -NotePropertyValue $StandardOutputPath
     $Process | Add-Member -NotePropertyName KisStandardErrorPath -NotePropertyValue $StandardErrorPath
-    $Process | Add-Member -NotePropertyName KisStandardOutputTask -NotePropertyValue $Process.StandardOutput.ReadToEndAsync()
-    $Process | Add-Member -NotePropertyName KisStandardErrorTask -NotePropertyValue $Process.StandardError.ReadToEndAsync()
+    $Process | Add-Member -NotePropertyName KisStandardOutputJob -NotePropertyValue $OutputJob
+    $Process | Add-Member -NotePropertyName KisStandardErrorJob -NotePropertyValue $ErrorJob
+    $Process | Add-Member -NotePropertyName KisStandardOutputSource -NotePropertyValue $OutputSource
+    $Process | Add-Member -NotePropertyName KisStandardErrorSource -NotePropertyValue $ErrorSource
+    $Process.BeginOutputReadLine()
+    $Process.BeginErrorReadLine()
     return $Process
 }
 
-function Write-OwnedProcessLogs {
-    param([System.Diagnostics.Process]$Process)
+function Receive-OwnedProcessStream {
+    param(
+        [System.Management.Automation.Job]$Job,
+        [string]$Path,
+        [switch]$Echo
+    )
+
+    if ($null -eq $Job) {
+        return
+    }
+    $Lines = @(Receive-Job -Job $Job -ErrorAction SilentlyContinue)
+    if ($Lines.Count -eq 0) {
+        return
+    }
+    $TextLines = @($Lines | ForEach-Object { [string]$_ })
+    [System.IO.File]::AppendAllLines(
+        $Path,
+        [string[]]$TextLines,
+        [System.Text.UTF8Encoding]::new($false)
+    )
+    if ($Echo) {
+        foreach ($Line in $TextLines) {
+            Write-Host $Line
+        }
+    }
+}
+
+function Drain-OwnedProcessLogs {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [switch]$EchoStandardError
+    )
 
     if ($null -eq $Process) {
         return
     }
-    $StandardOutput = $Process.KisStandardOutputTask.GetAwaiter().GetResult()
-    $StandardError = $Process.KisStandardErrorTask.GetAwaiter().GetResult()
-    [System.IO.File]::WriteAllText(
-        $Process.KisStandardOutputPath,
-        $StandardOutput,
-        [System.Text.UTF8Encoding]::new($false)
+    Receive-OwnedProcessStream `
+        -Job $Process.KisStandardOutputJob `
+        -Path $Process.KisStandardOutputPath
+    Receive-OwnedProcessStream `
+        -Job $Process.KisStandardErrorJob `
+        -Path $Process.KisStandardErrorPath `
+        -Echo:$EchoStandardError
+}
+
+function Stop-OwnedProcessLogging {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [switch]$EchoStandardError
     )
-    [System.IO.File]::WriteAllText(
-        $Process.KisStandardErrorPath,
-        $StandardError,
-        [System.Text.UTF8Encoding]::new($false)
-    )
+
+    if ($null -eq $Process) {
+        return
+    }
+    Drain-OwnedProcessLogs -Process $Process -EchoStandardError:$EchoStandardError
+    foreach ($Source in @($Process.KisStandardOutputSource, $Process.KisStandardErrorSource)) {
+        Unregister-Event -SourceIdentifier $Source -ErrorAction SilentlyContinue
+    }
+    foreach ($Job in @($Process.KisStandardOutputJob, $Process.KisStandardErrorJob)) {
+        Remove-Job -Job $Job -Force -ErrorAction SilentlyContinue
+    }
 }
 
 function Invoke-McpJsonRpc {
@@ -120,12 +190,15 @@ function Wait-McpReady {
         }
     }
     while ([DateTime]::UtcNow -lt $Deadline) {
+        Drain-OwnedProcessLogs -Process $Process -EchoStandardError
         if ($Process.HasExited) {
+            Drain-OwnedProcessLogs -Process $Process -EchoStandardError
             throw "KIS_MCP_HTTP_EXITED_BEFORE_READY: $($Process.ExitCode)"
         }
         try {
             $Response = Invoke-McpJsonRpc -Uri $Uri -Payload $Initialize
             if ($null -ne $Response.result.serverInfo) {
+                Drain-OwnedProcessLogs -Process $Process -EchoStandardError
                 return
             }
         }
@@ -133,12 +206,16 @@ function Wait-McpReady {
             Start-Sleep -Milliseconds 250
         }
     }
+    Drain-OwnedProcessLogs -Process $Process -EchoStandardError
     throw "KIS_MCP_ENDPOINT_NOT_READY: $Uri"
 }
 
 $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
 if ($TimeoutSeconds -lt 5 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 5 and 300.'
+}
+if ($AuthenticationTimeoutSeconds -lt 30 -or $AuthenticationTimeoutSeconds -gt 3600) {
+    throw 'KIS_MCP_AUTHENTICATION_TIMEOUT_INVALID: AuthenticationTimeoutSeconds must be between 30 and 3600.'
 }
 if ($ObservationSeconds -lt 0 -or $ObservationSeconds -gt 300) {
     throw 'KIS_MCP_OBSERVATION_SECONDS_INVALID: ObservationSeconds must be between 0 and 300.'
@@ -211,8 +288,8 @@ try {
         -StandardOutputPath $ServerStdoutLog `
         -StandardErrorPath $ServerStderrLog
 
-    $Deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
-    Wait-McpReady -Uri $Remote.endpoint_url -Deadline $Deadline -Process $Server
+    $AuthenticationDeadline = [DateTime]::UtcNow.AddSeconds($AuthenticationTimeoutSeconds)
+    Wait-McpReady -Uri $Remote.endpoint_url -Deadline $AuthenticationDeadline -Process $Server
     $Listener = Get-NetTCPConnection `
         -LocalAddress $Remote.host `
         -LocalPort $Remote.port `
@@ -229,6 +306,7 @@ try {
         -SecurePayload $VaultUnlockPayload
     $TunnelEnvironment[$CredentialEnvironmentName] = $Credential
     $Credential = $null
+    $TunnelDeadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     try {
         $Tunnel = Start-OwnedProcess `
             -Executable $Remote.tunnel_client_path `
@@ -252,8 +330,11 @@ try {
     }
 
     $ProviderHealth = $null
-    while ([DateTime]::UtcNow -lt $Deadline) {
+    while ([DateTime]::UtcNow -lt $TunnelDeadline) {
+        Drain-OwnedProcessLogs -Process $Server -EchoStandardError
+        Drain-OwnedProcessLogs -Process $Tunnel
         if ($Tunnel.HasExited) {
+            Drain-OwnedProcessLogs -Process $Tunnel
             throw "KIS_MCP_TUNNEL_EXITED_BEFORE_READY: $($Tunnel.ExitCode)"
         }
         if (Test-Path -LiteralPath $ProviderHealthFile -PathType Leaf) {
@@ -284,8 +365,11 @@ try {
         throw 'KIS_MCP_TUNNEL_HEALTH_ORIGIN_MISSING'
     }
 
-    while ([DateTime]::UtcNow -lt $Deadline) {
+    while ([DateTime]::UtcNow -lt $TunnelDeadline) {
+        Drain-OwnedProcessLogs -Process $Server -EchoStandardError
+        Drain-OwnedProcessLogs -Process $Tunnel
         if ($Tunnel.HasExited) {
+            Drain-OwnedProcessLogs -Process $Tunnel
             throw "KIS_MCP_TUNNEL_EXITED_BEFORE_READY: $($Tunnel.ExitCode)"
         }
         try {
@@ -298,7 +382,7 @@ try {
             Start-Sleep -Milliseconds 250
         }
     }
-    if ([DateTime]::UtcNow -ge $Deadline) {
+    if ([DateTime]::UtcNow -ge $TunnelDeadline) {
         throw "KIS_MCP_TUNNEL_NOT_READY: $ProviderHealth"
     }
 
@@ -372,8 +456,12 @@ try {
     }
 
     while (-not $Server.HasExited -and -not $Tunnel.HasExited) {
+        Drain-OwnedProcessLogs -Process $Server -EchoStandardError
+        Drain-OwnedProcessLogs -Process $Tunnel
         Start-Sleep -Milliseconds 500
     }
+    Drain-OwnedProcessLogs -Process $Server -EchoStandardError
+    Drain-OwnedProcessLogs -Process $Tunnel
     if ($Server.HasExited) {
         throw "KIS_MCP_HTTP_EXITED: $($Server.ExitCode)"
     }
@@ -394,8 +482,8 @@ finally {
     else {
         Set-KisMcpCurrentInstanceStartupFailed -Remote $Remote -RunId $RunId
     }
-    Write-OwnedProcessLogs -Process $Tunnel
-    Write-OwnedProcessLogs -Process $Server
+    Stop-OwnedProcessLogging -Process $Tunnel
+    Stop-OwnedProcessLogging -Process $Server -EchoStandardError
     if ($null -ne $VaultUnlockPayload) {
         foreach ($Name in @($VaultUnlockPayload.Keys)) {
             $VaultUnlockPayload[$Name] = $null

@@ -163,9 +163,9 @@ Provider readiness rejects enabled telemetry, a missing or non-loopback feature-
 
 After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub, Supabase, and Control Center adapter builds in stable provider-ID order. Successful adapters mount as `github_*`, `supabase_*`, and `controlcenter_*`. NVIDIA NIM is registered in the Provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
-For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. A single `get_me` startup call triggers OAuth after the client connects. Downstream tool sessions reuse that authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated separately from `settings/kis-repository.settings.json` on each GitHub call. Changing the selected repository context does not reconnect the authenticated GitHub client.
+For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. Before the mounted provider lifespan starts, aggregate tool inspection exposes only the GitHub adapter's local surface and deliberately does not connect the upstream GitHub process. After the shared client connects, a single `get_me` startup call triggers OAuth and initial upstream tool discovery publishes the current runtime tool snapshot without closing that connection. Downstream tool sessions reuse the authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated separately from `settings/kis-repository.settings.json` on each GitHub call. Changing the selected repository context does not reconnect the authenticated GitHub client.
 
-The feedback tool and `read_file.isUrl` mode are absent from the Work contract. Terminal and process tools remain available. The gateway first registers the complete supported backend surface, builds instance-scoped capability and readiness state, then filters only `tools/list`; it blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
+The feedback tool and `read_file.isUrl` mode are absent from the Work contract. Terminal and process tools remain available. The gateway builds the static/local capability surface without forcing GitHub upstream discovery, then augments the effective capability catalogue from current provider runtime-tool snapshots and current readiness whenever discovery, recommendation, eligibility, or long-tail dispatch is evaluated. The bounded direct `tools/list` profile remains fixed for the running gateway; newly discovered long-tail operations remain discoverable rather than automatically becoming direct tools. The gateway still blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
 ## Use capability discovery and long-tail execution
 
@@ -251,13 +251,14 @@ Call `kis_provider_status` to inspect the current Provider catalogue and runtime
 
 - `registered` and `enabled` — descriptor and runtime selection state;
 - `build_attempted`, `built`, `mounted`, and `state` — this process's composition result;
-- `readiness` — provider-neutral local preflight evidence;
+- `readiness` — provider-neutral local preflight and current runtime evidence;
 - `user_status` — the current user-facing state and exact next action;
 - `commissioning` — separate installation, configuration, authentication, upstream connection, tool discovery, and live-verification states.
 
 Interpret the normal onboarding states as follows:
 
-- **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and runtime-scoped client path are ready. Start `kis-op` and complete one supervised OAuth sign-in for that runtime; subsequent GitHub calls reuse the authenticated provider process until `kis-op` stops. It does not mean the provider is broken.
+- **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and runtime-scoped client path are ready but the shared provider lifespan has not yet proved the current OAuth identity. Start `kis-op` and complete one supervised OAuth sign-in for that runtime.
+- **GitHub: `Ready — authenticated`** means the current running provider lifespan completed `get_me` and initial upstream tool discovery successfully. Subsequent GitHub operations and long-tail discovery reuse that same provider process until `kis-op` stops. This is runtime evidence, not persistent authentication across restarts and not a claim that every GitHub operation was live-verified.
 - **Supabase: `Ready — project initialization required`** means the commissioned provider is mounted with its local health surface but this repository is not yet linked to a Supabase project. Initialize or link a development/test project, set `SUPABASE_PROJECT_REF` in the supervised environment, then authenticate.
 - **Supabase: `Ready — authentication required`** means project scope and local OAuth prerequisites are ready; browser authentication remains the next step.
 
@@ -273,7 +274,7 @@ Start the operation runtime through the GitHub auth helper:
 pwsh -NoProfile -File .\scripts\auth-github-mcp.ps1
 ```
 
-The helper validates the GitHub provider settings and repository-local settings, then starts `kis-op`. The provider-lifetime `get_me` call triggers the official browser OAuth flow once after the shared client connects. Complete that sign-in and keep the `kis-op` runtime running; subsequent GitHub tool calls during the same runtime reuse the authenticated subprocess. Stopping or restarting `kis-op` discards the official provider's process-memory token and requires one new sign-in.
+The helper validates the GitHub provider settings and repository-local settings, then starts `kis-op`. The provider-lifetime `get_me` call triggers the official browser OAuth flow once after the shared client connects. The launcher gives this supervised server/authentication phase its own 900-second default budget; `-AuthenticationTimeoutSeconds` may be set from 30 through 3600 seconds when needed. GitHub MCP stderr is drained continuously into the retained per-run server stderr log and echoed in the visible launcher, so browser/device-code fallback guidance remains visible while sign-in is pending. After the local MCP runtime becomes ready, the normal `-TimeoutSeconds` budget starts fresh for tunnel startup and readiness. Complete the sign-in and keep the `kis-op` runtime running; subsequent GitHub tool calls during the same runtime reuse the authenticated subprocess. Stopping or restarting `kis-op` discards the official provider's process-memory token and requires one new sign-in.
 
 Run the focused non-live verification independently:
 
@@ -378,7 +379,7 @@ Start explicit browser OAuth commissioning:
 pwsh -File .\scripts\auth-supabase-mcp.ps1
 ```
 
-FastMCP performs OAuth discovery and dynamic client registration against the official project-scoped endpoint. Client and token state are persisted under the `kis-mcp/supabase` Windows Credential Manager service. The commissioning client lists the upstream surface and invokes only `get_project_url` with `{}`. It verifies the returned project hostname without printing the project URL or project reference.
+FastMCP performs OAuth discovery and dynamic client registration against the official project-scoped endpoint. Client and token state are persisted under the `kis-mcp/supabase` Windows Credential Manager service. The commissioning client lists the upstream surface and invokes only `get_project_url` with `{}`. It verifies that the returned project hostname matches the configured project reference without printing the project URL or project reference.
 
 After authorization succeeds, prove persistent-token reuse and namespaced shared-runtime exposure:
 
@@ -458,13 +459,16 @@ The launcher retrieves only the selected instance's tunnel secret from the appli
 
 - validates the exact external app, internal instance, and canonical port mapping;
 - runs lifecycle preflight only for the selected instance; the peer instance is neither inspected for cleanup nor stopped;
+- accepts a clean selected-instance preflight with zero matching stale server or tunnel processes and reclaims matching stale processes only when they exist;
 - reclaims a selected-instance listener or orphan process tree only when the canonical executable, instance, profile, and endpoint identity match; an unrelated listener fails with PID/process diagnostics and is never terminated;
 - enforces the external canonical Python environment and moves repository-local `.venv` or `.pytest_cache` transients into recoverable quarantine before startup;
 - starts the selected remote runtime on `127.0.0.1:8010` for `kis-op` or `127.0.0.1:8011` for `kis-dev`;
+- gives server startup and supervised provider authentication a separate 900-second default budget and echoes retained server stderr live so OAuth/device-code guidance remains visible;
 - proves MCP initialization and proves the new selected server process owns that exact listener before readiness;
+- starts a fresh machine/tunnel readiness deadline only after the server/authentication phase has completed;
 - writes one per-instance `current.json` ownership record while retaining timestamped startup/log evidence;
 - starts only the selected tunnel profile and tunnel ID;
-- waits for the selected tunnel client's loopback `/readyz` endpoint;
+- waits for the selected tunnel client's loopback `/readyz` endpoint within the normal `TimeoutSeconds` budget;
 - writes per-instance startup state and logs beneath the selected runtime directory;
 - owns and cleans up only the server and tunnel processes created by that launcher invocation.
 
@@ -498,7 +502,7 @@ pwsh -File .\scripts\change-workflow.ps1 new 002-example-change `
     --exclude "policy/**"
 ```
 
-The command creates branch `change/002-example-change`, worktree `.work/worktrees/002-example-change`, and the five required artifacts beneath `.work/changes/002-example-change/`.
+The command creates branch `change/002-example-change`, worktree `.work/worktrees/002-example-change`, and the five required artifacts beneath `.work/changes/<change-id>/`.
 
 List or validate active claims:
 
@@ -585,6 +589,7 @@ Permanent disposal is intentionally not exposed as a normal Work tool.
 - `KIS_MCP_TUNNEL_PROFILE_EXISTS`: rerun setup with `-BackupExistingProfile` only when replacement is intended.
 - `KIS_MCP_TUNNEL_PROFILE_INVALID`: inspect the tunnel-client doctor output; do not start the profile until all checks pass.
 - `KIS_MCP_TUNNEL_PROFILE_MISSING`: run `scripts\setup-tunnel.ps1` for the selected instance.
+- `KIS_MCP_AUTHENTICATION_TIMEOUT_INVALID`: set `AuthenticationTimeoutSeconds` from 30 through 3600 seconds; the default is 900 seconds and is independent from tunnel readiness timing.
 - `KIS_MCP_PORT_OWNED_BY_OTHER_PROCESS`: the selected instance port belongs to a process that does not match the selected KIS runtime identity; inspect the reported PID/process and stop or reconfigure it explicitly. The launcher will not terminate it.
 - `KIS_MCP_STALE_PORT_NOT_RELEASED`: a positively identified stale selected-instance runtime did not release its configured port after reclamation; inspect that instance's process tree before retrying.
 - `KIS_MCP_ENDPOINT_OWNER_INVALID` or `KIS_MCP_ENDPOINT_OWNER_STALE`: the newly started selected runtime answered incorrectly or does not own the configured listener; startup cleans up its owned process tree rather than declaring readiness.
