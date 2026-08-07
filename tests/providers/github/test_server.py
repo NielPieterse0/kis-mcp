@@ -285,6 +285,7 @@ def test_descriptor_shares_runtime_auth_and_tool_discovery_state(
     assert after.details["commissioning"]["authenticated"] == "ready"
     assert after.details["commissioning"]["upstream_connected"] == "ready"
     assert after.details["commissioning"]["tools_discovered"] == "ready"
+    assert after.details["commissioning"]["live_verified"] == "ready"
     assert tuple(descriptor.runtime_tools_probe()) == (tool,)
 
 

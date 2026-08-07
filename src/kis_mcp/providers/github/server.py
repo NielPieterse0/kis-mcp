@@ -160,7 +160,7 @@ def github_provider_readiness(
             "authenticated": "ready",
             "upstream_connected": "ready",
             "tools_discovered": "ready",
-            "live_verified": _NOT_VERIFIED,
+            "live_verified": "ready",
         }
     else:
         state = ProviderState.READY
