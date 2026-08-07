@@ -27,6 +27,22 @@ def _run_startup_lifecycle(expression: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def test_startup_lifecycle_atomic_json_replaces_existing_file(tmp_path: Path) -> None:
+    state_path = (tmp_path / "current.json").as_posix().replace("'", "''")
+    result = _run_startup_lifecycle(
+        "$path='"
+        + state_path
+        + "'; "
+        "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{value=1}); "
+        "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{value=2}); "
+        "$document=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; "
+        "Write-Output $document.value"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "2"
+
+
 def test_tunnel_setup_separates_profile_creation_from_live_validation() -> None:
     content = _script("setup-tunnel.ps1")
 
