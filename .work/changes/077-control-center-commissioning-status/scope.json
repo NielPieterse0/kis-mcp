@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "077-control-center-commissioning-status",
-  "status": "active",
+  "status": "closed",
   "branch": "change/077-control-center-commissioning-status",
   "worktree": ".work/worktrees/077-control-center-commissioning-status",
   "base": "origin/main",
