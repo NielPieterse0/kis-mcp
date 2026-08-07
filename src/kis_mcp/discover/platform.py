@@ -9,7 +9,8 @@ from .change_service import InspectChangeService
 from .git_reader import GitReader
 from .read_authority import ReadAuthority
 from .service import InspectProjectService
-from .tools import register_change_tools, register_discover_tools
+from .planning import PlanChangeService
+from .tools import register_change_tools, register_discover_tools, register_plan_change_tool
 
 from ..capabilities.contracts import (
     CapabilityContribution,
@@ -55,6 +56,16 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
         exposure=ExposurePolicy(mode=ExposureMode.DIRECT, priority=98),
         quality=default_quality(context_cost=15, reliability=95, workflow_integration=100),
     )
+    plan_operation = OperationDescriptor(
+        operation_id="discover.plan-change",
+        name="plan_change",
+        description="Prepare bounded change scope, affected tests, verification, and active-claim evidence.",
+        capabilities=("code.change.plan", "change.impact.analyze", "repository.inspect"),
+        effects=(OperationEffect.READ_ONLY,),
+        dependencies=(),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=90),
+        quality=default_quality(context_cost=25, reliability=95, workflow_integration=100),
+    )
     return (
         CapabilityContribution(
             contribution_id=project_id,
@@ -75,10 +86,12 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
             capabilities=(
                 "git.change.inspect",
                 "repository.git-read",
+                "repository.inspect",
                 "change.impact.analyze",
                 "contract.change.inspect",
+                "code.change.plan",
             ),
-            operations=(change_operation,),
+            operations=(change_operation, plan_operation),
             dependencies=(),
             effects=(OperationEffect.READ_ONLY,),
             readiness_probe=lambda: _ready(change_id),
@@ -92,6 +105,13 @@ def register_platform_discover(server: FastMCP, runtime: RuntimeConfig) -> None:
     register_discover_tools(
         server,
         InspectProjectService(
+            boundary=Path(runtime.project_boundary),
+            settings=runtime.discover_settings,
+        ),
+    )
+    register_plan_change_tool(
+        server,
+        PlanChangeService(
             boundary=Path(runtime.project_boundary),
             settings=runtime.discover_settings,
         ),
