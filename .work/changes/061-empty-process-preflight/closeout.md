@@ -2,13 +2,13 @@
 
 ## Status
 
-Active. Tasks 1–4 are implemented. The original governed scope check, focused regression suite, and canonical verifier passed on `cc9b08d`. The first supervised live `kis-op` run then completed GitHub OAuth and started the HTTP server, but correctly stopped before tunnel startup because endpoint ownership validation falsely rejected the Windows `uv` interpreter child that owned the Uvicorn listener. That commissioning defect is repaired locally with RED/GREEN regression evidence. On the repaired working state, governance passed, the required focused suite passed 40 tests, and the canonical verifier passed. Commit/push, exact-head Windows CI, and repeat live commissioning remain pending.
+Ready for landing. Tasks 1–5 are implemented. The repaired startup/auth lifecycle passed governed scope validation, focused regression tests, and the canonical verifier. Supervised live `kis-op` commissioning on `cba6cd0f6a08807f56050d7ed59a5c3d37970f06` completed one browser OAuth flow, reached `health=ready` and `tunnel_state=ready`, and subsequent authenticated GitHub user, private-repository, and pull-request reads reused the same runtime without another sign-in. A final reporting defect was then found: that proven runtime still exposed `commissioning.live_verified=not_verified`. RED/GREEN coverage now requires `live_verified=ready` whenever the shared startup state is ready; the reporting-only correction passed the required five-file focused suite (48 tests) and the canonical verifier. The final governed metadata head requires one exact-head Windows Work Management pass before merge.
 
 ## Implemented scope
 
 - Empty process collections are valid startup preflight input and the startup PowerShell test helper now makes binder/runtime errors terminating.
 - The persistent provider lifecycle owns startup state and a runtime tool snapshot; pre-lifespan upstream discovery is suppressed for that persistent provider, while `get_me` and initial discovery run inside the one shared client connection.
-- GitHub readiness transitions to current-runtime authenticated state after startup succeeds, without claiming persistent authentication or full live verification.
+- GitHub readiness transitions to current-runtime authenticated state after startup succeeds and reports current-runtime live verification for the successful `get_me` plus upstream tool-discovery bootstrap; it does not claim persistent authentication across restarts or verification of every GitHub operation.
 - Provider runtime tool snapshots are namespaced and fed into a capability catalogue/readiness view that refreshes at use time; the direct exposure profile remains fixed and bounded.
 - Existing aggregate discovery for non-GitHub mounted providers is preserved.
 - The launcher separates the supervised server/OAuth timeout from the fresh tunnel readiness timeout and drains retained server stderr live for OAuth/device-code guidance.
@@ -27,7 +27,7 @@ The first live commissioning run exposed one additional blocking runtime defect 
 The first governed worktree check after implementation failed with `PATH_OUTSIDE_CLAIM: tests/providers/test_runtime_tool_surface.py`. The file is part of Task 3 runtime-refresh verification and was changed by PR #76, but it was missing from `scope.json`. The owned-path claim has now been corrected to include `tests/providers/test_runtime_tool_surface.py`. This was a governance metadata defect only; no lifecycle implementation was changed by that correction.
 
 ## Execution-path note
-The local KIS execution surface is now available to this chat and the canonical registered worktree is `C:\Projects\kis-mcp\.work\worktrees\061-empty-process-preflight`. The operator's first live commissioning command was run from a separate sibling checkout path shown in the console as `C:\Projects\kis-mcp.work\worktrees\061-empty-process-preflight`; that run was on `cc9b08d` and supplied valid runtime evidence, but the repaired branch must be pushed and that operator checkout must be fast-forwarded before the repeat live commissioning run. The governed change remains anchored to the canonical `.work/worktrees/...` path declared by `scope.json`.
+The canonical governed worktree is `C:\Projects\kis-mcp\.work\worktrees\061-empty-process-preflight`. The successful repeat commissioning runtime was launched from this canonical worktree and recorded that repository root in the operation `current.json`/startup-state evidence. The governed change remains anchored to the `.work/worktrees/...` path declared by `scope.json`.
 
 ## Executable evidence available
 Current executable evidence is now substantial:
@@ -38,19 +38,12 @@ Current executable evidence is now substantial:
 - The first supervised live `kis-op` run on 2026-08-07 completed GitHub browser OAuth (`github authorization complete`), started the FastMCP/Uvicorn HTTP server on `127.0.0.1:8010`, and served a successful MCP initialize request before stopping at endpoint ownership validation.
 - Local process-tree diagnostics on the canonical environment showed the virtual-environment launcher process at `C:\Projects\.kis-mcp\python-env\Scripts\python.exe` with a descendant real CPython process under the uv-managed user interpreter path, confirming the listener-ownership mismatch mechanism.
 - The new endpoint-owner regression failed against the old assertion with `KIS_MCP_ENDPOINT_OWNER_INVALID`, then passed after the root-plus-descendant repair. A negative regression also proves that a listener outside the selected server process tree is rejected with `KIS_MCP_ENDPOINT_OWNER_STALE`; the complete `tests/test_startup_scripts.py` file subsequently passed 26 tests.
-- On the repaired working state after temporary diagnostics were removed, `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` passed.
-- On that same repaired state, the required five-file focused suite passed 40 tests.
-- On that same repaired state, `pwsh -NoProfile -File .\scripts\verify.ps1` passed the full repository suite, governance, canonical interpreter/dependencies, syntax checks, and exact three-rule verification.
+- On the repaired implementation, `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` passed, the required five-file focused suite passed 40 tests, and `pwsh -NoProfile -File .\scripts\verify.ps1` passed the full repository suite.
+- Exact-head Windows Work Management run #5 passed on `cba6cd0f6a08807f56050d7ed59a5c3d37970f06` before live commissioning.
+- Repeat supervised commissioning on that exact head reached `health=ready` and `tunnel_state=ready`; preflight reclaimed zero stale server and tunnel processes; GitHub OAuth completed once; `kis_provider_status` reported authenticated/upstream/tool-discovery readiness; authenticated user, private-repository file, and PR reads then succeeded without another OAuth prompt.
+- The final reporting-only correction was developed RED/GREEN: the new assertion failed while `live_verified` was `not_verified`, then passed after the readiness mapping was corrected. The required five-file focused suite then passed 48 tests and the canonical verifier passed again.
+- The Codex CLI review backend was requested for the final reporting delta but was unavailable (`AGENT_BACKEND_UNAVAILABLE`); no claim of a Codex review pass is made.
 
-These results do not yet close the slice because the production repair has not been committed/pushed, exact-head Windows CI is still required, and supervised commissioning must be repeated through tunnel readiness.
+## Landing gate
 
-## Verification still required
-Required next evidence on the repaired exact final head:
-
-1. Commit and push the repaired branch and record the exact new head SHA.
-2. Obtain exact-head Windows CI evidence for PR #76.
-3. Fast-forward the operator commissioning checkout to that exact remote head and repeat one supervised `kis-op` startup. It must complete OAuth when required, validate endpoint ownership through the actual Windows process tree, reach `health=ready` and `tunnel_state=ready`, and keep the runtime open for authenticated GitHub capability verification.
-4. Verify current runtime provider/capability status from ChatGPT against the running `kis-op` instance.
-5. Only after steps 1–4 pass: set the governed change ready, update PR #76 from draft as appropriate, complete the repository's landing-confirmation flow, reconcile final evidence, and clean up the worktree last.
-
-Do not set `scope.json` to `ready`, merge PR #76, or remove the worktree before successful repeat commissioning. No permanent deletion or policy change is part of this slice.
+The implementation and commissioning evidence are complete and `scope.json` is `ready`. The only remaining pre-merge gate is a successful exact-head Windows Work Management run for the final governed metadata head. After that pass, PR #76 may be made ready and merged with its exact head pinned. Post-merge work is limited to updating and verifying local `main`, reconciling the final merge evidence, and governed cleanup of this merged worktree/branch. No policy change or permanent artifact deletion is part of this slice.
