@@ -19,6 +19,7 @@ from .reviews import ReviewArtifactKind, ReviewEvidenceManifest
 from .settings import (
     BackendBindingSettings,
     EvidenceSettings,
+    FeatureMode,
     WorkManagementSettings,
 )
 from .status import PortfolioStatus, build_portfolio_status
@@ -135,6 +136,13 @@ class WorkManagementService:
             repository=project.repository,
         )
 
+    def _require_feature(self, feature: str, *, project_id: str, mutation: bool) -> None:
+        mode = self.settings.feature_mode(feature)
+        if mode is FeatureMode.DISABLED:
+            raise ValueError(f"{feature} feature is disabled for {project_id}")
+        if mutation and mode is FeatureMode.READ_ONLY:
+            raise ValueError(f"{feature} feature is read-only for {project_id}")
+
     async def read_inventory(
         self,
         project_id: str,
@@ -161,6 +169,11 @@ class WorkManagementService:
         idempotency_key: str | None = None,
     ) -> tuple[ReconciliationOutcome, ...]:
         project, binding = self._project_and_binding(project_id)
+        self._require_feature(
+            "reconciliation",
+            project_id=project.project_id,
+            mutation=apply,
+        )
         backend = self._backend(project, binding)
         for item in (*desired, *observed):
             if item.project_id != project.project_id:
@@ -195,6 +208,12 @@ class WorkManagementService:
         *,
         expected_sha256: str | None = None,
     ) -> EvidenceWriteResult:
+        project, _binding = self._project_and_binding(project_id)
+        self._require_feature(
+            "review_import",
+            project_id=project.project_id,
+            mutation=True,
+        )
         return self._evidence_store(project_id).write_artifact(
             manifest,
             kind,

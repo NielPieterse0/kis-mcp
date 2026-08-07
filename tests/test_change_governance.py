@@ -317,6 +317,24 @@ def test_validate_repository_rejects_unregistered_change_worktree(tmp_path: Path
         module.validate_repository(repository)
 
 
+def test_validate_repository_can_skip_worktree_topology_for_isolated_ci(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_root = repository / ".work" / "changes" / "001-alpha"
+    change_root.mkdir(parents=True)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(claim(module, "001-alpha").to_mapping()) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(module.ClaimError, match="ACTIVE_CHANGE_WORKTREE_MISSING"):
+        module.validate_repository(repository)
+
+    claims = module.validate_repository(repository, require_active_worktrees=False)
+
+    assert [item.change_id for item in claims if item.status == "active"] == ["001-alpha"]
+
+
 def test_cleanup_refuses_dirty_worktree(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)

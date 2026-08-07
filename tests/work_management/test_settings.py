@@ -143,6 +143,10 @@ def test_checked_in_settings_and_schema_are_parseable() -> None:
         ).read_text(encoding="utf-8")
     )
 
-    assert settings.enabled is False
+    assert settings.enabled is True
     assert settings.project("kis-mcp").repository == "NielPieterse0/kis-mcp"
+    assert settings.binding("github-default").project_number == 1
+    assert settings.feature_mode("reconciliation") is FeatureMode.READ_ONLY
+    assert settings.feature_mode("review_import") is FeatureMode.READ_ONLY
+    assert not any(dict(settings.automation).values())
     assert schema["additionalProperties"] is False

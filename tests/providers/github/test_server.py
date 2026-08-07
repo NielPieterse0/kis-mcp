@@ -206,6 +206,11 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     assert descriptor.provider_kind is ProviderKind.CONNECTOR
     assert descriptor.boundary is ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR
     assert [item.capability_id for item in descriptor.capabilities] == [
+        "github.actions.read",
+        "github.actions.trigger",
+        "github.pull-request.create",
+        "github.pull-request.merge",
+        "github.review",
         "project_management.read",
         "project_management.write",
         "repository.remote_read_write",
@@ -320,10 +325,30 @@ def test_project_capabilities_contribute_namespaced_operations(
     operations = {operation.name: operation for operation in contribution.operations}
 
     assert set(operations) == {
+        "github_actions_get",
+        "github_actions_list",
+        "github_actions_run_trigger",
+        "github_create_pull_request",
+        "github_merge_pull_request",
         "github_projects_get",
         "github_projects_list",
         "github_projects_write",
+        "github_pull_request_review_write",
     }
+    assert operations["github_merge_pull_request"].capabilities == (
+        "github.pull-request.merge",
+    )
+    assert operations["github_pull_request_review_write"].capabilities == (
+        "github.review",
+    )
+    assert operations["github_create_pull_request"].capabilities == (
+        "github.pull-request.create",
+    )
+    for name in ("github_actions_get", "github_actions_list"):
+        assert operations[name].capabilities == ("github.actions.read",)
+    assert operations["github_actions_run_trigger"].capabilities == (
+        "github.actions.trigger",
+    )
     for name in ("github_projects_get", "github_projects_list"):
         operation = operations[name]
         assert operation.capabilities == ("project_management.read",)
