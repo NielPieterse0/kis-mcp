@@ -58,11 +58,11 @@ The work-management programme record, roadmap, and target specification now iden
 
 - Branch: `change/055-work-management-review-evidence`
 - Worktree: `.work/worktrees/055-work-management-review-evidence`
-- Implementation commit: pending
-- Pull request: pending
-- Exact ready head: pending
-- Merge and post-merge reconciliation: require explicit landing confirmation
-- Governed cleanup: pending
+- Implementation commit: `075125e1b96f4d60ab939897431ddcbdd66b175e`
+- Pull request: #68
+- Exact ready head: retained in the PR readiness evidence after the final metadata push
+- Merge and post-merge reconciliation: require explicit landing confirmation for that exact head
+- Governed cleanup: pending until merge
 
 ## Residual programme scope
 

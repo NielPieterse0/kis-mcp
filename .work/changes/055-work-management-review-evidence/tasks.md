@@ -5,5 +5,6 @@
 - [x] Implement provider-neutral review records, evidence manifests, coverage, triage, extraction, and finding lifecycle through red-green TDD.
 - [x] Reconcile package exports, architecture tests, programme status, roadmap, and target specification.
 - [x] Run focused tests, scope governance, whitespace validation, and findings-first review.
-- [ ] Record the exact commit, pull request, final ready head, and remote readiness evidence.
-- [ ] Obtain explicit landing confirmation for the exact ready head, then merge, verify merged `main`, reconcile documentation, and run safe cleanup.
+- [x] Record implementation commit `075125e1b96f4d60ab939897431ddcbdd66b175e` and pull request #68.
+- [ ] Verify and record the exact final PR head, then obtain explicit landing confirmation for that head.
+- [ ] After confirmation, merge, verify merged `main`, reconcile post-merge documentation, and run safe cleanup.
