@@ -22,7 +22,7 @@ from kis_mcp.providers.client_runtime import (
     PersistentClientProxyProvider,
     ProviderStartupCall,
 )
-from kis_mcp.repositories import RepositorySettings, load_repository_settings
+from kis_mcp.repositories import load_repository_settings
 
 from .routing import (
     GitHubRepositoryRouting,
@@ -236,14 +236,6 @@ def register_github_provider(
         source_revision=runtime.source_revision,
         capabilities=(
             ProviderCapability(
-                capability_id="repository.remote_read_write",
-                description=(
-                    "Read and write the explicitly selected private GitHub repository "
-                    "through the official GitHub MCP provider."
-                ),
-                effects=("external_network", "repository_read", "repository_write"),
-            ),
-            ProviderCapability(
                 capability_id="project_management.read",
                 description=(
                     "Read GitHub Project metadata, fields, and items through the "
@@ -260,6 +252,14 @@ def register_github_provider(
                 ),
                 effects=("external_network", "project_write"),
                 tool_names=("projects_write",),
+            ),
+            ProviderCapability(
+                capability_id="repository.remote_read_write",
+                description=(
+                    "Read and write the explicitly selected private GitHub repository "
+                    "through the official GitHub MCP provider."
+                ),
+                effects=("external_network", "repository_read", "repository_write"),
             ),
         ),
         builder=lambda: build_github_provider_server(
