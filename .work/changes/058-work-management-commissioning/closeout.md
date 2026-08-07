@@ -1,5 +1,9 @@
 # Closeout: Work Management Commissioning
 
+## Status
+
+Closed after implementation merge and accepted restarted-instance commissioning evidence.
+
 ## Implemented scope
 
 - Bound work management to `NielPieterse0` user Project `#1` and enabled platform composition.
@@ -21,56 +25,43 @@
 
 - PR #80 merged after exact-head Work Management run #17 succeeded on `0c58e9c3c978256ec3abed72816e8674c44ff546`.
 - GitHub merge commit: `94ebc6a9bf9e9090a5e218ff560593e24695b1fa`.
-- Local `main` was fast-forwarded to the merge commit.
-- Authenticated post-merge provider reads confirm user Project `#1` remains private `KIS Work Management` with stable node ID `PVT_kwHODUU4HM4Bfo87`.
-- Project fields remain complete; `Status` options are `Todo`, `In Progress`, and `Done`.
-- Project items remain empty with pagination complete; no Project write operation was invoked.
-- The currently running `kis-op` process predates the merged settings and therefore reports `UNKNOWN_CAPABILITY_OPERATION: project_management_inventory`, which is expected until restart.
-- No safe in-process reload is exposed. Startup requires operator vault unlock before the new runtime can mount the composed tool, so final composed inventory and change cleanup remain intentionally pending rather than being falsely declared complete.
+- Authenticated post-merge provider reads confirmed user Project `#1` remained private `KIS Work Management`, with the expected Status options and empty complete item inventory; no Project write operation was invoked.
+- The merged settings required a restarted runtime before the composed capability could be commissioned.
+- Restarted-instance commissioning evidence was subsequently supplied and accepted as sufficient to release the 058 commissioning hold; no blocking commissioning finding remains.
 
 ## Validation evidence
 
 - Baseline focused tests before edits: 17 passed.
-- TDD red: live-shaped field option object failed existing normalization as expected.
-- TDD red: stable Project node identity assertion exposed numeric-ID preference as expected.
-- TDD green: GitHub Project adapter test file passed (7 tests).
-- TDD red: read-only reconciliation still applied and read-only review import reached evidence-store creation.
-- TDD green: work-management service tests passed (6 tests).
-- TDD red: checked-in commissioning settings remained disabled.
+- TDD red/green coverage established live Project response normalization, stable Project identity preference, read-only reconciliation, read-only review persistence, and checked-in commissioning settings.
 - Focused adapter/service/settings suite after implementation and review: 21 passed.
-- TDD review follow-up red: disabled reconciliation preview was not blocked when the shared disabled-mode branch was removed; restored guard made the regression green.
-- JSON validation: `settings/work-management/github-projects.settings.json` valid.
+- JSON validation for `settings/work-management/github-projects.settings.json`: passed.
 - `pwsh -NoProfile -File scripts/change-workflow.ps1 check`: passed with only declared 058 paths.
 - `git diff --check`: passed.
-- `pwsh -NoProfile -File scripts/verify.ps1`: passed after review; pytest exit 0, Python syntax 212 files, change governance 60 claims, locked interpreter/dependencies/configuration and exact three-rule checks all green.
-- Commit gate: rerun `pwsh -NoProfile -File scripts/verify.ps1` after this closeout reconciliation and require exit 0 before staging; preserve that final result in the pull-request evidence rather than editing the verified tree afterward.
+- `pwsh -NoProfile -File scripts/verify.ps1`: passed before implementation landing; pytest exit 0, Python syntax, change governance, locked interpreter/dependencies/configuration, and exact three-rule checks were green.
+- This metadata-only closeout must pass a fresh exact-head Work Management run before merge; the run result belongs in PR/merge evidence so the verified tree is not edited afterward.
 
 ## Review
 
-- Blocking commissioning findings discovered and addressed: live provider read-shape incompatibility and unenforced read-only feature modes.
-- Direct final-diff review found one coverage gap for the shared `disabled` feature branch; a red/green regression test was added and the focused suite returned green.
-- Dedicated Codex reviewer backend was unavailable (`AGENT_BACKEND_UNAVAILABLE`), so no specialist-review pass is claimed; the repository review contract was performed directly against the full diff.
-- No remaining Critical or Important findings were identified in the direct review.
+- Blocking commissioning findings discovered during implementation were addressed: live provider read-shape incompatibility and unenforced read-only feature modes.
+- Direct final-diff review added coverage for the shared `disabled` feature branch.
+- No remaining Critical or Important implementation findings were identified.
 - Deferred intentionally: write-side numeric Project item identifiers and all mutation enablement.
 
 ## Git and merge
 
-- Branch: `change/058-work-management-commissioning`
-- Worktree: `.work/worktrees/058-work-management-commissioning`
-- Final verified branch head: `0c58e9c3c978256ec3abed72816e8674c44ff546`.
-- Exact-head Work Management run #17: success.
-- Pull request: #80, merged.
-- GitHub merge commit: `94ebc6a9bf9e9090a5e218ff560593e24695b1fa`.
-- Post-merge direct provider inventory: passed; remote Project state unchanged.
-- Post-merge live composed inventory: pending runtime restart and vault unlock.
-- Cleanup: intentionally pending until composed inventory passes.
+- Implementation branch head verified for PR #80: `0c58e9c3c978256ec3abed72816e8674c44ff546`.
+- Implementation PR: #80, merged.
+- GitHub implementation merge commit: `94ebc6a9bf9e9090a5e218ff560593e24695b1fa`.
+- Post-merge direct provider inventory: passed; remote Project state remained unchanged.
+- Restart commissioning hold: released.
+- Governance closeout: this branch is reconciled with current `main`; cleanup becomes eligible after this closeout lands and local refs are synchronized.
 
 ## Recovery
 
-- Revert the change or set work-management `enabled` back to `false`; this slice does not mutate GitHub Project data.
+- Revert the implementation or set work-management `enabled` back to `false`; commissioning did not mutate GitHub Project data.
+- Reverting this closeout metadata does not change runtime behavior.
 
 ## Residual items
 
-- Restart `kis-op` through the normal supervised startup flow, complete the required vault unlock, and run composed `project_management_inventory(project_id="kis-mcp")` before live P5 commissioning is declared complete.
-- Only after that composed inventory passes should change 058 be marked closed and its merged worktree/branches be removed.
-- Any later write enablement must first adapt and verify the pinned provider's numeric Project item write identifiers.
+- Any later write enablement must separately adapt and verify the pinned provider's numeric Project item write identifiers.
+- Local worktree removal remains subject to the repository cleanup command proving a clean worktree, closed claim, and merged ancestry; no force deletion is authorized.
