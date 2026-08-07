@@ -61,6 +61,11 @@ def test_runtime_tool_snapshot_and_readiness_refresh_without_gateway_rebuild() -
             name="github_get_file_contents",
             description="Read repository contents.",
             annotations={"readOnlyHint": True},
+            input_schema={
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
         )
     )
     state["value"] = ReadinessState.READY
@@ -71,6 +76,11 @@ def test_runtime_tool_snapshot_and_readiness_refresh_without_gateway_rebuild() -
         OperationEffect.EXTERNAL,
         OperationEffect.READ_ONLY,
     )
+    assert operation.input_schema == {
+        "type": "object",
+        "properties": {"path": {"type": "string"}},
+        "required": ["path"],
+    }
     assert runtime.readiness_for(operation).state is ReadinessState.READY
     assert "repository.remote_read_write" in runtime.available_capabilities
 

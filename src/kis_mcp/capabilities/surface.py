@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import replace
-from typing import Any, Iterable
+from typing import Any
 
 from .contracts import (
     CapabilityContribution,
@@ -24,6 +25,11 @@ def _annotation(tool: Any, name: str) -> bool:
     if isinstance(annotations, dict):
         return bool(annotations.get(name, False))
     return bool(getattr(annotations, name, False))
+
+
+def _input_schema(tool: Any) -> Mapping[str, Any]:
+    raw = getattr(tool, "input_schema", getattr(tool, "inputSchema", None))
+    return dict(raw) if isinstance(raw, Mapping) else {}
 
 
 def _runtime_effects(
@@ -138,14 +144,17 @@ def augment_with_runtime_surface(
 ) -> tuple[CapabilityContribution, ...]:
     items = {item.contribution_id: item for item in contributions}
     runtime_tools = tuple(tools)
-    actual_names = {
-        str(getattr(tool, "name", "")) for tool in runtime_tools if getattr(tool, "name", None)
+    tools_by_name = {
+        str(getattr(tool, "name", "")): tool
+        for tool in runtime_tools
+        if getattr(tool, "name", None)
     }
+    actual_names = set(tools_by_name)
     for contribution_id, contribution in tuple(items.items()):
         if contribution_id == "capability-control":
             continue
         operations = tuple(
-            operation
+            replace(operation, input_schema=_input_schema(tools_by_name[operation.name]))
             if operation.name in actual_names
             else replace(
                 operation,
@@ -198,6 +207,7 @@ def augment_with_runtime_surface(
             ),
             approval_required=any(term in name.casefold() for term in ("merge", "publish", "deploy", "send_email")),
             authentication_preflight=any(term in name.casefold() for term in ("auth", "status", "health", "preflight")),
+            input_schema=_input_schema(tool),
         )
         if owner_id is not None and owner_id in items:
             current = items[owner_id]

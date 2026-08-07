@@ -71,6 +71,11 @@ def test_runtime_tools_are_namespaced_without_mutating_upstream_tool() -> None:
         name="get_file_contents",
         description="Read repository contents.",
         annotations={"readOnlyHint": True},
+        inputSchema={
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+            "required": ["path"],
+        },
     )
 
     tools = provider_runtime_tools(
@@ -82,6 +87,7 @@ def test_runtime_tools_are_namespaced_without_mutating_upstream_tool() -> None:
     assert tools[0].name == "github_get_file_contents"
     assert tools[0].description == upstream.description
     assert tools[0].annotations == upstream.annotations
+    assert tools[0].input_schema == upstream.inputSchema
     assert upstream.name == "get_file_contents"
 
 
