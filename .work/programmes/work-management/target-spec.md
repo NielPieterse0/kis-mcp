@@ -8,8 +8,8 @@
 | Capability | Provider-neutral multi-project work management and review evidence |
 | Change | `049-github-project-management-spec` |
 | Status | Proposed target-state specification |
-| Date | 2026-08-06 |
-| Current implementation | Internal P0-P3 provider-neutral identity, lifecycle, inventory, intake, governance records, implementation traceability, exact-revision merge readiness, and documentation milestones implemented; review evidence, automation, provider workflows, and public integration remain planned |
+| Date | 2026-08-07 |
+| Current implementation | Internal P0-P4 provider-neutral identity, lifecycle, inventory, intake, governance records, implementation traceability, exact-revision merge readiness, documentation milestones, review evidence, coverage, triage, extraction, and finding lifecycle implemented; persistence, automation, provider workflows, and public integration remain planned |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
 | Initial backend | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
 | Applicability | Multiple managed repositories and projects |
@@ -295,7 +295,7 @@ Canonical review evidence SHOULD be versioned under:
 └── closeout.json
 ```
 
-A later implementation slice MUST confirm this path against the EvidenceStore architecture before creating it.
+Change `055-work-management-review-evidence` confirms this canonical namespace and implements provider-neutral artifact-manifest validation only. Runtime persistence, atomic writes, retention, conflict handling, and workflow integration remain P5 responsibilities.
 
 ### 9.1 Observation triage
 
@@ -358,6 +358,7 @@ src/kis_mcp/work_management/
 ├── settings.py         strict JSON configuration
 ├── lifecycle.py        transition rules and prerequisites
 ├── traceability.py     artifact and relationship validation
+├── reviews.py          review evidence, triage, extraction, and finding lifecycle
 ├── reconciliation.py   desired-versus-observed state
 ├── service.py          application facade
 └── platform.py         047 capability contributions
@@ -381,7 +382,7 @@ Workflow modules MUST depend on normalized service contracts. They MUST NOT impo
 
 Gateway composition MUST consume only `platform.py` entry points created or approved by the 047 architecture.
 
-The initial modularity assessment mode is declared-only because the runtime units do not yet exist. No Modularity Assessment Score is claimed. Each implementation phase MUST collect measured evidence and preserve, split, or merge units based on cohesion, coupling, blast radius, change reasons, and agent-workability.
+The initial target boundary table below remains declared design evidence. Change `055-work-management-review-evidence` also collected measured 90-day repository evidence for the current `work_management` and `workflows` units and directly inspected the existing review and traceability modules. No Modularity Assessment Score is claimed because representative read-set/edit-set and isolation evidence remain unmeasured. Each implementation phase MUST continue to preserve, split, or merge units based on current cohesion, coupling, blast radius, change reasons, and agent-workability evidence.
 
 ### 10.2 Declared boundary assessment
 
@@ -392,7 +393,7 @@ The initial modularity assessment mode is declared-only because the runtime unit
 | `U-03 project workflows` | `D` | Compose complete intake, delivery, review, and status tasks | Workflow descriptors and service ports | Provider selection and transport | Medium after public exposure |
 | `U-04 automation assets` | `D` | Run repeatable CLI and CI reconciliation | Versioned settings, schemas, and structured results | Domain decisions and provider internals | Low when workflows remain optional |
 
-`D` means declared design evidence. File churn, dependency fan-in, blast radius, change-reason kinds, and agent read-set measures are currently unmeasured. P1 MUST run the approved collector against the merged codebase and either confirm these seams or issue a bounded redesign before implementation.
+`D` means declared target-design evidence for the table. The P4 collector measured `src/kis_mcp/work_management` at 2,515 LOC, nine relevant commits, fan-in three, and fan-out two, and measured `src/kis_mcp/workflows` at 719 LOC, four relevant commits, fan-in one, and fan-out four. Direct inspection confirmed that review-domain contracts belong in a new `work_management/reviews.py` unit rather than extending `traceability.py` or making the advisory `workflows/code_review` adapter authoritative. Read-set/edit-set ratio, hidden coupling, and isolated-test effort remain unmeasured and are explicit future assessment triggers.
 
 The design intentionally avoids a single catch-all workflow module and avoids provider logic in the domain core. It also avoids premature micro-modules for each record type; record-specific behavior SHOULD remain cohesive lifecycle strategies until measured change evidence justifies another seam.
 
@@ -730,7 +731,7 @@ The initial bootstrap SHOULD:
 | P1 | Read-only GitHub Project inventory and normalized contracts | Change 047 merged |
 | P2 | Intake, typed records, decisions, assumptions, risks, approvals, and holds | P1 |
 | P3 | Change-record, branch, worktree, PR, verification, and closeout traceability | P2 |
-| P4 | Review-run evidence, normalized reports, triage, and finding extraction | P2 and EvidenceStore decision |
+| P4 | Review-run evidence, normalized reports, triage, and finding extraction | P2 and resolved manifest-only EvidenceStore decision |
 | P5 | Built-in workflows, Actions, CLI reconciliation, and programme status | P3 and P4 |
 | P6 | Optional stronger enforcement and organization-level enhancements | Capability and plan support |
 
@@ -767,12 +768,17 @@ The long-lived working authority for this capability is:
 Child implementation slices remain under `.work/changes/<change-id>/` and use independent worktrees, scopes, tests, reviews, verification, pull requests, and closeout. Stable reader-facing documentation is updated only at the configured documentation milestones.
 
 ## 26. Open implementation decisions
+### Resolved
+
+- **PM-OPEN-002 — resolved by change 055**: The canonical review-evidence namespace is `.work/reviews/<review-id>/`. P4 validates a manifest for request, report, result, coverage, optional SARIF, and closeout artifacts without implementing persistence. Runtime storage behavior remains P5.
+
+### Open
 
 - **PM-OPEN-001**: Confirm the default topology: one shared portfolio Project, separate per-project Projects, or a configurable mix.
-- **PM-OPEN-002**: Confirm the canonical EvidenceStore path for review artifacts after 047 and the Govern design settle.
 - **PM-OPEN-003**: Select the exact official GitHub MCP release that first implementation will pin and commission for Project tools.
 - **PM-OPEN-004**: Determine which Project views and built-in workflows can be provisioned through supported APIs versus one-time operator setup.
 - **PM-OPEN-005**: Decide whether accepted Project schema changes require an explicit operator approval record.
+
 ## 27. External product sources
 
 External product facts were verified on 2026-08-06 against:

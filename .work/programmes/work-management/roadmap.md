@@ -28,6 +28,8 @@ Each implementation phase uses its own governed change, isolated worktree, bound
 
 ## Current implementation boundary
 
-Changes 049 through 053 implement the internal provider-neutral P0-P3 foundation under `src/kis_mcp/work_management`: project identity and lifecycle, read-only Project inventory contracts, typed intake and governance records, implementation traceability, exact-revision merge readiness, and pre-merge/post-merge documentation milestones. The P3 validator detects missing, stale, duplicated, and contradictory relationships across specification records, changes, branches, worktrees, pull requests, verification runs, merge evidence, closeout, and documentation reconciliation.
+Changes 049 through 055 implement the internal provider-neutral P0-P4 foundation under `src/kis_mcp/work_management`: project identity and lifecycle, read-only Project inventory contracts, typed intake and governance records, implementation traceability, exact-revision merge readiness, documentation milestones, and review-run evidence with explicit coverage, observation triage, deterministic child-record extraction, and finding lifecycle management.
 
-These contracts are not publicly composed or remotely commissioned. P4 review evidence and finding extraction, plus P5 provider workflows, CLI, CI, automation, reconciliation, portfolio status, and stable reader-facing operating documentation remain future governed phases.
+P4 confirms `.work/reviews/<review-id>/` as the canonical evidence namespace and models its request, report, result, coverage, optional SARIF, and closeout artifact manifest. It does not create those files or implement a generic persistence service.
+
+These contracts are not publicly composed or remotely commissioned. P5 provider workflows, persistence, CLI, CI, automation, reconciliation, portfolio status, and stable reader-facing operating documentation remain future governed work.
