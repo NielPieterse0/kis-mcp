@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "change_id": "063-github-tools-experience",
+  "status": "active",
+  "branch": "change/063-github-tools-experience",
+  "worktree": ".work/worktrees/063-github-tools-experience",
+  "base": "main",
+  "outcome": "Improve GitHub and GitHub Projects progressive tool discovery, workflow composition, schemas, ranking, and bounded result usability",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/contracts.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "src/kis_mcp/capabilities/tools.py",
+    "src/kis_mcp/capabilities/resolver.py",
+    "src/kis_mcp/capabilities/execution.py",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/providers/github/server.py",
+    "src/kis_mcp/providers/github/project_management.py",
+    "src/kis_mcp/workflows/platform.py",
+    "tests/capabilities/test_capability_contracts.py",
+    "tests/capabilities/test_decision_pipeline.py",
+    "tests/capabilities/test_exposure_execution.py",
+    "tests/capabilities/test_runtime_refresh.py",
+    "tests/providers/test_runtime_tool_surface.py",
+    "tests/providers/github/test_server.py",
+    "tests/providers/github/test_project_management.py",
+    "tests/workflows/project_management/test_descriptors.py",
+    "docs/development/capabilities/github-tools-experience.md",
+    ".work/changes/063-github-tools-experience/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/kis-mcp.policy.json",
+    "settings/work-management/github-projects.settings.json",
+    "settings/providers/github-mcp.provider.json"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

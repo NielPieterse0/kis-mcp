@@ -126,6 +126,7 @@ class _RuntimeProviderTool:
     name: str
     description: str
     annotations: Any = None
+    input_schema: Mapping[str, Any] | None = None
 
 
 def provider_runtime_tools(
@@ -151,11 +152,18 @@ def provider_runtime_tools(
             exposed_name = raw_name
             if prefix and not raw_name.startswith(f"{prefix}_"):
                 exposed_name = f"{prefix}_{raw_name}"
+            raw_schema = getattr(
+                tool,
+                "inputSchema",
+                getattr(tool, "input_schema", None),
+            )
+            input_schema = dict(raw_schema) if isinstance(raw_schema, Mapping) else {}
             tools.append(
                 _RuntimeProviderTool(
                     name=exposed_name,
                     description=str(getattr(tool, "description", "") or f"Run {exposed_name}."),
                     annotations=getattr(tool, "annotations", None),
+                    input_schema=input_schema,
                 )
             )
     return tuple(sorted(tools, key=lambda item: item.name))

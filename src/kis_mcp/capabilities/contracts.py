@@ -228,6 +228,7 @@ class OperationDescriptor:
     enabled: bool = True
     friction: int = 0
     tags: tuple[str, ...] = ()
+    input_schema: Mapping[str, Any] = field(default_factory=dict)
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -249,6 +250,11 @@ class OperationDescriptor:
             raise ValueError("exposure and quality metadata are required")
         object.__setattr__(self, "credentials", _unique_text(self.credentials, "credential"))
         object.__setattr__(self, "tags", _unique_text(self.tags, "tag"))
+        object.__setattr__(
+            self,
+            "input_schema",
+            _freeze_mapping(self.input_schema, "input_schema"),
+        )
         if not isinstance(self.approval_required, bool) or not isinstance(self.authentication_preflight, bool) or not isinstance(self.enabled, bool):
             raise ValueError("operation flags must be booleans")
         if not isinstance(self.friction, int) or not 0 <= self.friction <= 100:
@@ -271,6 +277,7 @@ class OperationDescriptor:
             "enabled": self.enabled,
             "friction": self.friction,
             "tags": list(self.tags),
+            "input_schema": _json_value(self.input_schema),
         }
 
 
