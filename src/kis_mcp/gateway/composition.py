@@ -33,6 +33,7 @@ from ..providers.platform import (
     ProviderService,
     compose_platform_providers,
     provider_capability_contributions,
+    provider_runtime_tools,
 )
 from ..quarantine import QuarantineService
 from ..skills.platform import register_platform_skills, skill_capability_contributions
@@ -52,6 +53,10 @@ ProviderValidator = Callable[[RuntimeConfig], None]
 
 def _listed_tools(server: FastMCP) -> list[Any]:
     return list(asyncio.run(server.list_tools()))
+
+
+def _listed_local_tools(server: FastMCP) -> list[Any]:
+    return list(asyncio.run(server.local_provider.list_tools()))
 
 
 def compose_gateway(
@@ -82,6 +87,11 @@ def compose_gateway(
         env=environment,
     )
     server = create_proxy_fn(ProxyClient(transport), name=runtime.server_name)
+
+    # Capture the existing Work backend before mounting external providers. This
+    # may inspect Desktop Commander, but cannot create a disposable GitHub MCP
+    # subprocess because GitHub has not been mounted yet.
+    core_runtime_tools = _listed_tools(server)
 
     register_platform_discover(server, runtime)
     providers = compose_platform_providers(
@@ -140,14 +150,23 @@ def compose_gateway(
     namespaces = {
         item.provider_id: item.namespace for item in providers.composition.results
     }
+    static_runtime_tools = (
+        *core_runtime_tools,
+        *_listed_local_tools(server),
+    )
     contributions = augment_with_runtime_surface(
         base_contributions,
-        _listed_tools(server),
+        static_runtime_tools,
         namespaces,
     )
     capabilities = CapabilityRuntimeState.build(
         CapabilityCatalogue(contributions, workflow_descriptors()),
         settings,
+        runtime_tools_source=lambda: provider_runtime_tools(
+            providers.service,
+            providers.composition,
+        ),
+        provider_namespaces=namespaces,
     )
     register_capability_tools(server, capabilities)
     exposure = ExposurePlanner(capabilities).plan()
