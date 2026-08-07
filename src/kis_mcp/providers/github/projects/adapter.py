@@ -79,6 +79,31 @@ def _optional_text(value: Any) -> str | None:
     return str(value).strip() or None
 
 
+def _provider_text(value: Any, operation: str, label: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, Mapping):
+        for key in ("raw", "html"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+    raise _invalid(operation, f"{label} was missing")
+
+
+def _provider_id(raw: Mapping[str, Any], operation: str, label: str) -> str:
+    for key in ("node_id", "nodeId"):
+        candidate = raw.get(key)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    candidate = raw.get("id")
+    if isinstance(candidate, bool) or not isinstance(candidate, (str, int)):
+        raise _invalid(operation, f"{label} was missing")
+    normalized = str(candidate).strip()
+    if not normalized:
+        raise _invalid(operation, f"{label} was missing")
+    return normalized
+
+
 def _nodes(
     document: Mapping[str, Any],
     key: str,
@@ -154,8 +179,8 @@ def _field_options(raw: Any, operation: str) -> tuple[ProjectFieldOption, ...]:
             raise _invalid(operation, "field option was not an object")
         options.append(
             ProjectFieldOption(
-                option_id=_required_text(value.get("id"), operation, "option id"),
-                name=_required_text(value.get("name"), operation, "option name"),
+                option_id=_provider_id(value, operation, "option id"),
+                name=_provider_text(value.get("name"), operation, "option name"),
             )
         )
     return tuple(options)
@@ -167,7 +192,7 @@ def _normalize_field(raw: Mapping[str, Any], operation: str) -> ProjectField:
     if kind is not ProjectFieldKind.SINGLE_SELECT:
         options = ()
     return ProjectField(
-        field_id=_required_text(raw.get("id"), operation, "field id"),
+        field_id=_provider_id(raw, operation, "field id"),
         name=_required_text(raw.get("name"), operation, "field name"),
         kind=kind,
         options=options,
@@ -324,7 +349,7 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
         if not isinstance(candidate, Mapping):
             raise _invalid("get_project", "project was not an object")
         title = _required_text(candidate.get("title"), "get_project", "project title")
-        node_id = _optional_text(candidate.get("id", candidate.get("node_id")))
+        node_id = _provider_id(candidate, "get_project", "project id")
         closed = candidate.get("closed", False)
         if not isinstance(closed, bool):
             state = str(candidate.get("state", "")).casefold()
