@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..capabilities.contracts import (
     CapabilityContribution,
@@ -120,6 +121,46 @@ class _NamespacedProviderToolCaller:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class _RuntimeProviderTool:
+    name: str
+    description: str
+    annotations: Any = None
+
+
+def provider_runtime_tools(
+    service: ProviderService,
+    composition: ProviderRuntimeComposition,
+) -> tuple[_RuntimeProviderTool, ...]:
+    """Return current mounted-provider tool snapshots with external namespaces."""
+
+    tools: list[_RuntimeProviderTool] = []
+    for mount in composition.results:
+        if mount.state is not ProviderMountState.MOUNTED:
+            continue
+        if not service.registry.contains(mount.provider_id):
+            continue
+        descriptor = service.registry.get(mount.provider_id)
+        if descriptor.runtime_tools_probe is None:
+            continue
+        prefix = mount.namespace.strip("_")
+        for tool in descriptor.runtime_tools_probe():
+            raw_name = str(getattr(tool, "name", "")).strip()
+            if not raw_name:
+                continue
+            exposed_name = raw_name
+            if prefix and not raw_name.startswith(f"{prefix}_"):
+                exposed_name = f"{prefix}_{raw_name}"
+            tools.append(
+                _RuntimeProviderTool(
+                    name=exposed_name,
+                    description=str(getattr(tool, "description", "") or f"Run {exposed_name}."),
+                    annotations=getattr(tool, "annotations", None),
+                )
+            )
+    return tuple(sorted(tools, key=lambda item: item.name))
+
+
 def build_platform_github_project_backend(
     server,
     service: ProviderService,
@@ -145,6 +186,7 @@ def build_platform_nvidia_backend(service: ProviderService, settings: NvidiaSett
     if not settings.enabled or not service.registry.contains("nvidia-nim"):
         raise RuntimeError("nvidia-nim is unavailable")
     return service.build("nvidia-nim")
+
 
 @dataclass(frozen=True, slots=True)
 class PlatformProviderRuntime:
@@ -195,6 +237,7 @@ def compose_platform_providers(
         composition=composition,
         selected_repository=repository_selection,
     )
+
 
 def _mount_readiness(result: ProviderMountResult) -> ReadinessSnapshot | None:
     state = {
@@ -315,4 +358,5 @@ __all__ = [
     "build_platform_provider_service",
     "compose_platform_providers",
     "provider_capability_contributions",
+    "provider_runtime_tools",
 ]
