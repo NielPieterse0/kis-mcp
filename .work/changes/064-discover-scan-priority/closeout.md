@@ -2,13 +2,13 @@
 
 ## Status
 
-Active. Governance artifacts registered before implementation edits.
+Closed after exact-head verification and PR #81 merge.
 
 ## Baseline evidence
 
 - Live bounded Discover inspection starved `src` behind auxiliary/hidden trees.
-- Current scanner consumes `max_files` and `max_total_bytes` during alphabetical DFS traversal.
-- Modularity assessment supports separating traversal safety from evidence selection as independently testable change reasons.
+- The scanner consumed `max_files` and `max_total_bytes` during alphabetical DFS traversal.
+- Modularity assessment supported separating traversal safety from evidence selection as independently testable change reasons.
 
 ## Verification
 
@@ -20,10 +20,25 @@ Active. Governance artifacts registered before implementation edits.
 - `git diff --check`: passed.
 - Static Python project review returned zero findings on the final implementation state.
 - Simplicity/efficiency review rejected an earlier post-traversal candidate-selection design because it weakened the practical early-stop value of `max_files`; the final design keeps every existing resource bound during traversal and changes only deterministic visitation priority.
-- Review also caught and fixed a priority-precedence defect that would have promoted auxiliary `.agents/.../SKILL.md` files as generic Markdown; an explicit regression now preserves auxiliary paths at the lowest tier.
-- Exact-head local repository verification initially exposed an unrelated overbroad Skills-root guard: both `scripts/verify.ps1` and `tests/test_repository_scope.py` treated any `.agents` path label as a runtime Skills-root reference. RED evidence reproduced both failures; the guard now targets `.agents\\skills` references only while retaining canonical-root validation.
-- Fresh final `scripts/verify.ps1` passed on the amended worktree: configuration, line endings, interpreter, dependencies, Python syntax, change governance, full pytest, and verification all green.
+- Review caught and fixed a priority-precedence defect that would have promoted auxiliary `.agents/.../SKILL.md` files as generic Markdown; an explicit regression preserves auxiliary paths at the lowest tier.
+- Exact-head local repository verification initially exposed an unrelated overbroad Skills-root guard in `scripts/verify.ps1` and `tests/test_repository_scope.py`; the guard was narrowed to `.agents\\skills` references and regression-tested.
+- Final implementation head `1175e37c9a9e8e91273552443c224df13cbba626` passed Work Management run #18 with settings validation, governance validation, focused P5 tests, and canonical repository verification.
+- This metadata-only closeout must pass a fresh exact-head Work Management run before merge; the run result belongs in PR/merge evidence so the verified tree is not edited afterward.
 
 ## Landing
 
-Pending amended commit publication, exact-head remote Work Management verification, merge, and governed closeout.
+- Pull request: #81, `Prioritize Discover scan evidence under tight budgets`.
+- Exact tested implementation head: `1175e37c9a9e8e91273552443c224df13cbba626`.
+- Exact-head Work Management run #18: success.
+- GitHub merge commit: `2aa0717b8bec59d0509ad0ce6140cc5b631edcf6`.
+- The implementation branch was fast-forwarded to the merged result before this metadata-only closeout; no history rewrite or forced ref update was used.
+- Governed worktree cleanup becomes eligible after this closeout lands and local refs are synchronized.
+
+## Recovery
+
+- Revert PR #81 to restore the prior traversal order and verifier behavior; no settings, policy, schema, or state migration is involved.
+- Reverting this closeout metadata does not change runtime behavior.
+
+## Residual items
+
+- Local worktree removal remains subject to the repository cleanup command proving a clean worktree, closed claim, and merged ancestry; no force deletion is authorized.
