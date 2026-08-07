@@ -84,6 +84,24 @@ def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
     assert "KIS_MCP_HTTP_NOT_READY" not in content
 
 
+def test_chatgpt_startup_separates_supervised_authentication_from_tunnel_deadline() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    assert "[int]$AuthenticationTimeoutSeconds = 900" in content
+    assert "KIS_MCP_AUTHENTICATION_TIMEOUT_INVALID" in content
+    auth_deadline = content.index("$AuthenticationDeadline =")
+    server_ready = content.index(
+        "Wait-McpReady -Uri $Remote.endpoint_url -Deadline $AuthenticationDeadline"
+    )
+    tunnel_deadline = content.index("$TunnelDeadline =")
+
+    assert auth_deadline < server_ready < tunnel_deadline
+    assert "AddSeconds($AuthenticationTimeoutSeconds)" in content
+    assert "AddSeconds($TimeoutSeconds)" in content[tunnel_deadline:]
+    assert "while ([DateTime]::UtcNow -lt $TunnelDeadline)" in content
+    assert "if ([DateTime]::UtcNow -ge $TunnelDeadline)" in content
+
+
 def test_chatgpt_startup_finishes_non_secret_preflight_before_unlock() -> None:
     content = _script("start-chatgpt.ps1")
 
@@ -280,13 +298,17 @@ def test_tunnel_setup_captures_provider_cli_output() -> None:
     assert "setup_log=" in content
 
 
-def test_chatgpt_startup_redirects_owned_process_output() -> None:
+def test_chatgpt_startup_drains_owned_process_output_live_and_retains_logs() -> None:
     content = _script("start-chatgpt.ps1")
 
     assert "RedirectStandardOutput = $true" in content
     assert "RedirectStandardError = $true" in content
-    assert "ReadToEndAsync()" in content
-    assert "Write-OwnedProcessLogs" in content
+    assert "Register-ObjectEvent" in content
+    assert "BeginOutputReadLine()" in content
+    assert "BeginErrorReadLine()" in content
+    assert "Drain-OwnedProcessLogs" in content
+    assert "-EchoStandardError" in content
+    assert "ReadToEndAsync()" not in content
     assert "server-stdout-$RunId.log" in content
     assert "server-stderr-$RunId.log" in content
     assert "tunnel-stdout-$RunId.log" in content
