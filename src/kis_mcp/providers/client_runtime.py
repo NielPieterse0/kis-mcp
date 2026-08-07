@@ -84,9 +84,10 @@ class ProviderStartupCall:
 class PersistentClientProxyProvider(ProxyProvider):
     """Proxy one upstream MCP client for the complete parent-server lifespan.
 
-    FastMCP clients are re-entrant. The outer provider lifespan owns the actual
-    transport connection; startup and tool discovery run inside that connection,
-    and nested proxy calls cannot close it until the parent server shuts down.
+    Before the provider lifespan starts, component discovery is intentionally
+    empty so aggregate gateway construction cannot create a disposable upstream
+    process. The lifespan then opens one shared client, runs startup and initial
+    tool discovery, and nested proxy calls reuse that connection until shutdown.
     """
 
     def __init__(
@@ -109,6 +110,11 @@ class PersistentClientProxyProvider(ProxyProvider):
 
     def client_factory(self) -> Client:
         return cast(Client, self.client)
+
+    async def _list_tools(self):
+        if self.startup_state.phase is not ProviderStartupPhase.READY:
+            return []
+        return await super()._list_tools()
 
     @asynccontextmanager
     async def lifespan(self) -> AsyncIterator[None]:
