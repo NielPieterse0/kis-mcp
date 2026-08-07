@@ -1,0 +1,92 @@
+{
+  "skill_name": "mcp-development",
+  "baseline": "no skill or the three unconsolidated source skills, using equivalent task context",
+  "evals": [
+    {
+      "id": "output-001",
+      "prompt": "Design a production MCP server for a cloud issue tracker with about 80 API operations, OAuth, and ChatGPT as a primary client.",
+      "expected_outcome": "A spec-grounded architecture that chooses a remote transport, keeps the default tool surface bounded, preserves long-tail capability, and separates MCP auth from ChatGPT-specific concerns.",
+      "assertions": [
+        {
+          "id": "001-a",
+          "text": "The answer identifies an explicit MCP specification/version source or requires checking the current stable spec before version-sensitive implementation.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "001-b",
+          "text": "The answer avoids exposing all 80 operations as equal default tool schemas and proposes a bounded discovery/execution design or justifies another bounded alternative.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "001-c",
+          "text": "The answer keeps MCP authorization, application authorization, and host-specific confirmation or UI behavior distinct.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": [
+        "The design is implementable without relying on Claude-only assumptions.",
+        "ChatGPT-specific advice is clearly separated from portable MCP requirements."
+      ]
+    },
+    {
+      "id": "output-002",
+      "prompt": "Add an interactive picker and result dashboard to an existing MCP tool for ChatGPT, while keeping other MCP clients usable.",
+      "expected_outcome": "A portable MCP Apps design with ChatGPT extensions isolated behind the host boundary and a useful non-UI fallback.",
+      "assertions": [
+        {
+          "id": "002-a",
+          "text": "The answer treats MCP Apps as an extension rather than a core MCP primitive.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "002-b",
+          "text": "The answer uses a tool plus UI resource architecture and preserves meaningful tool output without the widget where practical.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "002-c",
+          "text": "ChatGPT-specific APIs or metadata are identified as host-specific and are to be checked against current OpenAI docs.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": [
+        "The design avoids a UI-only server contract.",
+        "Security and CSP guidance is scoped to actual required domains."
+      ]
+    },
+    {
+      "id": "output-003",
+      "prompt": "Package a local stdio MCP server as MCPB and claim it is the standard way to distribute the same package to ChatGPT.",
+      "expected_outcome": "The response corrects the invalid premise: MCPB is host-specific packaging, not core MCP or a ChatGPT distribution standard, while still giving a safe local packaging path when MCPB is actually required.",
+      "assertions": [
+        {
+          "id": "003-a",
+          "text": "The response explicitly rejects the claim that MCPB is a core MCP or ChatGPT distribution requirement.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "003-b",
+          "text": "The response keeps the portable stdio server independently runnable and testable from the package wrapper.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "003-c",
+          "text": "The response does not claim that a package manifest provides a security sandbox without target-host evidence.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": [
+        "The malformed premise is corrected without losing the useful local-packaging workflow."
+      ]
+    }
+  ]
+}
