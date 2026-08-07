@@ -2,7 +2,7 @@
 
 ## Status
 
-Active. Tasks 1–4 are implemented on `change/061-empty-process-preflight`; executable verification and merge closeout remain pending.
+Active. Tasks 1–4 are implemented. The original governed scope check, focused regression suite, and canonical verifier passed on `cc9b08d`. The first supervised live `kis-op` run then completed GitHub OAuth and started the HTTP server, but correctly stopped before tunnel startup because endpoint ownership validation falsely rejected the Windows `uv` interpreter child that owned the Uvicorn listener. That commissioning defect is repaired locally with RED/GREEN regression evidence. On the repaired working state, governance passed, the required focused suite passed 40 tests, and the canonical verifier passed. Commit/push, exact-head Windows CI, and repeat live commissioning remain pending.
 
 ## Implemented scope
 
@@ -18,32 +18,39 @@ Active. Tasks 1–4 are implemented on `change/061-empty-process-preflight`; exe
 
 The initial code review/debugging phase established the original root causes before implementation. A later findings-first diff review caught an incorrect first Task 3 approach that would have weakened Supabase/Control Center discovery; the implementation was corrected to suppress only the persistent GitHub provider's pre-lifespan upstream discovery. A compatibility pass also preserved the pre-existing positional order of `ProviderDescriptor` fields by appending the optional runtime-tool probe after existing fields.
 
-No additional blocking static finding remains from the reviewed diff. One runtime-specific residual area remains unverified: Windows event-backed process-stream draining, including final tail delivery on process shutdown, requires executable evidence.
+No additional blocking static finding remains from the reviewed diff. Windows event-backed process-stream draining is now partially exercised by the successful OAuth/HTTP startup run; final retained tail delivery across normal long-running shutdown remains secondary to the current commissioning gate.
+
+The first live commissioning run exposed one additional blocking runtime defect at endpoint ownership. Diagnostic process-tree evidence proved that `C:\Projects\.kis-mcp\python-env\Scripts\python.exe` is a Windows `uv` launcher which remains as the parent process while the real CPython child runs from the uv-managed interpreter location. Uvicorn owns port 8010 in that child. The previous assertion required the listener child itself to pass the canonical-launcher executable predicate, producing `KIS_MCP_ENDPOINT_OWNER_INVALID` after otherwise successful OAuth and MCP initialization. The repaired assertion validates the canonical selected server root and then requires the listener PID to be present in, and descend from, that newly created process tree. A focused regression failed on the old implementation and passed after the repair; final positive and negative ownership coverage is recorded in the executable evidence below.
 
 ## Governance scope correction
 
 The first governed worktree check after implementation failed with `PATH_OUTSIDE_CLAIM: tests/providers/test_runtime_tool_surface.py`. The file is part of Task 3 runtime-refresh verification and was changed by PR #76, but it was missing from `scope.json`. The owned-path claim has now been corrected to include `tests/providers/test_runtime_tool_surface.py`. This was a governance metadata defect only; no lifecycle implementation was changed by that correction.
 
 ## Execution-path note
-
-The repository-local KIS execution surface became unavailable before implementation began. The change artifacts and branch were registered first, but the local governed worktree could not be created or validated from this session. Implementation therefore proceeded on the dedicated remote branch through the authenticated GitHub connector rather than by editing `main`. This is not treated as equivalent to the repository worktree gate: `change-workflow.ps1 check` from `.work/worktrees/061-empty-process-preflight` remains mandatory before the claim can become `ready`.
+The local KIS execution surface is now available to this chat and the canonical registered worktree is `C:\Projects\kis-mcp\.work\worktrees\061-empty-process-preflight`. The operator's first live commissioning command was run from a separate sibling checkout path shown in the console as `C:\Projects\kis-mcp.work\worktrees\061-empty-process-preflight`; that run was on `cc9b08d` and supplied valid runtime evidence, but the repaired branch must be pushed and that operator checkout must be fast-forwarded before the repeat live commissioning run. The governed change remains anchored to the canonical `.work/worktrees/...` path declared by `scope.json`.
 
 ## Executable evidence available
+Current executable evidence is now substantial:
 
-Pre-implementation live diagnostics on Windows reproduced the empty-array production failure for both configured instances and demonstrated the disposable pre-lifespan provider connection with an isolated FastMCP client. Those are RED/root-cause evidence only; they do not verify the current branch.
+- On `cc9b08d`, `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` passed after the scope correction.
+- On `cc9b08d`, the required focused regression set passed: 38 tests.
+- On `cc9b08d`, `pwsh -NoProfile -File .\scripts\verify.ps1` passed, including governance, canonical interpreter/dependencies, Python syntax, full pytest, and the exact three-rule verification.
+- The first supervised live `kis-op` run on 2026-08-07 completed GitHub browser OAuth (`github authorization complete`), started the FastMCP/Uvicorn HTTP server on `127.0.0.1:8010`, and served a successful MCP initialize request before stopping at endpoint ownership validation.
+- Local process-tree diagnostics on the canonical environment showed the virtual-environment launcher process at `C:\Projects\.kis-mcp\python-env\Scripts\python.exe` with a descendant real CPython process under the uv-managed user interpreter path, confirming the listener-ownership mismatch mechanism.
+- The new endpoint-owner regression failed against the old assertion with `KIS_MCP_ENDPOINT_OWNER_INVALID`, then passed after the root-plus-descendant repair. A negative regression also proves that a listener outside the selected server process tree is rejected with `KIS_MCP_ENDPOINT_OWNER_STALE`; the complete `tests/test_startup_scripts.py` file subsequently passed 26 tests.
+- On the repaired working state after temporary diagnostics were removed, `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` passed.
+- On that same repaired state, the required five-file focused suite passed 40 tests.
+- On that same repaired state, `pwsh -NoProfile -File .\scripts\verify.ps1` passed the full repository suite, governance, canonical interpreter/dependencies, syntax checks, and exact three-rule verification.
+
+These results do not yet close the slice because the production repair has not been committed/pushed, exact-head Windows CI is still required, and supervised commissioning must be repeated through tunnel readiness.
 
 ## Verification still required
+Required next evidence on the repaired exact final head:
 
-The local KIS execution surface is not connected to this chat, and the connected GitHub surface exposes no workflow-dispatch operation. The repository's reusable Windows workflow does not automatically run for this PR. At the current remote head, GitHub still reports no pull-request workflow run. Therefore no GREEN, canonical verifier, Windows CI, or live OAuth commissioning claim is recorded.
+1. Commit and push the repaired branch and record the exact new head SHA.
+2. Obtain exact-head Windows CI evidence for PR #76.
+3. Fast-forward the operator commissioning checkout to that exact remote head and repeat one supervised `kis-op` startup. It must complete OAuth when required, validate endpoint ownership through the actual Windows process tree, reach `health=ready` and `tunnel_state=ready`, and keep the runtime open for authenticated GitHub capability verification.
+4. Verify current runtime provider/capability status from ChatGPT against the running `kis-op` instance.
+5. Only after steps 1–4 pass: set the governed change ready, update PR #76 from draft as appropriate, complete the repository's landing-confirmation flow, reconcile final evidence, and clean up the worktree last.
 
-Required next evidence on the exact final head:
-
-1. Fast-forward the governed `.work/worktrees/061-empty-process-preflight` worktree to the current remote branch, then run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` from it.
-2. Focused tests:
-   `C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m pytest -q tests/test_startup_scripts.py tests/providers/test_client_runtime.py tests/providers/github/test_server.py tests/providers/test_runtime_tool_surface.py tests/capabilities/test_runtime_refresh.py`
-3. `pwsh -NoProfile -File .\scripts\verify.ps1`
-4. Exact-head Windows CI through the repository workflow when a dispatcher/runner is available.
-5. One supervised `kis-op` OAuth startup/commissioning run proving visible sign-in/device fallback, one persistent GitHub MCP process, authenticated runtime readiness, and tunnel readiness after authentication.
-6. Only after steps 1–5 pass: set the governed change ready, complete PR #76 merge/closeout, reconcile final evidence, and retain the worktree until the commissioned `kis-op` runtime has started successfully. Worktree cleanup must happen last.
-
-Do not set `scope.json` to `ready`, merge PR #76, or claim completion until that current evidence passes. Do not remove the worktree before the successful supervised `kis-op` commissioning run. No permanent deletion or policy change is part of this slice.
+Do not set `scope.json` to `ready`, merge PR #76, or remove the worktree before successful repeat commissioning. No permanent deletion or policy change is part of this slice.

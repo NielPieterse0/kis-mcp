@@ -23,6 +23,8 @@ Repair the startup path as one coherent lifecycle: a clean selected-instance sta
 
 Keep the existing root-selection algorithm. Change only its parameter contract to permit an empty collection, and harden the test helper with `$ErrorActionPreference='Stop'` so the production binder semantics are exercised.
 
+For post-start endpoint ownership, validate the canonical selected KIS launcher process first, then require the actual listener PID to be that process or a descendant in its captured process tree. Do not require a descendant listener's `ExecutablePath` to equal the canonical virtual-environment launcher path: on the commissioned Windows `uv` environment, that launcher starts the real CPython child from the uv-managed interpreter location, and Uvicorn owns the socket in that child. An unrelated listener remains invalid because it is outside the newly created selected server process tree.
+
 ### Persistent provider lifecycle and progressive discovery
 
 Extend the provider-neutral client lifecycle with two small state objects: startup state (`idle|starting|ready|failed|stopped`) and a runtime tool snapshot. `PersistentClientProxyProvider.lifespan()` enters the client once, performs the optional startup call, lists upstream tools while the outer connection is still held, stores the snapshot, marks startup ready, and only disconnects after parent shutdown.

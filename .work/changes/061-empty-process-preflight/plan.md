@@ -28,7 +28,7 @@
 - [x] Run startup helper expressions with `$ErrorActionPreference='Stop'`.
 - [x] Retain the empty-array regression that exposes the original binder failure under terminating semantics.
 - [x] Add `[AllowEmptyCollection()]` to the process collection parameter only; keep root-selection logic unchanged.
-- [ ] Execute focused startup tests on Windows.
+- [x] Execute focused startup tests on Windows.
 
 ### Task 2: One GitHub process and runtime tool publication
 
@@ -39,7 +39,7 @@
 - [x] Run `get_me` and initial upstream tool discovery inside one outer client lifespan.
 - [x] Share GitHub runtime state between builder, readiness probe, health, and runtime-tool probe.
 - [x] Preserve the existing `ProviderDescriptor` positional contract by appending the optional runtime-tool probe after existing fields.
-- [ ] Execute focused provider lifecycle/GitHub tests.
+- [x] Execute focused provider lifecycle/GitHub tests.
 
 ### Task 3: No disposable GitHub discovery and current capability readiness
 
@@ -50,7 +50,7 @@
 - [x] Build the effective capability catalogue from immutable base contributions plus the captured static runtime surface and current provider runtime-tool snapshots.
 - [x] Re-evaluate readiness/current catalogue for discovery, recommendation, eligibility, and dispatch instead of freezing authentication state at construction.
 - [x] Keep the direct exposure plan fixed so newly discovered long-tail tools remain discoverable rather than automatically direct.
-- [ ] Execute focused capability/platform tests.
+- [x] Execute focused capability/platform tests.
 
 ### Task 4: Supervised OAuth timing and live retained stderr
 
@@ -61,15 +61,17 @@
 - [x] Replace deferred-only stream reads with incremental event-backed draining into retained logs.
 - [x] Echo only server stderr live so OAuth/device-code guidance is visible without adding tunnel noise.
 - [x] Reconcile operations documentation with the new lifecycle.
-- [ ] Execute focused startup tests and one supervised live commissioning run.
+- [x] After live commissioning exposed the Windows `uv` launcher/child process model, make endpoint ownership validate the canonical server root plus listener ancestry instead of requiring the listener child executable to equal the virtual-environment launcher path; cover it with a RED/GREEN regression.
+- [x] Execute focused startup tests on the repaired working state.
+- [ ] Repeat the supervised live commissioning run on the repaired exact head.
 
 ### Task 5: Integrated review and verification
 
 **Files:** all changed files plus `.work/changes/061-empty-process-preflight/{tasks.md,closeout.md}`
 
 - [x] Review the complete implementation against the four original findings, HR-001..HR-003, provider compatibility, and simplicity/modularity boundaries; correct the initial Task 3 design so non-GitHub provider discovery remains intact.
-- [ ] Run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` from the governed worktree.
-- [ ] Run the focused pytest set on Windows.
-- [ ] Run `pwsh -NoProfile -File .\scripts\verify.ps1` on the exact final head.
+- [x] Run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` from the governed worktree.
+- [x] Run the focused pytest set on Windows.
+- [x] Run `pwsh -NoProfile -File .\scripts\verify.ps1` on the final pre-commit tree.
 - [ ] Obtain Windows CI evidence for the exact final head when a dispatcher/runner is available.
 - [ ] Record executable evidence in `closeout.md`, move `scope.json` to `ready`, make PR #76 ready, and merge only after all required gates pass.

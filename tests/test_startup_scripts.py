@@ -161,6 +161,63 @@ def test_startup_lifecycle_matches_only_selected_server_instance() -> None:
     assert result.stdout.splitlines() == ["True", "False"]
 
 
+def test_endpoint_owner_accepts_listener_descendant_of_canonical_python_launcher() -> None:
+    python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
+    base_python = r"C:\\Users\\operator\\AppData\\Roaming\\uv\\python\\cpython-3.13\\python.exe"
+    command = (
+        f'\\"{python}\\" -m kis_mcp.secrets.launcher '
+        "--runtime remote --instance operation"
+    )
+    result = _run_startup_lifecycle(
+        "$script:TestProcesses=@("
+        "[pscustomobject]@{ProcessId=100;ParentProcessId=1;Name='python.exe';ExecutablePath='"
+        + python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'},"
+        "[pscustomobject]@{ProcessId=101;ParentProcessId=100;Name='python.exe';ExecutablePath='"
+        + base_python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'}); "
+        "function Get-KisMcpProcessSnapshot { return @($script:TestProcesses) }; "
+        "$remote=[pscustomobject]@{endpoint_url='http://127.0.0.1:8010/mcp';app_name='kis-op';name='operation'}; "
+        "$listener=[pscustomobject]@{OwningProcess=101}; "
+        "Write-Output (Assert-KisMcpSelectedEndpointOwner -Remote $remote -PythonPath '"
+        + python
+        + "' -ServerProcessId 100 -Listener $listener)"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "101"
+
+
+def test_endpoint_owner_rejects_listener_outside_selected_server_tree() -> None:
+    python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
+    command = (
+        f'\\"{python}\\" -m kis_mcp.secrets.launcher '
+        "--runtime remote --instance operation"
+    )
+    result = _run_startup_lifecycle(
+        "$script:TestProcesses=@("
+        "[pscustomobject]@{ProcessId=100;ParentProcessId=1;Name='python.exe';ExecutablePath='"
+        + python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'},"
+        "[pscustomobject]@{ProcessId=201;ParentProcessId=2;Name='python.exe';ExecutablePath='C:\\Python\\python.exe';CommandLine='python -m unrelated'}); "
+        "function Get-KisMcpProcessSnapshot { return @($script:TestProcesses) }; "
+        "$remote=[pscustomobject]@{endpoint_url='http://127.0.0.1:8010/mcp';app_name='kis-op';name='operation'}; "
+        "$listener=[pscustomobject]@{OwningProcess=201}; "
+        "Write-Output (Assert-KisMcpSelectedEndpointOwner -Remote $remote -PythonPath '"
+        + python
+        + "' -ServerProcessId 100 -Listener $listener)"
+    )
+
+    assert result.returncode == 1
+    assert "KIS_MCP_ENDPOINT_OWNER_STALE" in result.stderr
+
+
 def test_startup_lifecycle_empty_process_set_has_no_roots() -> None:
     result = _run_startup_lifecycle(
         "Write-Output (@(Get-KisMcpRootProcessIds -Processes @()).Count)"
