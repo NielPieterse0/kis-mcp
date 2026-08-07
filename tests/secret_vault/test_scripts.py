@@ -66,22 +66,22 @@ def test_operator_scripts_use_common_secure_boundary() -> None:
     assert "resolve-internal" not in _script("unlock-secrets.ps1")
 
 
-def test_local_launcher_uses_anonymous_pipe_not_arguments_or_environment_passphrase() -> None:
+def test_local_launcher_does_not_unlock_or_launch_through_secret_vault() -> None:
     content = _script("start.ps1")
 
-    assert "kis_mcp.secrets.launcher" in content
-    assert "KIS_MCP_SECRET_INPUT_PIPE_HANDLE" in content
-    assert "Start-KisMcpSecretAwareProcess" in content
-    assert "-AsSecureString" in content
+    assert "kis_mcp.server" in content
+    assert "kis_mcp.secrets.launcher" not in content
+    assert "KIS_MCP_SECRET_INPUT_PIPE_HANDLE" not in content
+    assert "Start-KisMcpSecretAwareProcess" not in content
+    assert "Read-Host 'Unlock kis-mcp secrets'" not in content
     assert "KIS_MCP_VAULT_PASSPHRASE" not in content
     assert "--passphrase" not in content
 
 
-def test_local_launcher_finishes_non_secret_preflight_before_unlock_prompt() -> None:
+def test_local_launcher_validates_before_direct_runtime_start() -> None:
     content = _script("start.ps1")
 
     validation = content.index("load_runtime_config(Path.cwd())")
-    unlock_prompt = content.index("Read-Host 'Unlock kis-mcp secrets'")
-    process_start = content.index("$Process = Start-KisMcpSecretAwareProcess")
+    process_start = content.index("$Process = [System.Diagnostics.Process]::new()")
 
-    assert validation < unlock_prompt < process_start
+    assert validation < process_start
