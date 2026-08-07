@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from types import MappingProxyType
@@ -170,6 +170,7 @@ class ProviderReadiness:
 
 ProviderBuilder: TypeAlias = Callable[[], Any]
 ProviderReadinessProbe: TypeAlias = Callable[[], ProviderReadiness]
+ProviderRuntimeToolsProbe: TypeAlias = Callable[[], Sequence[Any]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +186,7 @@ class ProviderDescriptor:
     readiness_probe: ProviderReadinessProbe
     enabled: bool = True
     schema_version: int = PUBLIC_SCHEMA_VERSION
+    runtime_tools_probe: ProviderRuntimeToolsProbe | None = None
 
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
@@ -212,6 +214,10 @@ class ProviderDescriptor:
             raise ValueError("builder must be callable")
         if not callable(self.readiness_probe):
             raise ValueError("readiness_probe must be callable")
+        if self.runtime_tools_probe is not None and not callable(
+            self.runtime_tools_probe
+        ):
+            raise ValueError("runtime_tools_probe must be callable when provided")
         if any(
             not isinstance(item, ProviderCapability) for item in self.capabilities
         ):
@@ -248,5 +254,6 @@ __all__ = [
     "ProviderKind",
     "ProviderReadiness",
     "ProviderReadinessProbe",
+    "ProviderRuntimeToolsProbe",
     "ProviderState",
 ]

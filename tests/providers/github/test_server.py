@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -13,7 +14,11 @@ from kis_mcp.providers import (
     ProviderRegistry,
     ProviderState,
 )
-from kis_mcp.providers.client_runtime import PersistentClientProxyProvider
+from kis_mcp.providers.client_runtime import (
+    PersistentClientProxyProvider,
+    ProviderRuntimeToolState,
+    ProviderStartupState,
+)
 from kis_mcp.providers.github import server as github_server
 from kis_mcp.providers.github.routing import GitHubRepositoryRoutingMiddleware
 from kis_mcp.providers.github.settings import GitHubProviderSettings
@@ -143,6 +148,9 @@ def test_builds_one_persistent_token_free_official_stdio_client(
             captured.setdefault("calls", []).append((name, arguments))
             return object()
 
+        async def list_tools(self) -> tuple[object, ...]:
+            return ()
+
     proxy = FakeServer("unused")
     monkeypatch.setattr(github_server, "StdioTransport", FakeTransport)
     monkeypatch.setattr(
@@ -151,12 +159,16 @@ def test_builds_one_persistent_token_free_official_stdio_client(
         lambda name: captured.update(name=name) or proxy,
     )
 
+    startup_state = ProviderStartupState()
+    runtime_tools = ProviderRuntimeToolState()
     server = github_server.build_github_provider_server(
         _settings(),
         environ={"GITHUB_PERSONAL_ACCESS_TOKEN": PAT, "PATH": "bin"},
         validate_executable=False,
         repository_settings_source=_repository_settings,
         client_factory=FakeClient,
+        startup_state=startup_state,
+        runtime_tools=runtime_tools,
     )
 
     assert server is proxy
@@ -169,6 +181,8 @@ def test_builds_one_persistent_token_free_official_stdio_client(
     assert isinstance(provider, PersistentClientProxyProvider)
     assert provider.startup_call is not None
     assert provider.startup_call.tool_name == "get_me"
+    assert provider.startup_state is startup_state
+    assert provider.runtime_tools is runtime_tools
     assert provider.client_factory() is provider.client
     assert len(proxy.middlewares) == 1
     assert isinstance(proxy.middlewares[0], GitHubRepositoryRoutingMiddleware)
@@ -224,6 +238,55 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     assert conflicted.state is ProviderState.DEGRADED
     assert conflicted.details["user_status"]["state"] == "configuration_conflict"
     assert PAT not in str(conflicted.to_json_dict())
+
+
+def test_descriptor_shares_runtime_auth_and_tool_discovery_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    executable = tmp_path / "github-mcp-server.exe"
+    executable.write_bytes(b"official-binary-placeholder")
+    settings = _settings(str(executable))
+    descriptor = github_server.register_github_provider(
+        ProviderRegistry(),
+        settings,
+        environ={},
+        repository_settings_source=_repository_settings,
+    )
+
+    before = descriptor.readiness_probe()
+    assert before.details["user_status"]["state"] == "ready_authentication_required"
+    assert descriptor.runtime_tools_probe is not None
+    assert tuple(descriptor.runtime_tools_probe()) == ()
+
+    tool = SimpleNamespace(
+        name="get_file_contents",
+        description="Read repository contents.",
+        annotations=None,
+    )
+
+    def fake_build(*args: object, **kwargs: object) -> object:
+        startup_state = kwargs["startup_state"]
+        runtime_tools = kwargs["runtime_tools"]
+        assert isinstance(startup_state, ProviderStartupState)
+        assert isinstance(runtime_tools, ProviderRuntimeToolState)
+        startup_state.mark_ready()
+        runtime_tools.publish((tool,))
+        return object()
+
+    monkeypatch.setattr(github_server, "build_github_provider_server", fake_build)
+    descriptor.builder()
+
+    after = descriptor.readiness_probe()
+    assert after.state is ProviderState.READY
+    assert after.summary == "GitHub MCP is authenticated for the current kis-op runtime."
+    assert after.details["authenticated"] == "verified"
+    assert after.details["user_status"]["state"] == "ready_authenticated"
+    assert after.details["commissioning"]["authenticated"] == "ready"
+    assert after.details["commissioning"]["upstream_connected"] == "ready"
+    assert after.details["commissioning"]["tools_discovered"] == "ready"
+    assert after.details["commissioning"]["live_verified"] == "ready"
+    assert tuple(descriptor.runtime_tools_probe()) == (tool,)
 
 
 def test_project_capabilities_contribute_namespaced_operations(

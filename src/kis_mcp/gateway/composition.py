@@ -13,10 +13,7 @@ from ..capabilities.catalogue import CapabilityCatalogue
 from ..capabilities.exposure import ExposureMiddleware, ExposurePlanner
 from ..capabilities.runtime import CapabilityRuntimeState
 from ..capabilities.settings import load_capability_settings
-from ..capabilities.surface import (
-    augment_with_runtime_surface,
-    capability_control_contribution,
-)
+from ..capabilities.surface import capability_control_contribution
 from ..capabilities.tools import register_capability_tools
 from ..config import RuntimeConfig, load_runtime_config
 from ..desktop_commander import DesktopCommanderEffectResolver
@@ -33,6 +30,7 @@ from ..providers.platform import (
     ProviderService,
     compose_platform_providers,
     provider_capability_contributions,
+    provider_runtime_tools,
 )
 from ..quarantine import QuarantineService
 from ..skills.platform import register_platform_skills, skill_capability_contributions
@@ -140,14 +138,22 @@ def compose_gateway(
     namespaces = {
         item.provider_id: item.namespace for item in providers.composition.results
     }
-    contributions = augment_with_runtime_surface(
-        base_contributions,
-        _listed_tools(server),
-        namespaces,
-    )
+
+    # Preserve the existing mounted-provider/local runtime surface. The GitHub
+    # persistent proxy contributes no upstream tools while its lifespan is IDLE,
+    # so this aggregate list cannot spawn a disposable GitHub MCP subprocess.
+    static_runtime_tools = tuple(_listed_tools(server))
     capabilities = CapabilityRuntimeState.build(
-        CapabilityCatalogue(contributions, workflow_descriptors()),
+        CapabilityCatalogue(base_contributions, workflow_descriptors()),
         settings,
+        runtime_tools_source=lambda: (
+            *static_runtime_tools,
+            *provider_runtime_tools(
+                providers.service,
+                providers.composition,
+            ),
+        ),
+        provider_namespaces=namespaces,
     )
     register_capability_tools(server, capabilities)
     exposure = ExposurePlanner(capabilities).plan()

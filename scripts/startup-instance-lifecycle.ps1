@@ -80,7 +80,7 @@ function Get-KisMcpProcessSnapshot {
 }
 
 function Get-KisMcpRootProcessIds {
-    param([Parameter(Mandatory)][object[]]$Processes)
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes)
 
     $Ids = @{}
     foreach ($Process in $Processes) {
@@ -344,9 +344,13 @@ function Assert-KisMcpSelectedEndpointOwner {
     }
     $ListenerPid = [int]$Connections[0].OwningProcess
     $Processes = Get-KisMcpProcessSnapshot
+    $ServerProcess = $Processes | Where-Object { [int]$_.ProcessId -eq $ServerProcessId } | Select-Object -First 1
+    if ($null -eq $ServerProcess -or -not (Test-KisMcpSelectedServerProcess -Process $ServerProcess -PythonPath $PythonPath -Instance $Remote.name)) {
+        throw "KIS_MCP_ENDPOINT_OWNER_INVALID: selected server process identity is invalid for $($Remote.app_name)."
+    }
     $ListenerProcess = $Processes | Where-Object { [int]$_.ProcessId -eq $ListenerPid } | Select-Object -First 1
-    if ($null -eq $ListenerProcess -or -not (Test-KisMcpSelectedServerProcess -Process $ListenerProcess -PythonPath $PythonPath -Instance $Remote.name)) {
-        throw "KIS_MCP_ENDPOINT_OWNER_INVALID: selected endpoint is not owned by $($Remote.app_name)."
+    if ($null -eq $ListenerProcess) {
+        throw "KIS_MCP_ENDPOINT_OWNER_INVALID: selected endpoint process is unavailable for $($Remote.app_name)."
     }
     if (-not (Test-KisMcpDescendantOrSelf -ProcessId $ListenerPid -RootProcessId $ServerProcessId -ProcessSnapshot $Processes)) {
         throw "KIS_MCP_ENDPOINT_OWNER_STALE: listener pid=$ListenerPid is not a descendant of server pid=$ServerProcessId."
