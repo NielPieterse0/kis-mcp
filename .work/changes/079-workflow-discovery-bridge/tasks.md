@@ -8,6 +8,7 @@
   - [x] Implement and register the `run_verification` execution bridge and `verification-result-v1`.
   - [x] Implement conflict-free workflow specs, exact-head CI classes, executable-step integrity helper, and deterministic workflow matcher.
   - [ ] Integrate central workflow descriptors/resolvability/recommendation after active change 063 releases those exclusive paths.
-- [ ] Batch 2: run focused tests, scope check, review, and canonical verification.
-- [ ] Batch 2: create PR, obtain exact-head CI evidence, merge, and reconcile 079.
+- [x] Batch 2 core: PR #89 / Work Management #25 merged `run_verification`.
+- [x] Batch 3 primitives: PR #90 / Work Management #26 merged conflict-free workflow integration helpers.
+- [ ] Final shared adapter: wait for dependency 063 to release exclusive catalogue/resolver/workflow paths, then verify and merge.
 - [ ] Record final closeout evidence and clean 079 from merged `main`.

@@ -28,6 +28,8 @@
     "src/kis_mcp/workflows/platform.py",
     "settings/capabilities.settings.json"
   ],
-  "dependencies": [],
+  "dependencies": [
+    "063-github-tools-experience"
+  ],
   "integration_owner": null
 }
