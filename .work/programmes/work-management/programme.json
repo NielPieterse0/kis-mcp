@@ -7,7 +7,7 @@
   "working_spec": ".work/programmes/work-management/target-spec.md",
   "roadmap": ".work/programmes/work-management/roadmap.md",
   "initial_backend": "github",
-  "current_change": "053-work-management-traceability",
+  "current_change": "055-work-management-review-evidence",
   "dependencies": [
     "047-capability-composition-and-tool-experience"
   ],
@@ -40,7 +40,7 @@
     },
     {
       "id": "P4",
-      "status": "planned",
+      "status": "completed",
       "outcome": "Review evidence, triage, and finding extraction"
     },
     {

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "change_id": "055-work-management-review-evidence",
+  "status": "ready",
+  "branch": "change/055-work-management-review-evidence",
+  "worktree": ".work/worktrees/055-work-management-review-evidence",
+  "base": "main",
+  "outcome": "Implement P4 provider-neutral review evidence, triage, and finding extraction",
+  "owned_paths": [
+    ".work/changes/055-work-management-review-evidence/**",
+    "src/kis_mcp/work_management/reviews.py",
+    "tests/work_management/test_reviews.py"
+  ],
+  "shared_paths": [
+    "src/kis_mcp/work_management/__init__.py",
+    "tests/work_management/test_architecture.py",
+    ".work/programmes/work-management/programme.json",
+    ".work/programmes/work-management/roadmap.md",
+    ".work/programmes/work-management/target-spec.md"
+  ],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    "policy/**",
+    ".github/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
