@@ -21,6 +21,7 @@
     "tests/providers/test_client_runtime.py",
     "tests/providers/github/test_server.py",
     "tests/providers/test_platform_composition.py",
+    "tests/providers/test_runtime_tool_surface.py",
     "tests/capabilities/**",
     "docs/OPERATIONS.md",
     ".work/changes/061-empty-process-preflight/**"
