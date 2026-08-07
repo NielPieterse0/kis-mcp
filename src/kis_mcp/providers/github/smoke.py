@@ -8,6 +8,8 @@ from typing import Any
 
 from fastmcp import Client
 
+from kis_mcp.repositories import RepositorySettings, load_repository_settings
+
 from .commission import commission_github_client
 from .settings import GitHubProviderSettings, load_github_provider_settings
 
@@ -55,7 +57,7 @@ def _github_mounted(status: dict[str, Any]) -> bool:
 
 
 async def _run_live_smoke(
-    settings: GitHubProviderSettings,
+    repository_settings: RepositorySettings,
     server: Any,
 ) -> dict[str, bool | str]:
     async with Client(server, timeout=120, init_timeout=120) as client:
@@ -68,7 +70,7 @@ async def _run_live_smoke(
 
         report = await commission_github_client(
             client,
-            settings,
+            repository_settings,
             tool_prefix="github_",
         )
 
@@ -78,17 +80,19 @@ async def _run_live_smoke(
 def run_live_smoke(
     server_factory: ServerFactory,
     settings: GitHubProviderSettings | None = None,
+    repository_settings: RepositorySettings | None = None,
     *,
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, bool | str]:
     runtime = settings or load_github_provider_settings()
+    selected_repository = repository_settings or load_repository_settings()
     source = os.environ if environ is None else environ
     if str(source.get(runtime.pat_env, "")).strip():
         raise RuntimeError(
             f"GITHUB_OAUTH_PAT_CONFLICT: clear {runtime.pat_env} before interactive OAuth commissioning"
         )
     server = server_factory()
-    return asyncio.run(_run_live_smoke(runtime, server))
+    return asyncio.run(_run_live_smoke(selected_repository, server))
 
 
 __all__ = ["ServerFactory", "run_live_smoke"]
