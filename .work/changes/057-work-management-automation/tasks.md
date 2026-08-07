@@ -16,7 +16,7 @@
 - [x] Task 3 — reconciliation, service facade, and portfolio status.
 - [x] Task 4 — narrow GitHub Project adapter.
 - [x] Task 5 — fixed-shape CLI, CI gates, workflow descriptors, and platform composition.
-- [ ] Task 6 — documentation, review, commissioning, PR, merge, reconciliation, and cleanup.
+- [x] Task 6 — documentation, review, commissioning, implementation PR merge, and post-merge reconciliation.
 
 ## Required final evidence
 
@@ -25,5 +25,5 @@
 - [x] Findings-first review has no unresolved blocking findings.
 - [x] Canonical `scripts/verify.ps1` passes on the exact reviewed head.
 - [x] GitHub live read-only commissioning evidence is recorded.
-- [ ] PR exact head is merged and post-merge documentation reconciliation completes.
+- [x] PR exact head is merged and post-merge documentation reconciliation completes.
 - [ ] Governed cleanup completes without force or permanent deletion.

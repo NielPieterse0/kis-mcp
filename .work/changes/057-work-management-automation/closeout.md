@@ -53,10 +53,10 @@ Implemented P5 work-management persistence, deterministic reconciliation, portfo
 - Reconciliation and status commit: `9d36c85`
 - GitHub adapter commit: `1250ac8`
 - Workflow and automation commit: `b3e01a9`
-- Final documentation and review commit: pending
-- Pull request: pending
-- Merge commit: pending
-- Governed cleanup: pending merge and post-merge reconciliation
+- Final documentation and review commit: `537cfc38c2c6adc49b0cf7b3e90dff7323a2e9fe`
+- Implementation pull request: `#70` — merged
+- Implementation merge commit: `25b93a5e9ad6d451602bdf9a6ddaec505cd30178`
+- Post-merge reconciliation: recorded on this branch; closure pull request pending\n- Governed cleanup: pending closure merge
 
 ## Residual items
 

@@ -1,7 +1,7 @@
 {
     "schema_version":  1,
     "change_id":  "057-work-management-automation",
-    "status":  "active",
+    "status":  "closed",
     "branch":  "change/057-work-management-automation",
     "worktree":  ".work/worktrees/057-work-management-automation",
     "base":  "main",
