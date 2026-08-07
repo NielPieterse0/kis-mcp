@@ -12,6 +12,7 @@
     "contracts/repositories/**",
     "settings/providers/github-mcp.provider.json",
     "settings/kis-repository.settings.json",
+    "scripts/auth-github-mcp.ps1",
     "scripts/smoke-github-mcp.ps1",
     "src/kis_mcp/providers/client_runtime.py",
     "src/kis_mcp/providers/github/**",
