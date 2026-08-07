@@ -270,6 +270,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "inspect_project",
         "get_code_context",
         "plan_change",
+        "run_verification",
         "kis_health",
         "kis_list_quarantine",
         "kis_quarantine_path",
