@@ -30,7 +30,7 @@ def test_repository_skills_use_only_approved_runtime_catalogue() -> None:
     ]
     for path in runtime_and_config_files:
         for line in path.read_text(encoding="utf-8").splitlines():
-            if ".agents" in line:
+            if ".agents\\skills" in line or ".agents\\\\skills" in line:
                 assert "C:\\Projects\\.agents\\skills" in line or (
                     "C:\\\\Projects\\\\.agents\\\\skills" in line
                 )

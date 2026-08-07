@@ -84,6 +84,28 @@ def test_first_file_over_capacity_sets_max_files_truncation(
     assert snapshot.truncation_reasons == ("max_files",)
 
 
+def test_narrow_file_budget_prioritizes_manifest_and_application_source(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    settings = _with_limits(discover_settings, max_files=2)
+    for label in (
+        ".agents/skills/helper.py",
+        ".archive/legacy.py",
+        "src/app.py",
+    ):
+        path = project_root / Path(label)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(label, encoding="utf-8")
+    (project_root / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
+
+    snapshot = _scanner(project_root, settings).snapshot(str(project_root))
+
+    assert [item.label for item in snapshot.files] == ["pyproject.toml", "src/app.py"]
+    assert snapshot.truncated is True
+    assert snapshot.truncation_reasons == ("max_files",)
+
+
 def test_total_and_per_file_byte_limits_are_reported(
     project_root: Path,
     discover_settings,
