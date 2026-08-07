@@ -28,8 +28,10 @@ Each implementation phase uses its own governed change, isolated worktree, bound
 
 ## Current implementation boundary
 
-Changes 049 through 055 implement the internal provider-neutral P0-P4 foundation under `src/kis_mcp/work_management`: project identity and lifecycle, read-only Project inventory contracts, typed intake and governance records, implementation traceability, exact-revision merge readiness, documentation milestones, and review-run evidence with explicit coverage, observation triage, deterministic child-record extraction, and finding lifecycle management.
+Changes 049 through 057 implement the provider-neutral P0-P5 capability. The domain now covers project identity and lifecycle, typed intake and governance records, implementation traceability, review evidence, atomic `.work/reviews/<review-id>/` persistence, deterministic reconciliation, portfolio status, and an application service that isolates backend failures.
 
-P4 confirms `.work/reviews/<review-id>/` as the canonical evidence namespace and models its request, report, result, coverage, optional SARIF, and closeout artifact manifest. It does not create those files or implement a generic persistence service.
+The GitHub adapter reads configured Projects and applies only bounded issue or pull-request addition and Project-field updates. It preflights revisions, deduplicates source records across process restarts, requires explicit apply plus idempotency, and exposes no delete or unrestricted GraphQL operation.
 
-These contracts are not publicly composed or remotely commissioned. P5 provider workflows, persistence, CLI, CI, automation, reconciliation, portfolio status, and stable reader-facing operating documentation remain future governed work.
+P5 also supplies fixed-shape CLI commands, a reusable exact-revision CI workflow, and five task-level workflow descriptors composed through the platform. `settings/work-management/github-projects.settings.json` is disabled by default. Live GitHub OAuth and private-repository commissioning pass, but the previously approved user Project `#12` returned `404` on 2026-08-07; no stale Project binding was enabled or mutated.
+
+Remaining work is limited to later optional enhancement: commissioning a valid Project binding, enabling selected automation, and organization-level or stronger-enforcement features that remain outside P5.

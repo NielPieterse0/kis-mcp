@@ -4,8 +4,11 @@ from pathlib import Path
 from typing import Any
 
 from ..config import RuntimeConfig
-from ..providers.github.project_management import GitHubProjectManagementAdapter
-from ..providers.platform import ProviderService, build_platform_nvidia_backend
+from ..providers.platform import (
+    ProviderService,
+    build_platform_github_project_backend,
+    build_platform_nvidia_backend,
+)
 from ..tools.platform import build_platform_codex_backend
 from ..work_management import (
     ProjectBinding,
@@ -172,15 +175,6 @@ def _build_code_review_agent(
     )
 
 
-class _NamespacedServerToolCaller:
-    def __init__(self, server: Any, namespace: str) -> None:
-        self.server = server
-        self.namespace = namespace.strip("_")
-
-    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
-        return await self.server.call_tool(f"{self.namespace}_{name}", arguments)
-
-
 def _build_work_management_service(
     server: Any,
     provider_service: ProviderService,
@@ -201,19 +195,15 @@ def _build_work_management_service(
             repository=project.repository,
         )
     backends: dict[str, Any] = {}
-    if bindings and provider_service.registry.contains("github-mcp"):
-        descriptor = provider_service.registry.get("github-mcp")
-        available_tools = tuple(
-            tool_name
-            for capability in descriptor.capabilities
-            for tool_name in capability.tool_names
-            if tool_name in {"projects_get", "projects_list", "projects_write"}
-        )
-        backends["github-mcp"] = GitHubProjectManagementAdapter(
-            _NamespacedServerToolCaller(server, "github"),
-            bindings,
-            available_tools=available_tools,
-        )
+    if bindings:
+        try:
+            backends["github-mcp"] = build_platform_github_project_backend(
+                server,
+                provider_service,
+                bindings,
+            )
+        except RuntimeError:
+            pass
     return WorkManagementService(settings, backends)
 
 

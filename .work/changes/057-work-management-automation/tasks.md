@@ -20,10 +20,10 @@
 
 ## Required final evidence
 
-- [ ] Focused test suites pass on the final implementation.
-- [ ] Change scope and governance checks pass.
-- [ ] Findings-first review has no unresolved blocking findings.
-- [ ] Canonical `scripts/verify.ps1` passes on the exact reviewed head.
-- [ ] GitHub live read-only commissioning evidence is recorded.
+- [x] Focused test suites pass on the final implementation.
+- [x] Change scope and governance checks pass.
+- [x] Findings-first review has no unresolved blocking findings.
+- [x] Canonical `scripts/verify.ps1` passes on the exact reviewed head.
+- [x] GitHub live read-only commissioning evidence is recorded.
 - [ ] PR exact head is merged and post-merge documentation reconciliation completes.
 - [ ] Governed cleanup completes without force or permanent deletion.

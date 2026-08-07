@@ -180,6 +180,39 @@ Dispatch always re-enters the original FastMCP tool with `run_middleware=True`. 
 
 Tool quality and suitability scores are recommendation evidence only. They never authorize a call, override HR-001, HR-002, or HR-003, or replace provider authentication and commissioning.
 
+## Configure work management
+
+Work management uses `settings/work-management/github-projects.settings.json` and remains disabled by default. Before enabling it:
+
+1. confirm each managed repository and local root;
+2. assign a valid GitHub Project owner, owner type, and Project number;
+3. complete supervised GitHub OAuth commissioning;
+4. run settings validation and a read-only inventory check;
+5. review reconciliation previews before any apply operation.
+
+Use the fixed-shape CLI:
+
+```powershell
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 settings --settings settings\work-management\github-projects.settings.json
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 status --settings settings\work-management\github-projects.settings.json --records .\records.json
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 reconcile --desired .\desired.json --observed .\observed.json --supported-field Status
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 verify-traceability --trace .\trace.json --stage active
+```
+
+Standalone CLI reconciliation is preview-only. Live apply runs through the composed `project_management_reconcile` workflow tool and requires `apply=true` plus a non-empty idempotency key. The adapter preflights item revisions and searches the complete bounded Project inventory for an existing source issue or pull request before add. Conflicts, unsupported capabilities, inaccessible items, and incomplete pagination are reported without overwrite.
+
+When enabled, platform composition adds:
+
+- `project_management_inventory`;
+- `project_management_reconcile`;
+- `project_management_portfolio_status`;
+- `project_management_persist_review`;
+- `project_management_verify_traceability`.
+
+Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, governance claims, focused P5 tests, and optionally the canonical verifier.
+
+Current commissioning evidence: standalone GitHub OAuth, private-repository read, and repository scoping passed on 2026-08-07. The previously approved user Project `#12` returned `404`; keep work management disabled until a valid Project is selected and verified. Do not infer Project existence from provider settings.
+
 ## Use Discover
 
 `inspect_project` is exposed through local stdio and both HTTP instances. Supply one project directory beneath `C:\Projects`:
