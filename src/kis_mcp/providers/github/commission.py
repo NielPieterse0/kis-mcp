@@ -8,6 +8,8 @@ from typing import Any
 
 from fastmcp import Client
 
+from kis_mcp.repositories import RepositorySettings, load_repository_settings
+
 from .server import build_github_provider_server
 from .settings import GitHubProviderSettings, load_github_provider_settings
 
@@ -49,17 +51,17 @@ def _is_scope_rejection(value: Any) -> bool:
     return "GITHUB_REPOSITORY_SCOPE" in str(value)
 
 
-def _rejected_repository(settings: GitHubProviderSettings) -> str:
-    approved = set(settings.approved_repositories)
+def _rejected_repository(repository_settings: RepositorySettings) -> str:
+    approved = repository_settings.github_repository
     for candidate in ("github/github-mcp-server", "octocat/hello-world"):
-        if candidate not in approved:
+        if candidate != approved:
             return candidate
-    raise RuntimeError("GitHub MCP commissioning could not select an unapproved repository")
+    raise RuntimeError("GitHub MCP commissioning could not select another repository")
 
 
 async def commission_github_client(
     client: Any,
-    settings: GitHubProviderSettings,
+    repository_settings: RepositorySettings,
     *,
     tool_prefix: str = "",
 ) -> dict[str, bool | str]:
@@ -75,15 +77,15 @@ async def commission_github_client(
     identity = await client.call_tool(_tool_name(tool_prefix, "get_me"), {})
     _require_success(identity, "OAuth authentication")
 
-    approved_repository = settings.approved_repositories[0]
+    approved_repository = repository_settings.github_repository
     owner, repository = approved_repository.split("/", 1)
     private_read = await client.call_tool(
         _tool_name(tool_prefix, "get_file_contents"),
         {"owner": owner, "repo": repository, "path": "README.md"},
     )
-    _require_success(private_read, "approved private-repository read")
+    _require_success(private_read, "selected private-repository read")
 
-    rejected_repository = _rejected_repository(settings)
+    rejected_repository = _rejected_repository(repository_settings)
     rejected_owner, rejected_repo = rejected_repository.split("/", 1)
     try:
         result = await client.call_tool(
@@ -103,7 +105,7 @@ async def commission_github_client(
             scope_evidence
         ):
             raise RuntimeError(
-                "GitHub MCP local repository scope did not produce explicit "
+                "GitHub MCP repository routing did not produce explicit "
                 "GITHUB_REPOSITORY_SCOPE evidence"
             )
 
@@ -119,24 +121,30 @@ async def commission_github_client(
 
 async def _run_standalone_commissioning(
     settings: GitHubProviderSettings,
+    repository_settings: RepositorySettings,
 ) -> dict[str, bool | str]:
-    server = build_github_provider_server(settings)
+    server = build_github_provider_server(
+        settings,
+        repository_settings_source=lambda: repository_settings,
+    )
     async with Client(server, timeout=120, init_timeout=120) as client:
-        return await commission_github_client(client, settings)
+        return await commission_github_client(client, repository_settings)
 
 
 def run_standalone_commissioning(
     settings: GitHubProviderSettings | None = None,
+    repository_settings: RepositorySettings | None = None,
     *,
     environ: Mapping[str, str] | None = None,
 ) -> dict[str, bool | str]:
     runtime = settings or load_github_provider_settings()
+    selected_repository = repository_settings or load_repository_settings()
     source = os.environ if environ is None else environ
     if str(source.get(runtime.pat_env, "")).strip():
         raise RuntimeError(
             f"GITHUB_OAUTH_PAT_CONFLICT: clear {runtime.pat_env} before interactive OAuth commissioning"
         )
-    return asyncio.run(_run_standalone_commissioning(runtime))
+    return asyncio.run(_run_standalone_commissioning(runtime, selected_repository))
 
 
 def main() -> None:
