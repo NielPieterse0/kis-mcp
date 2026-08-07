@@ -2,17 +2,39 @@
 
 ## Status
 
-Active. Implementation and verification are in progress.
+Active. Tasks 1–4 are implemented on `change/061-empty-process-preflight`; executable verification and merge closeout remain pending.
 
-## Required evidence
+## Implemented scope
 
-- Empty-process preflight RED/GREEN evidence.
-- Persistent GitHub client/startup/tool-discovery lifecycle evidence.
-- Dynamic provider readiness and progressive capability-discovery evidence.
-- Independent authentication/tunnel deadline and live stderr evidence.
-- Focused test results.
-- Canonical repository verification result.
-- Windows CI result at the exact final head.
-- Final findings-first code review.
+- Empty process collections are valid startup preflight input and the startup PowerShell test helper now makes binder/runtime errors terminating.
+- The persistent provider lifecycle owns startup state and a runtime tool snapshot; pre-lifespan upstream discovery is suppressed for that persistent provider, while `get_me` and initial discovery run inside the one shared client connection.
+- GitHub readiness transitions to current-runtime authenticated state after startup succeeds, without claiming persistent authentication or full live verification.
+- Provider runtime tool snapshots are namespaced and fed into a capability catalogue/readiness view that refreshes at use time; the direct exposure profile remains fixed and bounded.
+- Existing aggregate discovery for non-GitHub mounted providers is preserved.
+- The launcher separates the supervised server/OAuth timeout from the fresh tunnel readiness timeout and drains retained server stderr live for OAuth/device-code guidance.
+- `docs/OPERATIONS.md` is reconciled with the implemented lifecycle.
 
-No completion claim is recorded until all applicable evidence above is current.
+## Review evidence
+
+The initial code review/debugging phase established the original root causes before implementation. A later findings-first diff review caught an incorrect first Task 3 approach that would have weakened Supabase/Control Center discovery; the implementation was corrected to suppress only the persistent GitHub provider's pre-lifespan upstream discovery. A compatibility pass also preserved the pre-existing positional order of `ProviderDescriptor` fields by appending the optional runtime-tool probe after existing fields.
+
+No additional blocking static finding remains from the reviewed diff. One runtime-specific residual area remains unverified: Windows event-backed process-stream draining, including final tail delivery on process shutdown, requires executable evidence.
+
+## Executable evidence available
+
+Pre-implementation live diagnostics on Windows reproduced the empty-array production failure for both configured instances and demonstrated the disposable pre-lifespan provider connection with an isolated FastMCP client. Those are RED/root-cause evidence only; they do not verify the current branch.
+
+## Verification still required
+
+The local KIS execution surface was unavailable during this implementation session, and the connected GitHub surface exposes no workflow-dispatch operation. The repository's reusable Windows workflow does not automatically run for this PR. At the recorded head, GitHub returned no commit statuses and no workflow runs. Therefore no GREEN, canonical verifier, Windows CI, or live OAuth commissioning claim is recorded.
+
+Required next evidence on the exact final head:
+
+1. `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check`
+2. Focused tests:
+   `C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m pytest -q tests/test_startup_scripts.py tests/providers/test_client_runtime.py tests/providers/github/test_server.py tests/providers/test_runtime_tool_surface.py tests/capabilities/test_runtime_refresh.py`
+3. `pwsh -NoProfile -File .\scripts\verify.ps1`
+4. Exact-head Windows CI through the repository workflow when a dispatcher/runner is available.
+5. One supervised `kis-op` OAuth startup/commissioning run proving visible sign-in/device fallback, one persistent GitHub MCP process, authenticated runtime readiness, and tunnel readiness after authentication.
+
+Do not set `scope.json` to `ready`, merge PR #76, or claim completion until that current evidence passes. No permanent deletion or policy change is part of this slice.
