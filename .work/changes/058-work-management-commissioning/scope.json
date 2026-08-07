@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "058-work-management-commissioning",
-  "status": "active",
+  "status": "closed",
   "branch": "change/058-work-management-commissioning",
   "worktree": ".work/worktrees/058-work-management-commissioning",
   "base": "main",
