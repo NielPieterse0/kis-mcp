@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": "062-discover-git-evidence",
+  "status": "active",
+  "branch": "change/062-discover-git-evidence",
+  "worktree": ".work/worktrees/062-discover-git-evidence",
+  "base": "origin/main",
+  "outcome": "Restore bounded local Git evidence for normal and linked worktrees without weakening Discover metadata safety",
+  "owned_paths": [
+    "src/kis_mcp/discover/git_metadata.py",
+    "tests/discover/test_git_reader.py",
+    ".work/changes/062-discover-git-evidence/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/discover/scanner.py",
+    "src/kis_mcp/discover/impact_graph.py"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
