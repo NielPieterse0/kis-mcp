@@ -1,0 +1,90 @@
+{
+  "skill_name": "kis-mcp",
+  "baseline": "no skill",
+  "evals": [
+    {
+      "id": "output-001",
+      "prompt": "Using kis-dev, find the correct GitHub operation to review pull request 42 without assuming its schema. Explain the call sequence before execution.",
+      "expected_outcome": "Uses capability search, exact description/schema evidence, and the correct external execution surface or direct provider tool without inventing parameters.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "001-a",
+          "text": "The response starts from search_capabilities or recommend_workflow and inspects the exact operation before constructing an unfamiliar payload.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "001-b",
+          "text": "The response does not hard-code a copied GitHub tool catalogue or guessed argument names.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": ["The sequence is efficient and preserves provider approval/readiness semantics."]
+    },
+    {
+      "id": "output-002",
+      "prompt": "Use kis-mcp to inspect changes in project gpt-os. Do not use kis-mcp's own repository unless it is actually the target.",
+      "expected_outcome": "Resolves the project explicitly from project status/catalogue when available or from the supplied path, then uses that target consistently for Discover/Work calls.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "002-a",
+          "text": "The response does not silently default the target to C:\\Projects\\kis-mcp.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "002-b",
+          "text": "The response distinguishes stable project identity from provider authentication and working-directory state.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": ["Project-neutral behavior remains usable across registered projects."]
+    },
+    {
+      "id": "output-003",
+      "prompt": "kis_provider_status says a provider is mounted but authentication is still required. Is the provider broken?",
+      "expected_outcome": "Explains registration, enablement, readiness, mount, user status, authentication, and commissioning as separate evidence layers.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "003-a",
+          "text": "The response does not equate mounted with authenticated or commissioned.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "003-b",
+          "text": "The response treats expected authentication onboarding separately from genuine build/mount failure.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": ["The explanation gives the next diagnostic action without overstating failure."]
+    },
+    {
+      "id": "output-004",
+      "prompt": "How should I start kis-dev now, and should normal startup ask me to unlock the kis-mcp secrets vault?",
+      "expected_outcome": "Uses the operator-support runbook, starts development through start-chatgpt.ps1, and explains that current startup hardening uses the stored tunnel credential without normal vault-unlock prompting.",
+      "files": [],
+      "assertions": [
+        {
+          "id": "004-a",
+          "text": "The response gives the development startup command and keeps credential-change/setup separate from normal startup.",
+          "critical": true,
+          "method": "human"
+        },
+        {
+          "id": "004-b",
+          "text": "The response does not advise placing tunnel credentials or provider secrets in repository files.",
+          "critical": true,
+          "method": "human"
+        }
+      ],
+      "human_review": ["The operator workflow reflects the current startup-hardening slice without relying on stale vault-unlock behavior."]
+    }
+  ]
+}
