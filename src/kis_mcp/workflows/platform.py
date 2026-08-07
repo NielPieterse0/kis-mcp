@@ -4,8 +4,18 @@ from pathlib import Path
 from typing import Any
 
 from ..config import RuntimeConfig
-from ..providers.platform import ProviderService, build_platform_nvidia_backend
+from ..providers.platform import (
+    ProviderService,
+    build_platform_github_project_backend,
+    build_platform_nvidia_backend,
+)
 from ..tools.platform import build_platform_codex_backend
+from ..work_management import (
+    ProjectBinding,
+    WorkManagementService,
+    WorkManagementSettings,
+    load_work_management_settings,
+)
 from .code_review import (
     AgentSettings,
     CodeReviewAgent,
@@ -13,6 +23,10 @@ from .code_review import (
     load_agent_settings_or_disabled,
     UnavailableReviewBackend,
     register_agent_tools,
+)
+from .project_management import (
+    project_management_workflow_descriptors,
+    register_project_management_tools,
 )
 
 from ..capabilities.contracts import (
@@ -51,7 +65,7 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
     change = OperationEffect.LOCAL_CHANGE
     external = OperationEffect.EXTERNAL
     process = OperationEffect.PROCESS
-    return (
+    core = (
         _workflow(
             "assess-repository-modularity",
             "Assess repository modularity",
@@ -133,6 +147,7 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             (read,),
         ),
     )
+    return (*core, *project_management_workflow_descriptors())
 
 
 def _build_code_review_agent(
@@ -160,6 +175,38 @@ def _build_code_review_agent(
     )
 
 
+def _build_work_management_service(
+    server: Any,
+    provider_service: ProviderService,
+    settings: WorkManagementSettings,
+) -> WorkManagementService:
+    bindings: dict[str, ProjectBinding] = {}
+    for project in settings.managed_projects:
+        backend = settings.binding(project.backend_binding)
+        if backend.provider != "github-mcp" or backend.project_number is None:
+            continue
+        bindings[project.project_id] = ProjectBinding(
+            binding_id=backend.binding_id,
+            managed_project_id=project.project_id,
+            provider_id="github-mcp",
+            owner=backend.owner,
+            owner_type=backend.owner_type,
+            project_number=backend.project_number,
+            repository=project.repository,
+        )
+    backends: dict[str, Any] = {}
+    if bindings:
+        try:
+            backends["github-mcp"] = build_platform_github_project_backend(
+                server,
+                provider_service,
+                bindings,
+            )
+        except RuntimeError:
+            pass
+    return WorkManagementService(settings, backends)
+
+
 def load_platform_workflow_settings():
     return load_agent_settings_or_disabled()
 
@@ -169,11 +216,23 @@ def register_platform_workflows(
     runtime: RuntimeConfig,
     settings: AgentSettings,
     provider_service: ProviderService,
+    *,
+    work_management_settings: WorkManagementSettings | None = None,
+    work_management_service: WorkManagementService | None = None,
 ) -> None:
     register_agent_tools(
         server,
         _build_code_review_agent(runtime, settings, provider_service),
     )
+    project_settings = work_management_settings or load_work_management_settings()
+    if not project_settings.enabled:
+        return
+    service = work_management_service or _build_work_management_service(
+        server,
+        provider_service,
+        project_settings,
+    )
+    register_project_management_tools(server, service)
 
 
 __all__ = [

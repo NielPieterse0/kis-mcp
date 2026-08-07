@@ -2,7 +2,7 @@
 
 `kis-mcp` is a private, operator-supervised repository platform built on FastMCP and the authoritative Desktop Commander distribution.
 
-The current platform provides ordinary local development operations, bounded repository discovery, reusable Skills, explicit Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow recommendations, an optional advisory code-review agent, and a read-only Control Center available through the gateway and as a standalone app. The approved target architecture still adds a Govern plane and broader executable workflow composition as defined in [`docs/PLATFORM-CONCEPT.md`](docs/PLATFORM-CONCEPT.md).
+The current platform provides ordinary local development operations, bounded repository discovery, reusable Skills, explicit Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow recommendations, an optional advisory code-review agent, provider-neutral multi-project work management, and a read-only Control Center available through the gateway and as a standalone app. The approved target architecture still adds broader Govern-plane enforcement and additional executable workflow composition as defined in [`docs/PLATFORM-CONCEPT.md`](docs/PLATFORM-CONCEPT.md).
 
 The Work path enforces exactly three prohibited outcomes:
 
@@ -25,6 +25,7 @@ kis-mcp FastMCP gateway
 |- instance-scoped provider readiness and exposure planning
 |- Skills catalogue with category and capability metadata
 |- optional namespaced GitHub and Supabase provider operations
+|- optional project-management inventory, reconciliation, evidence, status, and traceability workflows
 |- read-only KIS Control Center resource
 `- review_change_with_agent
         |- NVIDIA NIM backend
@@ -127,6 +128,20 @@ See [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for installation prerequisites, c
 The direct `inspect_change` operation currently accepts a project path and inspects the working tree. Internal contracts and registered long-tail operations also support staged, commit, range, and branch targets, context brokering, impact analysis, and contract intelligence. These are discoverable but are not added to the direct profile by default.
 
 Discover does not execute repository code, tests, builds, or discovered commands. It performs no network requests. Structural failures use `DISCOVER_*` errors rather than HR policy codes.
+
+## Work management
+
+P0-P5 work management is implemented under `src/kis_mcp/work_management` with strict settings in `settings/work-management/github-projects.settings.json`. It provides typed records, traceability, review evidence, atomic persistence, deterministic reconciliation, portfolio status, fixed-shape CLI/CI, and five task-level platform workflows.
+
+The checked-in configuration is disabled by default. Enable it only after assigning a valid GitHub Project number and completing supervised OAuth commissioning. Reconciliation defaults to preview; apply requires an idempotency key. The GitHub adapter permits only bounded issue or pull-request addition and Project-field updates, performs revision checks and source-record deduplication, and exposes no delete or unrestricted GraphQL operation.
+
+Use the local CLI for validation and read-only planning:
+
+```powershell
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 settings --settings settings\work-management\github-projects.settings.json
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 reconcile --desired .\desired.json --observed .\observed.json --supported-field Status
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 verify-traceability --trace .\trace.json --stage active
+```
 
 ## Verification
 

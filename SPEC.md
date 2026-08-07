@@ -307,6 +307,8 @@ The current implementation includes:
 - an NVIDIA NIM provider used only by the advisory code-review workflow;
 - a generic Tools registry with a fixed Codex CLI adapter;
 - `review_change_with_agent`, which collects bounded local evidence, permits one fallback, and grants no mutation or nested-agent authority;
+- provider-neutral P0-P5 work management with typed records, exact implementation traceability, atomic review evidence persistence, deterministic reconciliation, attributable portfolio status, fixed-shape CLI/CI, and five task-level platform workflows;
+- a bounded GitHub Project adapter that reads configured Projects, adds existing issues or pull requests, updates explicit fields, preflights revisions, deduplicates source records, and exposes no delete or unrestricted GraphQL operation;
 - pinned AgentSys `6.0.1` and agnix `0.45.0` supervised bootstrap installers with isolated managed paths, staged validation, and recoverable replacement; neither component is mounted into the gateway;
 - the read-only KIS Control Center MCP App through the mounted `controlcenter_*` provider and the standalone process.
 
@@ -323,6 +325,14 @@ The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Su
 `kis_provider_status` reports registration, runtime enablement, readiness, build and mount state, actionable user status, and commissioning evidence separately. GitHub authentication requirements and Supabase project-initialization or authentication requirements are onboarding states, not provider failure. NVIDIA is not mounted as a general passthrough. Codex CLI is a local executable Tool adapter, not a Provider-module connector.
 
 `review_change_with_agent` collects bounded `AGENTS.md`, Git status, staged diff, and unstaged diff evidence. It selects NVIDIA NIM or Codex CLI, permits at most one fallback, requests advisory output, and exposes no mutation or nested delegation operation. NVIDIA reads its key only from `NVIDIA_API_KEY`. Codex receives the prompt through standard input via `scripts/invoke-codex-agent.ps1`, requests an ephemeral read-only sandbox, and fails if its before/after Git-visible repository fingerprint changes. The implementation and tests do not claim live NVIDIA inference or live Codex authentication is commissioned.
+
+### Work-management status
+
+The work-management domain remains provider-neutral and does not import FastMCP or GitHub layouts. Platform composition adds five task-level tools only when strict work-management settings are enabled. The checked-in configuration is disabled with no active Project number; implementation therefore does not imply live Project commissioning.
+
+Local review evidence is persisted only beneath `.work/reviews/<review-id>/` using bounded atomic replacement and conflict detection. Remote reconciliation defaults to preview and requires explicit apply plus an idempotency key. Safe create checks observed Project items for the same source issue or pull request before mutation, so restart does not duplicate records. Provider absence, unsupported methods, stale revisions, inaccessible state, and incomplete pagination are corrective work-management outcomes rather than HR policy violations.
+
+Live evidence on 2026-08-07 proved standalone GitHub OAuth, private-repository read, and local repository scoping. The configured user Project `#12` returned `404`; the stale binding remains disabled and no Project mutation was attempted.
 
 ### Remote and standalone status
 

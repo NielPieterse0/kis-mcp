@@ -18,6 +18,7 @@ from .contracts import ProviderDescriptor, ProviderState
 from .control_center import register_control_center_provider
 from .desktop_commander import register_desktop_commander_provider
 from .github import GitHubProviderSettings, register_github_provider
+from .github.project_management import GitHubProjectManagementAdapter
 from .nvidia import (
     NvidiaSettings,
     disabled_nvidia_settings,
@@ -101,6 +102,37 @@ def build_platform_provider_service(
     )
 
 
+class _NamespacedProviderToolCaller:
+    def __init__(self, server, namespace: str) -> None:
+        self.server = server
+        self.namespace = namespace.strip("_")
+
+    async def call_tool(self, name: str, arguments: Mapping[str, object]):
+        return await self.server.call_tool(
+            f"{self.namespace}_{name}",
+            dict(arguments),
+        )
+
+
+def build_platform_github_project_backend(
+    server,
+    service: ProviderService,
+    bindings: Mapping[str, object],
+):
+    if not bindings or not service.registry.contains("github-mcp"):
+        raise RuntimeError("github-mcp project management is unavailable")
+    descriptor = service.registry.get("github-mcp")
+    available_tools = tuple(
+        tool_name
+        for capability in descriptor.capabilities
+        for tool_name in capability.tool_names
+        if tool_name in {"projects_get", "projects_list", "projects_write"}
+    )
+    return GitHubProjectManagementAdapter(
+        _NamespacedProviderToolCaller(server, "github"),
+        bindings,
+        available_tools=available_tools,
+    )
 
 
 def build_platform_nvidia_backend(service: ProviderService, settings: NvidiaSettings):
@@ -260,6 +292,7 @@ __all__ = [
     "PlatformProviderRuntime",
     "ProviderRuntimeSettings",
     "ProviderService",
+    "build_platform_github_project_backend",
     "build_platform_nvidia_backend",
     "build_platform_provider_registry",
     "build_platform_provider_service",

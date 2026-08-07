@@ -6,15 +6,15 @@
 |---|---|
 | Product | `kis-mcp` Platform |
 | Capability | Provider-neutral multi-project work management and review evidence |
-| Change | `049-github-project-management-spec` |
-| Status | Proposed target-state specification |
+| Change | `057-work-management-automation` |
+| Status | P0-P5 implemented; commissioning remains configuration-dependent |
 | Date | 2026-08-07 |
-| Current implementation | Internal P0-P4 provider-neutral identity, lifecycle, inventory, intake, governance records, implementation traceability, exact-revision merge readiness, documentation milestones, review evidence, coverage, triage, extraction, and finding lifecycle implemented; persistence, automation, provider workflows, and public integration remain planned |
+| Current implementation | Provider-neutral P0-P5 identity, lifecycle, inventory, intake, governance, traceability, review evidence, atomic persistence, deterministic reconciliation, portfolio status, bounded GitHub Project mutation, fixed-shape CLI/CI, and task-level platform composition implemented |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
 | Initial backend | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
 | Applicability | Multiple managed repositories and projects |
 
-This document defines the complete target capability. It does not claim that the described tools, automation, schemas, project configuration, or workflows are currently implemented.
+This document defines the complete capability and records the implemented P0-P5 boundary. Configuration, authentication, Project existence, and enabled automation remain separate commissioning evidence; unverified external state is not implied by implementation.
 
 `MUST`, `MUST NOT`, `SHOULD`, and `MAY` are normative. GitHub product features and plan limits remain external facts and MUST be capability-detected before use.
 
@@ -767,17 +767,18 @@ The long-lived working authority for this capability is:
 
 Child implementation slices remain under `.work/changes/<change-id>/` and use independent worktrees, scopes, tests, reviews, verification, pull requests, and closeout. Stable reader-facing documentation is updated only at the configured documentation milestones.
 
-## 26. Open implementation decisions
+## 26. Implementation decisions
 ### Resolved
 
-- **PM-OPEN-002 — resolved by change 055**: The canonical review-evidence namespace is `.work/reviews/<review-id>/`. P4 validates a manifest for request, report, result, coverage, optional SARIF, and closeout artifacts without implementing persistence. Runtime storage behavior remains P5.
+- **PM-OPEN-001 — resolved by change 057**: Backend topology is a configurable mix of shared portfolio and per-project bindings in strict versioned settings.
+- **PM-OPEN-002 — resolved by changes 055 and 057**: `.work/reviews/<review-id>/` is canonical. P5 adds bounded atomic persistence, idempotent replay, optimistic updates, and conflict retention without a delete surface.
+- **PM-OPEN-003 — resolved by existing provider commissioning and change 057**: The initial adapter uses the pinned official GitHub MCP `v1.8.0` at revision `ca8ab52dcc45b86fae190398178fd22edb7b1362`.
+- **PM-OPEN-004 — resolved by change 057**: Supported Project read/add/update methods are capability-detected and composed. Built-in workflow provisioning remains explicit unsupported capability and requires operator setup when needed.
+- **PM-OPEN-005 — resolved by change 057**: Project schema and record changes require explicit preview/apply selection and idempotency, but do not introduce a new approval-record type.
 
-### Open
+### Commissioning state
 
-- **PM-OPEN-001**: Confirm the default topology: one shared portfolio Project, separate per-project Projects, or a configurable mix.
-- **PM-OPEN-003**: Select the exact official GitHub MCP release that first implementation will pin and commission for Project tools.
-- **PM-OPEN-004**: Determine which Project views and built-in workflows can be provisioned through supported APIs versus one-time operator setup.
-- **PM-OPEN-005**: Decide whether accepted Project schema changes require an explicit operator approval record.
+The checked-in work-management settings remain disabled with no active Project number. Standalone GitHub OAuth, private-repository read, and local repository scoping passed on 2026-08-07. The previously approved user Project `#12` returned `404`; P5 therefore does not enable or mutate that stale binding. A valid Project identity must be commissioned before enabling live workflows.
 
 ## 27. External product sources
 

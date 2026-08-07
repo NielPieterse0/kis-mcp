@@ -131,7 +131,7 @@ Determines installed, enabled, runtime-ready, and exposed platform capabilities.
 
 ### EvidenceStore
 
-Normalizes local files, Git state, symbols, diagnostics, connector data, verification results, findings, confidence, provenance, and truncation state.
+Implemented for work-management review evidence and partially implemented elsewhere. Review artifacts are normalized beneath `.work/reviews/<review-id>/`, validated against canonical manifests, bounded by strict settings, written through atomic replacement, and protected by hash-based conflict detection. Broader cross-domain evidence indexing remains future work.
 
 ### ResultBudgeter
 
@@ -147,7 +147,7 @@ Implemented for the current gateway. Provider, Tool, Discover, Skill, and Workfl
 
 ### WorkflowCoordinator
 
-Partially implemented as first-class workflow descriptors and `recommend_workflow`. Current descriptors cover isolated development, change review, safe pull-request closeout, worktree cleanup, provider commissioning and diagnosis, skill creation or improvement, and modularity assessment. Most workflows are recommendations rather than server-executed orchestration; the advisory code-review workflow remains the bounded executable exception.
+Partially implemented as first-class workflow descriptors, `recommend_workflow`, the advisory code-review workflow, and bounded P5 project-management orchestration. Current descriptors cover isolated development, change review, safe pull-request closeout, worktree cleanup, provider commissioning and diagnosis, skill creation or improvement, modularity assessment, work capture, review-evidence persistence, Project reconciliation, programme status, and traceability verification. Project-management tools remain disabled until strict settings are enabled and a valid backend binding is commissioned; broader general-purpose orchestration remains future work.
 
 ### VerificationRegistry
 

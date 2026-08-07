@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "portfolio_id": "default",
+  "managed_projects": [
+    {
+      "project_id": "kis-mcp",
+      "local_root": "C:\\Projects\\kis-mcp",
+      "repository": "NielPieterse0/kis-mcp",
+      "backend_binding": "github-default",
+      "display_name": "kis-mcp"
+    }
+  ],
+  "backend_bindings": [
+    {
+      "binding_id": "github-default",
+      "provider": "github-mcp",
+      "owner": "NielPieterse0",
+      "owner_type": "user",
+      "project_number": null
+    }
+  ],
+  "features": {
+    "intake": "read_only",
+    "review_import": "read_only",
+    "reconciliation": "read_only",
+    "programme_status": "enabled"
+  },
+  "automation": {
+    "auto_add": false,
+    "close_sync": false,
+    "merge_sync": false,
+    "review_extraction": false,
+    "scheduled_reconciliation": false,
+    "safe_repair": false
+  },
+  "gates": {
+    "project_settings": "required",
+    "project_schema_drift": "advisory",
+    "change_traceability": "required",
+    "decision_authority": "advisory",
+    "review_disposition": "advisory",
+    "hold_integrity": "advisory",
+    "verification_evidence": "required",
+    "programme_drift": "advisory"
+  },
+  "evidence": {
+    "max_file_bytes": 1048576,
+    "max_total_bytes": 4194304
+  }
+}

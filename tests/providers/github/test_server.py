@@ -174,6 +174,7 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     assert descriptor.boundary is ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR
     assert [item.capability_id for item in descriptor.capabilities] == [
         "project_management.read",
+        "project_management.write",
         "repository.remote_read_write",
     ]
     project_read = next(
@@ -183,6 +184,13 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     )
     assert project_read.effects == ("external_network", "project_read")
     assert project_read.tool_names == ("projects_get", "projects_list")
+    project_write = next(
+        item
+        for item in descriptor.capabilities
+        if item.capability_id == "project_management.write"
+    )
+    assert project_write.effects == ("external_network", "project_write")
+    assert project_write.tool_names == ("projects_write",)
     assert registry.get("github-mcp") is descriptor
 
     unavailable = descriptor.readiness_probe()
@@ -248,7 +256,7 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     assert PAT not in str(conflicted.to_json_dict())
 
 
-def test_project_read_capability_contributes_namespaced_read_operations(
+def test_project_capabilities_contribute_namespaced_operations(
     tmp_path: Path,
 ) -> None:
     registry = ProviderRegistry()
@@ -277,11 +285,23 @@ def test_project_read_capability_contributes_namespaced_read_operations(
     )[0]
     operations = {operation.name: operation for operation in contribution.operations}
 
-    assert set(operations) == {"github_projects_get", "github_projects_list"}
-    for operation in operations.values():
+    assert set(operations) == {
+        "github_projects_get",
+        "github_projects_list",
+        "github_projects_write",
+    }
+    for name in ("github_projects_get", "github_projects_list"):
+        operation = operations[name]
         assert operation.capabilities == ("project_management.read",)
         assert operation.effects == (
             OperationEffect.EXTERNAL,
             OperationEffect.READ_ONLY,
         )
         assert operation.approval_required is False
+    project_write = operations["github_projects_write"]
+    assert project_write.capabilities == ("project_management.write",)
+    assert project_write.effects == (
+        OperationEffect.EXTERNAL,
+        OperationEffect.LOCAL_CHANGE,
+    )
+    assert project_write.approval_required is False

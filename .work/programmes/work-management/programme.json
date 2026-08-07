@@ -1,52 +1,52 @@
 {
-  "schema_version": 1,
-  "programme_id": "work-management",
-  "status": "active",
-  "scope": "multi-project",
-  "outcome": "Provide provider-neutral project, review, decision, hold, traceability, and documentation-closeout workflows across configured repositories",
-  "working_spec": ".work/programmes/work-management/target-spec.md",
-  "roadmap": ".work/programmes/work-management/roadmap.md",
-  "initial_backend": "github",
-  "current_change": "055-work-management-review-evidence",
-  "dependencies": [
-    "047-capability-composition-and-tool-experience"
-  ],
-  "documentation_milestone": {
-    "default_mode": "required",
-    "pre_merge": true,
-    "post_merge": true,
-    "done_requires_post_merge_complete": true
-  },
-  "phases": [
-    {
-      "id": "P0",
-      "status": "completed",
-      "outcome": "Programme authority and provider-neutral foundation"
-    },
-    {
-      "id": "P1",
-      "status": "completed",
-      "outcome": "Read-only backend inventory and normalized contracts"
-    },
-    {
-      "id": "P2",
-      "status": "completed",
-      "outcome": "Intake, typed records, governance records, and holds"
-    },
-    {
-      "id": "P3",
-      "status": "completed",
-      "outcome": "Implementation traceability and documentation milestones"
-    },
-    {
-      "id": "P4",
-      "status": "completed",
-      "outcome": "Review evidence, triage, and finding extraction"
-    },
-    {
-      "id": "P5",
-      "status": "planned",
-      "outcome": "Automation, CLI, CI, reconciliation, and status"
-    }
-  ]
+    "schema_version":  1,
+    "programme_id":  "work-management",
+    "status":  "active",
+    "scope":  "multi-project",
+    "outcome":  "Provide provider-neutral project, review, decision, hold, traceability, and documentation-closeout workflows across configured repositories",
+    "working_spec":  ".work/programmes/work-management/target-spec.md",
+    "roadmap":  ".work/programmes/work-management/roadmap.md",
+    "initial_backend":  "github",
+    "current_change":  "057-work-management-automation",
+    "dependencies":  [
+                         "047-capability-composition-and-tool-experience"
+                     ],
+    "documentation_milestone":  {
+                                    "default_mode":  "required",
+                                    "pre_merge":  true,
+                                    "post_merge":  true,
+                                    "done_requires_post_merge_complete":  true
+                                },
+    "phases":  [
+                   {
+                       "id":  "P0",
+                       "status":  "completed",
+                       "outcome":  "Programme authority and provider-neutral foundation"
+                   },
+                   {
+                       "id":  "P1",
+                       "status":  "completed",
+                       "outcome":  "Read-only backend inventory and normalized contracts"
+                   },
+                   {
+                       "id":  "P2",
+                       "status":  "completed",
+                       "outcome":  "Intake, typed records, governance records, and holds"
+                   },
+                   {
+                       "id":  "P3",
+                       "status":  "completed",
+                       "outcome":  "Implementation traceability and documentation milestones"
+                   },
+                   {
+                       "id":  "P4",
+                       "status":  "completed",
+                       "outcome":  "Review evidence, triage, and finding extraction"
+                   },
+                   {
+                       "id":  "P5",
+                       "status":  "implemented",
+                       "outcome":  "Automation, CLI, CI, reconciliation, and status"
+                   }
+               ]
 }
