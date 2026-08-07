@@ -84,7 +84,7 @@ def validate_git_metadata_graph(
         )
 
     index_path = git_dir / "index"
-    _validate_regular_file(index_path, boundary=boundary, maximum=maximum_file_bytes, required=False)
+    _validate_regular_file_identity(index_path, boundary=boundary, required=False)
 
     active_alternates: list[Path] = []
     if _resolved_head_object(git_dir, common_dir, boundary, maximum_file_bytes):
@@ -375,6 +375,23 @@ def _validate_directory(path: Path, *, boundary: Path, required: bool) -> None:
         raise GitMetadataValidationError("GIT_METADATA_UNSAFE")
     if not stat.S_ISDIR(info.st_mode):
         raise GitMetadataValidationError("GIT_METADATA_TARGET_NOT_DIRECTORY")
+
+
+def _validate_regular_file_identity(
+    path: Path,
+    *,
+    boundary: Path,
+    required: bool,
+) -> None:
+    canonical = _canonical_active_path(path, boundary=boundary)
+    try:
+        info = os.lstat(canonical)
+    except FileNotFoundError as exc:
+        if required:
+            raise GitMetadataValidationError("GIT_METADATA_TARGET_MISSING") from exc
+        return
+    if _is_link_or_reparse(info) or not stat.S_ISREG(info.st_mode):
+        raise GitMetadataValidationError("GIT_METADATA_UNSAFE")
 
 
 def _validate_regular_file(

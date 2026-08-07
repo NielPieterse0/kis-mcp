@@ -10,6 +10,7 @@ from kis_mcp.capabilities.contracts import (
     CapabilityDomain,
     ExposureMode,
     ExposurePolicy,
+    OperationDescriptor,
     OperationEffect,
     ReadinessSnapshot,
     ReadinessState,
@@ -61,6 +62,11 @@ def test_runtime_tool_snapshot_and_readiness_refresh_without_gateway_rebuild() -
             name="github_get_file_contents",
             description="Read repository contents.",
             annotations={"readOnlyHint": True},
+            input_schema={
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
         )
     )
     state["value"] = ReadinessState.READY
@@ -71,8 +77,88 @@ def test_runtime_tool_snapshot_and_readiness_refresh_without_gateway_rebuild() -
         OperationEffect.EXTERNAL,
         OperationEffect.READ_ONLY,
     )
+    assert operation.input_schema == {
+        "type": "object",
+        "properties": {"path": {"type": "string"}},
+        "required": ["path"],
+    }
     assert runtime.readiness_for(operation).state is ReadinessState.READY
     assert "repository.remote_read_write" in runtime.available_capabilities
+
+
+def test_runtime_availability_requires_mapped_operation_to_be_enabled() -> None:
+    contribution_id = "provider.github-mcp"
+    contribution = CapabilityContribution(
+        contribution_id=contribution_id,
+        domain=CapabilityDomain.PROVIDER,
+        category="connector",
+        capabilities=(
+            "github.pull-request.merge",
+            "project_management.read",
+            "repository.remote_read_write",
+        ),
+        operations=(
+            OperationDescriptor(
+                operation_id="provider.github-mcp.merge_pull_request",
+                name="github_merge_pull_request",
+                description="Merge a pull request.",
+                capabilities=("github.pull-request.merge",),
+                effects=(OperationEffect.EXTERNAL,),
+                dependencies=(),
+                exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=60),
+                quality=default_quality(),
+            ),
+            OperationDescriptor(
+                operation_id="provider.github-mcp.projects_list",
+                name="github_projects_list",
+                description="List GitHub Projects.",
+                capabilities=("project_management.read",),
+                effects=(OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+                dependencies=(),
+                exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=60),
+                quality=default_quality(),
+            ),
+        ),
+        dependencies=(),
+        effects=(OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id=contribution_id,
+            state=ReadinessState.READY,
+            summary="ready",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=55),
+        quality=default_quality(),
+    )
+    tools = [
+        SimpleNamespace(
+            name="github_projects_list",
+            description="List GitHub Projects.",
+            annotations={"readOnlyHint": True},
+        )
+    ]
+    runtime = CapabilityRuntimeState.build(
+        CapabilityCatalogue((contribution,), ()),
+        load_capability_settings(),
+        runtime_tools_source=lambda: tuple(tools),
+        provider_namespaces={"github-mcp": "github"},
+    )
+
+    assert runtime.operation("github_merge_pull_request").enabled is False
+    assert runtime.operation("github_projects_list").enabled is True
+    assert "github.pull-request.merge" not in runtime.available_capabilities
+    assert "project_management.read" in runtime.available_capabilities
+    assert "repository.remote_read_write" in runtime.available_capabilities
+
+    tools.append(
+        SimpleNamespace(
+            name="github_merge_pull_request",
+            description="Merge a pull request.",
+            annotations={"destructiveHint": True},
+        )
+    )
+
+    assert runtime.operation("github_merge_pull_request").enabled is True
+    assert "github.pull-request.merge" in runtime.available_capabilities
 
 
 def test_runtime_long_tail_tools_remain_discoverable_not_direct() -> None:

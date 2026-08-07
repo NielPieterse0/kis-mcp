@@ -273,3 +273,124 @@ def test_capability_search_reports_per_category_truncation() -> None:
     assert payload is not None
     assert len(payload["contributions"]) == 1
     assert payload["truncated"] is True
+
+
+def test_describe_exact_operation_is_bounded_and_includes_invocation_schema() -> None:
+    provider = CapabilityContribution(
+        contribution_id="provider.github-mcp",
+        domain=CapabilityDomain.PROVIDER,
+        category="connector",
+        capabilities=(
+            "operation.github_create_pull_request",
+            "operation.github_get_gist",
+            "repository.git",
+        ),
+        operations=(
+            OperationDescriptor(
+                operation_id="runtime.github_create_pull_request",
+                name="github_create_pull_request",
+                description="Create a pull request.",
+                capabilities=("operation.github_create_pull_request", "repository.git"),
+                effects=(OperationEffect.EXTERNAL,),
+                dependencies=(),
+                exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+                quality=default_quality(),
+                input_schema={
+                    "type": "object",
+                    "properties": {"title": {"type": "string"}},
+                    "required": ["title"],
+                },
+            ),
+            OperationDescriptor(
+                operation_id="runtime.github_get_gist",
+                name="github_get_gist",
+                description="Read a gist.",
+                capabilities=("operation.github_get_gist", "repository.git"),
+                effects=(OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+                dependencies=(),
+                exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+                quality=default_quality(),
+            ),
+        ),
+        dependencies=(),
+        effects=(OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id="provider.github-mcp",
+            state=ReadinessState.READY,
+            summary="ready",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+    )
+    runtime = state(provider)
+    server = FastMCP("describe-exact-test")
+    register_capability_tools(server, runtime)
+
+    payload = asyncio.run(
+        server.call_tool(
+            "describe_capability",
+            {"capability_id": "operation.github_create_pull_request"},
+        )
+    ).structured_content
+
+    assert payload is not None
+    assert payload["contributions"] == []
+    assert [item["name"] for item in payload["operations"]] == [
+        "github_create_pull_request"
+    ]
+    assert payload["operations"][0]["input_schema"]["required"] == ["title"]
+    assert payload["operations"][0]["execution_surface"] == "execute_external_action"
+
+
+def test_capability_search_ranks_exact_operation_before_generic_git_matches() -> None:
+    provider = CapabilityContribution(
+        contribution_id="provider.github-mcp",
+        domain=CapabilityDomain.PROVIDER,
+        category="connector",
+        capabilities=("operation.github_merge_pull_request", "repository.git"),
+        operations=(
+            OperationDescriptor(
+                operation_id="runtime.github_get_gist",
+                name="github_get_gist",
+                description="Read a gist.",
+                capabilities=("operation.github_get_gist", "repository.git"),
+                effects=(OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+                dependencies=(),
+                exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+                quality=default_quality(),
+            ),
+            OperationDescriptor(
+                operation_id="runtime.github_merge_pull_request",
+                name="github_merge_pull_request",
+                description="Merge a pull request.",
+                capabilities=("operation.github_merge_pull_request", "repository.git"),
+                effects=(OperationEffect.EXTERNAL,),
+                dependencies=(),
+                exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+                quality=default_quality(),
+            ),
+        ),
+        dependencies=(),
+        effects=(OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id="provider.github-mcp",
+            state=ReadinessState.READY,
+            summary="ready",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+    )
+    runtime = state(provider)
+    server = FastMCP("search-ranking-test")
+    register_capability_tools(server, runtime)
+
+    payload = asyncio.run(
+        server.call_tool(
+            "search_capabilities",
+            {"query": "github_merge_pull_request git", "limit": 10},
+        )
+    ).structured_content
+
+    assert payload is not None
+    assert payload["operations"][0]["operation_name"] == "github_merge_pull_request"
+    assert payload["operations"][0]["match_score"] > payload["operations"][1]["match_score"]
