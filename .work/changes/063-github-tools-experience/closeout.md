@@ -38,6 +38,9 @@ Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same gov
 - Batch 2 `git diff --check` passed.
 - Batch 2 canonical verifier completed through the supervised Work process with exit code 0 in 178.44s: dependency audit, 212-file Python syntax check, governance, full pytest with two skips, and exact three-rule verification all passed. Two prior fixed-command invocations exceeded the wrapper's 240-second response ceiling and are not counted as verification results.
 - Batch 2 temporary focused and verifier runners were moved to recoverable quarantine before commit and are not product files.
+- First exact-head CI attempt for Batch 2: Work Management run `31197813411` on `4a26db0f0d086abe707d3be8c468a2b16344e77b` failed only at global `Validate governance claims`: the clean runner still saw concurrent change 062 as active while its local worktree was absent (`ACTIVE_CHANGE_WORKTREE_MISSING`). Focused P5 and canonical verification were skipped in that run.
+- The failure was traced to a stale PR base snapshot, not 063 code or scope. A fresh fetch showed `origin/main` already had change 062 closed and its branch deleted. Current `origin/main` was merged into the 063 branch without editing or claiming any 062 file, and local 063 governance passed again.
+- Tooling audit note: both `mcp-tool-1.github_get_workflow_run` and `mcp-tool-1.github_get_workflow_job_logs` reject modern GitHub run/job IDs above signed 32-bit range. The connected GitHub job/log readers accept the same current IDs and were used to diagnose CI. This defect appears outside the kis-mcp source paths searched for change 063.
 
 ## Review
 
