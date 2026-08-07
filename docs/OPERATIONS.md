@@ -457,9 +457,12 @@ pwsh -File .\scripts\start-chatgpt.ps1 kis-dev
 The launcher retrieves only the selected instance's tunnel secret from the application-managed vault, passes it through the owned process boundary, and clears temporary values after process creation. It then:
 
 - validates the exact external app, internal instance, and canonical port mapping;
-- rejects startup only when the selected instance's own port is already listening;
+- runs lifecycle preflight only for the selected instance; the peer instance is neither inspected for cleanup nor stopped;
+- reclaims a selected-instance listener or orphan process tree only when the canonical executable, instance, profile, and endpoint identity match; an unrelated listener fails with PID/process diagnostics and is never terminated;
+- enforces the external canonical Python environment and moves repository-local `.venv` or `.pytest_cache` transients into recoverable quarantine before startup;
 - starts the selected remote runtime on `127.0.0.1:8010` for `kis-op` or `127.0.0.1:8011` for `kis-dev`;
-- proves MCP initialization at that exact local endpoint;
+- proves MCP initialization and proves the new selected server process owns that exact listener before readiness;
+- writes one per-instance `current.json` ownership record while retaining timestamped startup/log evidence;
 - starts only the selected tunnel profile and tunnel ID;
 - waits for the selected tunnel client's loopback `/readyz` endpoint;
 - writes per-instance startup state and logs beneath the selected runtime directory;
@@ -582,7 +585,10 @@ Permanent disposal is intentionally not exposed as a normal Work tool.
 - `KIS_MCP_TUNNEL_PROFILE_EXISTS`: rerun setup with `-BackupExistingProfile` only when replacement is intended.
 - `KIS_MCP_TUNNEL_PROFILE_INVALID`: inspect the tunnel-client doctor output; do not start the profile until all checks pass.
 - `KIS_MCP_TUNNEL_PROFILE_MISSING`: run `scripts\setup-tunnel.ps1` for the selected instance.
-- `KIS_MCP_PORT_IN_USE` or `KIS_MCP_SMOKE_PORT_IN_USE`: stop the existing listener or correct the instance port in settings.
+- `KIS_MCP_PORT_OWNED_BY_OTHER_PROCESS`: the selected instance port belongs to a process that does not match the selected KIS runtime identity; inspect the reported PID/process and stop or reconfigure it explicitly. The launcher will not terminate it.
+- `KIS_MCP_STALE_PORT_NOT_RELEASED`: a positively identified stale selected-instance runtime did not release its configured port after reclamation; inspect that instance's process tree before retrying.
+- `KIS_MCP_ENDPOINT_OWNER_INVALID` or `KIS_MCP_ENDPOINT_OWNER_STALE`: the newly started selected runtime answered incorrectly or does not own the configured listener; startup cleans up its owned process tree rather than declaring readiness.
+- `KIS_MCP_SMOKE_PORT_IN_USE`: stop the listener used by the temporary smoke endpoint or choose the intended smoke instance.
 - `KIS_MCP_HTTP_NOT_READY` or `KIS_MCP_SMOKE_INITIALIZE_FAILED`: inspect Desktop Commander readiness, the Python environment, and the selected loopback endpoint.
 - `KIS_MCP_TUNNEL_NOT_READY`: inspect tunnel-client output, the configured tunnel association, runtime key, and control-plane scope.
 - `KIS_MCP_SMOKE_TOOLS_MISSING`: stop commissioning; the remote catalogue is reduced or the provider contract changed.

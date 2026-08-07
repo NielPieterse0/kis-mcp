@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 
@@ -13,6 +14,17 @@ def _script(name: str) -> str:
 
 def _document(name: str) -> str:
     return (REPOSITORY_ROOT / name).read_text(encoding="utf-8")
+
+
+def _run_startup_lifecycle(expression: str) -> subprocess.CompletedProcess[str]:
+    script_path = (SCRIPTS / "startup-instance-lifecycle.ps1").as_posix()
+    return subprocess.run(
+        ["pwsh", "-NoProfile", "-Command", f". '{script_path}'; {expression}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def test_tunnel_setup_separates_profile_creation_from_live_validation() -> None:
@@ -54,11 +66,11 @@ def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
 def test_chatgpt_startup_finishes_non_secret_preflight_before_unlock() -> None:
     content = _script("start-chatgpt.ps1")
 
-    port_check = content.index("if ($Listener)")
+    preflight = content.index("$Preflight = Invoke-KisMcpSelectedInstancePreflight")
     unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
     server_start = content.index("$Server = Start-OwnedProcess")
 
-    assert port_check < unlock_payload < server_start
+    assert preflight < unlock_payload < server_start
 
 
 def test_chatgpt_startup_allows_peer_instance_to_remain_active() -> None:
@@ -75,13 +87,136 @@ def test_chatgpt_startup_hardens_the_selected_app_port() -> None:
     content = _script("start-chatgpt.ps1")
 
     assert "$Remote.app_name" in content
-    assert (
-        "KIS_MCP_PORT_IN_USE: app=$($Remote.app_name) "
-        "instance=$($Remote.name) endpoint=$($Remote.endpoint_url)"
-    ) in content
-    assert "Get-NetTCPConnection" in content
+    assert "Invoke-KisMcpSelectedInstancePreflight" in content
+    assert "Assert-KisMcpSelectedEndpointOwner" in content
+    assert "KIS_MCP_PORT_OWNED_BY_OTHER_PROCESS" in _script(
+        "startup-instance-lifecycle.ps1"
+    )
     assert "-LocalAddress $Remote.host" in content
     assert "-LocalPort $Remote.port" in content
+
+
+def test_startup_lifecycle_matches_only_selected_server_instance() -> None:
+    python = r"C:\Projects\.kis-mcp\python-env\Scripts\python.exe"
+    operation = (
+        f'\"{python}\" -m kis_mcp.secrets.launcher '
+        "--runtime remote --instance operation"
+    )
+    result = _run_startup_lifecycle(
+        "$p=[pscustomobject]@{ExecutablePath='"
+        + python.replace("\\", "\\")
+        + "';CommandLine='"
+        + operation.replace("'", "''")
+        + "'}; "
+        "Write-Output (Test-KisMcpSelectedServerProcess -Process $p "
+        "-PythonPath '"
+        + python
+        + "' -Instance 'operation'); "
+        "Write-Output (Test-KisMcpSelectedServerProcess -Process $p "
+        "-PythonPath '"
+        + python
+        + "' -Instance 'development')"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["True", "False"]
+
+
+def test_startup_lifecycle_empty_process_set_has_no_roots() -> None:
+    result = _run_startup_lifecycle(
+        "Write-Output (@(Get-KisMcpRootProcessIds -Processes @()).Count)"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "0"
+
+
+def test_startup_lifecycle_root_selection_does_not_promote_children() -> None:
+    result = _run_startup_lifecycle(
+        "$p=@([pscustomobject]@{ProcessId=10;ParentProcessId=1},"
+        "[pscustomobject]@{ProcessId=11;ParentProcessId=10},"
+        "[pscustomobject]@{ProcessId=20;ParentProcessId=2}); "
+        "Write-Output ((@(Get-KisMcpRootProcessIds -Processes $p) | Sort-Object) -join ',')"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "10,20"
+
+
+def test_startup_lifecycle_matches_only_selected_tunnel_instance() -> None:
+    tunnel = r"C:\Tools\openai-tunnel-client\tunnel-client.exe"
+    command = (
+        f'\"{tunnel}\" run --profile kis-mcp-operation '
+        "--profile-dir C:\\Projects\\.kis-mcp\\tunnel-client\\profiles "
+        "--mcp.server-url http://127.0.0.1:8010/mcp"
+    )
+    result = _run_startup_lifecycle(
+        "$p=[pscustomobject]@{ExecutablePath='"
+        + tunnel
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'}; "
+        "Write-Output (Test-KisMcpSelectedTunnelProcess -Process $p "
+        "-TunnelPath '"
+        + tunnel
+        + "' -ProfileName 'kis-mcp-operation' "
+        "-Endpoint 'http://127.0.0.1:8010/mcp'); "
+        "Write-Output (Test-KisMcpSelectedTunnelProcess -Process $p "
+        "-TunnelPath '"
+        + tunnel
+        + "' -ProfileName 'kis-mcp-development' "
+        "-Endpoint 'http://127.0.0.1:8011/mcp')"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["True", "False"]
+
+
+def test_chatgpt_startup_uses_authoritative_per_instance_current_state() -> None:
+    content = _script("start-chatgpt.ps1")
+    lifecycle = _script("startup-instance-lifecycle.ps1")
+
+    assert "current.json" in lifecycle
+    assert "Write-KisMcpCurrentInstanceState" in content
+    assert "Set-KisMcpCurrentInstanceStopped" in content
+    assert "server_listener_pid" in content
+    assert content.index("Assert-KisMcpSelectedEndpointOwner") < content.index(
+        "Write-KisMcpCurrentInstanceState"
+    )
+
+
+def test_selected_preflight_invalidates_previous_ready_state_before_reclaim() -> None:
+    lifecycle = _script("startup-instance-lifecycle.ps1")
+
+    marker = "Set-KisMcpCurrentInstanceRestarting -Remote $Remote"
+    assert marker in lifecycle
+    assert lifecycle.index(marker) < lifecycle.index("$Processes = Get-KisMcpProcessSnapshot")
+    assert "lifecycle = 'restarting'" in lifecycle
+
+
+def test_chatgpt_startup_records_failure_after_successful_preflight() -> None:
+    content = _script("start-chatgpt.ps1")
+    lifecycle = _script("startup-instance-lifecycle.ps1")
+
+    assert "$VaultUnlockPayload = $null" in content
+    assert "$CurrentStatePath = $null\ntry {\n    $VaultUnlockPayload = Get-KisMcpUnlockPayload" in content
+    assert "Set-KisMcpCurrentInstanceStartupFailed -Remote $Remote -RunId $RunId" in content
+    assert "if ($null -ne $VaultUnlockPayload)" in content
+    assert "lifecycle = 'startup_failed'" in lifecycle
+
+
+def test_chatgpt_startup_quarantines_noncanonical_repository_transients() -> None:
+    content = _script("start-chatgpt.ps1")
+    lifecycle = _script("startup-instance-lifecycle.ps1")
+
+    assert "Invoke-KisMcpSelectedInstancePreflight" in content
+    assert "Move-KisMcpRepositoryTransientsToQuarantine" in lifecycle
+    assert "-Remote $Remote" in lifecycle
+    assert "'.venv'" in lifecycle
+    assert "'.pytest_cache'" in lifecycle
+    assert "Move-Item" in lifecycle
+    assert "quarantine" in lifecycle
+    assert "Remove-Item" not in lifecycle
 
 
 def test_tunnel_setup_finishes_non_secret_preflight_before_unlock() -> None:
@@ -102,6 +237,15 @@ def test_chatgpt_startup_supports_bounded_observation_cleanup() -> None:
     assert "if ($ObservationSeconds -gt 0)" in content
     assert "Start-Sleep -Seconds $ObservationSeconds" in content
     assert content.index("Start-Sleep -Seconds $ObservationSeconds") < content.rindex("finally {")
+
+
+def test_chatgpt_shutdown_terminates_owned_process_trees() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    assert "$Tunnel.Kill($true)" in content
+    assert "$Server.Kill($true)" in content
+    assert "$Tunnel.Kill()" not in content
+    assert "$Server.Kill()" not in content
 
 
 def test_tunnel_setup_captures_provider_cli_output() -> None:
@@ -162,6 +306,11 @@ def test_operations_documents_one_launcher_for_kis_op_and_kis_dev() -> None:
     assert "start-chatgpt.ps1 kis-op" in content
     assert "start-chatgpt.ps1 kis-dev" in content
     assert "run concurrently" in content
+    assert "peer instance is neither inspected for cleanup nor stopped" in content
+    assert "reclaims a selected-instance listener or orphan process tree" in content
+    assert "current.json" in content
+    assert "KIS_MCP_PORT_OWNED_BY_OTHER_PROCESS" in content
+    assert "KIS_MCP_PORT_IN_USE" not in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
 
 
