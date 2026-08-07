@@ -198,7 +198,9 @@ def test_chatgpt_launcher_unlocks_once_for_server_and_tunnel() -> None:
     assert "--mcp.server-url" in content
     assert "--health.url-file" in content
     assert "readyz" in content
-    assert "Kill()" in content
+    assert "$Tunnel.Kill($true)" in content
+    assert "$Server.Kill($true)" in content
+    assert "Kill()" not in content
     assert "Resolve-KisMcpSecretInternal" in content
     assert "$Remote.tunnel_secret_ref" in content
     assert "$VaultUnlockPayload" in content

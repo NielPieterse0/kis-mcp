@@ -9,6 +9,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
 . (Join-Path $PSScriptRoot 'secret-vault.ps1')
+. (Join-Path $PSScriptRoot 'startup-instance-lifecycle.ps1')
 
 function Start-OwnedProcess {
     param(
@@ -160,14 +161,10 @@ $Python = Join-Path $Remote.python_environment_root 'Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
     throw "KIS_MCP_PYTHON_MISSING: $Python"
 }
-$Listener = Get-NetTCPConnection `
-    -LocalAddress $Remote.host `
-    -LocalPort $Remote.port `
-    -State Listen `
-    -ErrorAction SilentlyContinue
-if ($Listener) {
-    throw "KIS_MCP_PORT_IN_USE: app=$($Remote.app_name) instance=$($Remote.name) endpoint=$($Remote.endpoint_url)"
-}
+$Preflight = Invoke-KisMcpSelectedInstancePreflight `
+    -Remote $Remote `
+    -PythonPath $Python `
+    -RepositoryRoot $RepositoryRoot
 
 [System.IO.Directory]::CreateDirectory($Remote.runtime_root) | Out-Null
 $RunId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ')
@@ -187,13 +184,17 @@ $ServerEnvironment = @{
     NO_UPDATE_NOTIFIER = '1'
 }
 
-$VaultUnlockPayload = Get-KisMcpUnlockPayload
+$VaultUnlockPayload = $null
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
 $Credential = $null
 $TunnelEnvironment = @{}
 $Server = $null
 $Tunnel = $null
+$ServerListenerPid = $null
+$CurrentStateWritten = $false
+$CurrentStatePath = $null
 try {
+    $VaultUnlockPayload = Get-KisMcpUnlockPayload
     $Server = Start-OwnedProcess `
         -Executable $Python `
         -Arguments @(
@@ -212,6 +213,16 @@ try {
 
     $Deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     Wait-McpReady -Uri $Remote.endpoint_url -Deadline $Deadline -Process $Server
+    $Listener = Get-NetTCPConnection `
+        -LocalAddress $Remote.host `
+        -LocalPort $Remote.port `
+        -State Listen `
+        -ErrorAction SilentlyContinue
+    $ServerListenerPid = Assert-KisMcpSelectedEndpointOwner `
+        -Remote $Remote `
+        -PythonPath $Python `
+        -ServerProcessId $Server.Id `
+        -Listener $Listener
 
     $Credential = Resolve-KisMcpSecretInternal `
         -Reference $Remote.tunnel_secret_ref `
@@ -299,6 +310,19 @@ try {
         instance = $Remote.name
         endpoint = $Remote.endpoint_url
         policy_fingerprint = $PolicyFingerprint
+        processes = [ordered]@{
+            launcher_pid = $PID
+            server_pid = $Server.Id
+            server_listener_pid = $ServerListenerPid
+            tunnel_pid = $Tunnel.Id
+            python_executable = $Python
+            repository_root = $RepositoryRoot
+        }
+        preflight = [ordered]@{
+            reclaimed_server_processes = $Preflight.reclaimed_server_processes
+            reclaimed_tunnel_processes = $Preflight.reclaimed_tunnel_processes
+            quarantined_transients = $Preflight.quarantined_transients
+        }
         tunnel = [ordered]@{
             state = 'ready'
             profile = $Remote.profile_name
@@ -316,6 +340,17 @@ try {
         ($StartupState | ConvertTo-Json -Depth 8),
         [System.Text.UTF8Encoding]::new($false)
     )
+    $CurrentStatePath = Write-KisMcpCurrentInstanceState `
+        -Remote $Remote `
+        -RunId $RunId `
+        -LauncherPid $PID `
+        -ServerPid $Server.Id `
+        -ServerListenerPid $ServerListenerPid `
+        -TunnelPid $Tunnel.Id `
+        -PythonPath $Python `
+        -RepositoryRoot $RepositoryRoot `
+        -StartupStatePath $StartupStatePath
+    $CurrentStateWritten = $true
 
     Write-Host 'health=ready'
     Write-Host "app=$($Remote.app_name)"
@@ -326,6 +361,10 @@ try {
     Write-Host "tunnel_profile=$($Remote.profile_name)"
     Write-Host "tunnel_id=$($Remote.tunnel_id)"
     Write-Host "startup_state=$StartupStatePath"
+    Write-Host "current_state=$CurrentStatePath"
+    Write-Host "reclaimed_server_processes=$($Preflight.reclaimed_server_processes)"
+    Write-Host "reclaimed_tunnel_processes=$($Preflight.reclaimed_tunnel_processes)"
+    Write-Host "quarantined_transients=$($Preflight.quarantined_transients)"
 
     if ($ObservationSeconds -gt 0) {
         Start-Sleep -Seconds $ObservationSeconds
@@ -342,17 +381,25 @@ try {
 }
 finally {
     if ($null -ne $Tunnel -and -not $Tunnel.HasExited) {
-        $Tunnel.Kill()
+        $Tunnel.Kill($true)
         $null = $Tunnel.WaitForExit(5000)
     }
     if ($null -ne $Server -and -not $Server.HasExited) {
-        $Server.Kill()
+        $Server.Kill($true)
         $null = $Server.WaitForExit(5000)
+    }
+    if ($CurrentStateWritten) {
+        Set-KisMcpCurrentInstanceStopped -Remote $Remote -RunId $RunId
+    }
+    else {
+        Set-KisMcpCurrentInstanceStartupFailed -Remote $Remote -RunId $RunId
     }
     Write-OwnedProcessLogs -Process $Tunnel
     Write-OwnedProcessLogs -Process $Server
-    foreach ($Name in @($VaultUnlockPayload.Keys)) {
-        $VaultUnlockPayload[$Name] = $null
+    if ($null -ne $VaultUnlockPayload) {
+        foreach ($Name in @($VaultUnlockPayload.Keys)) {
+            $VaultUnlockPayload[$Name] = $null
+        }
+        $VaultUnlockPayload.Clear()
     }
-    $VaultUnlockPayload.Clear()
 }

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "change_id": "059-instance-startup-lifecycle-hardening",
+  "status": "closed",
+  "branch": "change/059-instance-startup-lifecycle-hardening",
+  "worktree": ".work/worktrees/059-instance-startup-lifecycle-hardening",
+  "base": "main",
+  "outcome": "Harden per-instance ChatGPT startup ownership, stale-runtime recovery, and canonical runtime cleanup without touching the other live instance",
+  "owned_paths": [
+    "scripts/start-chatgpt.ps1",
+    "scripts/startup-instance-lifecycle.ps1",
+    "tests/test_startup_scripts.py",
+    "tests/test_tunnel_scripts.py",
+    "docs/OPERATIONS.md",
+    ".work/changes/059-instance-startup-lifecycle-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    ".work/changes/040-context7-serena-adapters/**",
+    ".work/changes/058-work-management-commissioning/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
