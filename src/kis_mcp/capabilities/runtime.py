@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
 
@@ -23,7 +23,9 @@ class CapabilityRuntimeState:
     base_catalogue: CapabilityCatalogue
     settings: CapabilitySettings
     runtime_tools_source: RuntimeToolsSource | None = None
-    provider_namespaces: Mapping[str, str] = MappingProxyType({})
+    provider_namespaces: Mapping[str, str] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
     @classmethod
     def build(
