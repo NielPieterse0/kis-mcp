@@ -46,6 +46,8 @@ jobs:
 
       - name: Synchronize locked environment
         shell: pwsh
+        env:
+          UV_CACHE_DIR: C:\Projects\.kis-mcp\uv-cache
         run: uv sync --locked --all-groups
 
       - name: Validate work-management settings

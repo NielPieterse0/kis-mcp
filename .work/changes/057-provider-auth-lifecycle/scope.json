@@ -24,14 +24,15 @@
     "tests/repositories/**",
     "README.md",
     "SPEC.md",
+    ".github/workflows/work-management.yml",
+    "tests/work_management/test_ci_workflow.py",
     "docs/OPERATIONS.md",
     "docs/PLATFORM-CONCEPT.md"
   ],
   "shared_paths": [],
   "excluded_paths": [
     ".work/changes/040-context7-serena-adapters/**",
-    "policy/**",
-    ".github/**"
+    "policy/**"
   ],
   "dependencies": [],
   "integration_owner": null
