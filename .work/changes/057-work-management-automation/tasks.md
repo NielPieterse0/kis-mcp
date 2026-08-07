@@ -12,7 +12,7 @@
 ## Implementation
 
 - [x] Task 1 — strict settings, schema, and modularity baseline.
-- [ ] Task 2 — atomic review evidence persistence.
+- [x] Task 2 — atomic review evidence persistence.
 - [ ] Task 3 — reconciliation, service facade, and portfolio status.
 - [ ] Task 4 — narrow GitHub Project adapter.
 - [ ] Task 5 — fixed-shape CLI, CI gates, workflow descriptors, and platform composition.

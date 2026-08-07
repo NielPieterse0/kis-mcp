@@ -22,6 +22,11 @@ from .contracts import (
     RecordType,
     WorkRecord,
 )
+from .evidence import (
+    EvidenceWriteDisposition,
+    EvidenceWriteResult,
+    ReviewEvidenceStore,
+)
 from .intake import (
     CaptureWorkItem,
     IntakeBackend,
@@ -114,6 +119,8 @@ __all__ = [
     "DocumentationMode",
     "DocumentationReconciliationEvent",
     "EvidenceSettings",
+    "EvidenceWriteDisposition",
+    "EvidenceWriteResult",
     "ExtractionMode",
     "ExtractedReviewRecord",
     "FeatureMode",
@@ -156,6 +163,7 @@ __all__ = [
     "ReviewBudget",
     "ReviewCoverage",
     "ReviewEvidenceManifest",
+    "ReviewEvidenceStore",
     "ReviewObservation",
     "ReviewRequest",
     "ReviewResult",

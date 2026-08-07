@@ -30,6 +30,7 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
         "__init__.py",
         "backend.py",
         "contracts.py",
+        "evidence.py",
         "intake.py",
         "lifecycle.py",
         "records.py",
