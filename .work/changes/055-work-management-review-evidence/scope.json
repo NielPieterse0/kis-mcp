@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "055-work-management-review-evidence",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/055-work-management-review-evidence",
   "worktree": ".work/worktrees/055-work-management-review-evidence",
   "base": "main",
