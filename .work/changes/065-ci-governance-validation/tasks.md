@@ -6,6 +6,6 @@
 - [x] Run focused governance/workflow tests: 23 passed.
 - [x] Run `scripts/change-workflow.ps1 check` and `git diff --check`.
 - [x] Run canonical `scripts/verify.ps1`: passed.
-- [ ] Commit, push, review, and merge the exact verified head.
-- [ ] Reconcile PR #80 onto repaired main and rerun its exact-head Windows gate.
-- [ ] Close and safely clean change 065 after integration.
+- [x] Commit, push, review, and merge the exact verified head via PR #83.
+- [x] Hand repaired `main` back to PR #80 for a fresh exact-head reconciliation and Windows gate.
+- [x] Close change 065 and make its merged worktree eligible for governed cleanup.

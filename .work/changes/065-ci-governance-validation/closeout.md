@@ -24,10 +24,12 @@
 
 - Branch: `change/065-ci-governance-validation`
 - Worktree: `.work/worktrees/065-ci-governance-validation`
-- Commit: pending exact-head commit.
-- Pull request or merge: pending.
-- Cleanup: pending post-merge.
+- Verified head: `ac4d10d905360acdd77c9154a0e17b8990ae4cf5`.
+- Exact-head Work Management run #16: success; settings, governance claims, focused P5 tests, and canonical verification all passed.
+- Pull request: #83, merged.
+- Merge commit: `507e95d84228b4f0fca9761aced53a5556c8932d`.
+- Cleanup: eligible after this closeout bookkeeping lands on `main`.
 
 ## Residual items
 
-- Merge this prerequisite, reconcile PR #80 again, and rerun the P5 exact-head Windows gate.
+- PR #80 must reconcile repaired `main`, pass a fresh exact-head Windows gate, merge, and complete post-merge P5 commissioning.

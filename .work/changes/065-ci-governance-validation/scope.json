@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "065-ci-governance-validation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/065-ci-governance-validation",
   "worktree": ".work/worktrees/065-ci-governance-validation",
   "base": "main",
