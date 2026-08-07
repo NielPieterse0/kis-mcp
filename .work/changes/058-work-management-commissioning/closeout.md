@@ -17,6 +17,17 @@
 - Project items: zero items; pagination complete.
 - No `projects_write` operation was invoked.
 
+## Post-merge commissioning evidence
+
+- PR #80 merged after exact-head Work Management run #17 succeeded on `0c58e9c3c978256ec3abed72816e8674c44ff546`.
+- GitHub merge commit: `94ebc6a9bf9e9090a5e218ff560593e24695b1fa`.
+- Local `main` was fast-forwarded to the merge commit.
+- Authenticated post-merge provider reads confirm user Project `#1` remains private `KIS Work Management` with stable node ID `PVT_kwHODUU4HM4Bfo87`.
+- Project fields remain complete; `Status` options are `Todo`, `In Progress`, and `Done`.
+- Project items remain empty with pagination complete; no Project write operation was invoked.
+- The currently running `kis-op` process predates the merged settings and therefore reports `UNKNOWN_CAPABILITY_OPERATION: project_management_inventory`, which is expected until restart.
+- No safe in-process reload is exposed. Startup requires operator vault unlock before the new runtime can mount the composed tool, so final composed inventory and change cleanup remain intentionally pending rather than being falsely declared complete.
+
 ## Validation evidence
 
 - Baseline focused tests before edits: 17 passed.
@@ -46,10 +57,13 @@
 
 - Branch: `change/058-work-management-commissioning`
 - Worktree: `.work/worktrees/058-work-management-commissioning`
-- Commit: pending.
-- Pull request or merge: pending.
-- Post-merge live composed inventory: pending.
-- Cleanup: pending.
+- Final verified branch head: `0c58e9c3c978256ec3abed72816e8674c44ff546`.
+- Exact-head Work Management run #17: success.
+- Pull request: #80, merged.
+- GitHub merge commit: `94ebc6a9bf9e9090a5e218ff560593e24695b1fa`.
+- Post-merge direct provider inventory: passed; remote Project state unchanged.
+- Post-merge live composed inventory: pending runtime restart and vault unlock.
+- Cleanup: intentionally pending until composed inventory passes.
 
 ## Recovery
 
@@ -57,5 +71,6 @@
 
 ## Residual items
 
-- Final composed `project_management_inventory` must be run after merge and runtime restart before live P5 commissioning is declared complete.
+- Restart `kis-op` through the normal supervised startup flow, complete the required vault unlock, and run composed `project_management_inventory(project_id="kis-mcp")` before live P5 commissioning is declared complete.
+- Only after that composed inventory passes should change 058 be marked closed and its merged worktree/branches be removed.
 - Any later write enablement must first adapt and verify the pinned provider's numeric Project item write identifiers.
