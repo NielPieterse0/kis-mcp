@@ -20,7 +20,10 @@ from kis_mcp.providers import (
 )
 from kis_mcp.providers.client_runtime import (
     PersistentClientProxyProvider,
+    ProviderRuntimeToolState,
     ProviderStartupCall,
+    ProviderStartupPhase,
+    ProviderStartupState,
 )
 from kis_mcp.repositories import load_repository_settings
 
@@ -33,6 +36,7 @@ from .settings import GitHubProviderSettings, load_github_provider_settings
 
 
 _NOT_VERIFIED = "not_verified"
+_VERIFIED = "verified"
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,10 +75,17 @@ def github_provider_environment(
 def github_provider_health(
     settings: GitHubProviderSettings,
     environ: Mapping[str, str] | None = None,
+    startup_state: ProviderStartupState | None = None,
 ) -> GitHubProviderHealth:
     source = os.environ if environ is None else environ
     executable_present = Path(settings.executable).is_file()
     pat_override_present = bool(str(source.get(settings.pat_env, "")).strip())
+    authenticated = (
+        _VERIFIED
+        if startup_state is not None
+        and startup_state.phase is ProviderStartupPhase.READY
+        else _NOT_VERIFIED
+    )
     return GitHubProviderHealth(
         ready=executable_present,
         provider_id=settings.provider_id,
@@ -87,7 +98,7 @@ def github_provider_health(
         auth_mode=settings.auth_mode,
         pat_env=settings.pat_env,
         pat_override_present=pat_override_present,
-        authenticated=_NOT_VERIFIED,
+        authenticated=authenticated,
         toolsets=settings.toolsets,
     )
 
@@ -95,8 +106,9 @@ def github_provider_health(
 def github_provider_readiness(
     settings: GitHubProviderSettings,
     environ: Mapping[str, str] | None = None,
+    startup_state: ProviderStartupState | None = None,
 ) -> ProviderReadiness:
-    health = github_provider_health(settings, environ)
+    health = github_provider_health(settings, environ, startup_state)
     if not health.ready:
         state = ProviderState.UNAVAILABLE
         summary = "GitHub MCP is unavailable because the executable is not installed."
@@ -133,6 +145,22 @@ def github_provider_readiness(
             "upstream_connected": "blocked_configuration",
             "tools_discovered": "blocked_configuration",
             "live_verified": "blocked_configuration",
+        }
+    elif health.authenticated == _VERIFIED:
+        state = ProviderState.READY
+        summary = "GitHub MCP is authenticated for the current kis-op runtime."
+        user_status = {
+            "state": "ready_authenticated",
+            "label": "Ready — authenticated",
+            "required_action": "No authentication action is required for this running kis-op runtime.",
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "ready",
+            "authenticated": "ready",
+            "upstream_connected": "ready",
+            "tools_discovered": "ready",
+            "live_verified": _NOT_VERIFIED,
         }
     else:
         state = ProviderState.READY
@@ -182,6 +210,8 @@ def build_github_provider_server(
     validate_executable: bool = True,
     repository_settings_source: RepositorySettingsSource | None = None,
     client_factory: Callable[[Any], Any] = Client,
+    startup_state: ProviderStartupState | None = None,
+    runtime_tools: ProviderRuntimeToolState | None = None,
 ) -> FastMCP:
     runtime = settings or load_github_provider_settings()
     executable = Path(runtime.executable)
@@ -202,6 +232,8 @@ def build_github_provider_server(
     provider = PersistentClientProxyProvider(
         upstream_client,
         startup_call=ProviderStartupCall("get_me"),
+        startup_state=startup_state,
+        runtime_tools=runtime_tools,
     )
     server = FastMCP("kis-mcp-github")
     server.add_provider(provider)
@@ -214,7 +246,7 @@ def build_github_provider_server(
     def kis_github_health() -> GitHubProviderHealth:
         """Report redacted GitHub MCP installation and OAuth preflight state."""
 
-        return github_provider_health(runtime, environ)
+        return github_provider_health(runtime, environ, provider.startup_state)
 
     return server
 
@@ -227,6 +259,8 @@ def register_github_provider(
     repository_settings_source: RepositorySettingsSource | None = None,
 ) -> ProviderDescriptor:
     runtime = settings or load_github_provider_settings()
+    startup_state = ProviderStartupState()
+    runtime_tools = ProviderRuntimeToolState()
     descriptor = ProviderDescriptor(
         provider_id=runtime.provider_id,
         display_name="GitHub MCP",
@@ -266,8 +300,15 @@ def register_github_provider(
             runtime,
             environ=environ,
             repository_settings_source=repository_settings_source,
+            startup_state=startup_state,
+            runtime_tools=runtime_tools,
         ),
-        readiness_probe=lambda: github_provider_readiness(runtime, environ),
+        readiness_probe=lambda: github_provider_readiness(
+            runtime,
+            environ,
+            startup_state,
+        ),
+        runtime_tools_probe=runtime_tools.snapshot,
     )
     return registry.register(descriptor)
 
