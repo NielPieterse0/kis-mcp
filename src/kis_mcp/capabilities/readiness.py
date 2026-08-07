@@ -6,6 +6,27 @@ from types import MappingProxyType
 from .contracts import CapabilityContribution, ReadinessSnapshot, ReadinessState
 
 
+def available_capabilities(
+    contributions: Iterable[CapabilityContribution],
+    readiness: Mapping[str, ReadinessSnapshot],
+) -> frozenset[str]:
+    available: set[str] = set()
+    for contribution in contributions:
+        snapshot = readiness[contribution.contribution_id]
+        if not snapshot.operational:
+            continue
+        mapped_capabilities = {
+            capability
+            for operation in contribution.operations
+            for capability in operation.capabilities
+        }
+        available.update(set(contribution.capabilities) - mapped_capabilities)
+        for operation in contribution.operations:
+            if operation.enabled:
+                available.update(operation.capabilities)
+    return frozenset(available)
+
+
 def evaluate_readiness(
     contributions: Iterable[CapabilityContribution],
 ) -> Mapping[str, ReadinessSnapshot]:
@@ -28,4 +49,4 @@ def evaluate_readiness(
     return MappingProxyType(snapshots)
 
 
-__all__ = ["evaluate_readiness"]
+__all__ = ["available_capabilities", "evaluate_readiness"]

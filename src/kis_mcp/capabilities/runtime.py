@@ -7,7 +7,7 @@ from typing import Any
 
 from .catalogue import CapabilityCatalogue
 from .contracts import OperationDescriptor, ReadinessSnapshot
-from .readiness import evaluate_readiness
+from .readiness import available_capabilities, evaluate_readiness
 from .resolver import CapabilityResolver
 from .settings import CapabilitySettings
 from .surface import augment_with_runtime_surface
@@ -67,16 +67,7 @@ class CapabilityRuntimeState:
     def available_capabilities(self) -> frozenset[str]:
         catalogue = self.catalogue
         readiness = evaluate_readiness(catalogue.contributions)
-        return frozenset(
-            capability
-            for contribution in catalogue.contributions
-            if readiness[contribution.contribution_id].operational
-            and (
-                not contribution.operations
-                or any(operation.enabled for operation in contribution.operations)
-            )
-            for capability in contribution.capabilities
-        )
+        return available_capabilities(catalogue.contributions, readiness)
 
     def operation(self, operation_id_or_name: str) -> OperationDescriptor:
         return self.catalogue.operation(operation_id_or_name)
