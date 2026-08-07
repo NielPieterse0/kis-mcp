@@ -56,7 +56,7 @@ The future platform model does not alter the closed Work enforcement decision se
 | FastMCP gateway | Composes domain platform entry points, owns instance-scoped capability and readiness state, presents the curated tool surface, evaluates concrete Work invocations, and forwards allowed calls through original contracts. |
 | Discover module | Exposes bounded `inspect_project` and working-tree `inspect_change`; also contains tested internal change-target, context, impact, contract, project-catalog, and provider-admission services. |
 | Skills module | Resolves the approved shared catalogue, overlays reviewed category and capability metadata, contributes Skills to the normalized catalogue, and routes create/improve mutations back through Work middleware. |
-| Provider runtime | Registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors; mounts enabled GitHub and Supabase adapters under unique namespaces; contains failures; and reports readiness and commissioning separately. |
+| Provider runtime | Registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors; mounts enabled GitHub and Supabase adapters under unique namespaces; owns runtime-scoped authenticated provider clients and mutable repository selection independently; contains failures; and reports readiness and commissioning separately. |
 | Capability composition | Normalizes Provider, Tool, Discover, Skill, and Workflow contributions; evaluates readiness and eligibility; scores explainable recommendations; and plans direct, discoverable, or status-only exposure. |
 | Tools and workflows | Registers local executable adapters such as Codex CLI, contributes normalized operations, describes complete user workflows, and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection. |
 | Managed bootstrap tooling | Installs pinned AgentSys and agnix distributions beneath `C:\Projects`, creates isolated host profiles, validates staged state, and preserves replaced state through quarantine without mounting either tool into the gateway. |
@@ -216,6 +216,8 @@ All project settings and policy declarations are JSON.
 - `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, Discover retrieval settings, the local stdio transport, and the ChatGPT remote transport.
 - `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, and all file, directory, byte, depth, time, Git, Python-index, evidence, and output budgets.
 - `settings/providers/platform-runtime.provider.json` selects exactly the approved mounted MCP provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
+- `settings/providers/github-mcp.provider.json` contains only GitHub provider identity, pinned executable/source, OAuth mode, PAT-conflict metadata, and toolsets. Repository and GitHub Project routing are not provider-authentication settings.
+- `settings/kis-repository.settings.json` identifies the repository, declares its GitHub repository and `gh_projects` bindings, and is validated against the checkout's `origin` when available. Platform composition owns the mutable selected-repository source independently of the authenticated provider client.
 - `settings/agents/code-review-agent.settings.json` defines the single advisory code-review agent, its NVIDIA NIM and Codex CLI backends, preferred/fallback order, fixed script path, and evidence/output budgets. It stores only the NVIDIA API-key environment-variable name, never the key value.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
 - Each remote instance stores its app name, port, profile name, explicit `configured` state, non-secret `tunnel_id`, and non-secret `tunnel_secret_ref` used to resolve its credential from the application-managed encrypted vault.
@@ -303,6 +305,8 @@ The current implementation includes:
 - deterministic catalogue, readiness, eligibility, explainable scoring, workflow recommendation, and progressive exposure services;
 - instance-scoped Provider and capability runtime state with no process-global latest-composition singleton;
 - provider-neutral contracts, registry, health, explicit construction, and runtime composition;
+- a provider-neutral persistent FastMCP client lifecycle with one outer connection per parent runtime and injectable provider startup bootstrap;
+- GitHub MCP using one runtime-scoped client with one `get_me` bootstrap, repository-local routing settings, and mutable selected-repository state that does not rebuild the authenticated client;
 - GitHub MCP and Supabase adapters mounted under `github_*` and `supabase_*` when enabled adapters build successfully;
 - an NVIDIA NIM provider used only by the advisory code-review workflow;
 - a generic Tools registry with a fixed Codex CLI adapter;
@@ -322,6 +326,8 @@ The public `inspect_change` signature accepts only a project path and inspects t
 
 The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors. Runtime JSON selects GitHub and Supabase for deterministic namespaced mounting. Adapter build, invalid-result, mount, authentication, and commissioning states remain separate; one unavailable optional provider does not prevent Work, Discover, Skills, agent registration, or gateway startup.
 
+GitHub construction owns one shared FastMCP `Client` for the parent `kis-op` runtime. The provider lifecycle connects it once, performs one `get_me` bootstrap after connection, reuses that authenticated process across downstream sessions, and closes it only when the parent runtime stops. Restarting `kis-op` creates a new provider process and therefore requires one new OAuth sign-in. Platform composition separately owns a mutable selected-repository source; GitHub middleware resolves repository and `gh_projects` authorization from its current value on every call. The current public gateway does not expose an unrestricted repository-switch operation.
+
 `kis_provider_status` reports registration, runtime enablement, readiness, build and mount state, actionable user status, and commissioning evidence separately. GitHub authentication requirements and Supabase project-initialization or authentication requirements are onboarding states, not provider failure. NVIDIA is not mounted as a general passthrough. Codex CLI is a local executable Tool adapter, not a Provider-module connector.
 
 `review_change_with_agent` collects bounded `AGENTS.md`, Git status, staged diff, and unstaged diff evidence. It selects NVIDIA NIM or Codex CLI, permits at most one fallback, requests advisory output, and exposes no mutation or nested delegation operation. NVIDIA reads its key only from `NVIDIA_API_KEY`. Codex receives the prompt through standard input via `scripts/invoke-codex-agent.ps1`, requests an ephemeral read-only sandbox, and fails if its before/after Git-visible repository fingerprint changes. The implementation and tests do not claim live NVIDIA inference or live Codex authentication is commissioned.
@@ -332,7 +338,7 @@ The work-management domain remains provider-neutral and does not import FastMCP 
 
 Local review evidence is persisted only beneath `.work/reviews/<review-id>/` using bounded atomic replacement and conflict detection. Remote reconciliation defaults to preview and requires explicit apply plus an idempotency key. Safe create checks observed Project items for the same source issue or pull request before mutation, so restart does not duplicate records. Provider absence, unsupported methods, stale revisions, inaccessible state, and incomplete pagination are corrective work-management outcomes rather than HR policy violations.
 
-Live evidence on 2026-08-07 proved standalone GitHub OAuth, private-repository read, and local repository scoping. The configured user Project `#12` returned `404`; the stale binding remains disabled and no Project mutation was attempted.
+Historical evidence from 2026-08-07 proved standalone GitHub OAuth, private-repository read, and repository scoping before the runtime-lifecycle change. The then-configured user Project `#12` returned `404`; that stale work-management binding is no longer configured. The current checked-in work-management settings remain disabled with no active Project number. Repository-local `gh_projects` routing is separate configuration and must not be treated as proof of Project existence or work-management commissioning. Fresh live evidence for runtime-scoped OAuth remains a deployment/commissioning check rather than an implementation claim.
 
 ### Remote and standalone status
 

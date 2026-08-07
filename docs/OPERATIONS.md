@@ -120,6 +120,8 @@ Edit only the canonical JSON files:
 
 - `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
 - `settings/providers/platform-runtime.provider.json` for the exact approved mounted MCP provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
+- `settings/providers/github-mcp.provider.json` for GitHub provider identity, pinned source/executable, OAuth mode, PAT-conflict metadata, and toolsets only. Do not place repository or Project routing in provider authentication settings.
+- `settings/kis-repository.settings.json` for repository identity, the matching `github_repository`, and repository-local `gh_projects` bindings. The loader validates the declared GitHub repository against local `origin` when available.
 - `settings/agents/code-review-agent.settings.json` for the one advisory code-review agent, NVIDIA NIM and Codex CLI backend configuration, preferred/fallback order, and evidence/output budgets. Store only the `NVIDIA_API_KEY` environment-variable name, never the API key value.
 - `settings/capabilities.settings.json` for suitability and intrinsic-quality weights, the bounded direct profile, discovery operations, readiness penalty, and reviewed capability metadata for every current shared Skill.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
@@ -161,6 +163,8 @@ Provider readiness rejects enabled telemetry, a missing or non-loopback feature-
 
 After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub, Supabase, and Control Center adapter builds in stable provider-ID order. Successful adapters mount as `github_*`, `supabase_*`, and `controlcenter_*`. NVIDIA NIM is registered in the Provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
+For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. A single `get_me` startup call triggers OAuth after the client connects. Downstream tool sessions reuse that authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated separately from `settings/kis-repository.settings.json` on each GitHub call. Changing the selected repository context does not reconnect the authenticated GitHub client.
+
 The feedback tool and `read_file.isUrl` mode are absent from the Work contract. Terminal and process tools remain available. The gateway first registers the complete supported backend surface, builds instance-scoped capability and readiness state, then filters only `tools/list`; it blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
 ## Use capability discovery and long-tail execution
@@ -186,7 +190,7 @@ Work management uses `settings/work-management/github-projects.settings.json` an
 
 1. confirm each managed repository and local root;
 2. assign a valid GitHub Project owner, owner type, and Project number;
-3. complete supervised GitHub OAuth commissioning;
+3. start `kis-op` and complete the one supervised GitHub OAuth sign-in required for that runtime;
 4. run settings validation and a read-only inventory check;
 5. review reconciliation previews before any apply operation.
 
@@ -211,7 +215,7 @@ When enabled, platform composition adds:
 
 Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, governance claims, focused P5 tests, and optionally the canonical verifier.
 
-Current commissioning evidence: standalone GitHub OAuth, private-repository read, and repository scoping passed on 2026-08-07. The previously approved user Project `#12` returned `404`; keep work management disabled until a valid Project is selected and verified. Do not infer Project existence from provider settings.
+Historical commissioning evidence from 2026-08-07 proved standalone GitHub OAuth, private-repository read, and repository scoping before the runtime-lifecycle change. The then-approved user Project `#12` returned `404`; that stale work-management binding is no longer configured. Keep work management disabled until its own backend binding has a valid Project number and read-only inventory verification passes. Repository-local `gh_projects` entries constrain routing only; they do not prove Project existence or work-management commissioning. Fresh runtime-scoped OAuth evidence is a separate supervised commissioning check.
 
 ## Use Discover
 
@@ -253,11 +257,31 @@ Call `kis_provider_status` to inspect the current Provider catalogue and runtime
 
 Interpret the normal onboarding states as follows:
 
-- **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and shared-runtime mount are ready. Sign in through the supervised OAuth flow before live GitHub operations. It does not mean the provider is broken.
+- **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and runtime-scoped client path are ready. Start `kis-op` and complete one supervised OAuth sign-in for that runtime; subsequent GitHub calls reuse the authenticated provider process until `kis-op` stops. It does not mean the provider is broken.
 - **Supabase: `Ready — project initialization required`** means the commissioned provider is mounted with its local health surface but this repository is not yet linked to a Supabase project. Initialize or link a development/test project, set `SUPABASE_PROJECT_REF` in the supervised environment, then authenticate.
 - **Supabase: `Ready — authentication required`** means project scope and local OAuth prerequisites are ready; browser authentication remains the next step.
 
 A mounted provider is not automatically authenticated, upstream-connected, tool-discovered, or live verified. Reserve degraded, unavailable, or failed states for genuine local faults such as a missing executable, unavailable Windows credential storage, a legacy PAT conflict, invalid configuration, builder failure, mount failure, protocol failure, or runtime failure. `build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure, not a normal sign-in requirement. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+
+## Authenticate GitHub MCP
+
+GitHub OAuth is owned by the running `kis-op` process. Ensure `GITHUB_PERSONAL_ACCESS_TOKEN` is unset; a PAT override is a configuration conflict and is never forwarded to the official GitHub MCP subprocess.
+
+Start the operation runtime through the GitHub auth helper:
+
+```powershell
+pwsh -NoProfile -File .\scripts\auth-github-mcp.ps1
+```
+
+The helper validates the GitHub provider settings and repository-local settings, then starts `kis-op`. The provider-lifetime `get_me` call triggers the official browser OAuth flow once after the shared client connects. Complete that sign-in and keep the `kis-op` runtime running; subsequent GitHub tool calls during the same runtime reuse the authenticated subprocess. Stopping or restarting `kis-op` discards the official provider's process-memory token and requires one new sign-in.
+
+Run the focused non-live verification independently:
+
+```powershell
+pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
+```
+
+This verifies the runtime client lifecycle, platform repository-selection wiring, GitHub routing/settings, scripts, and repository-settings contracts without claiming live authentication. Use `-RequireLive` only for an explicit supervised live commissioning check; it may require interactive OAuth and remains separate from repository verification.
 
 ## Configure and use the code-review agent
 

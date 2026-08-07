@@ -29,16 +29,19 @@ def test_install_script_downloads_only_the_pinned_immutable_release() -> None:
     assert "Remove-Item" not in source
 
 
-def test_auth_script_runs_interactive_oauth_without_printing_or_forwarding_pat() -> None:
+def test_auth_script_starts_kis_op_without_printing_or_forwarding_pat() -> None:
     source = AUTH.read_text(encoding="utf-8")
 
     assert "Set-StrictMode -Version Latest" in source
     assert "github-mcp.provider.json" in source
+    assert "kis-repository.settings.json" in source
     assert "pat_env" in source
     assert "GITHUB_OAUTH_PAT_CONFLICT" in source
-    assert "kis_mcp.providers.github.commission" in source
-    assert "UV_PROJECT_ENVIRONMENT" in source
-    assert "PYTHONPATH" in source
+    assert "start-chatgpt.ps1" in source
+    assert "-Instance operation" in source
+    assert "owned by the kis-op runtime" in source
+    assert "Stopping or restarting kis-op requires one new" in source
+    assert "kis_mcp.providers.github.commission" not in source
     assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
     assert "GITHUB_PERSONAL_ACCESS_TOKEN=" not in source
 
@@ -52,7 +55,13 @@ def test_smoke_script_supports_offline_tests_and_explicit_shared_runtime_live_ch
     assert "pat_env" in source
     assert "GITHUB_OAUTH_PAT_CONFLICT" in source
     assert "tests/providers/github" in source
+    assert "tests/providers/test_client_runtime.py" in source
+    assert "tests/providers/test_platform_composition.py" in source
+    assert "tests/repositories" in source
+    assert "kis-repository.settings.json" in source
     assert "scripts/run-provider-live-smoke.py github" in source
+    assert "client_lifetime" in source
+    assert "authentication_bootstrap" in source
     assert "live_mounted" in source
     assert "live_repository_scope" in source
     assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source

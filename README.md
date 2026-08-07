@@ -23,6 +23,7 @@ kis-mcp FastMCP gateway
 |- capability search, description, and workflow recommendation
 |- effect-specific read/change/external long-tail dispatch
 |- instance-scoped provider readiness and exposure planning
+|- runtime-scoped authenticated provider clients
 |- Skills catalogue with category and capability metadata
 |- optional namespaced GitHub and Supabase provider operations
 |- optional project-management inventory, reconciliation, evidence, status, and traceability workflows
@@ -54,6 +55,12 @@ Desktop Commander is installed from its authoritative package and is not vendore
 
 Implementation does not prove commissioning. GitHub requires authentication before live operations. Supabase requires project initialization or project scope, then authentication. NVIDIA NIM requires `NVIDIA_API_KEY`. Codex CLI requires an installed and authenticated `codex` executable. The two remote HTTP instances have distinct configured tunnel IDs, but configuration alone does not prove stored credentials, generated profiles, ChatGPT tool discovery, or live end-to-end commissioning.
 
+### Provider authentication and repository routing
+
+Provider authentication is owned by the running `kis-op` process, not by a repository or GitHub Project. The provider-neutral client lifecycle keeps one re-entrant FastMCP client connected for the parent server lifespan and permits provider-specific startup calls. GitHub uses that seam to call `get_me` when the provider starts, keep one official GitHub MCP subprocess alive across downstream sessions, and close it only when `kis-op` stops. Because the official local GitHub provider keeps its OAuth token in process memory, one new login is expected after each `kis-op` restart; ordinary tool calls during the same run reuse the authenticated process.
+
+`settings/providers/github-mcp.provider.json` contains only provider identity, pinned executable, OAuth mode, PAT conflict metadata, and toolsets. Repository identity and GitHub Project bindings are repository-local in `settings/kis-repository.settings.json`. The repository root is derived from the checkout containing that file, `github_repository` is checked against the local `origin` remote when available, every GitHub repository operation must carry explicit repository arguments, and `gh_projects` limits Project operations for the selected repository. Changing selected repository context does not recreate the authenticated provider client.
+
 ## Repository layout
 
 ```text
@@ -66,6 +73,7 @@ docs/SKILLS-MODULE-PRODUCT-SPEC.md     Skills module contracts
 docs/TRUST-MODEL.md                    trust model and three hard rules
 docs/OPERATIONS.md                     install, configure, operate, and verify
 docs/LESSONS-APPLICABILITY.md          prior-project lessons mapped to current state
+settings/kis-repository.settings.json  repository identity and GitHub Project bindings
 settings/                              canonical JSON settings, including capability scoring and exposure
 policy/kis-mcp.policy.json             exact three-rule declaration
 contracts/                             versioned public and internal schemas
@@ -133,7 +141,7 @@ Discover does not execute repository code, tests, builds, or discovered commands
 
 P0-P5 work management is implemented under `src/kis_mcp/work_management` with strict settings in `settings/work-management/github-projects.settings.json`. It provides typed records, traceability, review evidence, atomic persistence, deterministic reconciliation, portfolio status, fixed-shape CLI/CI, and five task-level platform workflows.
 
-The checked-in configuration is disabled by default. Enable it only after assigning a valid GitHub Project number and completing supervised OAuth commissioning. Reconciliation defaults to preview; apply requires an idempotency key. The GitHub adapter permits only bounded issue or pull-request addition and Project-field updates, performs revision checks and source-record deduplication, and exposes no delete or unrestricted GraphQL operation.
+The checked-in configuration is disabled by default. Enable it only after assigning a valid GitHub Project number and completing supervised OAuth commissioning. Reconciliation defaults to preview; apply requires an idempotency key. The GitHub adapter permits only bounded issue or pull-request addition and Project-field updates, performs revision checks and source-record deduplication, and exposes no delete or unrestricted GraphQL operation. Provider authentication remains profile-wide, while the selected repository's `gh_projects` entries are an additional routing boundary that work-management calls cannot widen.
 
 Use the local CLI for validation and read-only planning:
 
@@ -151,4 +159,4 @@ Run the canonical repository gate:
 pwsh -File .\scripts\verify.ps1
 ```
 
-Verification covers the three-rule policy, Desktop Commander contract and containment, quarantine and restoration, Discover, capability contracts and scoring, Skills metadata, instance-scoped Provider runtime composition, progressive exposure, workflow descriptors, the advisory agent, Control Center, architecture boundaries, configuration, governance claims, line endings, and the full Python test suite. Live provider authentication, external tunnel connectivity, and ChatGPT commissioning require separate supervised smoke evidence.
+Verification covers the three-rule policy, Desktop Commander contract and containment, quarantine and restoration, Discover, capability contracts and scoring, Skills metadata, instance-scoped Provider runtime composition, runtime-scoped provider client lifecycle, progressive exposure, workflow descriptors, the advisory agent, Control Center, architecture boundaries, configuration, governance claims, line endings, and the full Python test suite. Live provider authentication, external tunnel connectivity, and ChatGPT commissioning require separate supervised smoke evidence.

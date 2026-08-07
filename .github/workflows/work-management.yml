@@ -46,6 +46,8 @@ jobs:
 
       - name: Synchronize locked environment
         shell: pwsh
+        env:
+          UV_CACHE_DIR: C:\Projects\.kis-mcp\uv-cache
         run: uv sync --locked --all-groups
 
       - name: Validate work-management settings
@@ -70,7 +72,17 @@ jobs:
           tests/workflows/project_management
           tests/capabilities/test_domain_platforms.py
 
+      - name: Prepare canonical verification fixture
+        if: ${{ inputs.run_full_verification != false }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\Projects\kis-mcp | Out-Null
+          Get-ChildItem -Force | Where-Object Name -ne '.venv' | Copy-Item -Destination C:\Projects\kis-mcp -Recurse -Force
+          New-Item -ItemType Directory -Force -Path C:\Projects\.agents\skills | Out-Null
+          Get-ChildItem -Force C:\Projects\kis-mcp\.agents\skills | Copy-Item -Destination C:\Projects\.agents\skills -Recurse -Force
+
       - name: Run canonical repository verification
         if: ${{ inputs.run_full_verification != false }}
         shell: pwsh
+        working-directory: C:\Projects\kis-mcp
         run: pwsh -NoProfile -File scripts/verify.ps1

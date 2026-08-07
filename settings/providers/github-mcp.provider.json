@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "provider_id": "github-mcp",
   "authoritative_source": "https://github.com/github/github-mcp-server",
   "release_tag": "v1.8.0",
@@ -10,18 +10,5 @@
   "pat_env": "GITHUB_PERSONAL_ACCESS_TOKEN",
   "toolsets": [
     "all"
-  ],
-  "approved_repositories": [
-    "NielPieterse0/kis-mcp"
-  ],
-  "unscoped_tools": [
-    "get_me"
-  ],
-  "approved_projects": [
-    {
-      "owner": "NielPieterse0",
-      "owner_type": "user",
-      "project_number": 12
-    }
   ]
 }

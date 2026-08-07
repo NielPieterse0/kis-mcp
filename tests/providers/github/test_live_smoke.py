@@ -1,21 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from kis_mcp.providers.github import commission, smoke
-from kis_mcp.providers.github.settings import (
-    GitHubProjectScopeSettings,
-    GitHubProviderSettings,
-)
+from kis_mcp.providers.github.settings import GitHubProviderSettings
+from kis_mcp.repositories import GitHubProjectBinding, RepositorySettings
 
 
 def _settings() -> GitHubProviderSettings:
     return GitHubProviderSettings(
-        schema_version=2,
+        schema_version=3,
         provider_id="github-mcp",
         authoritative_source="https://github.com/github/github-mcp-server",
         release_tag="v1.8.0",
@@ -25,15 +24,22 @@ def _settings() -> GitHubProviderSettings:
         auth_mode="oauth",
         pat_env="GITHUB_PERSONAL_ACCESS_TOKEN",
         toolsets=("all",),
-        approved_repositories=("nielpieterse0/kis-mcp",),
-        approved_projects=(
-            GitHubProjectScopeSettings(
+    )
+
+
+def _repository_settings() -> RepositorySettings:
+    return RepositorySettings(
+        repository_root=Path(r"C:\Projects\kis-mcp"),
+        repository_id="kis-mcp",
+        github_repository="nielpieterse0/kis-mcp",
+        gh_projects=(
+            GitHubProjectBinding(
+                binding_id="work-management",
                 owner="NielPieterse0",
                 owner_type="user",
-                project_number=12,
+                project_number=1,
             ),
         ),
-        unscoped_tools=("get_me",),
     )
 
 
@@ -67,7 +73,7 @@ def test_commissioning_proves_oauth_private_read_and_local_repository_scope() ->
             return _success()
 
     report = asyncio.run(
-        commission.commission_github_client(FakeClient(), _settings())
+        commission.commission_github_client(FakeClient(), _repository_settings())
     )
 
     assert report == {
@@ -108,7 +114,12 @@ def test_commissioning_rejects_missing_pinned_write_surface() -> None:
             ]
 
     with pytest.raises(RuntimeError, match="create_or_update_file"):
-        asyncio.run(commission.commission_github_client(FakeClient(), _settings()))
+        asyncio.run(
+            commission.commission_github_client(
+                FakeClient(),
+                _repository_settings(),
+            )
+        )
 
 
 def test_commissioning_does_not_treat_unrelated_failure_as_scope_evidence() -> None:
@@ -126,7 +137,12 @@ def test_commissioning_does_not_treat_unrelated_failure_as_scope_evidence() -> N
             return _success()
 
     with pytest.raises(RuntimeError, match="network failed"):
-        asyncio.run(commission.commission_github_client(FakeClient(), _settings()))
+        asyncio.run(
+            commission.commission_github_client(
+                FakeClient(),
+                _repository_settings(),
+            )
+        )
 
 
 def test_shared_runtime_smoke_proves_mount_and_namespaced_tools(
@@ -140,7 +156,7 @@ def test_shared_runtime_smoke_proves_mount_and_namespaced_tools(
             assert kwargs["timeout"] == 120
             assert kwargs["init_timeout"] == 120
 
-        async def __aenter__(self) -> "FakeClient":
+        async def __aenter__(self) -> FakeClient:
             return self
 
         async def __aexit__(self, *args: Any) -> None:
@@ -174,7 +190,9 @@ def test_shared_runtime_smoke_proves_mount_and_namespaced_tools(
 
     monkeypatch.setattr(smoke, "Client", FakeClient)
 
-    report = asyncio.run(smoke._run_live_smoke(_settings(), "shared-server"))
+    report = asyncio.run(
+        smoke._run_live_smoke(_repository_settings(), "shared-server")
+    )
 
     assert report == {
         "ready": True,
@@ -204,6 +222,7 @@ def test_live_smoke_rejects_pat_conflict_before_building_server() -> None:
         smoke.run_live_smoke(
             build,
             settings=_settings(),
+            repository_settings=_repository_settings(),
             environ={"GITHUB_PERSONAL_ACCESS_TOKEN": "forbidden-test-token"},
         )
 

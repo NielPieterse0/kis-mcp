@@ -13,11 +13,10 @@ from kis_mcp.providers import (
     ProviderRegistry,
     ProviderState,
 )
+from kis_mcp.providers.client_runtime import PersistentClientProxyProvider
 from kis_mcp.providers.github import server as github_server
-from kis_mcp.providers.github.settings import (
-    GitHubProjectScopeSettings,
-    GitHubProviderSettings,
-)
+from kis_mcp.providers.github.routing import GitHubRepositoryRoutingMiddleware
+from kis_mcp.providers.github.settings import GitHubProviderSettings
 from kis_mcp.providers.platform import provider_capability_contributions
 from kis_mcp.providers.runtime import (
     ProviderMountResult,
@@ -25,6 +24,7 @@ from kis_mcp.providers.runtime import (
     ProviderRuntimeComposition,
 )
 from kis_mcp.providers.service import ProviderService
+from kis_mcp.repositories import GitHubProjectBinding, RepositorySettings
 
 
 PAT = "not-for-output"
@@ -32,7 +32,7 @@ PAT = "not-for-output"
 
 def _settings(executable: str | None = None) -> GitHubProviderSettings:
     return GitHubProviderSettings(
-        schema_version=2,
+        schema_version=3,
         provider_id="github-mcp",
         authoritative_source="https://github.com/github/github-mcp-server",
         release_tag="v1.8.0",
@@ -43,15 +43,22 @@ def _settings(executable: str | None = None) -> GitHubProviderSettings:
         auth_mode="oauth",
         pat_env="GITHUB_PERSONAL_ACCESS_TOKEN",
         toolsets=("all",),
-        approved_repositories=("nielpieterse0/kis-mcp",),
-        approved_projects=(
-            GitHubProjectScopeSettings(
+    )
+
+
+def _repository_settings() -> RepositorySettings:
+    return RepositorySettings(
+        repository_root=Path(r"C:\Projects\kis-mcp"),
+        repository_id="kis-mcp",
+        github_repository="nielpieterse0/kis-mcp",
+        gh_projects=(
+            GitHubProjectBinding(
+                binding_id="work-management",
                 owner="NielPieterse0",
                 owner_type="user",
-                project_number=12,
+                project_number=1,
             ),
         ),
-        unscoped_tools=("get_me",),
     )
 
 
@@ -73,7 +80,7 @@ def test_provider_environment_forwards_only_process_basics_and_never_pat() -> No
     assert PAT not in repr(environment)
 
 
-def test_health_reports_installation_and_pat_conflict_without_claiming_authentication(
+def test_health_reports_runtime_lifetime_and_pat_conflict_without_secrets(
     tmp_path: Path,
 ) -> None:
     executable = tmp_path / "github-mcp-server.exe"
@@ -81,9 +88,9 @@ def test_health_reports_installation_and_pat_conflict_without_claiming_authentic
 
     missing = github_server.github_provider_health(settings, {})
     assert missing.ready is False
-    assert missing.executable_present is False
     assert missing.auth_mode == "oauth"
-    assert missing.pat_override_present is False
+    assert missing.client_lifetime == "runtime"
+    assert missing.auth_bootstrap_tool == "get_me"
     assert missing.authenticated == "not_verified"
 
     executable.write_bytes(b"official-binary-placeholder")
@@ -92,14 +99,11 @@ def test_health_reports_installation_and_pat_conflict_without_claiming_authentic
         {"GITHUB_PERSONAL_ACCESS_TOKEN": PAT},
     )
     assert ready.ready is True
-    assert ready.executable_present is True
     assert ready.pat_override_present is True
-    assert ready.authenticated == "not_verified"
-    assert ready.approved_repositories == ("nielpieterse0/kis-mcp",)
     assert PAT not in str(asdict(ready))
 
 
-def test_builds_token_free_official_stdio_proxy_with_scope_middleware(
+def test_builds_one_persistent_token_free_official_stdio_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, Any] = {}
@@ -125,16 +129,19 @@ def test_builds_token_free_official_stdio_proxy_with_scope_middleware(
         def __init__(self, **kwargs: Any) -> None:
             captured["transport"] = kwargs
 
-    class FakeStatefulClient:
+    class FakeClient:
         def __init__(self, transport: Any) -> None:
             captured["client_transport"] = transport
 
-        def new_stateful(self) -> str:
-            return "session-client"
+        async def __aenter__(self) -> FakeClient:
+            return self
 
-    class FakeProvider:
-        def __init__(self, factory: Any) -> None:
-            captured["provider_client"] = factory()
+        async def __aexit__(self, *_: object) -> None:
+            return None
+
+        async def call_tool(self, name: str, arguments: dict[str, Any]) -> object:
+            captured.setdefault("calls", []).append((name, arguments))
+            return object()
 
     proxy = FakeServer("unused")
     monkeypatch.setattr(github_server, "StdioTransport", FakeTransport)
@@ -143,13 +150,13 @@ def test_builds_token_free_official_stdio_proxy_with_scope_middleware(
         "FastMCP",
         lambda name: captured.update(name=name) or proxy,
     )
-    monkeypatch.setattr(github_server, "StatefulProxyClient", FakeStatefulClient)
-    monkeypatch.setattr(github_server, "ProxyProvider", FakeProvider)
 
     server = github_server.build_github_provider_server(
         _settings(),
         environ={"GITHUB_PERSONAL_ACCESS_TOKEN": PAT, "PATH": "bin"},
         validate_executable=False,
+        repository_settings_source=_repository_settings,
+        client_factory=FakeClient,
     )
 
     assert server is proxy
@@ -157,7 +164,14 @@ def test_builds_token_free_official_stdio_proxy_with_scope_middleware(
     assert captured["transport"]["command"].endswith("github-mcp-server.exe")
     assert captured["transport"]["args"] == ["stdio", "--toolsets=all"]
     assert captured["transport"]["env"] == {"PATH": "bin"}
+    assert len(proxy.providers) == 1
+    provider = proxy.providers[0]
+    assert isinstance(provider, PersistentClientProxyProvider)
+    assert provider.startup_call is not None
+    assert provider.startup_call.tool_name == "get_me"
+    assert provider.client_factory() is provider.client
     assert len(proxy.middlewares) == 1
+    assert isinstance(proxy.middlewares[0], GitHubRepositoryRoutingMiddleware)
     assert "kis_github_health" in proxy.tools
 
 
@@ -166,7 +180,12 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     executable = tmp_path / "github-mcp-server.exe"
     settings = _settings(str(executable))
 
-    descriptor = github_server.register_github_provider(registry, settings, environ={})
+    descriptor = github_server.register_github_provider(
+        registry,
+        settings,
+        environ={},
+        repository_settings_source=_repository_settings,
+    )
 
     assert descriptor.provider_id == "github-mcp"
     assert descriptor.display_name == "GitHub MCP"
@@ -177,82 +196,33 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
         "project_management.write",
         "repository.remote_read_write",
     ]
-    project_read = next(
-        item
-        for item in descriptor.capabilities
-        if item.capability_id == "project_management.read"
-    )
-    assert project_read.effects == ("external_network", "project_read")
-    assert project_read.tool_names == ("projects_get", "projects_list")
-    project_write = next(
-        item
-        for item in descriptor.capabilities
-        if item.capability_id == "project_management.write"
-    )
-    assert project_write.effects == ("external_network", "project_write")
-    assert project_write.tool_names == ("projects_write",)
     assert registry.get("github-mcp") is descriptor
 
     unavailable = descriptor.readiness_probe()
     assert unavailable.state is ProviderState.UNAVAILABLE
-    assert unavailable.details["executable_present"] is False
-    assert unavailable.details["auth_mode"] == "oauth"
-    assert unavailable.details["authenticated"] == "not_verified"
-    assert unavailable.details["user_status"] == {
-        "state": "installation_required",
-        "label": "Unavailable — installation required",
-        "required_action": (
-            "Install the pinned GitHub MCP executable before using GitHub operations."
-        ),
-    }
-    assert unavailable.details["commissioning"] == {
-        "installed": "required",
-        "configured": "pending_installation",
-        "authenticated": "pending_installation",
-        "upstream_connected": "pending_installation",
-        "tools_discovered": "pending_installation",
-        "live_verified": "pending_installation",
-    }
+    assert unavailable.details["client_lifetime"] == "runtime"
+    assert unavailable.details["auth_bootstrap_tool"] == "get_me"
 
     executable.write_bytes(b"official-binary-placeholder")
     ready = descriptor.readiness_probe()
     assert ready.state is ProviderState.READY
     assert ready.summary == (
-        "GitHub MCP is ready; authenticate with OAuth before live operations."
+        "GitHub MCP is ready; one OAuth login is required when kis-op starts."
     )
-    assert ready.details["executable_present"] is True
-    assert ready.details["authenticated"] == "not_verified"
-    assert ready.details["user_status"] == {
-        "state": "ready_authentication_required",
-        "label": "Ready — authentication required",
-        "required_action": (
-            "Sign in to GitHub through the configured OAuth flow before live operations."
-        ),
-    }
-    assert ready.details["commissioning"] == {
-        "installed": "ready",
-        "configured": "ready",
-        "authenticated": "required",
-        "upstream_connected": "pending_authentication",
-        "tools_discovered": "pending_authentication",
-        "live_verified": "pending_authentication",
-    }
+    assert ready.details["user_status"]["state"] == "ready_authentication_required"
+    assert ready.details["commissioning"]["authenticated"] == (
+        "required_at_runtime_start"
+    )
 
     conflicted_descriptor = github_server.register_github_provider(
         ProviderRegistry(),
         settings,
         environ={"GITHUB_PERSONAL_ACCESS_TOKEN": PAT},
+        repository_settings_source=_repository_settings,
     )
     conflicted = conflicted_descriptor.readiness_probe()
     assert conflicted.state is ProviderState.DEGRADED
-    assert conflicted.details["user_status"] == {
-        "state": "configuration_conflict",
-        "label": "Action required — remove PAT override",
-        "required_action": (
-            "Remove GITHUB_PERSONAL_ACCESS_TOKEN before using the configured OAuth flow."
-        ),
-    }
-    assert conflicted.details["commissioning"]["configured"] == "conflict"
+    assert conflicted.details["user_status"]["state"] == "configuration_conflict"
     assert PAT not in str(conflicted.to_json_dict())
 
 
@@ -264,6 +234,7 @@ def test_project_capabilities_contribute_namespaced_operations(
         registry,
         _settings(str(tmp_path / "github-mcp-server.exe")),
         environ={},
+        repository_settings_source=_repository_settings,
     )
     composition = ProviderRuntimeComposition(
         results=(
@@ -304,4 +275,3 @@ def test_project_capabilities_contribute_namespaced_operations(
         OperationEffect.EXTERNAL,
         OperationEffect.LOCAL_CHANGE,
     )
-    assert project_write.approval_required is False

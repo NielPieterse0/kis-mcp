@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "change_id": "057-provider-auth-lifecycle",
+  "status": "active",
+  "branch": "change/057-provider-auth-lifecycle",
+  "worktree": ".work/worktrees/057-provider-auth-lifecycle",
+  "base": "main",
+  "outcome": "Keep authenticated upstream MCP clients alive for the kis-op runtime and separate provider authentication from repository-specific GitHub routing",
+  "owned_paths": [
+    ".work/changes/057-provider-auth-lifecycle/**",
+    "contracts/providers/github/provider-settings.schema.json",
+    "contracts/repositories/**",
+    "settings/providers/github-mcp.provider.json",
+    "settings/kis-repository.settings.json",
+    "scripts/auth-github-mcp.ps1",
+    "scripts/smoke-github-mcp.ps1",
+    "src/kis_mcp/providers/client_runtime.py",
+    "src/kis_mcp/providers/github/**",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/repositories/**",
+    "tests/providers/test_client_runtime.py",
+    "tests/providers/test_platform_composition.py",
+    "tests/providers/github/**",
+    "tests/repositories/**",
+    "README.md",
+    "SPEC.md",
+    ".github/workflows/work-management.yml",
+    "tests/work_management/test_ci_workflow.py",
+    "docs/OPERATIONS.md",
+    "docs/PLATFORM-CONCEPT.md"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
