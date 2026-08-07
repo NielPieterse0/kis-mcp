@@ -19,6 +19,7 @@
     "src/kis_mcp/providers/platform.py",
     "src/kis_mcp/repositories/**",
     "tests/providers/test_client_runtime.py",
+    "tests/providers/test_platform_composition.py",
     "tests/providers/github/**",
     "tests/repositories/**",
     "README.md",

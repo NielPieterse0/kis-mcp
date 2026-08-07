@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 from ..capabilities.contracts import (
     CapabilityContribution,
@@ -14,6 +15,7 @@ from ..capabilities.contracts import (
 )
 from ..capabilities.normalization import default_quality, normalize_effects
 from ..config import RuntimeConfig
+from ..repositories import RepositorySettings, SelectedRepositorySettings
 from .contracts import ProviderDescriptor, ProviderState
 from .control_center import register_control_center_provider
 from .desktop_commander import register_desktop_commander_provider
@@ -59,6 +61,7 @@ def build_platform_provider_registry(
     nvidia_settings: NvidiaSettings | None = None,
     environment: Mapping[str, str] | None = None,
     control_center_status_source=None,
+    repository_settings_source: Callable[[], RepositorySettings] | None = None,
 ) -> ProviderRegistry:
     """Register approved providers explicitly without building or probing them."""
 
@@ -71,6 +74,7 @@ def build_platform_provider_registry(
         registry,
         settings=github_settings,
         environ=environment,
+        repository_settings_source=repository_settings_source,
     )
     register_nvidia_provider(
         registry,
@@ -88,6 +92,7 @@ def build_platform_provider_service(
     nvidia_settings: NvidiaSettings | None = None,
     environment: Mapping[str, str] | None = None,
     control_center_status_source=None,
+    repository_settings_source: Callable[[], RepositorySettings] | None = None,
 ) -> ProviderService:
     """Build the provider-neutral service over the explicit platform registry."""
 
@@ -98,6 +103,7 @@ def build_platform_provider_service(
             nvidia_settings=nvidia_settings,
             environment=environment,
             control_center_status_source=control_center_status_source,
+            repository_settings_source=repository_settings_source,
         )
     )
 
@@ -145,6 +151,7 @@ class PlatformProviderRuntime:
     service: ProviderService
     settings: ProviderRuntimeSettings
     composition: ProviderRuntimeComposition
+    selected_repository: SelectedRepositorySettings
 
 
 def compose_platform_providers(
@@ -155,8 +162,12 @@ def compose_platform_providers(
     provider_service: ProviderService | None = None,
     provider_runtime_settings: ProviderRuntimeSettings | None = None,
     environment: Mapping[str, str] | None = None,
+    selected_repository: SelectedRepositorySettings | None = None,
 ) -> PlatformProviderRuntime:
     holder: dict[str, object] = {}
+    repository_selection = selected_repository or SelectedRepositorySettings(
+        boundary=Path(runtime_config.project_boundary),
+    )
 
     def current_status():
         active_service = holder.get("service")
@@ -172,12 +183,18 @@ def compose_platform_providers(
         nvidia_settings=nvidia_settings,
         environment=environment,
         control_center_status_source=current_status,
+        repository_settings_source=repository_selection.current,
     )
     holder["service"] = service
     settings = provider_runtime_settings or load_provider_runtime_settings()
     composition = compose_provider_runtime(server, service, settings)
     holder["composition"] = composition
-    return PlatformProviderRuntime(service=service, settings=settings, composition=composition)
+    return PlatformProviderRuntime(
+        service=service,
+        settings=settings,
+        composition=composition,
+        selected_repository=repository_selection,
+    )
 
 def _mount_readiness(result: ProviderMountResult) -> ReadinessSnapshot | None:
     state = {

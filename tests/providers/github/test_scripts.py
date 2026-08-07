@@ -56,6 +56,7 @@ def test_smoke_script_supports_offline_tests_and_explicit_shared_runtime_live_ch
     assert "GITHUB_OAUTH_PAT_CONFLICT" in source
     assert "tests/providers/github" in source
     assert "tests/providers/test_client_runtime.py" in source
+    assert "tests/providers/test_platform_composition.py" in source
     assert "tests/repositories" in source
     assert "kis-repository.settings.json" in source
     assert "scripts/run-provider-live-smoke.py github" in source

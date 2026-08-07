@@ -387,3 +387,59 @@ print(json.dumps({"names": names, "supabase": supabase}, sort_keys=True))
     assert "kis_provider_status" in payload["names"]
     assert payload["supabase"]["registered"] is False
     assert payload["supabase"]["state"] == "unregistered"
+
+
+def test_platform_runtime_owns_live_repository_selection_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = _runtime()
+    service = object()
+    composition = object()
+    runtime_settings = object()
+    captured: dict[str, object] = {}
+
+    class FakeSelection:
+        def __init__(self) -> None:
+            self.value = "first"
+
+        def current(self) -> str:
+            return self.value
+
+        def select(self, value: str) -> None:
+            self.value = value
+
+    selection = FakeSelection()
+
+    def build_selection(*, boundary: Path) -> FakeSelection:
+        captured["selection_boundary"] = boundary
+        return selection
+
+    def build_service(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return service
+
+    monkeypatch.setattr(platform_module, "SelectedRepositorySettings", build_selection)
+    monkeypatch.setattr(platform_module, "build_platform_provider_service", build_service)
+    monkeypatch.setattr(
+        platform_module,
+        "compose_provider_runtime",
+        lambda server, active_service, settings: composition,
+    )
+
+    result = platform_module.compose_platform_providers(
+        object(),
+        runtime_config=runtime,
+        nvidia_settings=platform_module.disabled_nvidia_settings(),
+        provider_runtime_settings=runtime_settings,
+        environment={},
+    )
+
+    assert captured["selection_boundary"] == Path(runtime.project_boundary)
+    source = captured["repository_settings_source"]
+    assert callable(source)
+    assert source() == "first"
+    selection.select("second")
+    assert source() == "second"
+    assert result.selected_repository is selection
+    assert result.service is service
+    assert result.composition is composition

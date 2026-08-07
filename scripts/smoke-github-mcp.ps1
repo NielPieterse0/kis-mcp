@@ -16,7 +16,7 @@ $env:UV_OFFLINE = '1'
 
 Push-Location $RepositoryRoot
 try {
-    & uv run --offline --no-sync python -m pytest tests/providers/github tests/providers/test_client_runtime.py tests/repositories -q
+    & uv run --offline --no-sync python -m pytest tests/providers/github tests/providers/test_client_runtime.py tests/providers/test_platform_composition.py tests/repositories -q
     if ($LASTEXITCODE -ne 0) {
         throw "GitHub provider focused tests failed with exit code $LASTEXITCODE"
     }
