@@ -184,21 +184,68 @@ def test_scoring_is_deterministic_and_explainable_after_filtering() -> None:
     assert intrinsic_quality_score(operation().quality, settings) == 90
 
 
-def test_workflow_recommendation_covers_full_user_task() -> None:
-    resolver = CapabilityResolver(CapabilityCatalogue((contribution(),), (workflow(),)), load_capability_settings())
+def test_workflow_recommendation_excludes_ineligible_candidates() -> None:
+    resolver = CapabilityResolver(
+        CapabilityCatalogue((contribution(),), (workflow(),)),
+        load_capability_settings(),
+    )
 
-    result = resolver.recommend_workflows("review and merge this pull request safely and clean the worktree")
+    result = resolver.recommend_workflows(
+        "review and merge this pull request safely and clean the worktree"
+    )
 
+    assert result == ()
+
+
+def test_workflow_recommendation_returns_candidate_when_all_capabilities_exist() -> None:
+    def ready_probe(contribution_id: str):
+        return lambda: ReadinessSnapshot(
+            contribution_id=contribution_id,
+            state=ReadinessState.READY,
+            summary="ready",
+        )
+
+    github = CapabilityContribution(
+        contribution_id="github-workflow-capabilities",
+        domain=CapabilityDomain.PROVIDER,
+        category="connector",
+        capabilities=("github.pull-request.merge",),
+        operations=(),
+        dependencies=(),
+        effects=(OperationEffect.EXTERNAL,),
+        readiness_probe=ready_probe("github-workflow-capabilities"),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=80),
+        quality=quality(),
+    )
+    validation = CapabilityContribution(
+        contribution_id="validation-capabilities",
+        domain=CapabilityDomain.TOOL,
+        category="validation",
+        capabilities=("validation.execute",),
+        operations=(),
+        dependencies=(),
+        effects=(OperationEffect.PROCESS,),
+        readiness_probe=ready_probe("validation-capabilities"),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=80),
+        quality=quality(),
+    )
+    resolver = CapabilityResolver(
+        CapabilityCatalogue((contribution(), github, validation), (workflow(),)),
+        load_capability_settings(),
+    )
+
+    result = resolver.recommend_workflows(
+        "review and merge this pull request safely and clean the worktree"
+    )
+
+    assert len(result) == 1
     assert result[0].workflow_id == "pull-request-safe-closeout"
     assert result[0].required_steps == (
         "inspect_change",
         "run_verification",
         "github_merge_pull_request",
     )
-    assert result[0].eligible is False
-    assert result[0].missing_capabilities == (
-        "github.pull-request.merge",
-        "validation.execute",
-    )
+    assert result[0].eligible is True
+    assert result[0].missing_capabilities == ()
     assert "activation term match" in result[0].reasons
-    assert "2 capability prerequisites unavailable" in result[0].reasons
+    assert "all capability prerequisites available" in result[0].reasons

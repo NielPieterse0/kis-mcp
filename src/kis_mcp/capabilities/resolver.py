@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from .catalogue import CapabilityCatalogue
 from .contracts import OperationEffect, ReadinessSnapshot, ReadinessState, WorkflowDescriptor
 from .eligibility import evaluate_eligibility
-from .readiness import evaluate_readiness
+from .readiness import available_capabilities, evaluate_readiness
 from .scoring import intrinsic_quality_score, suitability_score
 from .settings import CapabilitySettings
 
@@ -71,16 +71,7 @@ class CapabilityResolver:
         self.readiness = evaluate_readiness(catalogue.contributions)
 
     def _available_capabilities(self) -> frozenset[str]:
-        return frozenset(
-            capability
-            for contribution in self.catalogue.contributions
-            if self.readiness[contribution.contribution_id].operational
-            and (
-                not contribution.operations
-                or any(operation.enabled for operation in contribution.operations)
-            )
-            for capability in contribution.capabilities
-        )
+        return available_capabilities(self.catalogue.contributions, self.readiness)
 
     def recommend_operations(self, context: TaskContext) -> tuple[OperationRecommendation, ...]:
         available = self._available_capabilities()
@@ -163,19 +154,14 @@ class CapabilityResolver:
                     if capability not in available
                 )
             )
-            coverage = round(
-                100
-                * (len(workflow.capabilities) - len(missing))
-                / len(workflow.capabilities)
-            )
-            score = round(0.75 * best + 0.25 * coverage)
-            reasons = ["activation term match"]
             if missing:
-                reasons.append(
-                    f"{len(missing)} capability prerequisites unavailable"
-                )
-            else:
-                reasons.append("all capability prerequisites available")
+                continue
+            coverage = 100
+            score = round(0.75 * best + 0.25 * coverage)
+            reasons = [
+                "activation term match",
+                "all capability prerequisites available",
+            ]
             recommendations.append(
                 WorkflowRecommendation(
                     workflow_id=workflow.workflow_id,

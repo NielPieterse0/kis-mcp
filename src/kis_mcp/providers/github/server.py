@@ -270,6 +270,44 @@ def register_github_provider(
         source_revision=runtime.source_revision,
         capabilities=(
             ProviderCapability(
+                capability_id="github.actions.read",
+                description=(
+                    "Read GitHub Actions workflow runs and jobs through the official "
+                    "GitHub MCP provider."
+                ),
+                effects=("external_network", "repository_read"),
+                tool_names=("actions_get", "actions_list"),
+            ),
+            ProviderCapability(
+                capability_id="github.actions.trigger",
+                description=(
+                    "Trigger bounded GitHub Actions workflow operations through the "
+                    "official GitHub MCP provider."
+                ),
+                effects=("external_network", "repository_write"),
+                tool_names=("actions_run_trigger",),
+            ),
+            ProviderCapability(
+                capability_id="github.pull-request.create",
+                description="Create a pull request through the official GitHub MCP provider.",
+                effects=("external_network", "repository_write"),
+                tool_names=("create_pull_request",),
+            ),
+            ProviderCapability(
+                capability_id="github.pull-request.merge",
+                description="Merge a pull request through the official GitHub MCP provider.",
+                effects=("external_network", "repository_write"),
+                tool_names=("merge_pull_request",),
+            ),
+            ProviderCapability(
+                capability_id="github.review",
+                description=(
+                    "Submit pull-request review state through the official GitHub MCP provider."
+                ),
+                effects=("external_network", "repository_write"),
+                tool_names=("pull_request_review_write",),
+            ),
+            ProviderCapability(
                 capability_id="project_management.read",
                 description=(
                     "Read GitHub Project metadata, fields, and items through the "
