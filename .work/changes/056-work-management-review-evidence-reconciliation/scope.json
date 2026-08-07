@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "change_id": "056-work-management-review-evidence-reconciliation",
+  "status": "active",
+  "branch": "change/056-work-management-review-evidence-reconciliation",
+  "worktree": ".work/worktrees/056-work-management-review-evidence-reconciliation",
+  "base": "main",
+  "outcome": "Reconcile change 055 post-merge review evidence and documentation evidence",
+  "owned_paths": [
+    ".work/changes/056-work-management-review-evidence-reconciliation/**"
+  ],
+  "shared_paths": [
+    ".work/changes/055-work-management-review-evidence/closeout.md",
+    ".work/changes/055-work-management-review-evidence/tasks.md",
+    ".work/changes/055-work-management-review-evidence/scope.json"
+  ],
+  "excluded_paths": [
+    ".work/changes/040-context7-serena-adapters/**",
+    "policy/**",
+    "src/**",
+    "tests/**",
+    ".github/**"
+  ],
+  "dependencies": [
+    "055-work-management-review-evidence"
+  ],
+  "integration_owner": null
+}
