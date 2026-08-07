@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "060-runtime-state-atomic-replace",
+  "status": "closed",
+  "branch": "change/060-runtime-state-atomic-replace",
+  "worktree": ".work/worktrees/060-runtime-state-atomic-replace",
+  "base": "main",
+  "outcome": "Fix existing current.json atomic replacement so repeated instance startup can update lifecycle state without failing before preflight",
+  "owned_paths": [
+    "scripts/startup-instance-lifecycle.ps1",
+    "tests/test_startup_scripts.py",
+    ".work/changes/060-runtime-state-atomic-replace/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

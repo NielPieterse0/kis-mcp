@@ -369,7 +369,7 @@ function Write-KisMcpAtomicJson {
     $Temporary = "$Path.next-$([Guid]::NewGuid().ToString('N'))"
     [System.IO.File]::WriteAllText($Temporary, ($Document | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
     if (Test-Path -LiteralPath $Path -PathType Leaf) {
-        [System.IO.File]::Replace($Temporary, $Path, $null)
+        [System.IO.File]::Move($Temporary, $Path, $true)
     }
     else {
         [System.IO.File]::Move($Temporary, $Path)
