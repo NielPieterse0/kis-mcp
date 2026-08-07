@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "079-workflow-discovery-bridge",
+  "status": "active",
+  "branch": "change/079-workflow-discovery-bridge",
+  "worktree": ".work/worktrees/079-workflow-discovery-bridge",
+  "base": "main",
+  "outcome": "Implement bounded Discover change planning and Discover-to-Work verification execution with workflow hardening",
+  "owned_paths": [
+    "src/kis_mcp/discover/planning.py",
+    "src/kis_mcp/discover/planning_contracts.py",
+    "src/kis_mcp/discover/platform.py",
+    "src/kis_mcp/discover/tools.py",
+    "src/kis_mcp/gateway/operations.py",
+    "src/kis_mcp/workflows/verification/**",
+    "tests/discover/test_plan_change.py",
+    "tests/discover/test_tools.py",
+    "tests/discover/test_tool_registration.py",
+    "tests/gateway/test_operations.py",
+    "tests/workflows/verification/**",
+    "docs/development/workflow-discovery-bridge.md",
+    ".work/changes/079-workflow-discovery-bridge/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/workflows/platform.py",
+    "settings/capabilities.settings.json"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
