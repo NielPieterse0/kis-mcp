@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from fastmcp import FastMCP
+from fastmcp import Client, FastMCP
 from fastmcp.client.transports import StdioTransport
-from fastmcp.server.providers.proxy import ProxyProvider, StatefulProxyClient
 
 from kis_mcp.providers import (
     ProviderBoundary,
@@ -19,8 +18,17 @@ from kis_mcp.providers import (
     ProviderRegistry,
     ProviderState,
 )
+from kis_mcp.providers.client_runtime import (
+    PersistentClientProxyProvider,
+    ProviderStartupCall,
+)
+from kis_mcp.repositories import RepositorySettings, load_repository_settings
 
-from .scope import GitHubRepositoryScope, GitHubRepositoryScopeMiddleware
+from .routing import (
+    GitHubRepositoryRouting,
+    GitHubRepositoryRoutingMiddleware,
+    RepositorySettingsSource,
+)
 from .settings import GitHubProviderSettings, load_github_provider_settings
 
 
@@ -42,8 +50,9 @@ class GitHubProviderHealth:
     pat_override_present: bool
     authenticated: str
     toolsets: tuple[str, ...]
-    approved_repositories: tuple[str, ...]
-    schema_version: int = 2
+    client_lifetime: str = "runtime"
+    auth_bootstrap_tool: str = "get_me"
+    schema_version: int = 3
 
 
 def github_provider_environment(
@@ -80,7 +89,6 @@ def github_provider_health(
         pat_override_present=pat_override_present,
         authenticated=_NOT_VERIFIED,
         toolsets=settings.toolsets,
-        approved_repositories=settings.approved_repositories,
     )
 
 
@@ -129,20 +137,20 @@ def github_provider_readiness(
     else:
         state = ProviderState.READY
         summary = (
-            "GitHub MCP is ready; authenticate with OAuth before live operations."
+            "GitHub MCP is ready; one OAuth login is required when kis-op starts."
         )
         user_status = {
             "state": "ready_authentication_required",
             "label": "Ready — authentication required",
             "required_action": (
-                "Sign in to GitHub through the configured OAuth flow before live "
-                "operations."
+                "Sign in once when kis-op starts; GitHub operations then reuse the "
+                "runtime-scoped connection."
             ),
         }
         commissioning = {
             "installed": "ready",
             "configured": "ready",
-            "authenticated": "required",
+            "authenticated": "required_at_runtime_start",
             "upstream_connected": "pending_authentication",
             "tools_discovered": "pending_authentication",
             "live_verified": "pending_authentication",
@@ -159,7 +167,8 @@ def github_provider_readiness(
             "pat_override_present": health.pat_override_present,
             "authenticated": health.authenticated,
             "toolsets": health.toolsets,
-            "approved_repositories": health.approved_repositories,
+            "client_lifetime": health.client_lifetime,
+            "auth_bootstrap_tool": health.auth_bootstrap_tool,
             "user_status": user_status,
             "commissioning": commissioning,
         },
@@ -171,6 +180,8 @@ def build_github_provider_server(
     *,
     environ: Mapping[str, str] | None = None,
     validate_executable: bool = True,
+    repository_settings_source: RepositorySettingsSource | None = None,
+    client_factory: Callable[[Any], Any] = Client,
 ) -> FastMCP:
     runtime = settings or load_github_provider_settings()
     executable = Path(runtime.executable)
@@ -187,18 +198,17 @@ def build_github_provider_server(
         cwd=str(executable.parent),
         env=provider_environment,
     )
-    upstream_client = StatefulProxyClient(transport)
-    server = FastMCP("kis-mcp-github")
-    server.add_provider(ProxyProvider(upstream_client.new_stateful))
-    scope = GitHubRepositoryScope(
-        runtime.approved_repositories,
-        (*runtime.unscoped_tools, "kis_github_health"),
-        tuple(
-            (project.owner, project.owner_type, project.project_number)
-            for project in runtime.approved_projects
-        ),
+    upstream_client = client_factory(transport)
+    provider = PersistentClientProxyProvider(
+        upstream_client,
+        startup_call=ProviderStartupCall("get_me"),
     )
-    server.add_middleware(GitHubRepositoryScopeMiddleware(scope))
+    server = FastMCP("kis-mcp-github")
+    server.add_provider(provider)
+
+    source = repository_settings_source or load_repository_settings
+    routing = GitHubRepositoryRouting(source)
+    server.add_middleware(GitHubRepositoryRoutingMiddleware(routing))
 
     @server.tool
     def kis_github_health() -> GitHubProviderHealth:
@@ -214,6 +224,7 @@ def register_github_provider(
     settings: GitHubProviderSettings | None = None,
     *,
     environ: Mapping[str, str] | None = None,
+    repository_settings_source: RepositorySettingsSource | None = None,
 ) -> ProviderDescriptor:
     runtime = settings or load_github_provider_settings()
     descriptor = ProviderDescriptor(
@@ -227,8 +238,8 @@ def register_github_provider(
             ProviderCapability(
                 capability_id="repository.remote_read_write",
                 description=(
-                    "Read and write approved private GitHub repositories through "
-                    "the official GitHub MCP provider."
+                    "Read and write the explicitly selected private GitHub repository "
+                    "through the official GitHub MCP provider."
                 ),
                 effects=("external_network", "repository_read", "repository_write"),
             ),
@@ -244,14 +255,18 @@ def register_github_provider(
             ProviderCapability(
                 capability_id="project_management.write",
                 description=(
-                    "Add approved issues or pull requests to configured GitHub Projects "
+                    "Add issues or pull requests to repository-bound GitHub Projects "
                     "and update bounded Project item fields."
                 ),
                 effects=("external_network", "project_write"),
                 tool_names=("projects_write",),
             ),
         ),
-        builder=lambda: build_github_provider_server(runtime, environ=environ),
+        builder=lambda: build_github_provider_server(
+            runtime,
+            environ=environ,
+            repository_settings_source=repository_settings_source,
+        ),
         readiness_probe=lambda: github_provider_readiness(runtime, environ),
     )
     return registry.register(descriptor)
