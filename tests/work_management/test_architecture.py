@@ -35,6 +35,7 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
         "records.py",
         "reviews.py",
         "selection.py",
+        "settings.py",
         "traceability.py",
     }
 

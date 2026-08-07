@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/work-management/github-projects.settings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "portfolio_id",
+    "managed_projects",
+    "backend_bindings",
+    "features",
+    "automation",
+    "gates",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "portfolio_id": {"$ref": "#/$defs/identifier"},
+    "managed_projects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/managedProject"}
+    },
+    "backend_bindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/backendBinding"}
+    },
+    "features": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/settingName"},
+      "additionalProperties": {
+        "enum": ["disabled", "read_only", "enabled"]
+      }
+    },
+    "automation": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/settingName"},
+      "additionalProperties": {"type": "boolean"}
+    },
+    "gates": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/settingName"},
+      "additionalProperties": {
+        "enum": ["off", "advisory", "required"]
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_file_bytes", "max_total_bytes"],
+      "properties": {
+        "max_file_bytes": {"type": "integer", "minimum": 1},
+        "max_total_bytes": {"type": "integer", "minimum": 1}
+      }
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "settingName": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "managedProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "local_root",
+        "repository",
+        "backend_binding",
+        "display_name"
+      ],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/identifier"},
+        "local_root": {"type": "string", "minLength": 3},
+        "repository": {"type": "string", "pattern": "^[^\\s/]+/[^\\s/]+$"},
+        "backend_binding": {"$ref": "#/$defs/identifier"},
+        "display_name": {
+          "anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+        }
+      }
+    },
+    "backendBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "provider",
+        "owner",
+        "owner_type",
+        "project_number"
+      ],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/identifier"},
+        "provider": {"$ref": "#/$defs/identifier"},
+        "owner": {"type": "string", "minLength": 1},
+        "owner_type": {"enum": ["user", "org"]},
+        "project_number": {
+          "anyOf": [
+            {"type": "integer", "minimum": 1},
+            {"type": "null"}
+          ]
+        }
+      }
+    }
+  }
+}

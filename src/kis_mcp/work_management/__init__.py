@@ -71,6 +71,14 @@ from .reviews import (
     transition_finding,
 )
 from .selection import CandidateEvaluation, WorkSelection, select_next_work
+from .settings import (
+    BackendBindingSettings,
+    EvidenceSettings,
+    FeatureMode,
+    GateMode,
+    WorkManagementSettings,
+    load_work_management_settings,
+)
 from .traceability import (
     CloseoutEvidence,
     DocumentationReconciliationEvent,
@@ -96,6 +104,7 @@ __all__ = [
     "PUBLIC_SCHEMA_VERSION",
     "ApprovalDetails",
     "AssumptionDetails",
+    "BackendBindingSettings",
     "CandidateEvaluation",
     "CaptureWorkItem",
     "CloseoutEvidence",
@@ -104,8 +113,10 @@ __all__ = [
     "DocumentationMilestoneState",
     "DocumentationMode",
     "DocumentationReconciliationEvent",
+    "EvidenceSettings",
     "ExtractionMode",
     "ExtractedReviewRecord",
+    "FeatureMode",
     "FindingDetails",
     "FindingDisposition",
     "FindingRecord",
@@ -114,6 +125,7 @@ __all__ = [
     "FindingTransitionRejected",
     "GovernanceDetails",
     "GovernanceRecord",
+    "GateMode",
     "HoldDetails",
     "ImplementationTrace",
     "IntakeBackend",
@@ -159,6 +171,7 @@ __all__ = [
     "TransitionRejected",
     "VerificationEvidence",
     "VerificationStatus",
+    "WorkManagementSettings",
     "WorkRecord",
     "WorkSelection",
     "apply_documentation_reconciliation_event",
@@ -171,6 +184,7 @@ __all__ = [
     "evaluate_traceability",
     "evaluate_transition",
     "extract_review_records",
+    "load_work_management_settings",
     "select_next_work",
     "transition_finding",
     "transition_record",
