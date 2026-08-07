@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "061-empty-process-preflight",
-  "status": "active",
+  "status": "ready",
   "branch": "change/061-empty-process-preflight",
   "worktree": ".work/worktrees/061-empty-process-preflight",
   "base": "main",
