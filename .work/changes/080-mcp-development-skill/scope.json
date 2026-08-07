@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "change_id": "080-mcp-development-skill",
+  "status": "active",
+  "branch": "change/080-mcp-development-skill",
+  "worktree": ".work/worktrees/080-mcp-development-skill",
+  "base": "main",
+  "outcome": "Create ChatGPT-optimized MCP development and kis-mcp usage skills with progressive disclosure, evaluation evidence, and project-neutral operational guidance",
+  "owned_paths": [
+    ".agents/skills/mcp-development/**",
+    ".agents/skills/kis-mcp/**",
+    "tests/skills/mcp-development/**",
+    "tests/skills/kis-mcp/**",
+    ".work/changes/080-mcp-development-skill/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

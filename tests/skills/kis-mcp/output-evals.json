@@ -68,7 +68,7 @@
     {
       "id": "output-004",
       "prompt": "How should I start kis-dev now, and should normal startup ask me to unlock the kis-mcp secrets vault?",
-      "expected_outcome": "Uses the operator-support runbook, starts development through start-chatgpt.ps1, and explains that current startup hardening uses the stored tunnel credential without normal vault-unlock prompting.",
+      "expected_outcome": "Uses the operator-support runbook and the checked-in/live startup revision. If 077 hardening is present, explains stored tunnel-credential startup without a generic vault-unlock prompt; otherwise labels that behavior as pending rather than deployed.",
       "files": [],
       "assertions": [
         {
@@ -84,7 +84,7 @@
           "method": "human"
         }
       ],
-      "human_review": ["The operator workflow reflects the current startup-hardening slice without relying on stale vault-unlock behavior."]
+      "human_review": ["The operator workflow distinguishes the running/checked-in startup behavior from the still-concurrent 077 target state."]
     }
   ]
 }

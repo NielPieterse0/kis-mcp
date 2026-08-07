@@ -27,9 +27,12 @@ pwsh -NoProfile -File .\scripts\start-chatgpt.ps1 -Instance development
 The supervised launcher owns only the selected instance's server/tunnel process
 and should leave the peer instance alone.
 
-Current startup hardening removes normal vault-unlock prompts: server startup is
-direct, while the tunnel credential is retrieved non-interactively from the
-current Windows user's approved credential entry.
+Startup hardening is being changed concurrently. When the checked-in/live
+`start-chatgpt.ps1` includes the 077 hardening, normal startup should not prompt
+for a generic vault unlock: server startup is direct and the tunnel credential
+is retrieved non-interactively from the current Windows user's approved
+credential entry. On an older instance, follow the current checked-in script and
+report the older behavior rather than presenting the pending change as deployed.
 
 ## Tunnel credential and profile
 
@@ -49,9 +52,11 @@ Use `-BackupExistingProfile` when intentionally replacing an existing profile.
 Use `-ValidateLiveEndpoint` only when the selected local MCP endpoint is already
 running and live validation is intended.
 
-Normal startup should not ask the operator to unlock the generic application
-vault. A missing tunnel credential is a bounded startup/configuration problem;
-do not solve it by writing a secret into repository JSON or profile YAML.
+Under the 077-hardened startup path, normal startup should not ask the operator
+to unlock the generic application vault. A missing tunnel credential remains a
+bounded startup/configuration problem; do not solve it by writing a secret into
+repository JSON or profile YAML. If 077 is not present in the running revision,
+describe that revision's behavior explicitly instead of silently assuming it.
 
 ## Local ChatGPT transport smoke
 

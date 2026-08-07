@@ -55,9 +55,10 @@ Practical rules:
 - merge/review or other approval-sensitive actions may require their original
   workflow and cannot always be sent through generic dispatch.
 
-Ongoing GitHub-tool experience work is improving runtime schema preservation,
-exact description, semantic ranking, workflow eligibility, and bounded provider
-results. Use the live runtime evidence rather than freezing a copied catalogue.
+Recent/concurrent GitHub-tool experience work improves runtime schema
+preservation, exact description, semantic ranking, workflow eligibility, and
+bounded provider results. Use the live runtime evidence rather than freezing a
+copied catalogue or assuming every improvement is present in an older instance.
 
 ## Supabase
 
