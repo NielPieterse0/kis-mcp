@@ -80,7 +80,7 @@ function Get-KisMcpProcessSnapshot {
 }
 
 function Get-KisMcpRootProcessIds {
-    param([Parameter(Mandatory)][object[]]$Processes)
+    param([Parameter(Mandatory)][AllowEmptyCollection()][object[]]$Processes)
 
     $Ids = @{}
     foreach ($Process in $Processes) {
