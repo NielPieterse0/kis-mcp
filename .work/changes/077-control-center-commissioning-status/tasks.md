@@ -14,7 +14,7 @@
 - [x] Run focused tests and architecture/modularity checks.
 - [x] Run change-governance check and canonical repository verification.
 - [x] Review final diff and resolve advisory findings.
-- [ ] Commit/push and create or update PR.
+- [x] Commit/push and create or update PR #88.
 - [ ] Reach PR `ready` state and obtain exact-head landing confirmation.
 - [ ] Merge through the approved PR-completion landing path.
 - [ ] Clean the merged change worktree/branch through `change-workflow.ps1 cleanup`.

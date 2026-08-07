@@ -40,8 +40,9 @@
 
 - Branch: `change/077-control-center-commissioning-status`
 - Worktree: `.work/worktrees/077-control-center-commissioning-status`
-- Commit: final branch head; exact SHA is recorded in Git/PR metadata after commit creation.
-- Pull request or merge: pending PR creation and required exact-head PR completion gate.
+- Commit: branch contains the verified implementation commit plus a non-rewriting merge of current `origin/main`; final exact SHA is recorded in PR metadata after the closeout update commit.
+- Pull request: #88 — `https://github.com/NielPieterse0/kis-mcp/pull/88`.
+- Landing: pending required exact-head PR completion gate; no merge mutation has been requested.
 - Cleanup: pending merge; use `change-workflow.ps1 cleanup 077-control-center-commissioning-status` only from clean `main` after merge.
 
 ## Residual / integration items

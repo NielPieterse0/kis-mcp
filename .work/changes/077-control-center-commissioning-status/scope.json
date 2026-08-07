@@ -4,7 +4,7 @@
   "status": "active",
   "branch": "change/077-control-center-commissioning-status",
   "worktree": ".work/worktrees/077-control-center-commissioning-status",
-  "base": "main",
+  "base": "origin/main",
   "outcome": "Correct Control Center commissioning UI, restore stateless remote MCP startup, and remove runtime vault-unlock coupling",
   "owned_paths": [
     "src/kis_mcp/providers/control_center/provider.py",
