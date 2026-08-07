@@ -91,8 +91,8 @@ def test_missing_read_or_write_tools_disable_only_affected_operations() -> None:
     assert read_only.add_item is False
     assert read_only.update_item is False
     assert write_only.read_inventory is False
-    assert write_only.add_item is True
-    assert write_only.update_item is True
+    assert write_only.add_item is False
+    assert write_only.update_item is False
 
 
 def test_update_preflights_revision_then_updates_changed_fields() -> None:
@@ -180,6 +180,7 @@ def test_revision_conflict_prevents_write() -> None:
 
 def test_create_adds_existing_issue_then_updates_fields() -> None:
     caller = Caller(
+        {"items": [], "pageInfo": {"hasNextPage": False, "nextCursor": None}},
         {"item": {"id": "I_9", "updatedAt": "2026-08-07T00:03:00Z"}},
         {"item": {"id": "I_9", "updatedAt": "2026-08-07T00:04:00Z"}},
     )
@@ -203,6 +204,17 @@ def test_create_adds_existing_issue_then_updates_fields() -> None:
     assert result.success is True
     assert result.provider_revision == "2026-08-07T00:04:00Z"
     assert caller.calls[0] == (
+        "projects_list",
+        {
+            "method": "list_project_items",
+            "owner": "ExampleOwner",
+            "owner_type": "user",
+            "project_number": 12,
+            "per_page": 50,
+            "field_names": ["Status"],
+        },
+    )
+    assert caller.calls[1] == (
         "projects_write",
         {
             "method": "add_project_item",
@@ -215,7 +227,67 @@ def test_create_adds_existing_issue_then_updates_fields() -> None:
             "issue_number": 7,
         },
     )
-    assert caller.calls[1][1]["item_id"] == "I_9"
+    assert caller.calls[2][1]["item_id"] == "I_9"
+
+
+def test_create_deduplicates_existing_source_after_restart() -> None:
+    caller = Caller(
+        {
+            "items": [
+                {
+                    "id": "I_EXISTING",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Existing issue",
+                        "number": 7,
+                        "repository": {"nameWithOwner": "ExampleOwner/alpha"},
+                    },
+                    "fieldValues": {"Status": "Inbox"},
+                }
+            ],
+            "pageInfo": {"hasNextPage": False, "nextCursor": None},
+        },
+        {
+            "item": {
+                "id": "I_EXISTING",
+                "updatedAt": "2026-08-07T00:00:00Z",
+            }
+        },
+        {
+            "item": {
+                "id": "I_EXISTING",
+                "updatedAt": "2026-08-07T00:01:00Z",
+            }
+        },
+    )
+    adapter = GitHubProjectManagementAdapter(
+        caller,
+        {"alpha-project": binding()},
+        available_tools=("projects_get", "projects_list", "projects_write"),
+    )
+
+    result = asyncio.run(
+        adapter.apply_reconciliation(
+            decision(
+                ReconciliationAction.CREATE,
+                external_id=None,
+                observed_revision=None,
+            ),
+            idempotency_key="restart-safe-key",
+        )
+    )
+
+    assert result.success is True
+    assert [name for name, _arguments in caller.calls] == [
+        "projects_list",
+        "projects_get",
+        "projects_write",
+    ]
+    assert all(
+        arguments.get("method") != "add_project_item"
+        for _name, arguments in caller.calls
+    )
+    assert caller.calls[-1][1]["item_id"] == "I_EXISTING"
 
 
 def test_idempotency_replay_returns_same_outcome_without_new_calls() -> None:

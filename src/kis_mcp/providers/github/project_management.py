@@ -9,12 +9,20 @@ from typing import Any
 from ...work_management import (
     ProjectBinding,
     ProjectInventory,
+    ProjectItem,
+    ProjectItemKind,
     ReconciliationAction,
     ReconciliationDecision,
     ReconciliationOutcome,
 )
 from .projects import GitHubProjectInventoryAdapter
-from .projects.adapter import ToolCaller
+from .projects.adapter import (
+    ToolCaller,
+    _nodes,
+    _normalize_item,
+    _page_info,
+    _result_mapping,
+)
 
 _PROJECT_GET = "projects_get"
 _PROJECT_LIST = "projects_list"
@@ -55,8 +63,8 @@ def detect_github_project_capabilities(
     available = set(normalized)
     return GitHubProjectCapabilities(
         read_inventory={_PROJECT_GET, _PROJECT_LIST}.issubset(available),
-        add_item=_PROJECT_WRITE in available,
-        update_item=_PROJECT_WRITE in available,
+        add_item={_PROJECT_LIST, _PROJECT_WRITE}.issubset(available),
+        update_item={_PROJECT_GET, _PROJECT_WRITE}.issubset(available),
         built_in_workflows=False,
         available_tools=normalized,
     )
@@ -165,6 +173,8 @@ class GitHubProjectManagementAdapter:
             page_size=page_size,
             max_pages=max_pages,
         )
+        self._page_size = page_size
+        self._max_pages = max_pages
         self._idempotency: dict[
             str,
             tuple[str, ReconciliationOutcome],
@@ -266,6 +276,24 @@ class GitHubProjectManagementAdapter:
         self._idempotency[idempotency_key] = (_fingerprint(decision), outcome)
         return outcome
 
+    async def _preflight_item(
+        self,
+        binding: ProjectBinding,
+        item_id: str,
+        field_names: tuple[str, ...],
+    ) -> tuple[str, str | None]:
+        item = await self._call(
+            "get_project_item",
+            _PROJECT_GET,
+            {
+                "method": "get_project_item",
+                **self._base(binding),
+                "item_id": item_id,
+                "field_names": list(field_names),
+            },
+        )
+        return _item_id(item, "get_project_item"), _revision(item, "get_project_item")
+
     async def _preflight_update(
         self,
         binding: ProjectBinding,
@@ -275,26 +303,22 @@ class GitHubProjectManagementAdapter:
             raise GitHubProjectManagementError(
                 "GITHUB_PROJECT_MANAGEMENT_INVALID_COMMAND: update requires external_id"
             )
-        item = await self._call(
-            "get_project_item",
-            _PROJECT_GET,
-            {
-                "method": "get_project_item",
-                **self._base(binding),
-                "item_id": decision.external_id,
-                "field_names": list(decision.changed_fields),
-            },
+        return await self._preflight_item(
+            binding,
+            decision.external_id,
+            decision.changed_fields,
         )
-        return _item_id(item, "get_project_item"), _revision(item, "get_project_item")
 
     async def _update_fields(
         self,
         binding: ProjectBinding,
         decision: ReconciliationDecision,
         item_id: str,
+        *,
+        initial_revision: str | None = None,
     ) -> str | None:
         desired = dict(decision.desired_fields)
-        latest_revision = decision.observed_revision
+        latest_revision = initial_revision or decision.observed_revision
         for field_name in decision.changed_fields:
             item = await self._call(
                 "update_project_item",
@@ -311,6 +335,71 @@ class GitHubProjectManagementAdapter:
             )
             latest_revision = _revision(item, "update_project_item") or latest_revision
         return latest_revision
+
+    async def _source_matches(
+        self,
+        binding: ProjectBinding,
+        decision: ReconciliationDecision,
+    ) -> tuple[ProjectItem, ...]:
+        if (
+            decision.source_repository is None
+            or decision.source_number is None
+            or decision.source_kind is None
+        ):
+            raise GitHubProjectManagementError(
+                "GITHUB_PROJECT_MANAGEMENT_INVALID_COMMAND: create requires source identity"
+            )
+        expected_kind = (
+            ProjectItemKind.ISSUE
+            if decision.source_kind == "issue"
+            else ProjectItemKind.PULL_REQUEST
+        )
+        matches: list[ProjectItem] = []
+        cursor: str | None = None
+        for _page in range(self._max_pages):
+            arguments: dict[str, Any] = {
+                "method": "list_project_items",
+                **self._base(binding),
+                "per_page": self._page_size,
+                "field_names": list(decision.changed_fields),
+            }
+            if cursor is not None:
+                arguments["after"] = cursor
+            try:
+                raw = await self._caller.call_tool(_PROJECT_LIST, arguments)
+                document = _result_mapping(raw, "list_project_items")
+                raw_items, page_source = _nodes(
+                    document,
+                    "items",
+                    "list_project_items",
+                )
+                items = tuple(
+                    _normalize_item(item, "list_project_items")
+                    for item in raw_items
+                )
+                has_next, cursor = _page_info(
+                    page_source,
+                    "list_project_items",
+                )
+            except Exception as exc:
+                raise GitHubProjectManagementError(
+                    "GITHUB_PROJECT_MANAGEMENT_FAILED: "
+                    f"list_project_items: {type(exc).__name__}"
+                ) from exc
+            matches.extend(
+                item
+                for item in items
+                if item.kind is expected_kind
+                and item.number == decision.source_number
+                and item.repository is not None
+                and item.repository.casefold()
+                == decision.source_repository.casefold()
+            )
+            if not has_next:
+                return tuple(matches)
+        raise GitHubProjectManagementError(
+            "GITHUB_PROJECT_MANAGEMENT_INCOMPLETE: item inventory exceeded max_pages"
+        )
 
     async def _create_item(
         self,
@@ -354,10 +443,54 @@ class GitHubProjectManagementAdapter:
         binding = self._binding(decision.project_id)
         if decision.action is ReconciliationAction.CREATE:
             if not self.capabilities.add_item:
-                return self._unsupported(decision, "projects_write add capability is unavailable")
-            item_id, revision = await self._create_item(binding, decision)
-            if decision.changed_fields:
-                revision = await self._update_fields(binding, decision, item_id)
+                return self._unsupported(
+                    decision,
+                    "projects_list and projects_write add capabilities are required",
+                )
+            matches = await self._source_matches(binding, decision)
+            if len(matches) > 1:
+                return self._remember(
+                    idempotency_key,
+                    decision,
+                    ReconciliationOutcome(
+                        project_id=decision.project_id,
+                        record_id=decision.record_id,
+                        action=ReconciliationAction.CONFLICT,
+                        applied=False,
+                        success=False,
+                        message="multiple Project items match the same source record",
+                    ),
+                )
+            if matches:
+                item_id, current_revision = await self._preflight_item(
+                    binding,
+                    matches[0].item_id,
+                    decision.changed_fields,
+                )
+                if not decision.changed_fields:
+                    return self._remember(
+                        idempotency_key,
+                        decision,
+                        ReconciliationOutcome(
+                            project_id=decision.project_id,
+                            record_id=decision.record_id,
+                            action=ReconciliationAction.NOOP,
+                            applied=False,
+                            success=True,
+                            provider_revision=current_revision,
+                            message="source record is already present in the Project",
+                        ),
+                    )
+                revision = await self._update_fields(
+                    binding,
+                    decision,
+                    item_id,
+                    initial_revision=current_revision,
+                )
+            else:
+                item_id, revision = await self._create_item(binding, decision)
+                if decision.changed_fields:
+                    revision = await self._update_fields(binding, decision, item_id)
         elif decision.action is ReconciliationAction.UPDATE:
             if not self.capabilities.update_item:
                 return self._unsupported(decision, "projects_write update capability is unavailable")

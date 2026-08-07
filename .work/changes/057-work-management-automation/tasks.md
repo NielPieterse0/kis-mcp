@@ -15,7 +15,7 @@
 - [x] Task 2 — atomic review evidence persistence.
 - [x] Task 3 — reconciliation, service facade, and portfolio status.
 - [x] Task 4 — narrow GitHub Project adapter.
-- [ ] Task 5 — fixed-shape CLI, CI gates, workflow descriptors, and platform composition.
+- [x] Task 5 — fixed-shape CLI, CI gates, workflow descriptors, and platform composition.
 - [ ] Task 6 — documentation, review, commissioning, PR, merge, reconciliation, and cleanup.
 
 ## Required final evidence

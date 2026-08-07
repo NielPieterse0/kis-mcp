@@ -1,0 +1,76 @@
+name: Work Management
+
+on:
+  workflow_call:
+    inputs:
+      run_full_verification:
+        description: Run the canonical repository verifier after focused P5 checks.
+        required: false
+        default: true
+        type: boolean
+  workflow_dispatch:
+    inputs:
+      run_full_verification:
+        description: Run the canonical repository verifier after focused P5 checks.
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: work-management-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate P5 at exact revision
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      UV_NO_PROGRESS: "1"
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Synchronize locked environment
+        shell: pwsh
+        run: uv sync --locked --all-groups
+
+      - name: Validate work-management settings
+        shell: pwsh
+        run: >-
+          uv run --frozen --no-sync python scripts/project_workflow.py settings
+          --settings settings/work-management/github-projects.settings.json
+          --revision $env:GITHUB_SHA
+
+      - name: Validate governance claims
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/change-workflow.ps1 validate
+
+      - name: Run focused P5 tests
+        shell: pwsh
+        run: >-
+          uv run --frozen --no-sync pytest
+          tests/work_management
+          tests/providers/test_github_project_management.py
+          tests/providers/github/test_scope.py
+          tests/providers/github/test_server.py
+          tests/workflows/project_management
+          tests/capabilities/test_domain_platforms.py
+
+      - name: Run canonical repository verification
+        if: ${{ inputs.run_full_verification != false }}
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/verify.ps1

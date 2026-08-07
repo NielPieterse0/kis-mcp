@@ -29,7 +29,8 @@
                         "docs/OPERATIONS.md",
                         "docs/PLATFORM-CONCEPT.md",
                         "src/kis_mcp/providers/github/server.py",
-                        "tests/providers/github/test_server.py"
+                        "tests/providers/github/test_server.py",
+                        "src/kis_mcp/project_workflow_cli.py"
                     ],
     "shared_paths":  [
 

@@ -14,7 +14,7 @@
   "backend_bindings": [
     {
       "binding_id": "github-default",
-      "provider": "github",
+      "provider": "github-mcp",
       "owner": "NielPieterse0",
       "owner_type": "user",
       "project_number": null
