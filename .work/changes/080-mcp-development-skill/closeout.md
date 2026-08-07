@@ -40,9 +40,11 @@
 - Branch: `change/080-mcp-development-skill`
 - Worktree: `.work/worktrees/080-mcp-development-skill`
 - First sub-slice commits: `cd5cc48` (`docs: add consolidated MCP development skill`) and `bea7d75` (`docs: record MCP skill slice verification`).
-- Second-skill commit: pending final combined verification.
-- Pull request: deferred until the combined verification below passes; then raise the 080 PR without merging it in this task.
-- Cleanup: not applicable while the branch remains active and unmerged.
+- Second-skill local commits: `4ec617f` (`docs: add kis-mcp operational skill`) and `df9d56a` (`docs: align skills with concurrent runtime changes`).
+- Remote publication: branch `change/080-mcp-development-skill` was created from current remote `main` and published through the authenticated GitHub provider because local Work correctly prohibits network push.
+- Remote published head before this handoff update: `0a31ca18dda40e55a02715597b5af7329ddb296f`.
+- Pull request: #91 — `Add MCP development and kis-mcp operational skills`; opened and intentionally not merged.
+- Cleanup: not applicable while PR #91 remains open and the branch/worktree remain active.
 
 ## Residual items
 

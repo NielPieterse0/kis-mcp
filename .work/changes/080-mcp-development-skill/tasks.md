@@ -16,5 +16,5 @@
 - [x] Run structural validation for the second skill package and evaluation JSON.
 - [x] Run combined `git diff --check`, scope check, focused Skills tests, and full repository verification.
 - [x] Review new skill content for stale target-state wording, real project bindings, and reference completeness; no real project/provider binding was embedded.
-- [ ] Commit the second skill/final verification record and raise the deferred PR.
+- [x] Commit the second skill/final verification record (`4ec617f`, concurrency alignment `df9d56a`) and raise PR #91.
 - [ ] Merge and safe-cleanup only after normal PR review/exact-head approval.

@@ -101,9 +101,10 @@
 
 ### Task 6: Combined verification and PR preparation
 
-- [ ] Run `git diff --check` and `scripts/change-workflow.ps1 check`.
-- [ ] Run the locked-interpreter Skills regression suite.
-- [ ] Run full `scripts/verify.ps1` after final change-artifact updates.
-- [ ] Review the final diff for scope, stale implementation claims, hard-coded project bindings, and missing references.
-- [ ] Commit the second skill and final verification record.
-- [ ] Raise the deferred PR for the complete 080 branch; do not merge without normal PR review/exact-head evidence.
+- [x] Run `git diff --check` and `scripts/change-workflow.ps1 check`.
+- [x] Run the locked-interpreter Skills regression suite.
+- [x] Run full `scripts/verify.ps1` after final skill/content updates.
+- [x] Review the final diff for scope, stale implementation claims, hard-coded project bindings, and missing references.
+- [x] Commit the second skill and concurrency-alignment record.
+- [x] Publish the verified files from current remote `main` through the authenticated GitHub provider and raise PR #91.
+- [ ] Merge only after normal PR review/exact-head evidence; cleanup only after merge.
