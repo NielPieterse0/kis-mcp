@@ -56,7 +56,7 @@ Implemented P5 work-management persistence, deterministic reconciliation, portfo
 - Final documentation and review commit: `537cfc38c2c6adc49b0cf7b3e90dff7323a2e9fe`
 - Implementation pull request: `#70` — merged
 - Implementation merge commit: `25b93a5e9ad6d451602bdf9a6ddaec505cd30178`
-- Post-merge reconciliation: recorded on this branch; closure pull request pending\n- Governed cleanup: pending closure merge
+- Post-merge reconciliation commit: `fd1be81736f24b97a993a0a2d6f5ad38be6b25f2`\n- Closure pull request: `#71`\n- Governed cleanup: pending closure merge
 
 ## Residual items
 
