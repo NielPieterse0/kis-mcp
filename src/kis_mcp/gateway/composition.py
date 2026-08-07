@@ -13,10 +13,7 @@ from ..capabilities.catalogue import CapabilityCatalogue
 from ..capabilities.exposure import ExposureMiddleware, ExposurePlanner
 from ..capabilities.runtime import CapabilityRuntimeState
 from ..capabilities.settings import load_capability_settings
-from ..capabilities.surface import (
-    augment_with_runtime_surface,
-    capability_control_contribution,
-)
+from ..capabilities.surface import capability_control_contribution
 from ..capabilities.tools import register_capability_tools
 from ..config import RuntimeConfig, load_runtime_config
 from ..desktop_commander import DesktopCommanderEffectResolver
@@ -55,10 +52,6 @@ def _listed_tools(server: FastMCP) -> list[Any]:
     return list(asyncio.run(server.list_tools()))
 
 
-def _listed_local_tools(server: FastMCP) -> list[Any]:
-    return list(asyncio.run(server.local_provider.list_tools()))
-
-
 def compose_gateway(
     config: RuntimeConfig | None = None,
     *,
@@ -87,11 +80,6 @@ def compose_gateway(
         env=environment,
     )
     server = create_proxy_fn(ProxyClient(transport), name=runtime.server_name)
-
-    # Capture the existing Work backend before mounting external providers. This
-    # may inspect Desktop Commander, but cannot create a disposable GitHub MCP
-    # subprocess because GitHub has not been mounted yet.
-    core_runtime_tools = _listed_tools(server)
 
     register_platform_discover(server, runtime)
     providers = compose_platform_providers(
@@ -150,21 +138,20 @@ def compose_gateway(
     namespaces = {
         item.provider_id: item.namespace for item in providers.composition.results
     }
-    static_runtime_tools = (
-        *core_runtime_tools,
-        *_listed_local_tools(server),
-    )
-    contributions = augment_with_runtime_surface(
-        base_contributions,
-        static_runtime_tools,
-        namespaces,
-    )
+
+    # Preserve the existing mounted-provider/local runtime surface. The GitHub
+    # persistent proxy contributes no upstream tools while its lifespan is IDLE,
+    # so this aggregate list cannot spawn a disposable GitHub MCP subprocess.
+    static_runtime_tools = tuple(_listed_tools(server))
     capabilities = CapabilityRuntimeState.build(
-        CapabilityCatalogue(contributions, workflow_descriptors()),
+        CapabilityCatalogue(base_contributions, workflow_descriptors()),
         settings,
-        runtime_tools_source=lambda: provider_runtime_tools(
-            providers.service,
-            providers.composition,
+        runtime_tools_source=lambda: (
+            *static_runtime_tools,
+            *provider_runtime_tools(
+                providers.service,
+                providers.composition,
+            ),
         ),
         provider_namespaces=namespaces,
     )
