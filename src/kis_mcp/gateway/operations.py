@@ -11,6 +11,7 @@ from ..models import HealthResponse, QuarantineListResponse, QuarantineResponse
 from ..providers.runtime import ProviderRuntimeComposition, provider_runtime_status
 from ..providers.service import ProviderService
 from ..quarantine import QuarantineError, QuarantineService
+from ..workflows.verification.platform import register_platform_verification
 from .foundation import health_response, quarantine_payload, quarantine_response
 
 
@@ -50,6 +51,8 @@ def register_gateway_operations(
             return quarantine_response(quarantine.restore(operation_id))
         except QuarantineError as exc:
             raise ToolError(f"HR-003_QUARANTINE_FAILED: {exc}") from exc
+
+    register_platform_verification(server, runtime)
 
     status_server = FastMCP("kis-mcp-provider-status")
 
