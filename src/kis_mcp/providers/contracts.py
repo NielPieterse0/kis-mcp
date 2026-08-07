@@ -184,9 +184,9 @@ class ProviderDescriptor:
     capabilities: tuple[ProviderCapability, ...]
     builder: ProviderBuilder
     readiness_probe: ProviderReadinessProbe
-    runtime_tools_probe: ProviderRuntimeToolsProbe | None = None
     enabled: bool = True
     schema_version: int = PUBLIC_SCHEMA_VERSION
+    runtime_tools_probe: ProviderRuntimeToolsProbe | None = None
 
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
