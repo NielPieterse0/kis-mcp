@@ -44,6 +44,6 @@ Current executable evidence is now substantial:
 - The final reporting-only correction was developed RED/GREEN: the new assertion failed while `live_verified` was `not_verified`, then passed after the readiness mapping was corrected. The required five-file focused suite then passed 48 tests and the canonical verifier passed again.
 - The Codex CLI review backend was requested for the final reporting delta but was unavailable (`AGENT_BACKEND_UNAVAILABLE`); no claim of a Codex review pass is made.
 
-## Landing gate
+## Landing and closeout
 
-The implementation and commissioning evidence are complete and `scope.json` is `ready`. The only remaining pre-merge gate is a successful exact-head Windows Work Management run for the final governed metadata head. After that pass, PR #76 may be made ready and merged with its exact head pinned. Post-merge work is limited to updating and verifying local `main`, reconciling the final merge evidence, and governed cleanup of this merged worktree/branch. No policy change or permanent artifact deletion is part of this slice.
+Exact-head Windows Work Management run #7 passed on final PR head `f234f5e48fc57c17fe106e558909a4d2513d35f7`. PR #76 was moved out of draft with no review threads and clean mergeability, then merged on 2026-08-07 as GitHub merge commit `57f314caa959ae40d9dec57f911d26eea78d785f`. Local `main` was updated from the verified equivalent governed branch tree and is subject to the canonical post-merge verifier before cleanup. The claim is now `closed`; governed cleanup may remove only the merged clean 061 worktree and local branch. No policy change or permanent artifact deletion is part of this slice.
