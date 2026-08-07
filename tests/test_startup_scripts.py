@@ -19,7 +19,12 @@ def _document(name: str) -> str:
 def _run_startup_lifecycle(expression: str) -> subprocess.CompletedProcess[str]:
     script_path = (SCRIPTS / "startup-instance-lifecycle.ps1").as_posix()
     return subprocess.run(
-        ["pwsh", "-NoProfile", "-Command", f". '{script_path}'; {expression}"],
+        [
+            "pwsh",
+            "-NoProfile",
+            "-Command",
+            f"$ErrorActionPreference='Stop'; . '{script_path}'; {expression}",
+        ],
         cwd=REPOSITORY_ROOT,
         capture_output=True,
         text=True,
