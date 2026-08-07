@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "062-discover-git-evidence",
-  "status": "active",
+  "status": "closed",
   "branch": "change/062-discover-git-evidence",
   "worktree": ".work/worktrees/062-discover-git-evidence",
   "base": "origin/main",
