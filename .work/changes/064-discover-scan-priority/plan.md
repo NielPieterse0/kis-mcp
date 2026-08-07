@@ -30,6 +30,7 @@ Separate safe candidate traversal from deterministic evidence-budget selection s
 ### T4 — Review and verify
 - Run focused selector/scanner tests.
 - Run full Discover + architecture-boundary suites.
+- Repair the repository Skills-root verifier if generic `.agents` evidence triggers its guard; keep the guard specific to `.agents\\skills` root references and add regressions.
 - Run governed scope check and `git diff --check`.
 - Static/code/simplicity review final diff.
 - Commit, push, PR, exact-head Work Management full verification, merge, governed closeout.

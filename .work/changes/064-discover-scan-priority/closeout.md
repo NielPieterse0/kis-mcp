@@ -21,7 +21,9 @@ Active. Governance artifacts registered before implementation edits.
 - Static Python project review returned zero findings on the final implementation state.
 - Simplicity/efficiency review rejected an earlier post-traversal candidate-selection design because it weakened the practical early-stop value of `max_files`; the final design keeps every existing resource bound during traversal and changes only deterministic visitation priority.
 - Review also caught and fixed a priority-precedence defect that would have promoted auxiliary `.agents/.../SKILL.md` files as generic Markdown; an explicit regression now preserves auxiliary paths at the lowest tier.
+- Exact-head local repository verification initially exposed an unrelated overbroad Skills-root guard: both `scripts/verify.ps1` and `tests/test_repository_scope.py` treated any `.agents` path label as a runtime Skills-root reference. RED evidence reproduced both failures; the guard now targets `.agents\\skills` references only while retaining canonical-root validation.
+- Fresh final `scripts/verify.ps1` passed on the amended worktree: configuration, line endings, interpreter, dependencies, Python syntax, change governance, full pytest, and verification all green.
 
 ## Landing
 
-Pending implementation commit, push, PR, exact-head Work Management full verification, merge, and governed closeout.
+Pending amended commit publication, exact-head remote Work Management verification, merge, and governed closeout.

@@ -11,6 +11,9 @@
     "src/kis_mcp/discover/scan_selection.py",
     "tests/discover/test_scanner.py",
     "tests/discover/test_scan_selection.py",
+    "scripts/verify.ps1",
+    "tests/skills/test_architecture.py",
+    "tests/test_repository_scope.py",
     ".work/changes/064-discover-scan-priority/**"
   ],
   "shared_paths": [],

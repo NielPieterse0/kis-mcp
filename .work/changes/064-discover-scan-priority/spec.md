@@ -24,6 +24,7 @@ Make narrow Discover scans preserve the smallest useful repository evidence inst
 - **REQ-005**: Returned `RepositorySnapshot.files`, directories, and exclusions MUST remain deterministically label-sorted for consumer compatibility.
 - **REQ-006**: Exact-capacity scans MUST not claim truncation; omitted eligible candidates due file or byte budget MUST report the existing `max_files` and/or `max_total_bytes` reasons.
 - **REQ-007**: Selection logic MUST be a focused pure module, not additional scanner monolith branching.
+- **REQ-008**: Repository verification MUST distinguish the approved runtime Skills-root literal from ordinary `.agents` repository path labels; generic `.agents` evidence MUST NOT be rejected as a Skills-root violation.
 
 ## Acceptance
 
