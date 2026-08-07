@@ -5,5 +5,6 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
 - [x] Run `git diff --check` and `pwsh -NoProfile -File scripts/verify.ps1`.
 - [x] Record findings-first review and reviewed no-impact evidence.
-- [ ] Record the reconciliation commit, pull request, exact ready head, and remote readiness evidence.
-- [ ] Obtain explicit landing confirmation for the final PR head, then merge and run governed cleanup for change 056.
+- [x] Record reconciliation commit `cb7d970826f38fb2f5b20b9f46cc818147b2a252` and pull request #69.
+- [ ] Verify and record the exact final PR head, then obtain explicit landing confirmation for that head.
+- [ ] After confirmation, merge PR #69 and run governed local and remote cleanup for change 056.

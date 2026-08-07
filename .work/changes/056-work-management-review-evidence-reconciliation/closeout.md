@@ -34,12 +34,12 @@ Reviewed no-impact decision: change 056 modifies governance evidence only. It in
 The reconciliation was checked against PR #68, merge commit `fe3fa6aa52829d1db7e0b57435f2963bbf3f73c9`, governance-closure evidence, successful merged-tree verification, cleanup output, remote branch deletion, and the preserved 040 worktree identity. A direct evidence review found no contradiction, unsupported implementation claim, unrelated documentation change, or remaining stale marker in change 055.
 
 ## Git and delivery
-
 - Branch: `change/056-work-management-review-evidence-reconciliation`
 - Worktree: `.work/worktrees/056-work-management-review-evidence-reconciliation`
-- Reconciliation commit: pending
-- Pull request: pending
-- Exact ready head: pending
+- Reconciliation commit: `cb7d970826f38fb2f5b20b9f46cc818147b2a252`
+- Pull request: #69
+- Exact ready head: retained in the PR readiness evidence after the final metadata push
+- Final claim status: `closed`
 - Merge and cleanup: require separate explicit landing confirmation for the final PR head
 
 ## Residual programme phases

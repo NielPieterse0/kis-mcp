@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "056-work-management-review-evidence-reconciliation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/056-work-management-review-evidence-reconciliation",
   "worktree": ".work/worktrees/056-work-management-review-evidence-reconciliation",
   "base": "main",
