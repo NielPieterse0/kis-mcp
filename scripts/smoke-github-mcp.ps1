@@ -29,7 +29,12 @@ try {
     if ($ProviderSettings.schema_version -ne 3) {
         throw 'GITHUB_MCP_SETTINGS_INVALID: schema_version must be 3.'
     }
-    if ($null -ne $ProviderSettings.approved_repositories -or $null -ne $ProviderSettings.approved_projects) {
+    $ProviderPropertyNames = @($ProviderSettings.PSObject.Properties.Name)
+    if (
+        $ProviderPropertyNames -contains 'approved_repositories' -or
+        $ProviderPropertyNames -contains 'approved_projects' -or
+        $ProviderPropertyNames -contains 'unscoped_tools'
+    ) {
         throw 'GITHUB_MCP_SETTINGS_INVALID: repository and Project bindings must not be provider authentication settings.'
     }
 
