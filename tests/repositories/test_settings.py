@@ -106,6 +106,25 @@ def test_resolves_origin_from_linked_worktree_gitdir(tmp_path: Path) -> None:
     assert settings.github_repository == "nielpieterse0/kis-mcp"
 
 
+def test_selected_repository_settings_defers_boundary_validation_until_use(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "outside" / "repo"
+    boundary = tmp_path / "approved"
+    repository.mkdir(parents=True)
+    boundary.mkdir()
+    _write_settings(repository)
+
+    selected = SelectedRepositorySettings(
+        repository,
+        validate_remote=False,
+        boundary=boundary,
+    )
+
+    with pytest.raises(RuntimeError, match="approved boundary"):
+        selected.current()
+
+
 def test_selected_repository_settings_can_switch_context(tmp_path: Path) -> None:
     first = tmp_path / "first"
     second = tmp_path / "second"

@@ -276,13 +276,13 @@ class SelectedRepositorySettings:
         self._validate_remote = validate_remote
         self._boundary = boundary.resolve() if boundary is not None else None
         root = repository_root or Path(__file__).resolve().parents[3]
-        self._repository_root = _bounded_root(root, self._boundary)
+        self._repository_root = root.resolve()
         self._settings: RepositorySettings | None = None
 
     def current(self) -> RepositorySettings:
         if self._settings is None:
             self._settings = load_repository_settings(
-                self._repository_root,
+                _bounded_root(self._repository_root, self._boundary),
                 validate_remote=self._validate_remote,
             )
         return self._settings

@@ -72,7 +72,15 @@ jobs:
           tests/workflows/project_management
           tests/capabilities/test_domain_platforms.py
 
+      - name: Prepare canonical project-boundary worktree
+        if: ${{ inputs.run_full_verification != false }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path C:\Projects | Out-Null
+          git worktree add --detach C:\Projects\kis-mcp HEAD
+
       - name: Run canonical repository verification
         if: ${{ inputs.run_full_verification != false }}
         shell: pwsh
+        working-directory: C:\Projects\kis-mcp
         run: pwsh -NoProfile -File scripts/verify.ps1

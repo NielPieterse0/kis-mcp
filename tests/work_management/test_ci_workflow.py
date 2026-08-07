@@ -21,6 +21,8 @@ def test_work_management_workflow_is_reusable_and_exact_revision_aware() -> None
     assert "scripts/change-workflow.ps1 validate" in text
     assert "scripts/verify.ps1" in text
     assert "UV_CACHE_DIR: C:\\Projects\\.kis-mcp\\uv-cache" in text
+    assert "git worktree add --detach C:\\Projects\\kis-mcp HEAD" in text
+    assert "working-directory: C:\\Projects\\kis-mcp" in text
     assert "persist-credentials: false" in text
 
 
