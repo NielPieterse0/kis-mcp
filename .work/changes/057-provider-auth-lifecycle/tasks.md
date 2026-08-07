@@ -7,4 +7,4 @@
 - [x] T-05 — Route repository and `gh_projects` authorization from selected repository settings.
 - [x] T-06 — Reconcile schemas and authoritative documentation.
 - [x] T-07 — Run focused and canonical verification.
-- [ ] T-08 — Push the final verified head to PR #72, verify exact-head CI, merge, reconcile post-merge evidence, and clean up the governed worktree and branch.
+- [x] T-08 — Push the final verified head to PR #72, verify exact-head Windows CI, merge, and reconcile post-merge evidence.

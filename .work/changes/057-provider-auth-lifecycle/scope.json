@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "057-provider-auth-lifecycle",
-  "status": "active",
+  "status": "closed",
   "branch": "change/057-provider-auth-lifecycle",
   "worktree": ".work/worktrees/057-provider-auth-lifecycle",
   "base": "main",
