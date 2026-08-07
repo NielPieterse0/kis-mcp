@@ -72,12 +72,14 @@ jobs:
           tests/workflows/project_management
           tests/capabilities/test_domain_platforms.py
 
-      - name: Prepare canonical project-boundary worktree
+      - name: Prepare canonical verification fixture
         if: ${{ inputs.run_full_verification != false }}
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path C:\Projects | Out-Null
-          git worktree add --detach C:\Projects\kis-mcp HEAD
+          New-Item -ItemType Directory -Force -Path C:\Projects\kis-mcp | Out-Null
+          Get-ChildItem -Force | Where-Object Name -ne '.venv' | Copy-Item -Destination C:\Projects\kis-mcp -Recurse -Force
+          New-Item -ItemType Directory -Force -Path C:\Projects\.agents\skills | Out-Null
+          Get-ChildItem -Force C:\Projects\kis-mcp\.agents\skills | Copy-Item -Destination C:\Projects\.agents\skills -Recurse -Force
 
       - name: Run canonical repository verification
         if: ${{ inputs.run_full_verification != false }}
