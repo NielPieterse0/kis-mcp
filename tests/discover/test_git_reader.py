@@ -126,6 +126,56 @@ def test_reads_detached_head_and_linked_worktree(
     assert detached.head is not None
 
 
+def test_large_git_index_remains_available_for_repository_and_linked_worktree(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _init_repository(project_root)
+    files = project_root / "files"
+    files.mkdir()
+    for index in range(150):
+        (files / f"file_{index:03}.txt").write_text(f"{index}\n", encoding="utf-8")
+    _git(project_root, "add", "--", "files")
+    _git(project_root, "commit", "-m", "large index")
+
+    index_path = project_root / ".git" / "index"
+    assert index_path.stat().st_size > discover_settings.limits.git_metadata_max_bytes
+
+    reader = _reader(discover_settings)
+    summary = reader.inspect(str(project_root))
+
+    assert summary.available is True
+    assert summary.repository is True
+    assert summary.branch == "main"
+    assert summary.tracked_files == 150
+
+    linked = project_root.parent / f"{project_root.name}-large-index-linked"
+    _git(project_root, "worktree", "add", "-b", "large-index-linked", str(linked))
+
+    linked_summary = reader.inspect(str(linked))
+
+    assert linked_summary.available is True
+    assert linked_summary.repository is True
+    assert linked_summary.branch == "large-index-linked"
+    assert linked_summary.tracked_files == 150
+
+
+def test_git_index_must_still_be_a_regular_unlinked_file(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _init_repository(project_root)
+    _commit(project_root, "tracked.txt", "tracked\n", "initial")
+    index_path = project_root / ".git" / "index"
+    index_path.unlink()
+    index_path.mkdir()
+
+    summary = _reader(discover_settings).inspect(str(project_root))
+
+    assert summary.available is False
+    assert [item["code"] for item in summary.diagnostics] == ["GIT_METADATA_UNSAFE"]
+
+
 def test_non_git_directory_is_explicitly_unavailable(
     project_root: Path,
     discover_settings,
