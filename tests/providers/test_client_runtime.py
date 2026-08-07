@@ -51,6 +51,23 @@ class FakeClient:
         return self.tools
 
 
+def test_provider_component_listing_before_lifespan_does_not_connect_upstream() -> None:
+    async def scenario() -> None:
+        client = FakeClient()
+        provider = PersistentClientProxyProvider(
+            client,
+            startup_call=ProviderStartupCall("get_me"),
+        )
+
+        assert await provider._list_tools() == []
+        assert client.connect_count == 0
+        assert client.disconnect_count == 0
+        assert client.list_tools_count == 0
+        assert client.calls == []
+
+    asyncio.run(scenario())
+
+
 def test_provider_lifespan_keeps_one_client_connection_for_startup_discovery_and_nested_calls() -> None:
     async def scenario() -> None:
         client = FakeClient()
