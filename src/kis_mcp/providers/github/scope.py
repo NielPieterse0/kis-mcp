@@ -23,9 +23,10 @@ _REPOSITORY_FIELDS = {
     "head_repository",
 }
 _SCOPE_QUALIFIERS = frozenset({"repo", "org", "user", "owner"})
-_PROJECT_READ_METHODS = {
-    "projects_get": frozenset({"get_project"}),
+_PROJECT_METHODS = {
+    "projects_get": frozenset({"get_project", "get_project_item"}),
     "projects_list": frozenset({"list_project_fields", "list_project_items"}),
+    "projects_write": frozenset({"add_project_item", "update_project_item"}),
 }
 _PROJECT_OWNER_TYPES = frozenset({"user", "org"})
 
@@ -201,8 +202,8 @@ class GitHubRepositoryScope:
 
     def authorize(self, tool_name: str, arguments: Mapping[str, Any]) -> None:
         normalized_tool = tool_name.casefold()
-        if normalized_tool in _PROJECT_READ_METHODS:
-            self._authorize_project_read(normalized_tool, arguments)
+        if normalized_tool in _PROJECT_METHODS:
+            self._authorize_project_operation(normalized_tool, arguments)
             return
         if "search" in normalized_tool:
             self._authorize_search(arguments)
@@ -232,16 +233,16 @@ class GitHubRepositoryScope:
             "This tool call must include an explicit approved repository target.",
         )
 
-    def _authorize_project_read(
+    def _authorize_project_operation(
         self,
         tool_name: str,
         arguments: Mapping[str, Any],
     ) -> None:
         method = arguments.get("method")
-        if not isinstance(method, str) or method not in _PROJECT_READ_METHODS[tool_name]:
+        if not isinstance(method, str) or method not in _PROJECT_METHODS[tool_name]:
             raise GitHubRepositoryScopeError(
                 "repository_scope_violation",
-                "Project method is not approved for read-only access.",
+                "Project method is not approved.",
             )
 
         owner = arguments.get("owner")
@@ -282,6 +283,58 @@ class GitHubRepositoryScope:
                 "repository_scope_violation",
                 "Project identity is not explicitly approved.",
             )
+        if method == "add_project_item":
+            item_owner = arguments.get("item_owner")
+            item_repo = arguments.get("item_repo")
+            item_type = arguments.get("item_type")
+            if not isinstance(item_owner, str) or not isinstance(item_repo, str):
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project item source repository is required.",
+                )
+            try:
+                repository = normalize_repository(f"{item_owner}/{item_repo}")
+            except ValueError as exc:
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project item source repository is invalid.",
+                ) from exc
+            if repository not in self.approved_repositories:
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project item source repository is not approved.",
+                )
+            if item_type not in {"issue", "pull_request"}:
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project item_type must be issue or pull_request.",
+                )
+            number_key = "issue_number" if item_type == "issue" else "pull_request_number"
+            number = arguments.get(number_key)
+            if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    f"Project {number_key} must be a positive integer.",
+                )
+        elif method == "update_project_item":
+            item_id = arguments.get("item_id")
+            updated_field = arguments.get("updated_field")
+            if not isinstance(item_id, str) or not item_id.strip():
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project item_id is required for update.",
+                )
+            if not isinstance(updated_field, Mapping):
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project updated_field must be an object.",
+                )
+            identity_keys = {key for key in ("id", "name") if updated_field.get(key) is not None}
+            if len(identity_keys) != 1 or "value" not in updated_field:
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    "Project updated_field requires exactly one identity and a value.",
+                )
 
     def _authorize_search(self, arguments: Mapping[str, Any]) -> None:
         queries = _collect_queries(arguments)

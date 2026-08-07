@@ -59,6 +59,9 @@ class DesiredProjection:
     record_id: str
     fields: tuple[tuple[str, JsonScalar], ...]
     expected_revision: str | None = None
+    source_repository: str | None = None
+    source_number: int | None = None
+    source_kind: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "project_id", _project_id(self.project_id))
@@ -70,6 +73,26 @@ class DesiredProjection:
                 "expected_revision",
                 _required_text(self.expected_revision, "expected_revision"),
             )
+        if self.source_repository is not None:
+            repository = _required_text(self.source_repository, "source_repository")
+            if repository.count("/") != 1 or any(character.isspace() for character in repository):
+                raise ValueError("source_repository must use owner/repository")
+            object.__setattr__(self, "source_repository", repository)
+        if self.source_number is not None:
+            if isinstance(self.source_number, bool) or not isinstance(self.source_number, int) or self.source_number <= 0:
+                raise ValueError("source_number must be a positive integer")
+        if self.source_kind is not None:
+            kind = _required_text(self.source_kind, "source_kind").casefold()
+            if kind not in {"issue", "pull_request"}:
+                raise ValueError("source_kind must be issue or pull_request")
+            object.__setattr__(self, "source_kind", kind)
+        supplied = (
+            self.source_repository is not None,
+            self.source_number is not None,
+            self.source_kind is not None,
+        )
+        if any(supplied) and not all(supplied):
+            raise ValueError("source identity requires repository, number, and kind")
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +102,7 @@ class ObservedProjection:
     fields: tuple[tuple[str, JsonScalar], ...]
     revision: str | None
     accessible: bool = True
+    external_id: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "project_id", _project_id(self.project_id))
@@ -88,6 +112,12 @@ class ObservedProjection:
             object.__setattr__(self, "revision", _required_text(self.revision, "revision"))
         if not isinstance(self.accessible, bool):
             raise ValueError("accessible must be a boolean")
+        if self.external_id is not None:
+            object.__setattr__(
+                self,
+                "external_id",
+                _required_text(self.external_id, "external_id"),
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +127,10 @@ class ReconciliationDecision:
     action: ReconciliationAction
     changed_fields: tuple[str, ...] = ()
     desired_fields: tuple[tuple[str, JsonScalar], ...] = ()
+    external_id: str | None = None
+    source_repository: str | None = None
+    source_number: int | None = None
+    source_kind: str | None = None
     observed_revision: str | None = None
     reason: str = ""
 
@@ -111,6 +145,19 @@ class ReconciliationDecision:
             tuple(sorted(_required_text(item, "changed field") for item in self.changed_fields)),
         )
         object.__setattr__(self, "desired_fields", _fields(self.desired_fields))
+        if self.external_id is not None:
+            object.__setattr__(self, "external_id", _required_text(self.external_id, "external_id"))
+        source = DesiredProjection(
+            project_id=self.project_id,
+            record_id=self.record_id,
+            fields=self.desired_fields,
+            source_repository=self.source_repository,
+            source_number=self.source_number,
+            source_kind=self.source_kind,
+        )
+        object.__setattr__(self, "source_repository", source.source_repository)
+        object.__setattr__(self, "source_number", source.source_number)
+        object.__setattr__(self, "source_kind", source.source_kind)
         if self.observed_revision is not None:
             object.__setattr__(
                 self,
@@ -126,6 +173,10 @@ class ReconciliationDecision:
             "action": self.action.value,
             "changed_fields": list(self.changed_fields),
             "desired_fields": dict(self.desired_fields),
+            "external_id": self.external_id,
+            "source_repository": self.source_repository,
+            "source_number": self.source_number,
+            "source_kind": self.source_kind,
             "observed_revision": self.observed_revision,
             "reason": self.reason,
         }
@@ -212,6 +263,10 @@ def plan_reconciliation(
                     action=ReconciliationAction.UNSUPPORTED,
                     changed_fields=unsupported,
                     desired_fields=expected.fields,
+                    external_id=actual.external_id if actual else None,
+                    source_repository=expected.source_repository,
+                    source_number=expected.source_number,
+                    source_kind=expected.source_kind,
                     observed_revision=actual.revision if actual else None,
                     reason="desired fields are not supported by the backend",
                 )
@@ -224,6 +279,10 @@ def plan_reconciliation(
                     record_id=expected.record_id,
                     action=ReconciliationAction.INACCESSIBLE,
                     desired_fields=expected.fields,
+                    external_id=actual.external_id if actual else None,
+                    source_repository=expected.source_repository,
+                    source_number=expected.source_number,
+                    source_kind=expected.source_kind,
                     observed_revision=actual.revision,
                     reason="observed record is inaccessible",
                 )
@@ -237,6 +296,10 @@ def plan_reconciliation(
                     action=ReconciliationAction.CREATE,
                     changed_fields=tuple(desired_fields),
                     desired_fields=expected.fields,
+                    external_id=actual.external_id if actual else None,
+                    source_repository=expected.source_repository,
+                    source_number=expected.source_number,
+                    source_kind=expected.source_kind,
                     reason="record is absent from observed state",
                 )
             )
@@ -256,6 +319,10 @@ def plan_reconciliation(
                     record_id=expected.record_id,
                     action=ReconciliationAction.NOOP,
                     desired_fields=expected.fields,
+                    external_id=actual.external_id if actual else None,
+                    source_repository=expected.source_repository,
+                    source_number=expected.source_number,
+                    source_kind=expected.source_kind,
                     observed_revision=actual.revision,
                     reason="desired and observed fields already match",
                 )
@@ -272,6 +339,10 @@ def plan_reconciliation(
                     action=ReconciliationAction.CONFLICT,
                     changed_fields=changed,
                     desired_fields=expected.fields,
+                    external_id=actual.external_id if actual else None,
+                    source_repository=expected.source_repository,
+                    source_number=expected.source_number,
+                    source_kind=expected.source_kind,
                     observed_revision=actual.revision,
                     reason="observed revision does not match expected revision",
                 )
@@ -284,6 +355,10 @@ def plan_reconciliation(
                 action=ReconciliationAction.UPDATE,
                 changed_fields=changed,
                 desired_fields=expected.fields,
+                external_id=actual.external_id,
+                source_repository=expected.source_repository,
+                source_number=expected.source_number,
+                source_kind=expected.source_kind,
                 observed_revision=actual.revision,
                 reason="observed fields differ from desired state",
             )
@@ -296,6 +371,7 @@ def plan_reconciliation(
                 record_id=actual.record_id,
                 action=ReconciliationAction.ORPHANED,
                 changed_fields=tuple(name for name, _value in actual.fields),
+                external_id=actual.external_id,
                 observed_revision=actual.revision,
                 reason="observed record is absent from desired state",
             )

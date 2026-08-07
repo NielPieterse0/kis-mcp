@@ -190,23 +190,58 @@ def test_rejects_project_reads_for_unapproved_owner_or_method() -> None:
         )
 
 
-def test_rejects_project_mutation_and_malformed_project_identity() -> None:
+def test_allows_only_bounded_project_item_mutations() -> None:
     scope = GitHubRepositoryScope(
         ["NielPieterse0/kis-mcp"],
         ["get_me"],
         [("NielPieterse0", "user", 12)],
     )
 
-    with pytest.raises(GitHubRepositoryScopeError, match="explicit approved repository"):
-        scope.authorize(
-            "projects_write",
-            {
-                "method": "create_project",
-                "owner": "NielPieterse0",
-                "owner_type": "user",
-                "title": "Not allowed",
-            },
-        )
+    scope.authorize(
+        "projects_write",
+        {
+            "method": "add_project_item",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 12,
+            "item_owner": "NielPieterse0",
+            "item_repo": "kis-mcp",
+            "item_type": "issue",
+            "issue_number": 7,
+        },
+    )
+    scope.authorize(
+        "projects_write",
+        {
+            "method": "update_project_item",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 12,
+            "item_id": "I_1",
+            "updated_field": {"name": "Status", "value": "Active"},
+        },
+    )
+
+    for method in ("delete_project_item", "create_project"):
+        with pytest.raises(GitHubRepositoryScopeError, match="not approved"):
+            scope.authorize(
+                "projects_write",
+                {
+                    "method": method,
+                    "owner": "NielPieterse0",
+                    "owner_type": "user",
+                    "project_number": 12,
+                    "item_id": "I_1",
+                },
+            )
+
+
+def test_rejects_malformed_project_identity() -> None:
+    scope = GitHubRepositoryScope(
+        ["NielPieterse0/kis-mcp"],
+        ["get_me"],
+        [("NielPieterse0", "user", 12)],
+    )
 
     with pytest.raises(GitHubRepositoryScopeError, match="project_number"):
         scope.authorize(

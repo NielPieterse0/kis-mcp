@@ -1,36 +1,44 @@
 {
-  "schema_version": 1,
-  "change_id": "057-work-management-automation",
-  "status": "active",
-  "branch": "change/057-work-management-automation",
-  "worktree": ".work/worktrees/057-work-management-automation",
-  "base": "main",
-  "outcome": "Implement P5 work-management evidence persistence, reconciliation, GitHub provider workflows, CLI/CI automation, portfolio status, and platform composition",
-  "owned_paths": [
-    "src/kis_mcp/work_management/**",
-    "src/kis_mcp/providers/github/project_management.py",
-    "src/kis_mcp/workflows/project_management/**",
-    "src/kis_mcp/workflows/platform.py",
-    "settings/work-management/**",
-    "contracts/work-management/**",
-    "scripts/project-workflow.ps1",
-    "scripts/project_workflow.py",
-    ".github/workflows/work-management.yml",
-    "tests/work_management/**",
-    "tests/providers/test_github_project_management.py",
-    "tests/workflows/project_management/**",
-    "tests/architecture/test_modularity_boundaries.py",
-    ".work/programmes/work-management/**",
-    ".work/changes/057-work-management-automation/**",
-    "README.md",
-    "SPEC.md",
-    "docs/OPERATIONS.md",
-    "docs/PLATFORM-CONCEPT.md"
-  ],
-  "shared_paths": [],
-  "excluded_paths": [],
-  "dependencies": [
-    "055-work-management-review-evidence"
-  ],
-  "integration_owner": null
+    "schema_version":  1,
+    "change_id":  "057-work-management-automation",
+    "status":  "active",
+    "branch":  "change/057-work-management-automation",
+    "worktree":  ".work/worktrees/057-work-management-automation",
+    "base":  "main",
+    "outcome":  "Implement P5 work-management evidence persistence, reconciliation, GitHub provider workflows, CLI/CI automation, portfolio status, and platform composition",
+    "owned_paths":  [
+                        "src/kis_mcp/work_management/**",
+                        "src/kis_mcp/providers/github/project_management.py",
+                        "src/kis_mcp/providers/github/scope.py",
+                        "src/kis_mcp/workflows/project_management/**",
+                        "src/kis_mcp/workflows/platform.py",
+                        "settings/work-management/**",
+                        "contracts/work-management/**",
+                        "scripts/project-workflow.ps1",
+                        "scripts/project_workflow.py",
+                        ".github/workflows/work-management.yml",
+                        "tests/work_management/**",
+                        "tests/providers/test_github_project_management.py",
+                        "tests/providers/github/test_scope.py",
+                        "tests/workflows/project_management/**",
+                        "tests/architecture/test_modularity_boundaries.py",
+                        ".work/programmes/work-management/**",
+                        ".work/changes/057-work-management-automation/**",
+                        "README.md",
+                        "SPEC.md",
+                        "docs/OPERATIONS.md",
+                        "docs/PLATFORM-CONCEPT.md",
+                        "src/kis_mcp/providers/github/server.py",
+                        "tests/providers/github/test_server.py"
+                    ],
+    "shared_paths":  [
+
+                     ],
+    "excluded_paths":  [
+
+                       ],
+    "dependencies":  [
+                         "055-work-management-review-evidence"
+                     ],
+    "integration_owner":  null
 }

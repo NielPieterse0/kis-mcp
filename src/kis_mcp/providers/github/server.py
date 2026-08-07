@@ -241,6 +241,15 @@ def register_github_provider(
                 effects=("external_network", "project_read"),
                 tool_names=("projects_get", "projects_list"),
             ),
+            ProviderCapability(
+                capability_id="project_management.write",
+                description=(
+                    "Add approved issues or pull requests to configured GitHub Projects "
+                    "and update bounded Project item fields."
+                ),
+                effects=("external_network", "project_write"),
+                tool_names=("projects_write",),
+            ),
         ),
         builder=lambda: build_github_provider_server(runtime, environ=environ),
         readiness_probe=lambda: github_provider_readiness(runtime, environ),
