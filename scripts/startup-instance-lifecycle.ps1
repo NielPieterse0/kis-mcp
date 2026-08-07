@@ -40,8 +40,8 @@ function Test-KisMcpSelectedServerProcess {
         return $false
     }
     $Pattern = (
-        '(?i)(^|\s)-m\s+kis_mcp\.secrets\.launcher\s+' +
-        '--runtime\s+remote\s+--instance\s+' +
+        '(?i)(^|\s)-m\s+kis_mcp\.remote_runtime\s+' +
+        '--instance\s+' +
         [Regex]::Escape($Instance) + '(\s|$)'
     )
     return [Regex]::IsMatch($CommandLine, $Pattern)

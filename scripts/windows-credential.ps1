@@ -83,6 +83,16 @@ namespace KisMcp {
 '@
 }
 
+function Get-KisMcpTunnelCredentialTarget {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Reference)
+
+    if ($Reference -notmatch '^secret://tunnel/(operation|development)/authentication-token$') {
+        throw "KIS_MCP_TUNNEL_SECRET_REFERENCE_INVALID: $Reference"
+    }
+    return "kis-mcp/tunnel/$($Matches[1])"
+}
+
 function Set-KisMcpWindowsCredential {
     [CmdletBinding()]
     param(

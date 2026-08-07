@@ -26,6 +26,17 @@ def _run_tunnel_state(expression: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _run_windows_credential(expression: str) -> subprocess.CompletedProcess[str]:
+    script_path = (SCRIPTS / "windows-credential.ps1").as_posix()
+    return subprocess.run(
+        ["pwsh", "-NoProfile", "-Command", f". '{script_path}'; {expression}"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def test_tunnel_configuration_uses_canonical_secret_references() -> None:
     settings = json.loads(
         (REPOSITORY_ROOT / "settings" / "kis-mcp.settings.json").read_text(
@@ -60,6 +71,21 @@ def test_tunnel_configuration_uses_canonical_secret_references() -> None:
         )
         assert "tunnel_credential_target" not in instance
         assert "tunnel_authentication_id" not in instance
+
+
+def test_windows_credential_target_is_derived_from_canonical_reference() -> None:
+    valid = _run_windows_credential(
+        "Write-Output (Get-KisMcpTunnelCredentialTarget "
+        "-Reference 'secret://tunnel/development/authentication-token')"
+    )
+    invalid = _run_windows_credential(
+        "Get-KisMcpTunnelCredentialTarget -Reference 'secret://providers/example/key'"
+    )
+
+    assert valid.returncode == 0, valid.stderr
+    assert valid.stdout.strip() == "kis-mcp/tunnel/development"
+    assert invalid.returncode != 0
+    assert "KIS_MCP_TUNNEL_SECRET_REFERENCE_INVALID" in invalid.stderr
 
 
 @pytest.mark.parametrize(
@@ -139,40 +165,42 @@ def test_tunnel_state_helper_reads_non_secret_identifiers_and_reference() -> Non
     assert "tunnel_client_path" in content
 
 
-def test_legacy_windows_credential_helper_is_not_used_by_runtime_scripts() -> None:
-    for name in (
-        "set-tunnel-credential.ps1",
-        "setup-tunnel.ps1",
-        "start-chatgpt.ps1",
-        "start.ps1",
-        "tunnel-state.ps1",
-    ):
-        content = _script(name)
-        assert "windows-credential.ps1" not in content
-        assert "Set-KisMcpWindowsCredential" not in content
-        assert "Get-KisMcpWindowsCredential" not in content
-        assert "tunnel_credential_target" not in content
+def test_runtime_startup_does_not_unlock_application_vault() -> None:
+    chatgpt = _script("start-chatgpt.ps1")
+    stdio = _script("start.ps1")
+
+    for content in (chatgpt, stdio):
+        assert "secret-vault.ps1" not in content
+        assert "Get-KisMcpUnlockPayload" not in content
+        assert "kis_mcp.secrets.launcher" not in content
+        assert "Start-KisMcpSecretAwareProcess" not in content
+        assert "Unlock kis-mcp secrets" not in content
+    assert "kis_mcp.remote_runtime" in chatgpt
+    assert "kis_mcp.server" in stdio
 
 
-def test_set_credential_script_writes_vault_reference_through_secure_boundary() -> None:
+def test_set_credential_script_stores_windows_credential_once() -> None:
     content = _script("set-tunnel-credential.ps1")
 
-    assert "secret-vault.ps1" in content
+    assert "windows-credential.ps1" in content
+    assert "Get-KisMcpTunnelCredentialTarget" in content
     assert "Read-Host" in content
     assert "-AsSecureString" in content
-    assert "Invoke-KisMcpSecretCommand" in content
-    assert "@('set', '--reference', $Remote.tunnel_secret_ref)" in content
-    assert "$Payload['value']" in content
-    assert "--secret" not in content
-    assert "--passphrase" not in content
+    assert "Set-KisMcpWindowsCredential" in content
+    assert "$Remote.tunnel_secret_ref" in content
+    assert "secret-vault.ps1" not in content
+    assert "Invoke-KisMcpSecretCommand" not in content
 
 
-def test_setup_script_resolves_vault_secret_without_persisting_plaintext() -> None:
+def test_setup_script_reads_windows_credential_without_persisting_plaintext() -> None:
     content = _script("setup-tunnel.ps1")
 
+    assert "windows-credential.ps1" in content
     assert "Get-KisMcpRemoteInstance" in content
-    assert "Resolve-KisMcpSecretInternal" in content
-    assert "Get-KisMcpUnlockPayload" in content
+    assert "Get-KisMcpTunnelCredentialTarget" in content
+    assert "Get-KisMcpWindowsCredential" in content
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "Resolve-KisMcpSecretInternal" not in content
     assert "--profile-dir" in content
     assert "--tunnel-id" in content
     assert "--mcp-server-url" in content
@@ -182,32 +210,28 @@ def test_setup_script_resolves_vault_secret_without_persisting_plaintext() -> No
     assert "[Environment]::SetEnvironmentVariable" in content
     assert "finally" in content
     assert "$Remote.tunnel_secret_ref" in content
-    assert "tunnel_credential_target" not in content
-    assert "tunnel_authentication_id" not in content
     assert "BackupExistingProfile" in content
     assert "doctor" in content
     assert "--explain" in content
     assert "sk-" not in content
 
 
-def test_chatgpt_launcher_unlocks_once_for_server_and_tunnel() -> None:
+def test_chatgpt_launcher_uses_windows_credential_only_for_tunnel() -> None:
     content = _script("start-chatgpt.ps1")
 
-    assert "kis_mcp.secrets.launcher" in content
-    assert "--runtime" in content and "remote" in content
+    assert "windows-credential.ps1" in content
+    assert "kis_mcp.remote_runtime" in content
     assert "--mcp.server-url" in content
     assert "--health.url-file" in content
     assert "readyz" in content
     assert "$Tunnel.Kill($true)" in content
     assert "$Server.Kill($true)" in content
     assert "Kill()" not in content
-    assert "Resolve-KisMcpSecretInternal" in content
-    assert "$Remote.tunnel_secret_ref" in content
-    assert "$VaultUnlockPayload" in content
-    assert "Start-KisMcpSecretAwareProcess" in content
+    assert "Get-KisMcpTunnelCredentialTarget" in content
+    assert "Get-KisMcpWindowsCredential" in content
     assert "$TunnelEnvironment" in content
-    assert "tunnel_credential_target" not in content
-    assert "tunnel_authentication_id" not in content
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "kis_mcp.secrets.launcher" not in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
 
 

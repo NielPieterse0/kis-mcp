@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
-. (Join-Path $PSScriptRoot 'secret-vault.ps1')
+. (Join-Path $PSScriptRoot 'windows-credential.ps1')
 . (Join-Path $PSScriptRoot 'startup-instance-lifecycle.ps1')
 
 function Start-OwnedProcess {
@@ -18,7 +18,6 @@ function Start-OwnedProcess {
         [string[]]$Arguments,
         [string]$WorkingDirectory,
         [hashtable]$Environment = @{},
-        [hashtable]$SecretPayload = $null,
         [string]$StandardOutputPath,
         [string]$StandardErrorPath
     )
@@ -43,17 +42,10 @@ function Start-OwnedProcess {
         $Info.Environment[$Name] = [string]$Environment[$Name]
     }
 
-    if ($null -ne $SecretPayload) {
-        $Process = Start-KisMcpSecretAwareProcess `
-            -StartInfo $Info `
-            -SecurePayload $SecretPayload
-    }
-    else {
-        $Process = [System.Diagnostics.Process]::new()
-        $Process.StartInfo = $Info
-        if (-not $Process.Start()) {
-            throw "KIS_MCP_PROCESS_START_FAILED: $Executable"
-        }
+    $Process = [System.Diagnostics.Process]::new()
+    $Process.StartInfo = $Info
+    if (-not $Process.Start()) {
+        throw "KIS_MCP_PROCESS_START_FAILED: $Executable"
     }
 
     $OutputSource = "kis-mcp-process-$($Process.Id)-stdout-$([Guid]::NewGuid().ToString('N'))"
@@ -261,7 +253,7 @@ $ServerEnvironment = @{
     NO_UPDATE_NOTIFIER = '1'
 }
 
-$VaultUnlockPayload = $null
+$CredentialTarget = Get-KisMcpTunnelCredentialTarget -Reference $Remote.tunnel_secret_ref
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
 $Credential = $null
 $TunnelEnvironment = @{}
@@ -271,20 +263,16 @@ $ServerListenerPid = $null
 $CurrentStateWritten = $false
 $CurrentStatePath = $null
 try {
-    $VaultUnlockPayload = Get-KisMcpUnlockPayload
     $Server = Start-OwnedProcess `
         -Executable $Python `
         -Arguments @(
             '-m',
-            'kis_mcp.secrets.launcher',
-            '--runtime',
-            'remote',
+            'kis_mcp.remote_runtime',
             '--instance',
             $Remote.name
         ) `
         -WorkingDirectory $RepositoryRoot `
         -Environment $ServerEnvironment `
-        -SecretPayload $VaultUnlockPayload `
         -StandardOutputPath $ServerStdoutLog `
         -StandardErrorPath $ServerStderrLog
 
@@ -301,9 +289,7 @@ try {
         -ServerProcessId $Server.Id `
         -Listener $Listener
 
-    $Credential = Resolve-KisMcpSecretInternal `
-        -Reference $Remote.tunnel_secret_ref `
-        -SecurePayload $VaultUnlockPayload
+    $Credential = Get-KisMcpWindowsCredential -Target $CredentialTarget
     $TunnelEnvironment[$CredentialEnvironmentName] = $Credential
     $Credential = $null
     $TunnelDeadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
@@ -484,10 +470,6 @@ finally {
     }
     Stop-OwnedProcessLogging -Process $Tunnel
     Stop-OwnedProcessLogging -Process $Server -EchoStandardError
-    if ($null -ne $VaultUnlockPayload) {
-        foreach ($Name in @($VaultUnlockPayload.Keys)) {
-            $VaultUnlockPayload[$Name] = $null
-        }
-        $VaultUnlockPayload.Clear()
-    }
+    $Credential = $null
+    $CredentialTarget = $null
 }
