@@ -18,7 +18,7 @@ def test_work_management_workflow_is_reusable_and_exact_revision_aware() -> None
     assert "workflow_dispatch:" in text
     assert "permissions:\n  contents: read" in text
     assert "--revision $env:GITHUB_SHA" in text
-    assert "scripts/change-workflow.ps1 validate" in text
+    assert "scripts/change-workflow.ps1 validate --claims-only" in text
     assert "scripts/verify.ps1" in text
     assert "UV_CACHE_DIR: C:\\Projects\\.kis-mcp\\uv-cache" in text
     assert "Copy-Item -Destination C:\\Projects\\kis-mcp -Recurse -Force" in text

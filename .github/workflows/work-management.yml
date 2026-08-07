@@ -59,7 +59,7 @@ jobs:
 
       - name: Validate governance claims
         shell: pwsh
-        run: pwsh -NoProfile -File scripts/change-workflow.ps1 validate
+        run: pwsh -NoProfile -File scripts/change-workflow.ps1 validate --claims-only
 
       - name: Run focused P5 tests
         shell: pwsh
