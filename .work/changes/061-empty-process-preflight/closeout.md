@@ -20,6 +20,10 @@ The initial code review/debugging phase established the original root causes bef
 
 No additional blocking static finding remains from the reviewed diff. One runtime-specific residual area remains unverified: Windows event-backed process-stream draining, including final tail delivery on process shutdown, requires executable evidence.
 
+## Execution-path note
+
+The repository-local KIS execution surface became unavailable before implementation began. The change artifacts and branch were registered first, but the local governed worktree could not be created or validated from this session. Implementation therefore proceeded on the dedicated remote branch through the authenticated GitHub connector rather than by editing `main`. This is not treated as equivalent to the repository worktree gate: `change-workflow.ps1 check` from `.work/worktrees/061-empty-process-preflight` remains mandatory before the claim can become `ready`.
+
 ## Executable evidence available
 
 Pre-implementation live diagnostics on Windows reproduced the empty-array production failure for both configured instances and demonstrated the disposable pre-lifespan provider connection with an isolated FastMCP client. Those are RED/root-cause evidence only; they do not verify the current branch.
@@ -30,7 +34,7 @@ The local KIS execution surface was unavailable during this implementation sessi
 
 Required next evidence on the exact final head:
 
-1. `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check`
+1. Materialize/switch to the governed `.work/worktrees/061-empty-process-preflight` worktree if it is not already present, then run `pwsh -NoProfile -File .\scripts\change-workflow.ps1 check` from it.
 2. Focused tests:
    `C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m pytest -q tests/test_startup_scripts.py tests/providers/test_client_runtime.py tests/providers/github/test_server.py tests/providers/test_runtime_tool_surface.py tests/capabilities/test_runtime_refresh.py`
 3. `pwsh -NoProfile -File .\scripts\verify.ps1`
