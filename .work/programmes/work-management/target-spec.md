@@ -778,7 +778,7 @@ Child implementation slices remain under `.work/changes/<change-id>/` and use in
 
 ### Commissioning state
 
-The checked-in work-management settings remain disabled with no active Project number. Standalone GitHub OAuth, private-repository read, and local repository scoping passed on 2026-08-07. The previously approved user Project `#12` returned `404`; P5 therefore does not enable or mutate that stale binding. A valid Project identity must be commissioned before enabling live workflows.
+Change `058-work-management-commissioning` replaces the stale unbound commissioning state with the repository-routed `NielPieterse0` user Project `#1` and enables work-management composition in read-only mode. Fresh `kis-op` evidence on 2026-08-07 proved the authenticated runtime can read private Project `KIS Work Management`, its `Status` field with `Todo`, `In Progress`, and `Done`, and a complete empty item inventory without mutation. The change also enforces `reconciliation=read_only` and `review_import=read_only` before their mutation side effects; all automation remains disabled. Final composed `project_management_inventory` evidence remains pending until the exact change head is merged and the runtime is restarted against the merged configuration. Mutation enablement, Project schema repair, and write-side Project item identifiers remain separate future commissioning work.
 
 ## 27. External product sources
 

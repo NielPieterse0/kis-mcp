@@ -139,6 +139,61 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
     ]
 
 
+def test_inventory_normalizes_live_github_project_rest_shapes() -> None:
+    caller = FakeCaller(
+        {
+            "id": 25071419,
+            "node_id": "PVT_kwHODUU4HM4Bfo87",
+            "title": "KIS Work Management",
+            "public": False,
+        },
+        {
+            "fields": [
+                {
+                    "id": 377123158,
+                    "node_id": "PVTSSF_lAHODUU4HM4Bfo87zhZ6cVY",
+                    "name": "Status",
+                    "data_type": "single_select",
+                    "options": [
+                        {
+                            "id": "f75ad846",
+                            "name": {"html": "Todo", "raw": "Todo"},
+                        },
+                        {
+                            "id": "47fc9ee4",
+                            "name": {
+                                "html": "In Progress",
+                                "raw": "In Progress",
+                            },
+                        },
+                        {
+                            "id": "98236657",
+                            "name": {"html": "Done", "raw": "Done"},
+                        },
+                    ],
+                }
+            ],
+            "pageInfo": page_info(False),
+        },
+        {"items": [], "pageInfo": page_info(False)},
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller).read_inventory(
+            binding(), field_names=("Status",), item_limit=50
+        )
+    )
+
+    assert inventory.project_node_id == "PVT_kwHODUU4HM4Bfo87"
+    assert inventory.fields[0].field_id == "PVTSSF_lAHODUU4HM4Bfo87zhZ6cVY"
+    assert [option.name for option in inventory.fields[0].options] == [
+        "Done",
+        "In Progress",
+        "Todo",
+    ]
+    assert inventory.items == ()
+
+
 def test_inventory_paginates_and_reports_truncation() -> None:
     caller = FakeCaller(
         {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
