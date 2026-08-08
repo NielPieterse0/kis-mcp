@@ -53,6 +53,9 @@ Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same gov
 - Batch 3 focused GREEN: capability settings/execution slice passed 16 tests; expanded `tests/capabilities` passed 39 tests.
 - Batch 3 configuration evidence: both `settings/capabilities.settings.json` and `contracts/capabilities/settings.schema.json` validate as JSON; governed scope check and `git diff --check` pass.
 - The temporary Batch 3 focused runner was moved to recoverable quarantine and is not part of the product change.
+- Integrated regression audit passed across capabilities, GitHub provider/Projects, workflows, Work Management, remote runtime, and repository-scope tests after reconciling current `main`.
+- User-style capability queries correctly surfaced GitHub pull-request, Actions, and Projects operations with semantic capability aliases; exact Project description retained its authoritative MCP input schema and generic execution surface.
+- The same audit exposed one workflow vocabulary defect: `pull-request-safe-closeout` required nonexistent `validation.execute` while the runtime contribution is `verification.execute`. A RED regression reproduced the mismatch; the platform descriptor now uses `verification.execute`, and the focused regression passes.
 
 ## Review
 
