@@ -130,7 +130,7 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             "pull-request-safe-closeout",
             "Review and merge pull request safely",
             "Inspect, verify, review, merge the exact approved head, and clean the merged worktree.",
-            ("git.change.inspect", "validation.execute", "github.review", "github.pull-request.merge", "git.worktree.cleanup"),
+            ("git.change.inspect", "verification.execute", "github.review", "github.pull-request.merge", "git.worktree.cleanup"),
             ("inspect_change", "run_verification", "github_review_pull_request", "github_merge_pull_request", "cleanup_change_worktree"),
             ("checks pass", "review findings are resolved", "approved head is merged", "worktree is cleaned"),
             ("review and merge pull request", "merge pr safely", "pr completion", "clean worktree"),

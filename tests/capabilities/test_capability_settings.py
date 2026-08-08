@@ -25,6 +25,10 @@ def test_default_capability_settings_are_complete() -> None:
     assert "search_capabilities" in settings.discovery_operations
     assert "describe_capability" in settings.discovery_operations
     assert "recommend_workflow" in settings.discovery_operations
+    assert settings.result_budget.max_chars == 100_000
+    assert settings.result_budget.preview_items == 10
+    assert settings.result_budget.preview_string_chars == 4_000
+    assert settings.result_budget.preview_depth == 4
 
 
 def test_settings_reject_unknown_top_level_fields(tmp_path: Path) -> None:

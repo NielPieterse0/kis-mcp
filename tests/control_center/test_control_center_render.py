@@ -69,6 +69,17 @@ def test_renderer_shows_truthful_status_and_available_action_names(
     assert "Actions are executed through the supervised kis-mcp tool surface" in html
 
 
+def test_renderer_collapses_local_not_applicable_commissioning(
+    sample_snapshot: ControlCenterSnapshot,
+) -> None:
+    html = render_control_center(sample_snapshot)
+
+    assert "Local read-only" in html
+    assert "No commissioning required for this local provider." in html
+    assert "Live verified" not in html
+    assert "Not applicable" not in html
+
+
 def test_renderer_exposes_runtime_observability_without_argument_values(
     sample_snapshot: ControlCenterSnapshot,
 ) -> None:

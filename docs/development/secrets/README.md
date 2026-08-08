@@ -1,6 +1,6 @@
 # Application-Managed Secrets
 
-This document describes the development contract for the kis-mcp encrypted local vault. It is not yet the authoritative operator guide; `SPEC.md` and `docs/OPERATIONS.md` are currently owned by change `039-documentation-reconciliation` and must be reconciled there or after that claim closes.
+This document describes the development contract for the kis-mcp encrypted local vault and its separation from ordinary startup. It is not the authoritative operator guide; `SPEC.md` and `docs/OPERATIONS.md` are currently owned by active change `078-project-registry-routing` and must be reconciled there or after that claim closes.
 
 ## Boundary
 
@@ -11,7 +11,7 @@ secret://providers/nvidia/api-key
 secret://tunnel/operation/authentication-token
 ```
 
-Checked-in JSON stores references only. Plaintext resolution is internal and requires an unlocked process-local `SecretsService`.
+Checked-in JSON stores references only. Plaintext resolution from the encrypted vault is internal and requires an unlocked process-local `SecretsService`. The tunnel runtime uses the canonical tunnel reference to derive a per-user Windows Credential Manager target; ordinary gateway startup does not unlock the encrypted vault.
 
 Runtime state is fixed beneath:
 
@@ -28,13 +28,13 @@ C:\Projects\.kis-mcp\secrets\
 
 The design protects secrets at rest from accidental viewing, repository exposure, logs, tool transcripts, and ordinary inspection of settings. It does not defend against a process running with equivalent filesystem and process-memory access while the vault is unlocked.
 
-The decryption material must originate outside the encrypted vault:
+The decryption material for explicit vault operations must originate outside the encrypted vault:
 
-- Recommended: operator-supervised `Read-Host -AsSecureString` unlock at startup.
-- Optional automation: canonical base64 32-byte material in `KIS_MCP_VAULT_KEY`.
+- Interactive maintenance: operator-supervised `Read-Host -AsSecureString` unlock for initialize, set, rotate, or verification commands.
+- Optional vault-backed automation: canonical base64 32-byte material in `KIS_MCP_VAULT_KEY` for a consumer that explicitly requires vault resolution.
 - Not implemented: a self-unlocking `master.key` file stored beside the vault.
 
-Environment bootstrap is weaker than interactive unlock because the key exists in the child process environment until the launcher consumes and removes it. It is an explicit automation trade-off, not equivalent protection.
+Normal `start.ps1` and `start-chatgpt.ps1` do not unlock the vault. Environment bootstrap remains a weaker option for explicit vault-backed automation because the key exists in the child process environment until consumed and scrubbed.
 
 ## Operator commands
 
@@ -63,9 +63,9 @@ Verify that the supplied unlock material opens the vault:
 pwsh -NoProfile -File .\scripts\unlock-secrets.ps1
 ```
 
-`unlock-secrets.ps1` is a one-shot verification command. A separate process cannot retain a session key for a later kis-mcp process. `start.ps1` and `start-chatgpt.ps1` perform the persistent process-local unlock required by the running gateway.
+`unlock-secrets.ps1` is a one-shot verification command. A separate process cannot retain a session key for a later kis-mcp process, and normal gateway startup deliberately does not keep the vault unlocked.
 
-Set tunnel credentials through the vault:
+Set or replace the tunnel control-plane credential in the current user's Windows Credential Manager entry:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\set-tunnel-credential.ps1 `
@@ -74,9 +74,9 @@ pwsh -NoProfile -File .\scripts\set-tunnel-credential.ps1 `
 
 ## Sensitive data transport
 
-Operator scripts do not place passphrases or secret values in command-line arguments. Local maintenance commands transfer a bounded JSON payload over redirected standard input. Long-running startup transfers the unlock payload through an inherited anonymous pipe identified by a non-secret handle environment variable.
+Operator scripts do not place passphrases or secret values in command-line arguments. Vault maintenance commands transfer a bounded JSON payload over redirected standard input; the optional secrets launcher retains its inherited anonymous-pipe handoff for an explicit future vault-backed runtime consumer. Normal gateway startup does not use that launcher.
 
-PowerShell converts `SecureString` values through a temporary BSTR and calls `ZeroFreeBSTR`. Python and PowerShell may still create short-lived immutable string objects while decoding JSON; the implementation minimizes lifetime and references but cannot guarantee memory erasure in managed runtimes.
+Tunnel credential updates use `Read-Host -AsSecureString` and `CredWriteW`. Startup retrieves the selected Generic Credential with `CredReadW`, copies it only into the owned tunnel-client process environment, and clears the parent-side reference after process creation. PowerShell converts `SecureString` values through a temporary BSTR and calls `ZeroFreeBSTR` on writes.
 
 ## Public MCP surface
 
