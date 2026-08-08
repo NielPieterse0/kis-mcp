@@ -24,3 +24,9 @@ The result includes:
 The nested `start_process` and any `read_process_output` call run through the normal server middleware. HR policy errors are propagated unchanged; structural verification errors use `VERIFICATION_*` codes instead of impersonating HR decisions. The result contract is `verification-result-v1` with command identity, status, exit code, duration, bounded evidence, failure classification, and truncation state.
 
 The provider process schema remains exact: `start_process` receives only `command`, `timeout_ms`, and `shell`. The project directory is selected inside the PowerShell command with `Set-Location -LiteralPath` and escaped literal tokens. `run_verification` is discoverable through the runtime surface and does not consume a new direct-profile slot.
+
+## Batch 3 — workflow integration primitives
+
+The verification package owns conflict-free workflow specifications for `verify-current-change` and `triage-exact-head-ci`, plus the exact-head CI failure-class contract. It also owns deterministic helpers for executable-step resolution and weighted workflow matching across workflow identity/title, activation terms, description, and capability names.
+
+These primitives deliberately remain separate from the shared `WorkflowDescriptor`/resolver until the active 063 change releases its exclusive catalogue paths. That preserves parallel-change isolation while keeping the final shared integration small: adapt the specs into platform workflow descriptors, require declared executable steps to resolve to a runtime operation or nested workflow, and delegate workflow matching to the deterministic scorer.

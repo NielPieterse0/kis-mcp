@@ -2,7 +2,7 @@
 
 ## Operator workflow
 
-Tunnel secrets are stored as per-user Generic Credentials in Windows Credential Manager. The checked-in settings contain only the non-secret credential target name. Store the selected instance's secret once before profile setup or startup:
+Tunnel control-plane credentials are stored as per-user Generic Credentials in Windows Credential Manager. Checked-in settings contain only the canonical `secret://tunnel/<instance>/authentication-token` reference; the runtime derives the non-secret Credential Manager target `kis-mcp/tunnel/<instance>` from that reference. Store or replace the selected instance's credential once before profile setup or startup:
 
 ```powershell
 pwsh -File .\scripts\set-tunnel-credential.ps1 -Instance development
@@ -50,14 +50,17 @@ pwsh -File .\scripts\start-chatgpt.ps1 -Instance development
 
 The launcher performs this order:
 
-1. reject an occupied selected port or an active alternate instance;
-2. start the local kis-mcp HTTP runtime;
+1. reclaim only stale processes owned by the selected instance and reject unrelated ownership of its selected port;
+2. start the local kis-mcp HTTP runtime directly as `python -m kis_mcp.remote_runtime --instance <name>`;
 3. poll MCP `initialize` readiness;
-4. start the tunnel client;
-5. poll the tunnel `/readyz` endpoint;
-6. capture child-process stdout and stderr beneath the instance runtime root;
-7. write a versioned startup-state JSON record containing the diagnostic log paths;
-8. emit the bounded readiness fields below.
+4. retrieve the selected tunnel credential non-interactively from the current user's Credential Manager entry;
+5. start the tunnel client with that credential only in the owned tunnel process environment;
+6. poll the tunnel `/readyz` endpoint;
+7. capture child-process stdout and stderr beneath the instance runtime root;
+8. write a versioned startup-state JSON record containing the diagnostic log paths;
+9. emit the bounded readiness fields below.
+
+The peer `kis-op`/`kis-dev` instance may remain active. Normal startup does not unlock the application-managed encrypted vault and does not prompt for vault material. The remote MCP runtime honors `settings.remote_mcp.stateless_http=true`, so representative smoke calls after `initialize` do not require an MCP session ID.
 
 ```text
 health=ready
