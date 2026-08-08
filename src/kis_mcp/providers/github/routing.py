@@ -15,7 +15,7 @@ RepositorySettingsSource = Callable[[], RepositorySettings]
 
 
 class GitHubRepositoryRouting:
-    """Authorize each GitHub call against the currently selected repository."""
+    """Authorize each GitHub call against registered repository/project bindings."""
 
     def __init__(self, settings_source: RepositorySettingsSource) -> None:
         self.settings_source = settings_source
@@ -23,11 +23,11 @@ class GitHubRepositoryRouting:
     def authorize(self, tool_name: str, arguments: Mapping[str, Any]) -> None:
         settings = self.settings_source()
         scope = GitHubRepositoryScope(
-            (settings.github_repository,),
+            settings.github_repositories,
             ("get_me", "kis_github_health"),
             tuple(
                 (project.owner, project.owner_type, project.project_number)
-                for project in settings.gh_projects
+                for project in settings.github_project_bindings
             ),
         )
         scope.authorize(tool_name, arguments)

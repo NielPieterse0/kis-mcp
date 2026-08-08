@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/projects/project-registry.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "default_project_id", "projects"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "default_project_id": {"$ref": "#/$defs/id"},
+    "projects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/project"}
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "display_name", "local_root", "github", "supabase"],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/id"},
+        "display_name": {"type": "string", "minLength": 1},
+        "local_root": {"type": "string", "pattern": "^[A-Za-z]:\\\\.+"},
+        "github": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/github"}
+          ]
+        },
+        "supabase": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/supabase"}
+          ]
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "projects"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+        },
+        "projects": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/githubProject"}
+        }
+      }
+    },
+    "githubProject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_id", "owner", "owner_type", "project_number"],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/id"},
+        "owner": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
+        "owner_type": {"enum": ["user", "org"]},
+        "project_number": {"type": "integer", "minimum": 1}
+      }
+    },
+    "supabase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_ref"],
+      "properties": {
+        "project_ref": {
+          "type": "string",
+          "pattern": "^[a-z0-9]{20}$"
+        }
+      }
+    }
+  }
+}

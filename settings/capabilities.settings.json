@@ -25,6 +25,8 @@
     "operations": [
       "kis_health",
       "kis_provider_status",
+      "kis_list_projects",
+      "kis_project_status",
       "inspect_project",
       "inspect_change",
       "review_change_with_agent",
