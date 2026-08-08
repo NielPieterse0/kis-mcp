@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "change_id": "065-ci-governance-validation",
+  "status": "closed",
+  "branch": "change/065-ci-governance-validation",
+  "worktree": ".work/worktrees/065-ci-governance-validation",
+  "base": "main",
+  "outcome": "Allow isolated CI governance validation without requiring unrelated local worktrees",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "tests/test_change_governance.py",
+    ".github/workflows/work-management.yml",
+    "tests/work_management/test_ci_workflow.py",
+    ".work/changes/065-ci-governance-validation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

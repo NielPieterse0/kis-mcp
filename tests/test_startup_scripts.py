@@ -66,10 +66,12 @@ def test_tunnel_setup_validates_credential_before_moving_active_profile() -> Non
     profile_exists_guard = content.index(
         "if ($ProfileExists -and -not $BackupExistingProfile)"
     )
-    credential_read = content.index("$Credential = Resolve-KisMcpSecretInternal")
+    credential_read = content.index("$Credential = Get-KisMcpWindowsCredential")
     profile_backup = content.index("[System.IO.File]::Move($ProfilePath, $BackupPath)")
 
     assert profile_exists_guard < credential_read < profile_backup
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "Resolve-KisMcpSecretInternal" not in content
 
 
 def test_chatgpt_startup_orders_server_readiness_before_tunnel() -> None:
@@ -102,14 +104,18 @@ def test_chatgpt_startup_separates_supervised_authentication_from_tunnel_deadlin
     assert "if ([DateTime]::UtcNow -ge $TunnelDeadline)" in content
 
 
-def test_chatgpt_startup_finishes_non_secret_preflight_before_unlock() -> None:
+def test_chatgpt_startup_does_not_unlock_application_vault() -> None:
     content = _script("start-chatgpt.ps1")
 
     preflight = content.index("$Preflight = Invoke-KisMcpSelectedInstancePreflight")
-    unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
     server_start = content.index("$Server = Start-OwnedProcess")
 
-    assert preflight < unlock_payload < server_start
+    assert preflight < server_start
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "kis_mcp.secrets.launcher" not in content
+    assert "Start-KisMcpSecretAwareProcess" not in content
+    assert "Unlock kis-mcp secrets" not in content
+    assert "kis_mcp.remote_runtime" in content
 
 
 def test_chatgpt_startup_allows_peer_instance_to_remain_active() -> None:
@@ -137,10 +143,7 @@ def test_chatgpt_startup_hardens_the_selected_app_port() -> None:
 
 def test_startup_lifecycle_matches_only_selected_server_instance() -> None:
     python = r"C:\Projects\.kis-mcp\python-env\Scripts\python.exe"
-    operation = (
-        f'\"{python}\" -m kis_mcp.secrets.launcher '
-        "--runtime remote --instance operation"
-    )
+    operation = f'\"{python}\" -m kis_mcp.remote_runtime --instance operation'
     result = _run_startup_lifecycle(
         "$p=[pscustomobject]@{ExecutablePath='"
         + python.replace("\\", "\\")
@@ -164,10 +167,7 @@ def test_startup_lifecycle_matches_only_selected_server_instance() -> None:
 def test_endpoint_owner_accepts_listener_descendant_of_canonical_python_launcher() -> None:
     python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
     base_python = r"C:\\Users\\operator\\AppData\\Roaming\\uv\\python\\cpython-3.13\\python.exe"
-    command = (
-        f'\\"{python}\\" -m kis_mcp.secrets.launcher '
-        "--runtime remote --instance operation"
-    )
+    command = f'\\"{python}\\" -m kis_mcp.remote_runtime --instance operation'
     result = _run_startup_lifecycle(
         "$script:TestProcesses=@("
         "[pscustomobject]@{ProcessId=100;ParentProcessId=1;Name='python.exe';ExecutablePath='"
@@ -194,10 +194,7 @@ def test_endpoint_owner_accepts_listener_descendant_of_canonical_python_launcher
 
 def test_endpoint_owner_rejects_listener_outside_selected_server_tree() -> None:
     python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
-    command = (
-        f'\\"{python}\\" -m kis_mcp.secrets.launcher '
-        "--runtime remote --instance operation"
-    )
+    command = f'\\"{python}\\" -m kis_mcp.remote_runtime --instance operation'
     result = _run_startup_lifecycle(
         "$script:TestProcesses=@("
         "[pscustomobject]@{ProcessId=100;ParentProcessId=1;Name='python.exe';ExecutablePath='"
@@ -294,10 +291,9 @@ def test_chatgpt_startup_records_failure_after_successful_preflight() -> None:
     content = _script("start-chatgpt.ps1")
     lifecycle = _script("startup-instance-lifecycle.ps1")
 
-    assert "$VaultUnlockPayload = $null" in content
-    assert "$CurrentStatePath = $null\ntry {\n    $VaultUnlockPayload = Get-KisMcpUnlockPayload" in content
+    assert "$CurrentStatePath = $null\ntry {\n    $Server = Start-OwnedProcess" in content
     assert "Set-KisMcpCurrentInstanceStartupFailed -Remote $Remote -RunId $RunId" in content
-    assert "if ($null -ne $VaultUnlockPayload)" in content
+    assert "Get-KisMcpUnlockPayload" not in content
     assert "lifecycle = 'startup_failed'" in lifecycle
 
 
@@ -315,14 +311,15 @@ def test_chatgpt_startup_quarantines_noncanonical_repository_transients() -> Non
     assert "Remove-Item" not in lifecycle
 
 
-def test_tunnel_setup_finishes_non_secret_preflight_before_unlock() -> None:
+def test_tunnel_setup_reads_windows_credential_without_vault_unlock() -> None:
     content = _script("setup-tunnel.ps1")
 
     profile_guard = content.index("if ($ProfileExists -and -not $BackupExistingProfile)")
-    unlock_payload = content.index("$VaultUnlockPayload = Get-KisMcpUnlockPayload")
-    credential_read = content.index("$Credential = Resolve-KisMcpSecretInternal")
+    credential_read = content.index("$Credential = Get-KisMcpWindowsCredential")
 
-    assert profile_guard < unlock_payload < credential_read
+    assert profile_guard < credential_read
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "Resolve-KisMcpSecretInternal" not in content
 
 
 def test_chatgpt_startup_supports_bounded_observation_cleanup() -> None:

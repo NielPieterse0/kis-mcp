@@ -89,4 +89,5 @@ def test_verifier_accepts_only_the_approved_shared_skills_root() -> None:
     assert "active runtime skills catalogue is present" not in source
     assert "C:\\Projects\\.agents\\skills" in source
     assert "C:\\Projects\\.kis-mcp\\temp\\skills" in source
+    assert "Select-String -SimpleMatch '.agents'" not in source
     assert "SKILLS_SETTINGS_INVALID" in source

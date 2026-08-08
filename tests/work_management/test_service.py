@@ -25,7 +25,11 @@ from kis_mcp.work_management import (
 )
 
 
-def settings() -> WorkManagementSettings:
+def settings(
+    *,
+    reconciliation: FeatureMode = FeatureMode.ENABLED,
+    review_import: FeatureMode = FeatureMode.ENABLED,
+) -> WorkManagementSettings:
     return WorkManagementSettings(
         enabled=True,
         portfolio_id="default",
@@ -46,7 +50,10 @@ def settings() -> WorkManagementSettings:
                 project_number=7,
             ),
         ),
-        features=(("reconciliation", FeatureMode.ENABLED),),
+        features=(
+            ("reconciliation", reconciliation),
+            ("review_import", review_import),
+        ),
         automation=(),
         gates=(("programme_drift", GateMode.ADVISORY),),
         evidence=EvidenceSettings(),
@@ -148,6 +155,99 @@ def test_service_coordinates_dry_run_and_apply() -> None:
     assert preview[0].applied is False
     assert applied[0].applied is True
     assert backend.applied[0][1] == "reconcile-alpha-1:TASK-1"
+
+
+def test_disabled_reconciliation_blocks_preview() -> None:
+    backend = Backend()
+    service = WorkManagementService(
+        settings(reconciliation=FeatureMode.DISABLED),
+        {"github": backend},
+    )
+
+    with pytest.raises(ValueError, match="disabled"):
+        asyncio.run(
+            service.reconcile(
+                "alpha-project",
+                (),
+                (),
+                supported_fields=("Status",),
+            )
+        )
+
+    assert backend.applied == []
+
+
+def test_read_only_reconciliation_allows_preview_but_blocks_apply() -> None:
+    backend = Backend()
+    service = WorkManagementService(
+        settings(reconciliation=FeatureMode.READ_ONLY),
+        {"github": backend},
+    )
+    desired = (
+        DesiredProjection(
+            project_id="alpha-project",
+            record_id="TASK-1",
+            fields=(("Status", "Active"),),
+        ),
+    )
+    observed = (
+        ObservedProjection(
+            project_id="alpha-project",
+            record_id="TASK-1",
+            fields=(("Status", "Inbox"),),
+            revision="rev-1",
+        ),
+    )
+
+    preview = asyncio.run(
+        service.reconcile(
+            "alpha-project",
+            desired,
+            observed,
+            supported_fields=("Status",),
+        )
+    )
+
+    with pytest.raises(ValueError, match="read-only"):
+        asyncio.run(
+            service.reconcile(
+                "alpha-project",
+                desired,
+                observed,
+                supported_fields=("Status",),
+                apply=True,
+                idempotency_key="reconcile-alpha-read-only",
+            )
+        )
+
+    assert preview[0].applied is False
+    assert backend.applied == []
+
+
+def test_read_only_review_import_blocks_persistence_before_store_creation() -> None:
+    backend = Backend()
+    store_created = False
+
+    def evidence_store_factory(_project, _limits):
+        nonlocal store_created
+        store_created = True
+        raise AssertionError("evidence store must not be created in read-only mode")
+
+    service = WorkManagementService(
+        settings(review_import=FeatureMode.READ_ONLY),
+        {"github": backend},
+        evidence_store_factory=evidence_store_factory,
+    )
+
+    with pytest.raises(ValueError, match="read-only"):
+        service.persist_review_artifact(
+            "alpha-project",
+            create_review_evidence_manifest("REV-201"),
+            ReviewArtifactKind.REPORT,
+            "# Must not be written\n",
+        )
+
+    assert store_created is False
 
 
 def test_service_persists_review_evidence_through_project_store(tmp_path: Path) -> None:

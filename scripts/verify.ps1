@@ -64,7 +64,7 @@ $RuntimeAndConfigFiles = @(
     Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'settings') -Recurse -File
     Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot 'policy') -Recurse -File
 )
-$RuntimeSkillReferences = $RuntimeAndConfigFiles | Select-String -SimpleMatch '.agents'
+$RuntimeSkillReferences = $RuntimeAndConfigFiles | Select-String -SimpleMatch -Pattern '.agents\skills', '.agents\\skills'
 $AllowedSkillsRootLiterals = @(
     'C:\Projects\.agents\skills',
     'C:\\Projects\\.agents\\skills'

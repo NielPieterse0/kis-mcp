@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 
 from .contracts import ProjectIdentity
 from .read_authority import ReadAuthority
+from .scan_selection import evidence_path_priority
 from .settings import DiscoverSettings
 
 _REPARSE_FLAG = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
@@ -74,7 +75,11 @@ class RepositoryScanner:
             except (FileNotFoundError, NotADirectoryError, PermissionError, OSError):
                 reasons.add("filesystem_changed")
                 return [], False
-            collected.sort(key=lambda entry: entry.name.casefold())
+            collected.sort(
+                key=lambda entry: evidence_path_priority(
+                    Path(entry.path).relative_to(root).as_posix()
+                )
+            )
             return collected, stop_after_batch
 
         def visit(directory: Path, depth: int) -> None:

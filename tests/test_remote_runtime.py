@@ -79,6 +79,9 @@ def test_remote_runtime_uses_streamable_http_arguments() -> None:
     config = load_runtime_config(REPOSITORY_ROOT)
     calls: list[dict[str, Any]] = []
 
+    assert config.remote_stateless_http is True
+    assert config.remote_json_response is True
+
     class FakeServer:
         def run(self, **kwargs: Any) -> None:
             calls.append(kwargs)
@@ -92,8 +95,8 @@ def test_remote_runtime_uses_streamable_http_arguments() -> None:
             "host": instance.host,
             "port": instance.port,
             "path": instance.path,
-            "stateless_http": False,
-            "json_response": True,
+            "stateless_http": config.remote_stateless_http,
+            "json_response": config.remote_json_response,
             "show_banner": False,
         }
     ]

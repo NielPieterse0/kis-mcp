@@ -381,7 +381,11 @@ def create_change_worktree(
     return target
 
 
-def validate_repository(repository: Path) -> list[ChangeClaim]:
+def validate_repository(
+    repository: Path,
+    *,
+    require_active_worktrees: bool = True,
+) -> list[ChangeClaim]:
     current_root = repository_root(repository)
     worktrees = discover_worktrees(current_root)
     if not worktrees:
@@ -416,12 +420,13 @@ def validate_repository(repository: Path) -> list[ChangeClaim]:
                 f"{entry.path} != {expected}"
             )
 
-    for claim in claims:
-        if claim.status not in ACTIVE_STATUSES:
-            continue
-        entry = entries.get(claim.branch)
-        if entry is None:
-            raise ClaimError(f"ACTIVE_CHANGE_WORKTREE_MISSING: {claim.change_id}")
+    if require_active_worktrees:
+        for claim in claims:
+            if claim.status not in ACTIVE_STATUSES:
+                continue
+            entry = entries.get(claim.branch)
+            if entry is None:
+                raise ClaimError(f"ACTIVE_CHANGE_WORKTREE_MISSING: {claim.change_id}")
     return claims
 
 
@@ -730,7 +735,12 @@ def _build_parser() -> argparse.ArgumentParser:
     new.add_argument("--integration-owner")
     new.add_argument("--base", default="main")
 
-    subparsers.add_parser("validate", help="Validate active change claims and worktrees.")
+    validate = subparsers.add_parser("validate", help="Validate active change claims and worktrees.")
+    validate.add_argument(
+        "--claims-only",
+        action="store_true",
+        help="Validate claim semantics without requiring unrelated active worktrees to exist locally.",
+    )
     subparsers.add_parser("check", help="Check the current diff against its declared scope.")
     subparsers.add_parser("list", help="List active and ready change claims.")
     cleanup = subparsers.add_parser("cleanup", help="Remove one clean merged worktree.")
@@ -756,7 +766,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             print(json.dumps({"change_id": args.change_id, "worktree": str(target)}))
         elif args.command == "validate":
-            claims = validate_repository(args.repository)
+            claims = validate_repository(
+                args.repository,
+                require_active_worktrees=not args.claims_only,
+            )
             print(json.dumps({"active_changes": sum(c.status in ACTIVE_STATUSES for c in claims)}))
         elif args.command == "check":
             changed = check_current_change(args.repository)

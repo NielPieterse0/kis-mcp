@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "change_id": "077-control-center-commissioning-status",
+  "status": "closed",
+  "branch": "change/077-control-center-commissioning-status",
+  "worktree": ".work/worktrees/077-control-center-commissioning-status",
+  "base": "origin/main",
+  "outcome": "Correct Control Center commissioning UI, restore stateless remote MCP startup, and remove runtime vault-unlock coupling",
+  "owned_paths": [
+    "src/kis_mcp/providers/control_center/provider.py",
+    "src/kis_mcp/control_center/render.py",
+    "src/kis_mcp/config.py",
+    "src/kis_mcp/remote_runtime.py",
+    "scripts/start-chatgpt.ps1",
+    "scripts/start.ps1",
+    "scripts/startup-instance-lifecycle.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/set-tunnel-credential.ps1",
+    "scripts/windows-credential.ps1",
+    "tests/providers/test_control_center_provider.py",
+    "tests/control_center/test_control_center_render.py",
+    "tests/test_remote_runtime.py",
+    "tests/test_startup_scripts.py",
+    "tests/test_tunnel_scripts.py",
+    "tests/secret_vault/test_scripts.py",
+    "docs/STARTUP-HARDENING.md",
+    "docs/development/secrets/README.md",
+    ".work/changes/077-control-center-commissioning-status/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/PLATFORM-CONCEPT.md"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

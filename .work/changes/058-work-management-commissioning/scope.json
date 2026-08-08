@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "change_id": "058-work-management-commissioning",
+  "status": "closed",
+  "branch": "change/058-work-management-commissioning",
+  "worktree": ".work/worktrees/058-work-management-commissioning",
+  "base": "main",
+  "outcome": "Commission kis-op work management against GitHub Project #1 with read-only live workflows",
+  "owned_paths": [
+    "settings/work-management/github-projects.settings.json",
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "src/kis_mcp/work_management/service.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/work_management/test_service.py",
+    "tests/work_management/test_settings.py",
+    ".work/programmes/work-management/target-spec.md",
+    ".work/changes/058-work-management-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    ".work/changes/040-context7-serena-adapters/**",
+    "settings/providers/github-mcp.provider.json"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

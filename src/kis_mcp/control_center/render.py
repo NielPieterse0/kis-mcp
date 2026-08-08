@@ -247,16 +247,24 @@ def _providers_section(snapshot: ControlCenterSnapshot) -> str:
 def _provider_runtime_entry(item: object) -> str:
     provider = item
     commissioning = dict(provider.commissioning)
+    local_only = bool(commissioning) and all(
+        value == "not_applicable" for value in commissioning.values()
+    )
     extra_badges: list[tuple[str, str]] = [
         (_label(provider.state), "good" if provider.mounted else "bad"),
         (_label(provider.readiness), "good" if provider.readiness == "ready" else "warn"),
     ]
-    if commissioning.get("authenticated") == "required":
+    if local_only:
+        extra_badges.append(("Local read-only", "good"))
+    elif commissioning.get("authenticated") == "required":
         extra_badges.append(("Authentication required", "warn"))
-    detail_rows = "".join(_row(key, value) for key, value in provider.commissioning)
     detail = _text(provider.action)
-    if detail_rows:
-        detail += f'<div class="entries">{detail_rows}</div>'
+    if local_only:
+        detail += '<div class="notice">No commissioning required for this local provider.</div>'
+    else:
+        detail_rows = "".join(_row(key, value) for key, value in provider.commissioning)
+        if detail_rows:
+            detail += f'<div class="entries">{detail_rows}</div>'
     return _entry(
         f"{provider.provider_id} · {provider.namespace}",
         detail,
