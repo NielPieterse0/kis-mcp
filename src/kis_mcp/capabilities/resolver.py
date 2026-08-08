@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from .catalogue import CapabilityCatalogue
@@ -9,8 +8,8 @@ from .eligibility import evaluate_eligibility
 from .readiness import available_capabilities, evaluate_readiness
 from .scoring import intrinsic_quality_score, suitability_score
 from .settings import CapabilitySettings
-
-_TOKEN = re.compile(r"[a-z0-9]+")
+from ..workflows.verification.integrity import unresolved_executable_steps
+from ..workflows.verification.recommendation import workflow_match_score
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,18 +133,15 @@ class CapabilityResolver:
         return tuple(recommendations)
 
     def recommend_workflows(self, query: str) -> tuple[WorkflowRecommendation, ...]:
-        query_tokens = set(_TOKEN.findall(query.casefold()))
         available = self._available_capabilities()
+        operation_names = {
+            operation.name for operation in self.catalogue.operations if operation.enabled
+        }
+        workflow_ids = {workflow.workflow_id for workflow in self.catalogue.workflows}
         recommendations: list[WorkflowRecommendation] = []
         for workflow in self.catalogue.workflows:
-            best = 0
-            for term in workflow.activation_terms:
-                term_tokens = set(_TOKEN.findall(term))
-                if not term_tokens:
-                    continue
-                overlap = len(term_tokens & query_tokens)
-                best = max(best, round(100 * overlap / len(term_tokens)))
-            if best < 50:
+            match = workflow_match_score(workflow, query)
+            if match.score < 50:
                 continue
             missing = tuple(
                 sorted(
@@ -156,21 +152,31 @@ class CapabilityResolver:
             )
             if missing:
                 continue
-            coverage = 100
-            score = round(0.75 * best + 0.25 * coverage)
-            reasons = [
-                "activation term match",
-                "all capability prerequisites available",
-            ]
+            unresolved = unresolved_executable_steps(
+                workflow,
+                operation_names=operation_names,
+                workflow_ids=workflow_ids,
+            )
+            if unresolved:
+                continue
+            reasons = tuple(
+                dict.fromkeys(
+                    (
+                        *match.reasons,
+                        "all capability prerequisites available",
+                        "all executable steps resolve",
+                    )
+                )
+            )
             recommendations.append(
                 WorkflowRecommendation(
                     workflow_id=workflow.workflow_id,
                     title=workflow.title,
-                    score=score,
+                    score=match.score,
                     required_steps=workflow.required_steps,
-                    eligible=not missing,
-                    missing_capabilities=missing,
-                    reasons=tuple(reasons),
+                    eligible=True,
+                    missing_capabilities=(),
+                    reasons=reasons,
                 )
             )
         recommendations.sort(key=lambda item: (-item.score, item.workflow_id))

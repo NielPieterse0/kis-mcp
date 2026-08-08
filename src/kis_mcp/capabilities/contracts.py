@@ -355,6 +355,7 @@ class WorkflowDescriptor:
     activation_terms: tuple[str, ...]
     effects: tuple[OperationEffect, ...]
     exposure: ExposurePolicy
+    executable_steps: tuple[str, ...] = ()
     schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -369,6 +370,13 @@ class WorkflowDescriptor:
             "required_steps",
             _unique_text_preserving_order(self.required_steps, "required_step"),
         )
+        object.__setattr__(
+            self,
+            "executable_steps",
+            _unique_text_preserving_order(self.executable_steps, "executable_step"),
+        )
+        if any(step not in self.required_steps for step in self.executable_steps):
+            raise ValueError("workflow executable_steps must be required_steps")
         object.__setattr__(self, "completion_criteria", tuple(sorted(_required_text(item, "completion criterion") for item in self.completion_criteria)))
         object.__setattr__(self, "activation_terms", tuple(sorted(_required_text(item, "activation term").casefold() for item in self.activation_terms)))
         if not self.capabilities or not self.required_steps or not self.completion_criteria or not self.activation_terms:
@@ -387,6 +395,7 @@ class WorkflowDescriptor:
             "description": self.description,
             "capabilities": list(self.capabilities),
             "required_steps": list(self.required_steps),
+            "executable_steps": list(self.executable_steps),
             "completion_criteria": list(self.completion_criteria),
             "activation_terms": list(self.activation_terms),
             "effects": [item.value for item in self.effects],

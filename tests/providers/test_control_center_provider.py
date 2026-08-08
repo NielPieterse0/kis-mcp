@@ -63,7 +63,21 @@ def test_control_center_descriptor_is_local_read_only_and_builds_mcp_app() -> No
         "operations.dashboard"
     ]
     assert descriptor.capabilities[0].tool_names == ("open_kis_control_center",)
-    assert descriptor.readiness_probe().state is ProviderState.READY
+    readiness = descriptor.readiness_probe()
+    assert readiness.state is ProviderState.READY
+    assert readiness.details["user_status"] == {
+        "state": "ready_local",
+        "label": "Ready — local read-only",
+        "required_action": "No commissioning action is required.",
+    }
+    assert readiness.details["commissioning"] == {
+        "installed": "not_applicable",
+        "configured": "not_applicable",
+        "authenticated": "not_applicable",
+        "upstream_connected": "not_applicable",
+        "tools_discovered": "not_applicable",
+        "live_verified": "not_applicable",
+    }
 
     server = descriptor.builder()
     assert isinstance(server, FastMCP)

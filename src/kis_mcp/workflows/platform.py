@@ -28,6 +28,7 @@ from .project_management import (
     project_management_workflow_descriptors,
     register_project_management_tools,
 )
+from .verification.descriptors import verification_workflow_descriptors
 
 from ..capabilities.contracts import (
     ExposureMode,
@@ -46,6 +47,8 @@ def _workflow(
     criteria: tuple[str, ...],
     terms: tuple[str, ...],
     effects: tuple[OperationEffect, ...],
+    *,
+    executable_steps: tuple[str, ...] = (),
 ) -> WorkflowDescriptor:
     return WorkflowDescriptor(
         workflow_id=workflow_id,
@@ -57,6 +60,7 @@ def _workflow(
         activation_terms=terms,
         effects=effects,
         exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=90),
+        executable_steps=executable_steps,
     )
 
 
@@ -130,7 +134,7 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             "pull-request-safe-closeout",
             "Review and merge pull request safely",
             "Inspect, verify, review, merge the exact approved head, and clean the merged worktree.",
-            ("git.change.inspect", "validation.execute", "github.review", "github.pull-request.merge", "git.worktree.cleanup"),
+            ("git.change.inspect", "verification.execute", "github.review", "github.pull-request.merge", "git.worktree.cleanup"),
             ("inspect_change", "run_verification", "github_review_pull_request", "github_merge_pull_request", "cleanup_change_worktree"),
             ("checks pass", "review findings are resolved", "approved head is merged", "worktree is cleaned"),
             ("review and merge pull request", "merge pr safely", "pr completion", "clean worktree"),
@@ -147,7 +151,21 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             (read,),
         ),
     )
-    return (*core, *project_management_workflow_descriptors())
+    verification = tuple(
+        _workflow(
+            item.workflow_id,
+            item.title,
+            item.description,
+            item.capabilities,
+            item.required_steps,
+            item.completion_criteria,
+            item.activation_terms,
+            item.effects,
+            executable_steps=item.executable_steps,
+        )
+        for item in verification_workflow_descriptors()
+    )
+    return (*core, *project_management_workflow_descriptors(), *verification)
 
 
 def _build_code_review_agent(

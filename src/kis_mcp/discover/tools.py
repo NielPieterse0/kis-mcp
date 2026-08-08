@@ -14,6 +14,7 @@ from .change_analysis import (
 )
 from .change_inspection_contracts import InspectChangeRequest, InspectChangeResponse
 from .impact_contracts import ImpactBudget
+from .planning_contracts import PlanChangeRequest, PlanChangeResponse
 from .context_contracts import (
     CodeContextBudget,
     GetCodeContextRequest,
@@ -46,6 +47,10 @@ class InspectChangePort(Protocol):
 
 class AnalyzeChangePort(Protocol):
     def analyze(self, request: AnalyzeChangeRequest) -> AnalyzeChangeResponse: ...
+
+
+class PlanChangePort(Protocol):
+    def plan(self, request: PlanChangeRequest) -> PlanChangeResponse: ...
 
 
 def register_discover_tools(server: FastMCP, service: InspectProjectPort) -> None:
@@ -115,6 +120,59 @@ def register_discover_tools(server: FastMCP, service: InspectProjectPort) -> Non
                 corrective_actions=(
                     r"Provide a non-empty local project path beneath C:\Projects.",
                     "Provide a non-empty task and positive explicit budget values.",
+                ),
+            )
+
+
+def register_plan_change_tool(server: FastMCP, service: PlanChangePort) -> None:
+    """Register bounded read-only change preparation without executing Work."""
+
+    @server.tool(name="plan_change", annotations=_READ_ONLY_ANNOTATIONS)
+    def plan_change(
+        project: str,
+        task: str,
+        source: str = "working_tree",
+        commit_ref: str | None = None,
+        base_ref: str | None = None,
+        head_ref: str | None = None,
+        max_chars: int = 20_000,
+        max_files: int = 12,
+        max_symbols: int = 50,
+        max_relationships: int = 50,
+        max_dependants: int = 100,
+        max_tests: int = 100,
+        max_verifications: int = 50,
+    ) -> dict[str, Any]:
+        """Prepare one bounded repository change plan from current local evidence."""
+        try:
+            return service.plan(
+                PlanChangeRequest(
+                    project=project,
+                    task=task,
+                    source=source,
+                    commit_ref=commit_ref,
+                    base_ref=base_ref,
+                    head_ref=head_ref,
+                    max_chars=max_chars,
+                    max_files=max_files,
+                    max_symbols=max_symbols,
+                    max_relationships=max_relationships,
+                    max_dependants=max_dependants,
+                    max_tests=max_tests,
+                    max_verifications=max_verifications,
+                )
+            ).to_json_dict()
+        except DiscoverError as exc:
+            raise _discover_tool_error(exc) from exc
+        except ValueError as exc:
+            raise _request_tool_error(
+                code="DISCOVER_PLAN_CHANGE_REQUEST_INVALID",
+                message="The plan_change request is invalid.",
+                reason=str(exc),
+                field="request",
+                corrective_actions=(
+                    r"Provide a project beneath C:\Projects and a non-empty task.",
+                    "Use a supported change source and positive bounded limits.",
                 ),
             )
 
@@ -270,7 +328,9 @@ __all__ = [
     "AnalyzeChangePort",
     "InspectChangePort",
     "InspectProjectPort",
+    "PlanChangePort",
     "register_analyze_change_tool",
     "register_change_tools",
     "register_discover_tools",
+    "register_plan_change_tool",
 ]

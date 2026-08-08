@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "change_id": "064-discover-scan-priority",
+  "status": "closed",
+  "branch": "change/064-discover-scan-priority",
+  "worktree": ".work/worktrees/064-discover-scan-priority",
+  "base": "origin/main",
+  "outcome": "Prioritize high-value repository evidence under Discover scan budgets without weakening traversal safety or deterministic output",
+  "owned_paths": [
+    "src/kis_mcp/discover/scanner.py",
+    "src/kis_mcp/discover/scan_selection.py",
+    "tests/discover/test_scanner.py",
+    "tests/discover/test_scan_selection.py",
+    "scripts/verify.ps1",
+    "tests/skills/test_architecture.py",
+    "tests/test_repository_scope.py",
+    ".work/changes/064-discover-scan-priority/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "settings/**",
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/discover/impact_graph.py",
+    "src/kis_mcp/discover/context_broker.py"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

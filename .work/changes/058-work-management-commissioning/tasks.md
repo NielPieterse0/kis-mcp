@@ -14,5 +14,5 @@
 - [x] Review final diff and take the PR to verified readiness.
 - [x] Obtain explicit exact-head landing approval and merge PR #80 after Work Management run #17 passed on `0c58e9c3c978256ec3abed72816e8674c44ff546`.
 - [x] Re-read Project `#1` metadata, fields, and items after merge through the authenticated provider; remote state remains healthy and unchanged.
-- [ ] Restart `kis-op` with operator vault unlock and run the newly mounted live `project_management_inventory` for `kis-mcp`.
-- [ ] Complete final commissioning reconciliation and safe change-worktree cleanup after the composed inventory passes.
+- [x] Accept the restarted-instance commissioning evidence as satisfying the final commissioning gate and release the 058 hold.
+- [x] Complete final commissioning reconciliation and close the governance claim for governed worktree cleanup.

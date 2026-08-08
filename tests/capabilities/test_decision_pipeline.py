@@ -23,6 +23,7 @@ from kis_mcp.capabilities.readiness import evaluate_readiness
 from kis_mcp.capabilities.resolver import CapabilityResolver, TaskContext
 from kis_mcp.capabilities.scoring import intrinsic_quality_score
 from kis_mcp.capabilities.settings import load_capability_settings
+from kis_mcp.workflows.platform import workflow_descriptors
 
 
 def quality(**overrides: int) -> QualityMetadata:
@@ -182,6 +183,15 @@ def test_scoring_is_deterministic_and_explainable_after_filtering() -> None:
     assert "exact capability match" in recommendations[0].reasons
     assert "runtime ready" in recommendations[0].reasons
     assert intrinsic_quality_score(operation().quality, settings) == 90
+
+
+def test_safe_closeout_uses_runtime_verification_capability() -> None:
+    descriptor = next(
+        item for item in workflow_descriptors() if item.workflow_id == "pull-request-safe-closeout"
+    )
+
+    assert "verification.execute" in descriptor.capabilities
+    assert "validation.execute" not in descriptor.capabilities
 
 
 def test_workflow_recommendation_excludes_ineligible_candidates() -> None:

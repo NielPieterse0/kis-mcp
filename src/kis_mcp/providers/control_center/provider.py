@@ -47,6 +47,19 @@ def control_center_provider_descriptor(
             details={
                 "project_configured": bool(str(settings.project_path)),
                 "discover_enabled": settings.discover_enabled,
+                "user_status": {
+                    "state": "ready_local",
+                    "label": "Ready — local read-only",
+                    "required_action": "No commissioning action is required.",
+                },
+                "commissioning": {
+                    "installed": "not_applicable",
+                    "configured": "not_applicable",
+                    "authenticated": "not_applicable",
+                    "upstream_connected": "not_applicable",
+                    "tools_discovered": "not_applicable",
+                    "live_verified": "not_applicable",
+                },
             },
         )
 

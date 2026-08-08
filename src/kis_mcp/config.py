@@ -162,6 +162,14 @@ class RuntimeConfig:
     def tunnel_client_path(self) -> str:
         return str(self.raw_settings["remote_mcp"]["tunnel_client_path"])
 
+    @property
+    def remote_stateless_http(self) -> bool:
+        return bool(self.raw_settings["remote_mcp"]["stateless_http"])
+
+    @property
+    def remote_json_response(self) -> bool:
+        return bool(self.raw_settings["remote_mcp"]["json_response"])
+
     def remote_instance(self, name: str | None = None) -> RemoteMcpInstance:
         selected = (name or self.active_remote_instance).strip().casefold()
         instances = self.raw_settings["remote_mcp"]["instances"]

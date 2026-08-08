@@ -10,7 +10,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
-. (Join-Path $PSScriptRoot 'secret-vault.ps1')
+. (Join-Path $PSScriptRoot 'windows-credential.ps1')
 
 function Append-SetupLog {
     param(
@@ -97,11 +97,9 @@ if ($ProfileExists -and -not $BackupExistingProfile) {
     throw "KIS_MCP_TUNNEL_PROFILE_EXISTS: use -BackupExistingProfile to preserve and replace $ProfilePath"
 }
 
-$VaultUnlockPayload = Get-KisMcpUnlockPayload
+$CredentialTarget = Get-KisMcpTunnelCredentialTarget -Reference $Remote.tunnel_secret_ref
 $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
-$Credential = Resolve-KisMcpSecretInternal `
-    -Reference $Remote.tunnel_secret_ref `
-    -SecurePayload $VaultUnlockPayload
+$Credential = Get-KisMcpWindowsCredential -Target $CredentialTarget
 $PreviousCredential = [Environment]::GetEnvironmentVariable(
     $CredentialEnvironmentName,
     [EnvironmentVariableTarget]::Process
@@ -167,10 +165,7 @@ finally {
     $Credential = $null
     $PreviousCredential = $null
     $AuthenticationReference = $null
-    foreach ($Name in @($VaultUnlockPayload.Keys)) {
-        $VaultUnlockPayload[$Name] = $null
-    }
-    $VaultUnlockPayload.Clear()
+    $CredentialTarget = $null
 }
 
 Write-Host "Tunnel profile created for instance '$($Remote.name)'."
