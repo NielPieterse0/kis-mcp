@@ -8,9 +8,11 @@ from typing import Any
 
 from fastmcp import Client
 
-from .commission import commission_supabase_client
+from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
+
+from .commission import _registered_project_ref, commission_supabase_client
 from .config import SupabaseProviderConfig, load_supabase_provider_config
-from .runtime import legacy_pat_conflict, require_project_scope
+from .runtime import legacy_pat_conflict
 
 ServerFactory = Callable[[], Any]
 
@@ -57,8 +59,8 @@ def _supabase_mounted(status: dict[str, Any]) -> bool:
 
 async def _run_live_smoke(
     config: SupabaseProviderConfig,
-    environment: Mapping[str, str],
     server: Any,
+    project_ref: str,
 ) -> dict[str, bool]:
     async with Client(server, timeout=120, init_timeout=120) as client:
         status_result = await client.call_tool("kis_provider_status", {})
@@ -71,7 +73,7 @@ async def _run_live_smoke(
         report = await commission_supabase_client(
             client,
             config,
-            environment,
+            project_ref,
             tool_prefix="supabase_",
         )
 
@@ -83,17 +85,20 @@ def run_live_smoke(
     config: SupabaseProviderConfig | None = None,
     *,
     environ: Mapping[str, str] | None = None,
+    project_id: str | None = None,
+    registry: ProjectRegistry | None = None,
 ) -> dict[str, bool]:
     runtime = config or load_supabase_provider_config()
     source = os.environ if environ is None else environ
-    require_project_scope(runtime, source)
     if legacy_pat_conflict(runtime, source):
         raise RuntimeError(
             f"SUPABASE_LEGACY_PAT_CONFLICT: clear {runtime.legacy_pat_env} "
             "before shared-runtime OAuth verification"
         )
+    projects = registry or load_project_registry_settings()
+    project_ref = _registered_project_ref(projects, project_id)
     server = server_factory()
-    return asyncio.run(_run_live_smoke(runtime, source, server))
+    return asyncio.run(_run_live_smoke(runtime, server, project_ref))
 
 
 __all__ = ["ServerFactory", "run_live_smoke"]

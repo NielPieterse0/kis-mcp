@@ -13,7 +13,7 @@
     "downstream"
   ],
   "properties": {
-    "schema_version": {"const": 2},
+    "schema_version": {"const": 3},
     "provider": {
       "type": "object",
       "additionalProperties": false,
@@ -39,7 +39,6 @@
       "required": [
         "transport",
         "base_url",
-        "project_ref_env",
         "read_only",
         "features",
         "verify_tls"
@@ -47,10 +46,6 @@
       "properties": {
         "transport": {"const": "streamable-http"},
         "base_url": {"const": "https://mcp.supabase.com/mcp"},
-        "project_ref_env": {
-          "type": "string",
-          "pattern": "^[A-Z_][A-Z0-9_]*$"
-        },
         "read_only": {"type": "boolean"},
         "features": {
           "type": "array",

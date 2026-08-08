@@ -9,13 +9,14 @@ from urllib.parse import urlparse
 
 from fastmcp import Client
 
+from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
+
 from .config import SupabaseProviderConfig, load_supabase_provider_config
-from .runtime import legacy_pat_conflict, require_project_scope
+from .runtime import legacy_pat_conflict
 from .server import build_server
 
 
 _REQUIRED_READ_TOOLS = ("get_project_url", "list_tables")
-_FORBIDDEN_ACCOUNT_TOOLS = ("list_projects", "list_organizations")
 _REPRESENTATIVE_MUTATING_TOOL = "apply_migration"
 
 
@@ -60,19 +61,8 @@ def _require_tool_surface(
     missing_reads = sorted(required_reads - names)
     if missing_reads:
         raise RuntimeError(
-            "Supabase MCP required project-scoped read tools are missing: "
+            "Supabase MCP required read tools are missing: "
             + ", ".join(missing_reads)
-        )
-
-    forbidden_accounts = sorted(
-        _tool_name(tool_prefix, name)
-        for name in _FORBIDDEN_ACCOUNT_TOOLS
-        if _tool_name(tool_prefix, name) in names
-    )
-    if forbidden_accounts:
-        raise RuntimeError(
-            "Supabase MCP project scoping failed; account-level tools are exposed: "
-            + ", ".join(forbidden_accounts)
         )
 
     mutating_tool = _tool_name(tool_prefix, _REPRESENTATIVE_MUTATING_TOOL)
@@ -91,66 +81,84 @@ def _require_tool_surface(
 
 def _require_project_url(result: Any, project_ref: str) -> None:
     if getattr(result, "is_error", False):
-        raise RuntimeError("Supabase MCP commissioning failed during project-scoped read")
+        raise RuntimeError("Supabase MCP commissioning failed during registered project read")
 
     payload = _result_payload(result)
     value = payload.get("url")
     if not isinstance(value, str):
-        raise RuntimeError("Supabase MCP project-scoped read returned no project URL")
+        raise RuntimeError("Supabase MCP registered project read returned no project URL")
 
     parsed = urlparse(value)
     expected_hostname = f"{project_ref}.supabase.co".lower()
     if parsed.scheme != "https" or (parsed.hostname or "").lower() != expected_hostname:
         raise RuntimeError(
-            "Supabase MCP project-scoped read did not match the configured project"
+            "Supabase MCP registered project read did not match the configured project"
         )
+
+
+def _registered_project_ref(
+    registry: ProjectRegistry,
+    project_id: str | None,
+) -> str:
+    project = registry.project(project_id or registry.default_project_id)
+    if project.supabase is None:
+        raise RuntimeError(
+            f"Registered KIS project has no Supabase binding: {project.project_id}"
+        )
+    return project.supabase.project_ref
 
 
 async def commission_supabase_client(
     client: Any,
     config: SupabaseProviderConfig,
-    environment: Mapping[str, str],
+    project_ref: str,
     *,
     tool_prefix: str = "",
 ) -> dict[str, bool]:
-    project_ref = require_project_scope(config, environment)
     tools = await client.list_tools()
     names = {str(tool.name) for tool in tools}
     _require_tool_surface(names, config, tool_prefix)
 
     required_read = _tool_name(tool_prefix, "get_project_url")
-    result = await client.call_tool(required_read, {})
+    result = await client.call_tool(required_read, {"project_id": project_ref})
     _require_project_url(result, project_ref)
     return {
-        "surface": True,
+        "account_surface": True,
         "authentication": True,
-        "project_scoped_read": True,
+        "registered_project_read": True,
     }
 
 
 async def _run_standalone_commissioning(
     config: SupabaseProviderConfig,
     environment: Mapping[str, str],
+    project_ref: str,
+    registry: ProjectRegistry,
 ) -> dict[str, bool]:
-    server = build_server(config, environment)
+    server = build_server(config, environment, project_registry=registry)
     async with Client(server, timeout=120, init_timeout=120) as client:
-        return await commission_supabase_client(client, config, environment)
+        return await commission_supabase_client(client, config, project_ref)
 
 
 def run_standalone_commissioning(
     config: SupabaseProviderConfig | None = None,
     *,
     environ: Mapping[str, str] | None = None,
+    project_id: str | None = None,
+    registry: ProjectRegistry | None = None,
 ) -> dict[str, bool]:
     runtime = config or load_supabase_provider_config()
     source = os.environ if environ is None else environ
-    require_project_scope(runtime, source)
     if legacy_pat_conflict(runtime, source):
         raise RuntimeError(
             f"SUPABASE_LEGACY_PAT_CONFLICT: clear {runtime.legacy_pat_env} "
             "before browser OAuth commissioning"
         )
-    return asyncio.run(_run_standalone_commissioning(runtime, source))
+    projects = registry or load_project_registry_settings()
+    project_ref = _registered_project_ref(projects, project_id)
+    return asyncio.run(
+        _run_standalone_commissioning(runtime, source, project_ref, projects)
+    )
 
 
 def main() -> None:

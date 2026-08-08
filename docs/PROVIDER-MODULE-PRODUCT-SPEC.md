@@ -91,7 +91,7 @@ Each adapter owns:
 - provider-specific JSON settings;
 - authentication indirection and environment-variable names;
 - transport construction;
-- scope validation;
+- provider-specific use of explicit routing coordinates supplied by the shared project registry;
 - source, version, endpoint, package, or executable identity;
 - provider-specific readiness and user-status evidence;
 - builder behavior and adapter-specific smoke tests.
@@ -219,8 +219,8 @@ Runtime composition processes settings in stable provider-ID order and contains 
 Normal onboarding states include:
 
 - **GitHub — Ready, authentication required:** executable, configuration, OAuth mode, and mount prerequisites are ready; supervised sign-in remains.
-- **Supabase — Ready, project initialization required:** the provider is available but the current repository is not yet linked or scoped to a Supabase project.
-- **Supabase — Ready, authentication required:** project scope is present and browser OAuth remains.
+- **Supabase — Ready, authentication required:** the unscoped account endpoint, Windows credential storage, and provider configuration are ready; one browser OAuth login remains for the running KIS runtime.
+- **Supabase — Ready, authenticated:** the persistent runtime client is connected and tools are discovered; explicit registered-project live verification may still be pending.
 - **NVIDIA NIM — unavailable or degraded without `NVIDIA_API_KEY`:** the optional review backend may fall back to Codex; the gateway remains available.
 
 Use degraded, unavailable, build-failed, or mount-failed states for genuine local faults. Do not present expected onboarding as breakage.
@@ -237,7 +237,7 @@ GitHub MCP is an approved external connector with isolated settings, OAuth behav
 
 ### 10.3 Supabase
 
-Supabase is an approved external connector with project-scope validation, hosted OAuth commissioning, isolated settings, readiness, builder, and smoke evidence. Successful mount exposes project-scoped upstream tools under `supabase_*`.
+Supabase is an approved external connector with an unscoped hosted account-OAuth transport, persistent runtime client lifecycle, central-registry project routing, isolated settings, readiness, builder, and smoke evidence. Successful mount exposes upstream tools under `supabase_*`; explicit `project_id` values must be registered, while targetless calls require upstream read-only annotation.
 
 ### 10.4 NVIDIA NIM
 
@@ -290,7 +290,7 @@ The Provider module will not:
 |---|---|---|
 | P0 — Common foundation | Implemented | Contracts, registry, catalogue, health, service, schema, and tests. |
 | P1 — GitHub conformance | Implemented | Descriptor, explicit registration, isolated settings and builder, OAuth and smoke paths. |
-| P2 — Supabase conformance | Implemented | Descriptor, explicit registration, project-scoped settings and builder, OAuth and smoke paths. |
+| P2 — Supabase conformance | Implemented | Descriptor, explicit registration, unscoped account OAuth, persistent client lifecycle, registered per-call project routing, and smoke paths. |
 | P3 — Platform composition | Implemented | Explicit four-provider registry, GitHub/Supabase runtime selection, namespaced mount containment, and `kis_provider_status`. |
 | P4 — Workflow provider | Implemented for NVIDIA NIM | Workflow-only descriptor and client for the advisory code-review agent. |
 | Future adapters | Target | Semantic, forge, database, testing, or documentation providers added through separate slices. |

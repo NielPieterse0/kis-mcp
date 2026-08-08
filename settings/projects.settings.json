@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "default_project_id": "kis-mcp",
+  "projects": [
+    {
+      "project_id": "kis-mcp",
+      "display_name": "kis-mcp",
+      "local_root": "C:\\Projects\\kis-mcp",
+      "github": {
+        "repository": "NielPieterse0/kis-mcp",
+        "projects": [
+          {
+            "binding_id": "work-management",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 1
+          }
+        ]
+      },
+      "supabase": {
+        "project_ref": "mmxuicfrdalymczdapjq"
+      }
+    },
+    {
+      "project_id": "gpt-os",
+      "display_name": "GPT-OS",
+      "local_root": "C:\\Projects\\GPT-OS",
+      "github": {
+        "repository": "NielPieterse0/gpt-os",
+        "projects": []
+      },
+      "supabase": null
+    }
+  ]
+}

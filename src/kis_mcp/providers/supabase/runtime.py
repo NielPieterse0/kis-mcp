@@ -18,7 +18,7 @@ from .config import SupabaseProviderConfig
 
 
 class SupabaseProviderRuntimeError(RuntimeError):
-    """Raised when required runtime scope or OAuth preflight is unavailable."""
+    """Raised when Supabase OAuth preflight cannot proceed safely."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,8 +29,8 @@ class SupabaseProviderReadiness:
     endpoint_kind: str
     source_repository: str
     source_revision: str
-    project_scoped: bool
-    project_ref_present: bool
+    account_scoped: bool
+    project_routing: str
     authentication_mode: str
     token_storage: str
     token_storage_available: bool
@@ -40,6 +40,7 @@ class SupabaseProviderReadiness:
     upstream_transport: str
     downstream_transport: str
     verify_tls: bool
+    client_lifetime: str = "runtime"
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -49,8 +50,8 @@ class SupabaseProviderReadiness:
             "endpoint_kind": self.endpoint_kind,
             "source_repository": self.source_repository,
             "source_revision": self.source_revision,
-            "project_scoped": self.project_scoped,
-            "project_ref_present": self.project_ref_present,
+            "account_scoped": self.account_scoped,
+            "project_routing": self.project_routing,
             "authentication_mode": self.authentication_mode,
             "token_storage": self.token_storage,
             "token_storage_available": self.token_storage_available,
@@ -60,6 +61,7 @@ class SupabaseProviderReadiness:
             "upstream_transport": self.upstream_transport,
             "downstream_transport": self.downstream_transport,
             "verify_tls": self.verify_tls,
+            "client_lifetime": self.client_lifetime,
         }
 
 
@@ -74,19 +76,6 @@ def _runtime_value(
     return normalized or None
 
 
-def require_project_scope(
-    config: SupabaseProviderConfig,
-    environment: Mapping[str, str],
-) -> str:
-    project_ref = _runtime_value(environment, config.project_ref_env)
-    if project_ref is None:
-        raise SupabaseProviderRuntimeError(
-            f"SUPABASE_PROJECT_SCOPE_REQUIRED: set {config.project_ref_env} "
-            "to one development or test Supabase project reference"
-        )
-    return project_ref
-
-
 def legacy_pat_conflict(
     config: SupabaseProviderConfig,
     environment: Mapping[str, str],
@@ -94,16 +83,14 @@ def legacy_pat_conflict(
     return _runtime_value(environment, config.legacy_pat_env) is not None
 
 
-def build_upstream_url(
-    config: SupabaseProviderConfig,
-    environment: Mapping[str, str],
-) -> str:
-    project_ref = require_project_scope(config, environment)
-    query: dict[str, str] = {"project_ref": project_ref}
+def build_upstream_url(config: SupabaseProviderConfig) -> str:
+    query: dict[str, str] = {}
     if config.read_only:
         query["read_only"] = "true"
     if config.features:
         query["features"] = ",".join(config.features)
+    if not query:
+        return config.base_url
     return f"{config.base_url}?{urlencode(query)}"
 
 
@@ -141,7 +128,6 @@ def provider_readiness(
     *,
     keyring_available: bool | None = None,
 ) -> SupabaseProviderReadiness:
-    project_ref_present = _runtime_value(environment, config.project_ref_env) is not None
     pat_conflict = legacy_pat_conflict(config, environment)
     storage_available = (
         windows_keyring_available()
@@ -151,12 +137,12 @@ def provider_readiness(
     return SupabaseProviderReadiness(
         provider_id=config.provider_id,
         server_name=config.server_name,
-        ready=project_ref_present and storage_available and not pat_conflict,
+        ready=storage_available and not pat_conflict,
         endpoint_kind=config.endpoint_kind,
         source_repository=config.source_repository,
         source_revision=config.source_revision,
-        project_scoped=True,
-        project_ref_present=project_ref_present,
+        account_scoped=True,
+        project_routing="registered_per_call",
         authentication_mode=config.auth_mode,
         token_storage=config.token_storage,
         token_storage_available=storage_available,

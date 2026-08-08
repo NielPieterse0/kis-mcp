@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
@@ -25,6 +26,8 @@ from ..middleware import ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
 from ..provider_lifecycle import prepare_provider_launch
 from ..provider_readiness import validate_provider_offline_readiness
+from ..projects import load_project_registry_settings
+from ..projects.platform import project_capability_contribution, register_project_tools
 from ..providers.platform import (
     ProviderRuntimeSettings,
     ProviderService,
@@ -33,6 +36,7 @@ from ..providers.platform import (
     provider_runtime_tools,
 )
 from ..quarantine import QuarantineService
+from ..repositories import SelectedRepositorySettings
 from ..skills.platform import register_platform_skills, skill_capability_contributions
 from ..tools.platform import build_platform_tool_registry, tool_capability_contributions
 from ..workflows.platform import (
@@ -80,8 +84,14 @@ def compose_gateway(
         env=environment,
     )
     server = create_proxy_fn(ProxyClient(transport), name=runtime.server_name)
+    projects = load_project_registry_settings(boundary=runtime.project_boundary)
+    repository_selection = SelectedRepositorySettings(
+        registry=projects,
+        boundary=Path(runtime.project_boundary),
+    )
 
     register_platform_discover(server, runtime)
+    register_project_tools(server, projects)
     providers = compose_platform_providers(
         server,
         runtime_config=runtime,
@@ -89,6 +99,7 @@ def compose_gateway(
         provider_service=provider_service,
         provider_runtime_settings=provider_runtime_settings,
         environment=os.environ,
+        selected_repository=repository_selection,
     )
 
     quarantine = QuarantineService(
@@ -133,6 +144,7 @@ def compose_gateway(
         *tool_capability_contributions(build_platform_tool_registry()),
         *discover_capability_contributions(),
         *skill_capability_contributions(skill_cards, settings),
+        project_capability_contribution(),
         capability_control_contribution(),
     )
     namespaces = {
@@ -164,6 +176,7 @@ def compose_gateway(
         exposure=exposure,
         provider_service=providers.service,
         provider_composition=providers.composition,
+        projects=projects,
     )
 
 

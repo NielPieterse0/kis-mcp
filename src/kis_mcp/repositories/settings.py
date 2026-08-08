@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from kis_mcp.projects import ProjectDefinition, ProjectRegistry
+
 
 _SETTINGS_KEYS = {
     "schema_version",
@@ -110,7 +112,17 @@ class RepositorySettings:
     repository_id: str
     github_repository: str
     gh_projects: tuple[GitHubProjectBinding, ...]
+    authorized_github_repositories: tuple[str, ...] = ()
+    authorized_gh_projects: tuple[GitHubProjectBinding, ...] = ()
     schema_version: int = 1
+
+    @property
+    def github_repositories(self) -> tuple[str, ...]:
+        return self.authorized_github_repositories or (self.github_repository,)
+
+    @property
+    def github_project_bindings(self) -> tuple[GitHubProjectBinding, ...]:
+        return self.authorized_gh_projects or self.gh_projects
 
     @property
     def github_owner(self) -> str:
@@ -263,8 +275,55 @@ def load_repository_settings(
     )
 
 
+def _registry_repository_settings(
+    registry: ProjectRegistry,
+    project: ProjectDefinition,
+    *,
+    validate_remote: bool,
+) -> RepositorySettings:
+    if project.github is None:
+        raise RuntimeError(
+            f"Registered project has no GitHub repository binding: {project.project_id}"
+        )
+    root = Path(project.local_root).resolve()
+    projects = tuple(
+        GitHubProjectBinding(
+            binding_id=item.binding_id,
+            owner=item.owner,
+            owner_type=item.owner_type,
+            project_number=item.project_number,
+        )
+        for item in project.github.projects
+    )
+    authorized_projects = tuple(
+        GitHubProjectBinding(
+            binding_id=item.binding_id,
+            owner=item.owner,
+            owner_type=item.owner_type,
+            project_number=item.project_number,
+        )
+        for registered in registry.projects
+        if registered.github is not None
+        for item in registered.github.projects
+    )
+    if validate_remote:
+        origin = _origin_repository(root)
+        if origin is not None and origin != project.github.repository:
+            raise RuntimeError(
+                "Configured github_repository does not match origin: "
+                f"{project.github.repository} != {origin}"
+            )
+    return RepositorySettings(
+        repository_root=root,
+        repository_id=project.project_id,
+        github_repository=project.github.repository,
+        gh_projects=projects,
+        authorized_github_repositories=registry.github_repositories,
+        authorized_gh_projects=authorized_projects,
+    )
+
 class SelectedRepositorySettings:
-    """Mutable repository selection independent from provider client lifetime."""
+    """Repository selection with optional central-registry authorization context."""
 
     def __init__(
         self,
@@ -272,31 +331,47 @@ class SelectedRepositorySettings:
         *,
         validate_remote: bool = True,
         boundary: Path | None = None,
+        registry: ProjectRegistry | None = None,
     ) -> None:
         self._validate_remote = validate_remote
         self._boundary = boundary.resolve() if boundary is not None else None
+        self._registry = registry
+        if repository_root is None and registry is not None:
+            repository_root = Path(registry.default_project.local_root)
         root = repository_root or Path(__file__).resolve().parents[3]
         self._repository_root = root.resolve()
         self._settings: RepositorySettings | None = None
 
-    def current(self) -> RepositorySettings:
-        if self._settings is None:
-            self._settings = load_repository_settings(
-                _bounded_root(self._repository_root, self._boundary),
+    def _load(self, root: Path) -> RepositorySettings:
+        bounded = _bounded_root(root, self._boundary)
+        if self._registry is None:
+            return load_repository_settings(
+                bounded,
                 validate_remote=self._validate_remote,
             )
+        try:
+            project = self._registry.project_for_root(str(bounded))
+        except KeyError as exc:
+            raise RuntimeError(
+                f"Repository root is not a registered project: {bounded}"
+            ) from exc
+        return _registry_repository_settings(
+            self._registry,
+            project,
+            validate_remote=self._validate_remote,
+        )
+
+    def current(self) -> RepositorySettings:
+        if self._settings is None:
+            self._settings = self._load(self._repository_root)
         return self._settings
 
     def select(self, repository_root: Path) -> RepositorySettings:
         root = _bounded_root(repository_root, self._boundary)
-        selected = load_repository_settings(
-            root,
-            validate_remote=self._validate_remote,
-        )
+        selected = self._load(root)
         self._repository_root = root
         self._settings = selected
         return selected
-
 
 __all__ = [
     "GitHubProjectBinding",

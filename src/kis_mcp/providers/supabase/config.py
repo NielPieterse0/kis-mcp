@@ -31,7 +31,6 @@ class SupabaseProviderConfig:
     source_revision: str
     upstream_transport: str
     base_url: str
-    project_ref_env: str
     read_only: bool
     features: tuple[str, ...]
     verify_tls: bool
@@ -170,8 +169,8 @@ def load_supabase_provider_config(
         },
         "root",
     )
-    if raw["schema_version"] != 2:
-        raise SupabaseProviderConfigError("schema_version must be 2")
+    if raw["schema_version"] != 3:
+        raise SupabaseProviderConfigError("schema_version must be 3")
 
     provider = _object(raw["provider"], "provider")
     _exact_keys(provider, {"id", "server_name"}, "provider")
@@ -204,7 +203,6 @@ def load_supabase_provider_config(
         {
             "transport",
             "base_url",
-            "project_ref_env",
             "read_only",
             "features",
             "verify_tls",
@@ -263,7 +261,7 @@ def load_supabase_provider_config(
         raise SupabaseProviderConfigError("downstream.transport must be stdio")
 
     return SupabaseProviderConfig(
-        schema_version=2,
+        schema_version=3,
         provider_id=provider_id,
         server_name=server_name,
         registry_url=registry_url,
@@ -271,9 +269,6 @@ def load_supabase_provider_config(
         source_revision=source_revision,
         upstream_transport=upstream_transport,
         base_url=_base_url(upstream["base_url"]),
-        project_ref_env=_environment_name(
-            upstream["project_ref_env"], "upstream.project_ref_env"
-        ),
         read_only=_boolean(upstream["read_only"], "upstream.read_only"),
         features=_features(upstream["features"]),
         verify_tls=verify_tls,

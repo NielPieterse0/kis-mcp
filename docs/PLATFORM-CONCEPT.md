@@ -95,7 +95,7 @@ The current platform includes a focused `skills.catalogue` capability. It resolv
 
 ### Implemented Provider and agent capability
 
-The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, Supabase, and Control Center descriptors. GitHub, Supabase, and Control Center may mount under namespaced operations; NVIDIA is workflow-only. Codex CLI remains a local Tools-registry adapter. Each gateway owns its exact Provider and capability composition state; no global latest-composition singleton remains. The Provider platform also owns mutable selected-repository state separately from provider authentication lifetime. GitHub uses one shared FastMCP client for the parent runtime, performs one `get_me` bootstrap after connection, reuses that authenticated process across downstream sessions, and resolves repository/Project authorization from the current repository settings on each call. Readiness, mounting, authentication, commissioning, recommendation, and exposure are reported separately and do not create Work authorization.
+The Provider registry contains Desktop Commander, GitHub MCP, NVIDIA NIM, Supabase, and Control Center descriptors. GitHub, Supabase, and Control Center may mount under namespaced operations; NVIDIA is workflow-only. Codex CLI remains a local Tools-registry adapter. Each gateway owns its exact Provider and capability composition state; no global latest-composition singleton remains. Project identity is a separate shared-kernel concern loaded once from the central project registry. GitHub uses one shared FastMCP client for the parent runtime, performs one `get_me` bootstrap after connection, reuses that authenticated process across downstream sessions, and authorizes explicit repository/Project coordinates against all registered GitHub bindings. Supabase uses one persistent account-scoped OAuth client and validates explicit project-targeted calls against registered Supabase refs. Readiness, mounting, authentication, commissioning, recommendation, and exposure are reported separately and do not create Work authorization.
 
 `review_change_with_agent` collects bounded local Git evidence and requests one advisory review through NVIDIA NIM or Codex CLI. It permits at most one fallback and grants no mutation or nested-delegation authority.
 
@@ -122,7 +122,7 @@ kis-mcp Platform Core
 
 Resolves the canonical local project, Git repository, remote repository, workspace boundaries, and trusted external context.
 
-The current baseline partially implements this through strict repository-local settings: `settings/kis-repository.settings.json` declares repository identity, `github_repository`, and `gh_projects`; the loader validates the GitHub identity against local `origin` when available; and Provider composition retains a mutable selected-repository source independently of authenticated provider-client lifetime. Broader cross-repository identity and trusted external context remain target-state work.
+The current baseline implements a focused cross-project identity kernel through strict `settings/projects.settings.json`. Registered projects have stable IDs, absolute local roots, and optional GitHub repository, GitHub Project, and Supabase routing coordinates. Gateway composition retains the immutable registry and exposes bounded read-only project catalogue operations; legacy repository-local settings remain a compatibility loader rather than the gateway authorization source. Trusted external context beyond registered local projects remains target-state work.
 
 ### ReadAuthority
 
@@ -441,7 +441,7 @@ The sequence remains architectural guidance, but several foundations are already
 | Repository-wide `inspect_project`, local Git evidence, and working-tree `inspect_change` | Public and implemented. |
 | Staged, commit, range, and branch change readers | Internally implemented; not exposed by the public `inspect_change` signature. |
 | Context broker, impact graph, contract intelligence, project catalog, and provider-admission evidence | Internally implemented with versioned contracts; public composition remains target work. |
-| Provider registry, runtime-scoped provider client lifecycle, repository-local GitHub routing/selection, GitHub, Supabase, and Control Center runtime mounting, and provider status | Public and implemented. |
+| Provider registry, runtime-scoped provider client lifecycle, central project registry, registered GitHub/Supabase routing, GitHub, Supabase, and Control Center runtime mounting, and provider status | Public and implemented. |
 | Unified capability contributions, instance-scoped readiness, eligibility, explainable scoring, and progressive exposure | Public and implemented. |
 | Skills catalogue, capability-bearing runtime cards, and mutation workflow | Implemented; operations outside the direct profile remain discoverable. |
 | First-class workflow descriptors and recommendations | Implemented for eight current task workflows; general server-executed orchestration remains target work. |

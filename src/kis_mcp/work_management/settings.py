@@ -7,6 +7,9 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
+from kis_mcp.projects.contracts import normalize_github_repository, normalize_windows_root
+
 from .backend import ProjectOwnerType
 from .contracts import ManagedProject, PUBLIC_SCHEMA_VERSION
 
@@ -313,7 +316,108 @@ def _enum_mapping(
     return tuple(result)
 
 
-def load_work_management_settings(path: Path | None = None) -> WorkManagementSettings:
+def _registry_project_resource(project: Any) -> Any | None:
+    if project.github is None or not project.github.projects:
+        return None
+    named = [
+        resource
+        for resource in project.github.projects
+        if resource.binding_id == "work-management"
+    ]
+    if len(named) == 1:
+        return named[0]
+    if len(project.github.projects) == 1:
+        return project.github.projects[0]
+    raise ValueError(
+        f"project registry has ambiguous work-management binding: {project.project_id}"
+    )
+
+
+def _bridge_project_registry(
+    settings: WorkManagementSettings,
+    registry: ProjectRegistry,
+) -> WorkManagementSettings:
+    bridged_projects: list[ManagedProject] = []
+    binding_resources: dict[str, Any] = {}
+
+    for managed in settings.managed_projects:
+        try:
+            registered = registry.project(managed.project_id)
+        except KeyError:
+            bridged_projects.append(managed)
+            continue
+        if registered.github is None:
+            raise ValueError(
+                f"managed project conflicts with project registry: {managed.project_id} has no GitHub binding"
+            )
+        if normalize_windows_root(managed.local_root).casefold() != registered.local_root.casefold():
+            raise ValueError(
+                f"managed project local_root conflicts with project registry: {managed.project_id}"
+            )
+        if normalize_github_repository(managed.repository) != registered.github.repository:
+            raise ValueError(
+                f"managed project repository conflicts with project registry: {managed.project_id}"
+            )
+        bridged_projects.append(
+            ManagedProject(
+                project_id=managed.project_id,
+                local_root=registered.local_root,
+                repository=registered.github.repository,
+                backend_binding=managed.backend_binding,
+                display_name=registered.display_name,
+            )
+        )
+        resource = _registry_project_resource(registered)
+        if resource is None:
+            continue
+        previous = binding_resources.get(managed.backend_binding)
+        coordinate = (resource.owner.casefold(), resource.owner_type, resource.project_number)
+        if previous is not None:
+            previous_coordinate = (
+                previous.owner.casefold(),
+                previous.owner_type,
+                previous.project_number,
+            )
+            if previous_coordinate != coordinate:
+                raise ValueError(
+                    f"backend binding conflicts across project registry: {managed.backend_binding}"
+                )
+        binding_resources[managed.backend_binding] = resource
+
+    bridged_bindings = []
+    for binding in settings.backend_bindings:
+        resource = binding_resources.get(binding.binding_id)
+        if resource is None:
+            bridged_bindings.append(binding)
+            continue
+        bridged_bindings.append(
+            BackendBindingSettings(
+                binding_id=binding.binding_id,
+                provider=binding.provider,
+                owner=resource.owner,
+                owner_type=ProjectOwnerType(resource.owner_type),
+                project_number=resource.project_number,
+            )
+        )
+
+    return WorkManagementSettings(
+        enabled=settings.enabled,
+        portfolio_id=settings.portfolio_id,
+        managed_projects=tuple(bridged_projects),
+        backend_bindings=tuple(bridged_bindings),
+        features=settings.features,
+        automation=settings.automation,
+        gates=settings.gates,
+        evidence=settings.evidence,
+        schema_version=settings.schema_version,
+    )
+
+
+def load_work_management_settings(
+    path: Path | None = None,
+    *,
+    project_registry: ProjectRegistry | None = None,
+) -> WorkManagementSettings:
     target = path or (
         Path(__file__).resolve().parents[3]
         / "settings"
@@ -340,7 +444,7 @@ def load_work_management_settings(path: Path | None = None) -> WorkManagementSet
         normalized_automation.append((name, enabled))
     evidence = _object(root["evidence"], "evidence")
     _exact_keys(evidence, _EVIDENCE_KEYS, "evidence")
-    return WorkManagementSettings(
+    settings = WorkManagementSettings(
         schema_version=root["schema_version"],
         enabled=root["enabled"],
         portfolio_id=root["portfolio_id"],
@@ -364,6 +468,10 @@ def load_work_management_settings(path: Path | None = None) -> WorkManagementSet
             max_total_bytes=evidence["max_total_bytes"],
         ),
     )
+    registry = project_registry
+    if registry is None and path is None:
+        registry = load_project_registry_settings()
+    return settings if registry is None else _bridge_project_registry(settings, registry)
 
 
 __all__ = [

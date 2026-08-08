@@ -1,0 +1,56 @@
+{
+    "schema_version":  1,
+    "change_id":  "078-project-registry-routing",
+    "status":  "active",
+    "branch":  "change/078-project-registry-routing",
+    "worktree":  ".work/worktrees/078-project-registry-routing",
+    "base":  "main",
+    "outcome":  "Make kis-mcp project-neutral across C:\\Projects with a central project registry, explicit project context, GitHub routing, global Supabase OAuth with per-project keys, and compatible work-management bindings",
+    "owned_paths":  [
+                        "settings/projects.settings.json",
+                        "contracts/projects/**",
+                        "src/kis_mcp/projects/**",
+                        "src/kis_mcp/repositories/settings.py",
+                        "src/kis_mcp/providers/github/routing.py",
+                        "src/kis_mcp/providers/supabase/**",
+                        "src/kis_mcp/gateway/context.py",
+                        "src/kis_mcp/gateway/composition.py",
+                        "src/kis_mcp/work_management/settings.py",
+                        "tests/projects/**",
+                        "tests/repositories/test_project_registry_settings.py",
+                        "tests/providers/supabase/**",
+                        "tests/providers/github/test_project_registry_routing.py",
+                        "tests/gateway/test_project_context.py",
+                        "tests/discover/test_tool_registration.py",
+                        "tests/work_management/test_project_registry_bindings.py",
+                        "docs/OPERATIONS.md",
+                        "SPEC.md",
+                        "docs/PLATFORM-CONCEPT.md",
+                        ".work/changes/078-project-registry-routing/**",
+                        "settings/providers/supabase-mcp.provider.json",
+                        "settings/capabilities.settings.json",
+                        "contracts/providers/supabase/settings.schema.json",
+                        "scripts/auth-supabase-mcp.ps1",
+                        "scripts/smoke-supabase-mcp.ps1",
+                        "scripts/auth-github-mcp.ps1",
+                        "scripts/smoke-github-mcp.ps1",
+                        "tests/providers/github/test_scripts.py",
+                        "README.md",
+                        "docs/PROVIDER-MODULE-PRODUCT-SPEC.md",
+                        "docs/development/supabase-mcp-provider/README.md"
+                    ],
+    "shared_paths":  [
+
+                     ],
+    "excluded_paths":  [
+                           "policy/**",
+                           "src/kis_mcp/providers/platform.py",
+                           "src/kis_mcp/providers/github/server.py",
+                           "src/kis_mcp/work_management/service.py",
+                           "settings/work-management/github-projects.settings.json"
+                       ],
+    "dependencies":  [
+
+                     ],
+    "integration_owner":  null
+}
