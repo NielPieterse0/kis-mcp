@@ -37,7 +37,7 @@ Create two ChatGPT-optimized Skills in one bounded slice: `mcp-development`, whi
 - **REQ-012**: Treat concurrent/recent changes 063, 077, 078, and 079 as transitional evidence. Re-check remote/current status before PR creation, describe unmerged behavior only conditionally, and prefer live/runtime or checked-in evidence when a slice has already landed.
 - **REQ-013**: Preserve the exact HR-001/HR-002/HR-003 Work semantics and distinguish structural `DISCOVER_*`, `SKILLS_*`, readiness, schema, and dispatcher errors from policy decisions.
 - **REQ-014**: Add trigger, output, and abuse evaluation definitions for `kis-mcp` outside the runtime package, including project-neutral, schema-discipline, provider-status, startup, and policy-bypass cases.
-- **REQ-015**: Do not modify `settings/capabilities.settings.json` while active change 078 owns it; runtime catalogue metadata for the new skills is an integration item after that claim is released.
+- **REQ-015**: Do not modify `settings/capabilities.settings.json` while active change 078 owns it. Each new skill must carry the minimum intrinsic `category` and `capabilities` frontmatter required for runtime composition; centralized activation/effect/workflow-role enrichment remains an integration item after that claim is released.
 
 ## Acceptance
 

@@ -17,4 +17,6 @@
 - [x] Run combined `git diff --check`, scope check, focused Skills tests, and full repository verification.
 - [x] Review new skill content for stale target-state wording, real project bindings, and reference completeness; no real project/provider binding was embedded.
 - [x] Commit the second skill/final verification record (`4ec617f`, concurrency alignment `df9d56a`) and raise PR #91.
-- [ ] Merge and safe-cleanup only after normal PR review/exact-head approval.
+- [x] Reproduce PR #91 exact-head Work Management failure #27 and isolate missing intrinsic catalogue metadata in the two new skill entrypoints.
+- [x] Add a failing regression test, then add intrinsic `category`/`capabilities` frontmatter without touching 078-owned settings.
+- [ ] Rerun local and exact-head canonical verification, then merge and safe-cleanup only after the gate passes.

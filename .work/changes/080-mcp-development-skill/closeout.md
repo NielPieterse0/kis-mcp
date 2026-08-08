@@ -12,6 +12,7 @@
 - Kept project/provider identifiers generic and re-checked concurrent/recent 063/077/078/079 status before PR publication; still-unmerged behavior remains conditional on checked-in/live runtime evidence.
 - Did not publish either multi-file package to the shared runtime catalogue because the current runtime `create_skill` mutation accepts only `SKILL.md` and cannot publish required references as one complete package.
 - Did not edit `settings/capabilities.settings.json` because active change 078 owns that integration path.
+- Added intrinsic `category` and `capabilities` frontmatter to both new skills after exact-head Work Management run #27 proved canonical runtime composition otherwise rejects repository-staged skills as incomplete.
 
 ## Validation evidence
 
@@ -19,6 +20,7 @@
 - Source-skill structural comparison: current active `build-mcp-server`, `build-mcp-app`, and `build-mcpb` snapshots were evaluated through the kis-dev Skills surface.
 - `kis-mcp` package structural validation: passed with `SKILL.md` at 187 lines, 507-character description, six referenced files present, and all trigger/output/abuse JSON parsing successfully.
 - Combined post-second-skill validation: `git diff --check` passed; `scripts/change-workflow.ps1 check` passed; locked-interpreter `tests/skills` passed; full `scripts/verify.ps1` passed with configuration, interpreter, dependency, Python syntax, change-governance, and complete pytest checks reporting `ok: true` / exit code 0.
+- PR exact-head Work Management run #27 reproduced the canonical shared-Skills fixture and failed only in full repository verification with `ValueError: skill capability metadata is incomplete: kis-mcp`; focused P5 checks and governance passed. A regression test now requires intrinsic catalogue metadata on both new skills before the exact-head gate is rerun.
 
 ## Review
 
@@ -48,6 +50,6 @@
 
 ## Residual items
 
-- Integrate runtime capability metadata for the new skills after active change 078 releases `settings/capabilities.settings.json`.
+- Consider centralized activation/effect/workflow-role enrichment for the new skills after active change 078 releases `settings/capabilities.settings.json`; the minimum runtime-composition metadata now lives intrinsically in each skill frontmatter.
 - Promote complete multi-file packages to the shared runtime catalogue only through a mechanism that preserves all references; do not use single-file `create_skill` for these packages.
 - Evaluate future Skills-over-MCP compatibility separately after the working-group extension stabilizes.

@@ -1,5 +1,10 @@
 ---
 name: mcp-development
+category: mcp-development
+capabilities:
+  - mcp.server.design
+  - mcp.app.design
+  - mcp.local.package
 description: >
   Use when designing, building, reviewing, testing, packaging, or modernizing a
   Model Context Protocol (MCP) server or integration, including tools,

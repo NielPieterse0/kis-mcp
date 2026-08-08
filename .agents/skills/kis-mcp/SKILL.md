@@ -1,5 +1,10 @@
 ---
 name: kis-mcp
+category: operations
+capabilities:
+  - kis.tool.select
+  - kis.capability.discover
+  - kis.workflow.operate
 description: >
   Use whenever operating the kis-mcp tool through kis-op, kis-dev, or another
   kis-mcp MCP connection, including choosing tools, discovering long-tail
