@@ -4,7 +4,7 @@
 
 **Goal:** Deliver approved Slice B then Slice A in two reviewable PR batches from one isolated worktree.
 
-**Architecture:** Keep Discover planning and Work verification execution separate. `plan_change` composes existing `InspectProjectService` and `AnalyzeChangeService` evidence plus bounded `.work/changes/*/scope.json` claim reads. `run_verification` re-discovers a stable declaration and maps its fixed profile/arguments to an existing process tool call with middleware enabled. Central workflow metadata/resolver hardening is integrated only after conflicting change 063 releases its claims.
+**Architecture:** Keep Discover planning and Work verification execution separate. `plan_change` composes existing `InspectProjectService` and `AnalyzeChangeService` evidence plus bounded `.work/changes/*/scope.json` claim reads. `run_verification` re-discovers a stable declaration and maps its fixed profile/arguments to an existing process tool call with middleware enabled. After change 063 released its claims, the final adapter preserves declared executable steps in shared `WorkflowDescriptor` metadata, resolves them against the live augmented catalogue, and delegates recommendation scoring to the existing deterministic weighted matcher.
 
 **Tech Stack:** Python 3.13 project runtime, FastMCP 3.4.4, pytest, PowerShell repository verification, Git/GitHub provider for delivery.
 
@@ -41,12 +41,12 @@
 ### Task 3: Workflow integrity and recommendation hardening
 
 **Requirements:** REQ-003, REQ-004
-**Files:** only after 063 releases claims: workflow/capability descriptor and resolver files plus focused tests.
+**Files:** after 063 release: exact central workflow/capability descriptor and resolver paths plus focused verification-workflow tests.
 
-- [ ] Revalidate active claims; expand `scope.json` only for now-free exact paths.
-- [ ] Write RED tests for typed executable vs procedure steps, unresolved executable-step ineligibility, `verify-current-change`, `triage-exact-head-ci`, and richer deterministic matching.
-- [ ] Implement minimum compatible step metadata/resolution and workflow descriptors; preserve existing procedure-only symbolic steps.
-- [ ] Confirm realistic verification and CI-triage prompts recommend the intended workflows and unresolved executable steps cannot be eligible.
+- [x] Revalidate active claims; expand `scope.json` only for now-free exact paths.
+- [x] Write RED tests for executable-step metadata, unresolved executable-step ineligibility, shared `verify-current-change`/`triage-exact-head-ci`, and richer deterministic matching.
+- [x] Implement minimum compatible step metadata/resolution and shared workflow descriptors; preserve legacy procedure-only symbolic steps with empty executable-step metadata.
+- [x] Confirm realistic verification and CI-triage prompts recommend the intended workflows and unresolved executable steps cannot be eligible.
 
 ### Task 4: Batch 2 review, verification, delivery, closeout
 
