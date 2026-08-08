@@ -23,6 +23,14 @@ Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same gov
 - Existing GitHub Projects read/write semantic mappings remain unchanged and continue to route through the bounded Project adapter.
 - No GitHub OAuth, PAT, repository-selection, Project settings, policy, direct-exposure, or upstream tool-catalogue behavior changed.
 
+### Batch 3 — bounded long-tail provider results
+
+- Added JSON-governed generic execution result budgets: 100,000 serialized characters, ten preview items, 4,000 preview string characters, and four preview levels.
+- Generic execution preserves the original FastMCP result unchanged when structured output is within budget.
+- Oversized structured output is replaced only after the underlying operation executes with a deterministic `RESULT_BUDGET_EXCEEDED` envelope containing original size, configured budget, operation name, and a bounded preview.
+- Result budgeting is applied after the existing effect, approval, readiness, eligibility, and recursion guards; no authorization path was changed or bypassed.
+- Capability settings loader and JSON Schema now validate the result-budget contract as configuration rather than hard-coded runtime policy.
+
 ## Validation evidence
 
 - TDD RED: focused runner produced exactly four expected failures: runtime tool schema dropped, operation schema absent, exact-description test could not construct schema-bearing operation, and generic Git matching outranked the requested merge operation.
@@ -41,6 +49,10 @@ Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same gov
 - First exact-head CI attempt for Batch 2: Work Management run `31197813411` on `4a26db0f0d086abe707d3be8c468a2b16344e77b` failed only at global `Validate governance claims`: the clean runner still saw concurrent change 062 as active while its local worktree was absent (`ACTIVE_CHANGE_WORKTREE_MISSING`). Focused P5 and canonical verification were skipped in that run.
 - The failure was traced to a stale PR base snapshot, not 063 code or scope. A fresh fetch showed `origin/main` already had change 062 closed and its branch deleted. Current `origin/main` was merged into the 063 branch without editing or claiming any 062 file, and local 063 governance passed again.
 - Tooling audit note: both `mcp-tool-1.github_get_workflow_run` and `mcp-tool-1.github_get_workflow_job_logs` reject modern GitHub run/job IDs above signed 32-bit range. The connected GitHub job/log readers accept the same current IDs and were used to diagnose CI. This defect appears outside the kis-mcp source paths searched for change 063.
+- Batch 3 TDD RED isolated exactly two intended failures: missing `result_budget` settings and absence of oversized generic-result truncation. A small-result preservation test remained green throughout.
+- Batch 3 focused GREEN: capability settings/execution slice passed 16 tests; expanded `tests/capabilities` passed 39 tests.
+- Batch 3 configuration evidence: both `settings/capabilities.settings.json` and `contracts/capabilities/settings.schema.json` validate as JSON; governed scope check and `git diff --check` pass.
+- The temporary Batch 3 focused runner was moved to recoverable quarantine and is not part of the product change.
 
 ## Review
 

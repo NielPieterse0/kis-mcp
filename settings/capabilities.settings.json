@@ -55,6 +55,12 @@
   "readiness": {
     "degraded_penalty": 15
   },
+  "result_budget": {
+    "max_chars": 100000,
+    "preview_items": 10,
+    "preview_string_chars": 4000,
+    "preview_depth": 4
+  },
   "skill_metadata": {
     "build-mcp-app": {
       "category": "mcp-development",
