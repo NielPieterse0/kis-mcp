@@ -10,5 +10,5 @@
   - [x] Integrate central workflow descriptors/resolvability/recommendation after change 063 releases those exclusive paths.
 - [x] Batch 2 core: PR #89 / Work Management #25 merged `run_verification`.
 - [x] Batch 3 primitives: PR #90 / Work Management #26 merged conflict-free workflow integration helpers.
-- [ ] Final shared adapter: dependency 063 is now closed; claim released catalogue/resolver/workflow paths, integrate, verify, and merge.
-- [ ] Record final closeout evidence and clean 079 from merged `main`.
+- [x] Final shared adapter: dependency 063 closed; claim released catalogue/resolver/workflow paths, integrate, verify, and merge through PR #96 / Work Management #33.
+- [x] Record final closeout evidence; governed cleanup may run after this metadata-only closeout lands on `main`.
