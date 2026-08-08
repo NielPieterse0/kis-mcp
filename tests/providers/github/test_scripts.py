@@ -34,7 +34,8 @@ def test_auth_script_starts_kis_op_without_printing_or_forwarding_pat() -> None:
 
     assert "Set-StrictMode -Version Latest" in source
     assert "github-mcp.provider.json" in source
-    assert "kis-repository.settings.json" in source
+    assert "projects.settings.json" in source
+    assert "kis-repository.settings.json" not in source
     assert "pat_env" in source
     assert "GITHUB_OAUTH_PAT_CONFLICT" in source
     assert "start-chatgpt.ps1" in source
@@ -58,7 +59,8 @@ def test_smoke_script_supports_offline_tests_and_explicit_shared_runtime_live_ch
     assert "tests/providers/test_client_runtime.py" in source
     assert "tests/providers/test_platform_composition.py" in source
     assert "tests/repositories" in source
-    assert "kis-repository.settings.json" in source
+    assert "projects.settings.json" in source
+    assert "kis-repository.settings.json" not in source
     assert "scripts/run-provider-live-smoke.py github" in source
     assert "client_lifetime" in source
     assert "authentication_bootstrap" in source

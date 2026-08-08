@@ -38,14 +38,23 @@ try {
         throw 'GITHUB_MCP_SETTINGS_INVALID: repository and Project bindings must not be provider authentication settings.'
     }
 
-    $RepositorySettingsPath = Join-Path $RepositoryRoot 'settings\kis-repository.settings.json'
-    $RepositorySettings = Get-Content -LiteralPath $RepositorySettingsPath -Raw | ConvertFrom-Json
-    if ($RepositorySettings.schema_version -ne 1) {
-        throw 'KIS_REPOSITORY_SETTINGS_INVALID: schema_version must be 1.'
+    $RegistryPath = Join-Path $RepositoryRoot 'settings\projects.settings.json'
+    $Registry = Get-Content -LiteralPath $RegistryPath -Raw | ConvertFrom-Json
+    if ($Registry.schema_version -ne 1 -or @($Registry.projects).Count -lt 1) {
+        throw 'KIS_PROJECT_REGISTRY_INVALID: project registry must be schema version 1 and non-empty.'
     }
-    if ([string]::IsNullOrWhiteSpace([string]$RepositorySettings.github_repository)) {
-        throw 'KIS_REPOSITORY_SETTINGS_INVALID: github_repository is required.'
+    $GitHubProjects = @($Registry.projects | Where-Object { $null -ne $_.github })
+    if ($GitHubProjects.Count -lt 1) {
+        throw 'KIS_PROJECT_REGISTRY_INVALID: at least one registered GitHub repository is required.'
     }
+    $RegisteredRepositories = @($GitHubProjects | ForEach-Object { [string]$_.github.repository })
+    $RegisteredProjectCoordinates = @(
+        $GitHubProjects | ForEach-Object {
+            @($_.github.projects) | ForEach-Object {
+                "$($_.owner):$($_.owner_type):$($_.project_number)"
+            }
+        }
+    )
 
     $ExecutablePresent = Test-Path -LiteralPath ([string]$ProviderSettings.executable) -PathType Leaf
     $PatPresent = -not [string]::IsNullOrWhiteSpace(
@@ -76,8 +85,8 @@ try {
         authentication_bootstrap = 'get_me'
         executable_present = $ExecutablePresent
         pat_override_present = $PatPresent
-        selected_repository = $RepositorySettings.github_repository
-        gh_projects = @($RepositorySettings.gh_projects)
+        registered_repositories = $RegisteredRepositories
+        registered_project_coordinates = $RegisteredProjectCoordinates
         focused_tests = 'passed'
         live_required = [bool]$RequireLive
         live_ready = if ($null -eq $LiveReport) { $false } else { [bool]$LiveReport.ready }

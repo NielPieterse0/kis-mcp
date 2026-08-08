@@ -30,7 +30,8 @@ def test_auth_script_uses_exact_interpreter_and_browser_oauth_module() -> None:
     assert ".kis-mcp\\python-env\\Scripts\\python.exe" in text
     assert "PYTHONPATH" in text
     assert "-m kis_mcp.providers.supabase.commission" in text
-    assert "SUPABASE_PROJECT_REF" in text
+    assert "projects.settings.json" in text
+    assert "SUPABASE_PROJECT_REF" not in text
     assert "SUPABASE_ACCESS_TOKEN" in text
     assert "Invoke-WebRequest" not in text
     assert "Invoke-RestMethod" not in text
@@ -44,6 +45,8 @@ def test_smoke_script_supports_preflight_live_and_shared_modes() -> None:
     assert "-m kis_mcp.providers.supabase --check" in text
     assert "-m kis_mcp.providers.supabase.commission" in text
     assert "scripts/run-provider-live-smoke.py supabase" in text
+    assert "projects.settings.json" in text
+    assert "SUPABASE_PROJECT_REF" not in text
     assert "Live" in text
     assert "SharedRuntime" in text
     assert "Invoke-WebRequest" not in text
@@ -57,6 +60,9 @@ def test_documentation_records_oauth_storage_scope_and_production_warning() -> N
     lowered = text.casefold()
 
     assert "SUPABASE_PROJECT_REF" in text
+    assert "not required" in lowered
+    assert "account" in lowered
+    assert "project registry" in lowered
     assert "dynamic client registration" in lowered
     assert "windows credential manager" in lowered
     assert "SUPABASE_ACCESS_TOKEN" in text
@@ -75,7 +81,7 @@ def test_schema_is_strict_oauth_only_and_contains_no_secret_values() -> None:
     rendered = json.dumps(schema, sort_keys=True)
 
     assert schema["additionalProperties"] is False
-    assert schema["properties"]["schema_version"] == {"const": 2}
+    assert schema["properties"]["schema_version"] == {"const": 3}
     upstream = schema["properties"]["upstream"]
     authentication = schema["properties"]["authentication"]
     assert upstream["additionalProperties"] is False
@@ -90,7 +96,7 @@ def test_schema_is_strict_oauth_only_and_contains_no_secret_values() -> None:
         "const": "windows-keyring"
     }
     assert "client_secret" not in rendered
-    assert "project_ref_env" in rendered
+    assert "project_ref_env" not in rendered
 
 
 def test_provider_module_does_not_import_work_or_discover_boundaries() -> None:

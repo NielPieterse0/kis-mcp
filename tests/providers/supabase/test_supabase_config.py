@@ -30,13 +30,13 @@ def _write_config(tmp_path: Path, value: dict[str, object]) -> Path:
 def test_loads_checked_in_oauth_provider_configuration() -> None:
     config = load_supabase_provider_config(REPOSITORY_ROOT)
 
-    assert config.schema_version == 2
+    assert config.schema_version == 3
     assert config.provider_id == "supabase"
     assert config.server_name == "kis-mcp-supabase"
     assert config.source_repository == "https://github.com/supabase/mcp"
     assert config.source_revision == "5cda0672702c65fe672280ee4cf306593e643fb6"
     assert config.base_url == "https://mcp.supabase.com/mcp"
-    assert config.project_ref_env == "SUPABASE_PROJECT_REF"
+    assert not hasattr(config, "project_ref_env")
     assert config.auth_mode == "oauth-dcr"
     assert config.client_name == "kis-mcp Supabase"
     assert config.token_storage == "windows-keyring"

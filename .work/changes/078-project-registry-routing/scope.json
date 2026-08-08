@@ -21,6 +21,7 @@
                         "tests/providers/supabase/**",
                         "tests/providers/github/test_project_registry_routing.py",
                         "tests/gateway/test_project_context.py",
+                        "tests/discover/test_tool_registration.py",
                         "tests/work_management/test_project_registry_bindings.py",
                         "docs/OPERATIONS.md",
                         "SPEC.md",

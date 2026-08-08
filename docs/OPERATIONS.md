@@ -121,7 +121,8 @@ Edit only the canonical JSON files:
 - `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
 - `settings/providers/platform-runtime.provider.json` for the exact approved mounted MCP provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
 - `settings/providers/github-mcp.provider.json` for GitHub provider identity, pinned source/executable, OAuth mode, PAT-conflict metadata, and toolsets only. Do not place repository or Project routing in provider authentication settings.
-- `settings/kis-repository.settings.json` for repository identity, the matching `github_repository`, and repository-local `gh_projects` bindings. The loader validates the declared GitHub repository against local `origin` when available.
+- `settings/projects.settings.json` for the strict central project registry: stable project IDs, absolute local roots, and optional GitHub repository, GitHub Project, and Supabase routing coordinates. Store no credentials here.
+- `settings/kis-repository.settings.json` only for legacy repository-settings compatibility callers; normal gateway routing is registry-backed.
 - `settings/agents/code-review-agent.settings.json` for the one advisory code-review agent, NVIDIA NIM and Codex CLI backend configuration, preferred/fallback order, and evidence/output budgets. Store only the `NVIDIA_API_KEY` environment-variable name, never the API key value.
 - `settings/capabilities.settings.json` for suitability and intrinsic-quality weights, the bounded direct profile, discovery operations, readiness penalty, and reviewed capability metadata for every current shared Skill.
 - `policy/kis-mcp.policy.json` for the exact three-rule declaration.
@@ -163,7 +164,9 @@ Provider readiness rejects enabled telemetry, a missing or non-loopback feature-
 
 After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub, Supabase, and Control Center adapter builds in stable provider-ID order. Successful adapters mount as `github_*`, `supabase_*`, and `controlcenter_*`. NVIDIA NIM is registered in the Provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
-For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. Before the mounted provider lifespan starts, aggregate tool inspection exposes only the GitHub adapter's local surface and deliberately does not connect the upstream GitHub process. After the shared client connects, a single `get_me` startup call triggers OAuth and initial upstream tool discovery publishes the current runtime tool snapshot without closing that connection. Downstream tool sessions reuse the authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated separately from `settings/kis-repository.settings.json` on each GitHub call. Changing the selected repository context does not reconnect the authenticated GitHub client.
+For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. Before the mounted provider lifespan starts, aggregate tool inspection exposes only the GitHub adapter's local surface and deliberately does not connect the upstream GitHub process. After the shared client connects, a single `get_me` startup call triggers OAuth and initial upstream tool discovery publishes the current runtime tool snapshot without closing that connection. Downstream tool sessions reuse the authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated independently on every call against the GitHub repository/Project union in `settings/projects.settings.json`.
+
+For Supabase, the runtime uses the same persistent client seam without a provider-specific startup call. It connects once to `https://mcp.supabase.com/mcp`, performs account OAuth, discovers the upstream tool surface, and reuses that client until the parent KIS runtime stops. `SUPABASE_PROJECT_REF` is not a startup requirement. Project-targeted calls must carry an explicit registered Supabase `project_id`; targetless calls are accepted only when the discovered upstream tool declares itself read-only.
 
 The feedback tool and `read_file.isUrl` mode are absent from the Work contract. Terminal and process tools remain available. The gateway builds the static/local capability surface without forcing GitHub upstream discovery, then augments the effective capability catalogue from current provider runtime-tool snapshots and current readiness whenever discovery, recommendation, eligibility, or long-tail dispatch is evaluated. The bounded direct `tools/list` profile remains fixed for the running gateway; newly discovered long-tail operations remain discoverable rather than automatically becoming direct tools. The gateway still blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 
@@ -186,13 +189,15 @@ Tool quality and suitability scores are recommendation evidence only. They never
 
 ## Configure work management
 
-Work management uses `settings/work-management/github-projects.settings.json` and remains disabled by default. Before enabling it:
+Work management uses `settings/work-management/github-projects.settings.json` for behavior and `settings/projects.settings.json` for managed-project identity and GitHub Project routing coordinates. The checked-in `kis-mcp` binding is enabled. Before changing or adding a managed project:
 
-1. confirm each managed repository and local root;
-2. assign a valid GitHub Project owner, owner type, and Project number;
+1. register its stable ID, local root, GitHub repository, and intended GitHub Project coordinate in the central project registry;
+2. keep the existing work-management backend-binding ID stable unless a separate compatibility migration is approved;
 3. start `kis-op` and complete the one supervised GitHub OAuth sign-in required for that runtime;
 4. run settings validation and a read-only inventory check;
 5. review reconciliation previews before any apply operation.
+
+If the work-management project identity conflicts with the central registry, loading fails closed. Feature modes, automation, gates, and evidence budgets remain owned by the work-management settings file.
 
 Use the fixed-shape CLI:
 
@@ -215,7 +220,7 @@ When enabled, platform composition adds:
 
 Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, governance claims, focused P5 tests, and optionally the canonical verifier.
 
-Historical commissioning evidence from 2026-08-07 proved standalone GitHub OAuth, private-repository read, and repository scoping before the runtime-lifecycle change. The then-approved user Project `#12` returned `404`; that stale work-management binding is no longer configured. Keep work management disabled until its own backend binding has a valid Project number and read-only inventory verification passes. Repository-local `gh_projects` entries constrain routing only; they do not prove Project existence or work-management commissioning. Fresh runtime-scoped OAuth evidence is a separate supervised commissioning check.
+Current work-management routing uses the central registry binding for `kis-mcp` user Project #1 while retaining the legacy `github-default` backend-binding ID for compatibility. Configuration alone is still not live commissioning evidence: use the exact-head Work Management workflow and read-only inventory/verification results before treating a change as commissioned. Runtime-scoped GitHub OAuth remains a separate supervised connection state.
 
 ## Use Discover
 
@@ -259,8 +264,8 @@ Interpret the normal onboarding states as follows:
 
 - **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and runtime-scoped client path are ready but the shared provider lifespan has not yet proved the current OAuth identity. Start `kis-op` and complete one supervised OAuth sign-in for that runtime.
 - **GitHub: `Ready — authenticated`** means the current running provider lifespan completed `get_me` and initial upstream tool discovery successfully. Subsequent GitHub operations and long-tail discovery reuse that same provider process until `kis-op` stops. This is runtime evidence, not persistent authentication across restarts and not a claim that every GitHub operation was live-verified.
-- **Supabase: `Ready — project initialization required`** means the commissioned provider is mounted with its local health surface but this repository is not yet linked to a Supabase project. Initialize or link a development/test project, set `SUPABASE_PROJECT_REF` in the supervised environment, then authenticate.
-- **Supabase: `Ready — authentication required`** means project scope and local OAuth prerequisites are ready; browser authentication remains the next step.
+- **Supabase: `Ready — authentication required`** means the unscoped account endpoint, Windows credential storage, and provider configuration are ready; complete one browser OAuth login for the running KIS runtime.
+- **Supabase: `Ready — authenticated`** means the persistent account-scoped client is connected and upstream tools are discovered. Explicit registered-project live verification may still be pending and is reported separately.
 
 A mounted provider is not automatically authenticated, upstream-connected, tool-discovered, or live verified. Reserve degraded, unavailable, or failed states for genuine local faults such as a missing executable, unavailable Windows credential storage, a legacy PAT conflict, invalid configuration, builder failure, mount failure, protocol failure, or runtime failure. `build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure, not a normal sign-in requirement. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
 
@@ -274,7 +279,7 @@ Start the operation runtime through the GitHub auth helper:
 pwsh -NoProfile -File .\scripts\auth-github-mcp.ps1
 ```
 
-The helper validates the GitHub provider settings and repository-local settings, then starts `kis-op`. The provider-lifetime `get_me` call triggers the official browser OAuth flow once after the shared client connects. The launcher gives this supervised server/authentication phase its own 900-second default budget; `-AuthenticationTimeoutSeconds` may be set from 30 through 3600 seconds when needed. GitHub MCP stderr is drained continuously into the retained per-run server stderr log and echoed in the visible launcher, so browser/device-code fallback guidance remains visible while sign-in is pending. After the local MCP runtime becomes ready, the normal `-TimeoutSeconds` budget starts fresh for tunnel startup and readiness. Complete the sign-in and keep the `kis-op` runtime running; subsequent GitHub tool calls during the same runtime reuse the authenticated subprocess. Stopping or restarting `kis-op` discards the official provider's process-memory token and requires one new sign-in.
+The helper validates the GitHub provider settings and central project registry, then starts `kis-op`. The provider-lifetime `get_me` call triggers the official browser OAuth flow once after the shared client connects. The launcher gives this supervised server/authentication phase its own 900-second default budget; `-AuthenticationTimeoutSeconds` may be set from 30 through 3600 seconds when needed. GitHub MCP stderr is drained continuously into the retained per-run server stderr log and echoed in the visible launcher, so browser/device-code fallback guidance remains visible while sign-in is pending. After the local MCP runtime becomes ready, the normal `-TimeoutSeconds` budget starts fresh for tunnel startup and readiness. Complete the sign-in and keep the `kis-op` runtime running; subsequent GitHub tool calls during the same runtime reuse the authenticated subprocess. Stopping or restarting `kis-op` discards the official provider's process-memory token and requires one new sign-in.
 
 Run the focused non-live verification independently:
 
@@ -282,7 +287,7 @@ Run the focused non-live verification independently:
 pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
 ```
 
-This verifies the runtime client lifecycle, platform repository-selection wiring, GitHub routing/settings, scripts, and repository-settings contracts without claiming live authentication. Use `-RequireLive` only for an explicit supervised live commissioning check; it may require interactive OAuth and remains separate from repository verification.
+This verifies the runtime client lifecycle, central project-registry wiring, GitHub registered-coordinate routing, scripts, and legacy repository-settings compatibility without claiming live authentication. Use `-RequireLive` only for an explicit supervised live commissioning check; it may require interactive OAuth and remains separate from repository verification.
 
 ## Configure and use the code-review agent
 
@@ -356,12 +361,11 @@ The snapshot reports runtime identity, configured project and local Git state, t
 
 ## Commission Supabase OAuth
 
-Use only a development or test Supabase project. The project-scoped provider exposes read/write capabilities even though commissioning invokes only a harmless read.
+Use only a development or test Supabase project. The account-scoped provider exposes read/write capabilities, while KIS project routing is enforced separately from `settings/projects.settings.json`.
 
-Set the project reference in the supervised operator environment and clear the legacy PAT variable:
+Ensure the intended project is registered and clear the legacy PAT variable. `SUPABASE_PROJECT_REF` is not required:
 
 ```powershell
-$env:SUPABASE_PROJECT_REF = '<development-project-ref>'
 Remove-Item Env:SUPABASE_ACCESS_TOKEN -ErrorAction SilentlyContinue
 ```
 
@@ -371,7 +375,7 @@ Run the non-network OAuth preflight:
 pwsh -File .\scripts\smoke-supabase-mcp.ps1
 ```
 
-Preflight validates schema version 2, mandatory project scope, Windows Credential Manager availability, and absence of the legacy PAT conflict. It does not contact Supabase or prove authentication.
+Preflight validates schema version 3, the unscoped official endpoint, Windows Credential Manager availability, and absence of the legacy PAT conflict. It does not contact Supabase or prove authentication.
 
 Start explicit browser OAuth commissioning:
 
@@ -379,15 +383,15 @@ Start explicit browser OAuth commissioning:
 pwsh -File .\scripts\auth-supabase-mcp.ps1
 ```
 
-FastMCP performs OAuth discovery and dynamic client registration against the official project-scoped endpoint. Client and token state are persisted under the `kis-mcp/supabase` Windows Credential Manager service. The commissioning client lists the upstream surface and invokes only `get_project_url` with `{}`. It verifies that the returned project hostname matches the configured project reference without printing the project URL or project reference.
+FastMCP performs OAuth discovery and dynamic client registration against `https://mcp.supabase.com/mcp`. Client and token state are persisted under the `kis-mcp/supabase` Windows Credential Manager service. The commissioning client resolves the default registered KIS project, lists the upstream surface, and invokes only `get_project_url` with that explicit registered `project_id`. It verifies that the returned hostname matches the registry binding without printing the project URL or project reference.
 
-After authorization succeeds, prove persistent-token reuse and namespaced shared-runtime exposure:
+After authorization succeeds, prove runtime-client reuse and namespaced shared-runtime exposure:
 
 ```powershell
 pwsh -File .\scripts\smoke-supabase-mcp.ps1 -SharedRuntime
 ```
 
-The shared smoke requires Supabase to be mounted in `kis_provider_status` and invokes only `supabase_get_project_url`. `supabase_list_projects` must remain absent in project-scoped mode. Mutating tools may be discoverable but are not invoked.
+The shared smoke requires Supabase to be mounted in `kis_provider_status` and invokes only `supabase_get_project_url` with the explicit registered project ID. Read-only account discovery such as `supabase_list_projects` may remain available. Mutating tools may be discoverable but are not invoked by commissioning; targetless mutations are rejected.
 
 Use `-Live` for a standalone authenticated recheck:
 
@@ -395,7 +399,7 @@ Use `-Live` for a standalone authenticated recheck:
 pwsh -File .\scripts\smoke-supabase-mcp.ps1 -Live
 ```
 
-Never set `SUPABASE_ACCESS_TOKEN`; PAT transport is intentionally unsupported. Never commit project references, access tokens, refresh tokens, client secrets, authorization codes, keyring values, or returned project URLs.
+Never set `SUPABASE_ACCESS_TOKEN`; PAT transport is intentionally unsupported. Project references are non-secret routing coordinates and belong only in the central registry; never commit access tokens, refresh tokens, client secrets, authorization codes, keyring values, or returned project URLs.
 
 For recovery, stop provider processes, revoke the Supabase authorization when appropriate, remove the `kis-mcp/supabase` entries through Windows Credential Manager, rerun browser commissioning, and repeat the shared-runtime smoke.
 

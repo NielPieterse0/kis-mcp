@@ -18,10 +18,14 @@ if (-not (Test-Path -LiteralPath ([string]$ProviderSettings.executable) -PathTyp
     throw 'GITHUB_MCP_EXECUTABLE_MISSING: run scripts/install-github-mcp.ps1 first.'
 }
 
-$RepositorySettingsPath = Join-Path $RepositoryRoot 'settings\kis-repository.settings.json'
-$RepositorySettings = Get-Content -LiteralPath $RepositorySettingsPath -Raw | ConvertFrom-Json
-if ([string]::IsNullOrWhiteSpace([string]$RepositorySettings.github_repository)) {
-    throw 'KIS_REPOSITORY_SETTINGS_INVALID: github_repository is required.'
+$RegistryPath = Join-Path $RepositoryRoot 'settings\projects.settings.json'
+$Registry = Get-Content -LiteralPath $RegistryPath -Raw | ConvertFrom-Json
+if ($Registry.schema_version -ne 1 -or @($Registry.projects).Count -lt 1) {
+    throw 'KIS_PROJECT_REGISTRY_INVALID: project registry must be schema version 1 and non-empty.'
+}
+$GitHubProjects = @($Registry.projects | Where-Object { $null -ne $_.github })
+if ($GitHubProjects.Count -lt 1) {
+    throw 'KIS_PROJECT_REGISTRY_INVALID: at least one registered GitHub repository is required.'
 }
 
 Write-Host 'GitHub OAuth is owned by the kis-op runtime.'

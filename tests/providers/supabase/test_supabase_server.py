@@ -27,7 +27,7 @@ from kis_mcp.providers.supabase.runtime import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 CONFIG = load_supabase_provider_config(REPOSITORY_ROOT)
-ENVIRONMENT = {"SUPABASE_PROJECT_REF": "test-project"}
+ENVIRONMENT: dict[str, str] = {}
 
 
 def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> None:
@@ -58,7 +58,7 @@ def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> Non
 
     assert result is transport
     assert captured_oauth == {
-        "mcp_url": "https://mcp.supabase.com/mcp?project_ref=test-project",
+        "mcp_url": "https://mcp.supabase.com/mcp",
         "client_name": "kis-mcp Supabase",
         "token_storage": storage,
         "additional_client_metadata": {
@@ -68,7 +68,7 @@ def test_transport_uses_persistent_oauth_and_tls_without_pat(monkeypatch) -> Non
         "callback_timeout": 300.0,
     }
     assert captured_transport == {
-        "url": "https://mcp.supabase.com/mcp?project_ref=test-project",
+        "url": "https://mcp.supabase.com/mcp",
         "auth": oauth,
         "verify": True,
     }
@@ -153,14 +153,11 @@ def test_transport_rejects_legacy_pat_conflict_before_oauth(monkeypatch) -> None
     ):
         server_module.build_transport(
             CONFIG,
-            {
-                "SUPABASE_PROJECT_REF": "test-project",
-                "SUPABASE_ACCESS_TOKEN": "forbidden-test-token",
-            },
+            {"SUPABASE_ACCESS_TOKEN": "forbidden-test-token"},
         )
 
 
-def test_server_mounts_health_only_surface_until_project_is_initialized(
+def test_server_mounts_health_only_when_credential_storage_is_unavailable(
     monkeypatch,
 ) -> None:
     class FakeServer:
@@ -169,6 +166,12 @@ def test_server_mounts_health_only_surface_until_project_is_initialized(
         def __init__(self) -> None:
             self.tools: dict[str, object] = {}
 
+        def add_provider(self, _provider: object) -> None:
+            pytest.fail("upstream provider must not mount without credential storage")
+
+        def add_middleware(self, _middleware: object) -> None:
+            pytest.fail("routing middleware must not mount without upstream provider")
+
         def tool(self, function):
             self.tools[function.__name__] = function
             return function
@@ -180,7 +183,7 @@ def test_server_mounts_health_only_surface_until_project_is_initialized(
         lambda config, environment: provider_readiness(
             config,
             environment,
-            keyring_available=True,
+            keyring_available=False,
         ),
     )
     monkeypatch.setattr(server_module, "FastMCP", lambda name: fake_server)
@@ -188,81 +191,18 @@ def test_server_mounts_health_only_surface_until_project_is_initialized(
         server_module,
         "build_transport",
         lambda *_args, **_kwargs: pytest.fail(
-            "upstream transport must not be built before project initialization"
-        ),
-    )
-    monkeypatch.setattr(
-        server_module,
-        "create_proxy",
-        lambda *_args, **_kwargs: pytest.fail(
-            "upstream proxy must not be built before project initialization"
+            "upstream transport must not be built without credential storage"
         ),
     )
 
     result = server_module.build_server(CONFIG, {})
 
     assert result is fake_server
-    health = fake_server.tools["kis_supabase_health"]
-    payload = health()
+    payload = fake_server.tools["kis_supabase_health"]()
     assert payload["ready"] is False
-    assert payload["project_ref_present"] is False
-    assert payload["token_storage_available"] is True
-
-
-def test_server_builds_proxy_and_registers_redacted_health(monkeypatch) -> None:
-    upstream_transport = object()
-    proxy_client = object()
-    captured: dict[str, object] = {}
-
-    class FakeServer:
-        name = CONFIG.server_name
-
-        def __init__(self) -> None:
-            self.tools: dict[str, object] = {}
-
-        def tool(self, function):
-            self.tools[function.__name__] = function
-            return function
-
-    fake_server = FakeServer()
-
-    monkeypatch.setattr(
-        server_module,
-        "build_transport",
-        lambda config, environment: upstream_transport,
-    )
-    monkeypatch.setattr(
-        server_module,
-        "provider_specific_readiness",
-        lambda config, environment: provider_readiness(
-            config,
-            environment,
-            keyring_available=True,
-        ),
-    )
-
-    def fake_proxy_client(transport: object) -> object:
-        assert transport is upstream_transport
-        return proxy_client
-
-    def fake_create_proxy(client: object, *, name: str) -> FakeServer:
-        captured.update({"client": client, "name": name})
-        return fake_server
-
-    monkeypatch.setattr(server_module, "ProxyClient", fake_proxy_client)
-    monkeypatch.setattr(server_module, "create_proxy", fake_create_proxy)
-
-    result = server_module.build_server(CONFIG, ENVIRONMENT)
-
-    assert result is fake_server
-    assert captured == {"client": proxy_client, "name": CONFIG.server_name}
-    health = fake_server.tools["kis_supabase_health"]
-    payload = health()
-    assert payload["ready"] is True
-    assert payload["project_scoped"] is True
-    assert payload["authentication_mode"] == "oauth-dcr"
-    assert payload["token_storage"] == "windows-keyring"
-    assert "test-project" not in str(payload)
+    assert payload["account_scoped"] is True
+    assert payload["project_routing"] == "registered_per_call"
+    assert payload["token_storage_available"] is False
 
 
 def test_provider_descriptor_uses_shared_provider_contract() -> None:
@@ -283,13 +223,14 @@ def test_provider_descriptor_uses_shared_provider_contract() -> None:
         "database_write",
         "external_network",
     )
-    assert descriptor.builder is server_module.build_server
-    assert descriptor.readiness_probe is server_module.provider_health
+    assert callable(descriptor.builder)
+    assert callable(descriptor.readiness_probe)
+    assert descriptor.runtime_tools_probe is not None
+    assert "account-scoped" in descriptor.capabilities[0].description
+    assert "registered per-call" in descriptor.capabilities[0].description
 
 
-def test_provider_health_maps_oauth_preflight_to_actionable_ready_states(
-    monkeypatch,
-) -> None:
+def test_provider_health_maps_account_oauth_runtime_states(monkeypatch) -> None:
     monkeypatch.setattr(
         server_module,
         "provider_specific_readiness",
@@ -300,57 +241,44 @@ def test_provider_health_maps_oauth_preflight_to_actionable_ready_states(
         ),
     )
 
-    missing = server_module.provider_health(CONFIG, {})
-    ready = server_module.provider_health(CONFIG, ENVIRONMENT)
+    idle = server_module.provider_health(CONFIG, {})
+    startup = server_module.ProviderStartupState()
+    startup.mark_ready()
+    authenticated = server_module.provider_health(CONFIG, {}, startup)
 
-    assert missing.state is ProviderState.READY
-    assert missing.ready is True
-    assert missing.summary == (
-        "Supabase MCP is ready; initialize or link a project before authentication."
+    assert idle.state is ProviderState.READY
+    assert idle.ready is True
+    assert idle.summary == (
+        "Supabase MCP is ready; one account OAuth login is required at runtime start."
     )
-    assert missing.details["project_ref_present"] is False
-    assert missing.details["upstream_ready"] is False
-    assert missing.details["authentication_mode"] == "oauth-dcr"
-    assert missing.details["user_status"] == {
-        "state": "ready_project_initialization_required",
-        "label": "Ready — project initialization required",
-        "required_action": (
-            "Initialize or link this repository to a Supabase project, set "
-            "SUPABASE_PROJECT_REF, then authenticate."
-        ),
-    }
-    assert missing.details["commissioning"] == {
-        "installed": "ready",
-        "configured": "project_initialization_required",
-        "authenticated": "pending_project_initialization",
-        "upstream_connected": "pending_project_initialization",
-        "tools_discovered": "pending_project_initialization",
-        "live_verified": "pending_project_initialization",
-    }
-
-    assert ready.state is ProviderState.READY
-    assert ready.ready is True
-    assert ready.summary == (
-        "Supabase MCP is ready; authenticate before live project operations."
-    )
-    assert ready.details["upstream_ready"] is True
-    assert ready.details["token_storage"] == "windows-keyring"
-    assert ready.details["user_status"] == {
-        "state": "ready_authentication_required",
-        "label": "Ready — authentication required",
-        "required_action": (
-            "Authenticate with Supabase for the linked project before live operations."
-        ),
-    }
-    assert ready.details["commissioning"] == {
+    assert idle.details["account_scoped"] is True
+    assert idle.details["project_routing"] == "registered_per_call"
+    assert idle.details["upstream_ready"] is True
+    assert idle.details["runtime_phase"] == "idle"
+    assert idle.details["user_status"]["state"] == "ready_authentication_required"
+    assert idle.details["commissioning"] == {
         "installed": "ready",
         "configured": "ready",
-        "authenticated": "required",
+        "authenticated": "required_at_runtime_start",
         "upstream_connected": "pending_authentication",
         "tools_discovered": "pending_authentication",
         "live_verified": "pending_authentication",
     }
-    assert "test-project" not in str(ready.to_json_dict())
+
+    assert authenticated.state is ProviderState.READY
+    assert authenticated.summary == (
+        "Supabase MCP is authenticated for the current KIS runtime."
+    )
+    assert authenticated.details["runtime_phase"] == "ready"
+    assert authenticated.details["user_status"]["state"] == "ready_authenticated"
+    assert authenticated.details["commissioning"] == {
+        "installed": "ready",
+        "configured": "ready",
+        "authenticated": "ready",
+        "upstream_connected": "ready",
+        "tools_discovered": "ready",
+        "live_verified": "pending_registered_project_read",
+    }
 
 
 def test_provider_health_keeps_genuine_preflight_faults_degraded(monkeypatch) -> None:
@@ -364,7 +292,7 @@ def test_provider_health_keeps_genuine_preflight_faults_degraded(monkeypatch) ->
         ),
     )
 
-    credential_storage = server_module.provider_health(CONFIG, ENVIRONMENT)
+    credential_storage = server_module.provider_health(CONFIG, {})
 
     assert credential_storage.state is ProviderState.DEGRADED
     assert credential_storage.details["user_status"] == {
@@ -389,19 +317,14 @@ def test_provider_health_keeps_genuine_preflight_faults_degraded(monkeypatch) ->
     )
     pat_conflict = server_module.provider_health(
         CONFIG,
-        {
-            "SUPABASE_PROJECT_REF": "test-project",
-            "SUPABASE_ACCESS_TOKEN": "forbidden-test-token",
-        },
+        {"SUPABASE_ACCESS_TOKEN": "forbidden-test-token"},
     )
 
     assert pat_conflict.state is ProviderState.DEGRADED
     assert pat_conflict.details["user_status"] == {
         "state": "configuration_conflict",
         "label": "Action required — remove legacy PAT",
-        "required_action": (
-            "Remove SUPABASE_ACCESS_TOKEN before using the commissioned OAuth flow."
-        ),
+        "required_action": "Remove SUPABASE_ACCESS_TOKEN before using account OAuth.",
     }
     assert pat_conflict.details["commissioning"]["configured"] == "conflict"
     assert "forbidden-test-token" not in str(pat_conflict.to_json_dict())
@@ -448,3 +371,71 @@ def test_import_does_not_load_provider_configuration(monkeypatch) -> None:
         assert callable(reloaded.build_provider_descriptor)
 
     importlib.reload(server_module)
+
+
+def test_server_uses_persistent_client_runtime_without_startup_tool_call(monkeypatch) -> None:
+    upstream_transport = object()
+    upstream_client = object()
+    captured: dict[str, object] = {}
+
+    class FakeServer:
+        name = CONFIG.server_name
+
+        def __init__(self) -> None:
+            self.providers: list[object] = []
+            self.middlewares: list[object] = []
+            self.tools: dict[str, object] = {}
+
+        def add_provider(self, provider: object) -> None:
+            self.providers.append(provider)
+
+        def add_middleware(self, middleware: object) -> None:
+            self.middlewares.append(middleware)
+
+        def tool(self, function):
+            self.tools[function.__name__] = function
+            return function
+
+    class FakePersistentProvider:
+        def __init__(self, client, **kwargs: object) -> None:
+            captured["client"] = client
+            captured.update(kwargs)
+            self.startup_state = kwargs["startup_state"]
+            self.runtime_tools = kwargs["runtime_tools"]
+
+    fake_server = FakeServer()
+    monkeypatch.setattr(
+        server_module,
+        "provider_specific_readiness",
+        lambda config, environment: provider_readiness(
+            config,
+            environment,
+            keyring_available=True,
+        ),
+    )
+    monkeypatch.setattr(server_module, "FastMCP", lambda name: fake_server)
+    monkeypatch.setattr(server_module, "build_transport", lambda *_args: upstream_transport)
+    monkeypatch.setattr(server_module, "Client", lambda transport: upstream_client, raising=False)
+    monkeypatch.setattr(
+        server_module,
+        "PersistentClientProxyProvider",
+        FakePersistentProvider,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        server_module,
+        "create_proxy",
+        lambda *_args, **_kwargs: pytest.fail("Supabase must use persistent provider lifecycle"),
+        raising=False,
+    )
+
+    result = server_module.build_server(
+        CONFIG,
+        {},
+        client_factory=lambda transport: upstream_client,
+    )
+
+    assert result is fake_server
+    assert captured["client"] is upstream_client
+    assert captured.get("startup_call") is None
+    assert fake_server.providers

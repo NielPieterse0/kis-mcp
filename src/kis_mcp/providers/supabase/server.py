@@ -3,15 +3,21 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 import httpx
-from fastmcp import FastMCP
+from fastmcp import Client, FastMCP
 from fastmcp.client.auth import OAuth
 from fastmcp.client.transports import StreamableHttpTransport
-from fastmcp.server import create_proxy
-from fastmcp.server.providers.proxy import ProxyClient
+
+from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
+from kis_mcp.providers.client_runtime import (
+    PersistentClientProxyProvider,
+    ProviderRuntimeToolState,
+    ProviderStartupPhase,
+    ProviderStartupState,
+)
 
 from ..contracts import (
     ProviderBoundary,
@@ -27,6 +33,7 @@ from .config import (
     SupabaseProviderConfigError,
     load_supabase_provider_config,
 )
+from .routing import SupabaseProjectRouting, SupabaseProjectRoutingMiddleware
 from .runtime import (
     SupabaseProviderRuntimeError,
     build_oauth_token_storage,
@@ -73,7 +80,7 @@ def build_transport(
             "SUPABASE_LEGACY_PAT_CONFLICT: remove the legacy PAT environment "
             "variable before starting browser OAuth"
         )
-    upstream_url = build_upstream_url(config, environment)
+    upstream_url = build_upstream_url(config)
     oauth = SupabaseOAuth(
         mcp_url=upstream_url,
         client_name=config.client_name,
@@ -94,23 +101,37 @@ def build_transport(
 def build_server(
     config: SupabaseProviderConfig | None = None,
     environment: Mapping[str, str] | None = None,
+    *,
+    project_registry: ProjectRegistry | None = None,
+    client_factory: Callable[[Any], Any] = Client,
+    startup_state: ProviderStartupState | None = None,
+    runtime_tools: ProviderRuntimeToolState | None = None,
 ) -> FastMCP:
     runtime = config or load_supabase_provider_config()
     runtime_environment = environment if environment is not None else os.environ
     readiness = provider_specific_readiness(runtime, runtime_environment)
+    server = FastMCP(runtime.server_name)
+    shared_startup_state = startup_state or ProviderStartupState()
+    shared_runtime_tools = runtime_tools or ProviderRuntimeToolState()
 
     if readiness.ready:
         transport = build_transport(runtime, runtime_environment)
-        server = create_proxy(
-            ProxyClient(transport),
-            name=runtime.server_name,
+        provider = PersistentClientProxyProvider(
+            client_factory(transport),
+            startup_state=shared_startup_state,
+            runtime_tools=shared_runtime_tools,
         )
-    else:
-        server = FastMCP(runtime.server_name)
+        server.add_provider(provider)
+        projects = project_registry or load_project_registry_settings()
+        server.add_middleware(
+            SupabaseProjectRoutingMiddleware(
+                SupabaseProjectRouting(projects, shared_runtime_tools.snapshot)
+            )
+        )
 
     @server.tool
     def kis_supabase_health() -> dict[str, object]:
-        """Report redacted Supabase provider identity, scope, and readiness."""
+        """Report redacted Supabase account OAuth and routing readiness."""
 
         return readiness.as_dict()
 
@@ -120,24 +141,22 @@ def build_server(
 def provider_health(
     config: SupabaseProviderConfig | None = None,
     environment: Mapping[str, str] | None = None,
+    startup_state: ProviderStartupState | None = None,
 ) -> ProviderReadiness:
-    """Return provider-neutral OAuth preflight readiness without network access."""
+    """Return account-OAuth preflight and runtime-lifetime connection readiness."""
 
     runtime = config or load_supabase_provider_config()
     runtime_environment = environment if environment is not None else os.environ
     readiness = provider_specific_readiness(runtime, runtime_environment)
+    phase = ProviderStartupPhase.IDLE if startup_state is None else startup_state.phase
 
     if readiness.legacy_pat_conflict:
         state = ProviderState.DEGRADED
-        summary = (
-            "Supabase MCP configuration conflicts with the commissioned OAuth flow."
-        )
+        summary = "Supabase MCP configuration conflicts with the commissioned OAuth flow."
         user_status = {
             "state": "configuration_conflict",
             "label": "Action required — remove legacy PAT",
-            "required_action": (
-                "Remove SUPABASE_ACCESS_TOKEN before using the commissioned OAuth flow."
-            ),
+            "required_action": "Remove SUPABASE_ACCESS_TOKEN before using account OAuth.",
         }
         commissioning = {
             "installed": "ready",
@@ -153,9 +172,7 @@ def provider_health(
         user_status = {
             "state": "credential_storage_required",
             "label": "Unavailable — credential storage required",
-            "required_action": (
-                "Restore Windows credential storage before authenticating with Supabase."
-            ),
+            "required_action": "Restore Windows credential storage before authenticating with Supabase.",
         }
         commissioning = {
             "installed": "ready",
@@ -165,43 +182,50 @@ def provider_health(
             "tools_discovered": "blocked_credential_storage",
             "live_verified": "blocked_credential_storage",
         }
-    elif not readiness.project_ref_present:
-        state = ProviderState.READY
-        summary = (
-            "Supabase MCP is ready; initialize or link a project before authentication."
-        )
+    elif phase is ProviderStartupPhase.FAILED:
+        state = ProviderState.DEGRADED
+        summary = "Supabase MCP runtime connection failed during account OAuth startup."
         user_status = {
-            "state": "ready_project_initialization_required",
-            "label": "Ready — project initialization required",
-            "required_action": (
-                "Initialize or link this repository to a Supabase project, set "
-                "SUPABASE_PROJECT_REF, then authenticate."
-            ),
-        }
-        commissioning = {
-            "installed": "ready",
-            "configured": "project_initialization_required",
-            "authenticated": "pending_project_initialization",
-            "upstream_connected": "pending_project_initialization",
-            "tools_discovered": "pending_project_initialization",
-            "live_verified": "pending_project_initialization",
-        }
-    else:
-        state = ProviderState.READY
-        summary = (
-            "Supabase MCP is ready; authenticate before live project operations."
-        )
-        user_status = {
-            "state": "ready_authentication_required",
-            "label": "Ready — authentication required",
-            "required_action": (
-                "Authenticate with Supabase for the linked project before live operations."
-            ),
+            "state": "runtime_start_failed",
+            "label": "Unavailable — runtime connection failed",
+            "required_action": "Retry Supabase OAuth startup and inspect the provider error type if it fails again.",
         }
         commissioning = {
             "installed": "ready",
             "configured": "ready",
-            "authenticated": "required",
+            "authenticated": "failed",
+            "upstream_connected": "failed",
+            "tools_discovered": "failed",
+            "live_verified": "blocked_runtime_failure",
+        }
+    elif phase is ProviderStartupPhase.READY:
+        state = ProviderState.READY
+        summary = "Supabase MCP is authenticated for the current KIS runtime."
+        user_status = {
+            "state": "ready_authenticated",
+            "label": "Ready — authenticated",
+            "required_action": "No authentication action is required for this running KIS runtime.",
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "ready",
+            "authenticated": "ready",
+            "upstream_connected": "ready",
+            "tools_discovered": "ready",
+            "live_verified": "pending_registered_project_read",
+        }
+    else:
+        state = ProviderState.READY
+        summary = "Supabase MCP is ready; one account OAuth login is required at runtime start."
+        user_status = {
+            "state": "ready_authentication_required",
+            "label": "Ready — authentication required",
+            "required_action": "Sign in once; registered project calls then reuse the runtime-scoped connection.",
+        }
+        commissioning = {
+            "installed": "ready",
+            "configured": "ready",
+            "authenticated": "required_at_runtime_start",
             "upstream_connected": "pending_authentication",
             "tools_discovered": "pending_authentication",
             "live_verified": "pending_authentication",
@@ -212,6 +236,8 @@ def provider_health(
     details.pop("server_name")
     details.pop("ready")
     details["upstream_ready"] = readiness.ready
+    details["runtime_phase"] = phase.value
+    details["runtime_error_type"] = None if startup_state is None else startup_state.error_type
     details["user_status"] = user_status
     details["commissioning"] = commissioning
     return ProviderReadiness(
@@ -228,6 +254,8 @@ def build_provider_descriptor(
     """Build the shared descriptor without loading configuration at import time."""
 
     runtime = config or load_supabase_provider_config()
+    startup_state = ProviderStartupState()
+    runtime_tools = ProviderRuntimeToolState()
     return ProviderDescriptor(
         provider_id=runtime.provider_id,
         display_name="Supabase MCP",
@@ -239,13 +267,22 @@ def build_provider_descriptor(
             ProviderCapability(
                 capability_id="database.manage",
                 description=(
-                    "Use the official project-scoped Supabase MCP tool surface."
+                    "Use the official account-scoped Supabase MCP surface with "
+                    "registered per-call project routing."
                 ),
                 effects=("database_read", "database_write", "external_network"),
             ),
         ),
-        builder=build_server,
-        readiness_probe=provider_health,
+        builder=lambda: build_server(
+            runtime,
+            startup_state=startup_state,
+            runtime_tools=runtime_tools,
+        ),
+        readiness_probe=lambda: provider_health(
+            runtime,
+            startup_state=startup_state,
+        ),
+        runtime_tools_probe=runtime_tools.snapshot,
     )
 
 
