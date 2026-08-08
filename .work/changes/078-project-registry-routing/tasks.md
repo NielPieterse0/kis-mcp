@@ -14,5 +14,5 @@
 - [x] Run focused tests and modularity reassessment.
 - [x] Run change-governance checks and canonical verification.
 - [x] Run independent full-diff code review and resolve material findings.
-- [ ] Commit/push, raise PR, verify exact head and required checks, merge safely.
-- [ ] Record closeout and run governance-safe worktree/branch cleanup from main.
+- [x] Commit/push, raise PR #98, verify exact head with Work Management #35, and merge safely.
+- [x] Record final closeout evidence; governed cleanup may run after this metadata-only closeout lands on `main`.

@@ -84,9 +84,9 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check` and `validate`.
 - [x] Run canonical `pwsh -NoProfile -File scripts/verify.ps1` and capture exit status/material evidence.
 - [x] Run independent code review against the complete branch diff; resolve all material findings and rerun affected checks.
-- [ ] Commit coherent implementation/documentation state, push the branch, and open a PR with requirement/test evidence.
-- [ ] Verify the exact PR head/required checks before merge; merge only the verified head.
-- [ ] Update closeout evidence, confirm the primary `main` contains the merge, then run governance-safe cleanup from the clean primary checkout.
+- [x] Commit coherent implementation/documentation state, push the branch, and open PR #98 with requirement/test evidence.
+- [x] Verify exact head `ba9ec4a0d6efe3fe99ee99c7eaac4175d1d24935` through Work Management #35 and merge only that verified head.
+- [x] Update closeout evidence and confirm primary `main` contains merge `37adc01daf6703d164cd7b719872ffbfb55ed1c9`; governed cleanup follows after this metadata-only closeout lands.
 
 ## Recovery
 
