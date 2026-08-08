@@ -2,7 +2,7 @@
 
 ## Programme status
 
-Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same governed worktree, with a verification/merge/reconciliation interval between them.
+Closed. Batches 1–3 are merged; final exact-head Work Management and canonical verification passed. This metadata-only closeout releases change 063's exclusive claims after it lands on `main`.
 
 ## Implemented scope
 
@@ -56,11 +56,13 @@ Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same gov
 - Integrated regression audit passed across capabilities, GitHub provider/Projects, workflows, Work Management, remote runtime, and repository-scope tests after reconciling current `main`.
 - User-style capability queries correctly surfaced GitHub pull-request, Actions, and Projects operations with semantic capability aliases; exact Project description retained its authoritative MCP input schema and generic execution surface.
 - The same audit exposed one workflow vocabulary defect: `pull-request-safe-closeout` required nonexistent `validation.execute` while the runtime contribution is `verification.execute`. A RED regression reproduced the mismatch; the platform descriptor now uses `verification.execute`, and the focused regression passes.
+- Final local `scripts/verify.ps1` passed on exact PR head `1cfe0f9ab72395de5e37ef9da2e0f69ff8aa55b8`: configuration, canonical interpreter/dependencies, 223-file Python syntax, governance, complete pytest, and three-rule verification all passed.
+- Final Work Management run #31 (`31263984064`) passed on that same exact head, including focused P5 and canonical repository verification.
 
 ## Review
 
-- Findings-first manual diff review found no policy, provider-auth, routing, approval, or GitHub-specific semantic knowledge leaking into the generic Batch 1 capability implementation.
-- Requested automated `codex` review could not run because that backend is not configured (`AGENT_BACKEND_UNKNOWN`). The configured fallback review backend was also unavailable (`AGENT_BACKEND_UNAVAILABLE`). No automated-agent review pass is claimed.
+- Findings-first manual bounded diff review found no policy, provider-auth, routing, approval, or GitHub-specific semantic knowledge leaking into the generic capability implementation.
+- Automated review was attempted during the programme; the final configured review invocation failed with `AGENT_BACKEND_FAILED:NvidiaNimError`. No automated-agent review pass is claimed.
 
 ## Git and merge
 
@@ -73,11 +75,12 @@ Active. Batch 1 is merged and reconciled. Batches 2 and 3 remain on the same gov
 - Batch 1 merge commit: `551665ec730b308c597c2c06cf58249b042ad06f`.
 - After merge, `origin/main` was fetched and reconciled into this same worktree without conflicts; concurrent change 062 arrived only in its declared Discover paths.
 - Audit note: the separate `mcp-tool-1.github_get_workflow_run` reader rejected the modern 31-billion GitHub run ID because its public input validator is capped at signed 32-bit integer range. Listing runs and the connected GitHub job reader handled the same run successfully; this appears outside the kis-mcp source paths searched in change 063.
-- Batches 2–3 will continue in this same governed worktree after each merge is fetched/reconciled.
-- Final cleanup remains last.
+- Final PR: #94, exact head `1cfe0f9ab72395de5e37ef9da2e0f69ff8aa55b8`.
+- Final exact-head gate: Work Management run #31 (`31263984064`) concluded `success`.
+- Final merge commit: `f283a0b41f7108462e3c333db7f3bf73034e2dcb`.
+- Governed cleanup remains the last action after this metadata-only closeout lands on `main`.
 
 ## Residual items
 
-- Batch 2: GitHub semantic workflow capability mapping and 047 hard eligibility filtering for recommendations.
-- Batch 3: deterministic bounded long-tail provider result handling and GitHub Projects/user-audit regression pass.
-- Final disposition of the attached audit findings will be recorded after the last merged batch.
+- No remaining 063 implementation scope.
+- The signed-32-bit Actions run/job ID limitation in `mcp-tool-1` remains an external tooling defect; `kis-dev` GitHub MCP readers provide the current compatible path.

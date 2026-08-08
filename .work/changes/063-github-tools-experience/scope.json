@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "063-github-tools-experience",
-  "status": "active",
+  "status": "closed",
   "branch": "change/063-github-tools-experience",
   "worktree": ".work/worktrees/063-github-tools-experience",
   "base": "origin/main",
