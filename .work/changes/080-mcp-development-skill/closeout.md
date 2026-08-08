@@ -20,7 +20,8 @@
 - Source-skill structural comparison: current active `build-mcp-server`, `build-mcp-app`, and `build-mcpb` snapshots were evaluated through the kis-dev Skills surface.
 - `kis-mcp` package structural validation: passed with `SKILL.md` at 187 lines, 507-character description, six referenced files present, and all trigger/output/abuse JSON parsing successfully.
 - Combined post-second-skill validation: `git diff --check` passed; `scripts/change-workflow.ps1 check` passed; locked-interpreter `tests/skills` passed; full `scripts/verify.ps1` passed with configuration, interpreter, dependency, Python syntax, change-governance, and complete pytest checks reporting `ok: true` / exit code 0.
-- PR exact-head Work Management run #27 reproduced the canonical shared-Skills fixture and failed only in full repository verification with `ValueError: skill capability metadata is incomplete: kis-mcp`; focused P5 checks and governance passed. A regression test now requires intrinsic catalogue metadata on both new skills before the exact-head gate is rerun.
+- PR exact-head Work Management run #27 reproduced the canonical shared-Skills fixture and exposed missing intrinsic catalogue metadata; focused P5 checks and governance passed.
+- The metadata repair passed local full verification and exact integrated Work Management run #29 at head `887a7f9d5d78067b37025dc8169c8fdada1ad485`, including canonical repository verification.
 
 ## Review
 
@@ -44,9 +45,10 @@
 - First sub-slice commits: `cd5cc48` (`docs: add consolidated MCP development skill`) and `bea7d75` (`docs: record MCP skill slice verification`).
 - Second-skill local commits: `4ec617f` (`docs: add kis-mcp operational skill`) and `df9d56a` (`docs: align skills with concurrent runtime changes`).
 - Remote publication: branch `change/080-mcp-development-skill` was created from current remote `main` and published through the authenticated GitHub provider because local Work correctly prohibits network push.
-- Remote published head before this handoff update: `0a31ca18dda40e55a02715597b5af7329ddb296f`.
-- Pull request: #91 — `Add MCP development and kis-mcp operational skills`; opened and intentionally not merged.
-- Cleanup: not applicable while PR #91 remains open and the branch/worktree remain active.
+- Final integrated PR head: `887a7f9d5d78067b37025dc8169c8fdada1ad485`.
+- Pull request: #91 — `Add MCP development and kis-mcp operational skills`; merged after exact-head Work Management run #29 passed.
+- Merge commit: `15024d9d91c4758d6bdf90d297d40c47fb7afb80`.
+- Cleanup: change status is closed; governed worktree/branch cleanup may proceed after this closeout record lands.
 
 ## Residual items
 

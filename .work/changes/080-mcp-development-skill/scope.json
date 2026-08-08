@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "080-mcp-development-skill",
-  "status": "active",
+  "status": "closed",
   "branch": "change/080-mcp-development-skill",
   "worktree": ".work/worktrees/080-mcp-development-skill",
   "base": "main",
