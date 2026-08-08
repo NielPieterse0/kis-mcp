@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "079-workflow-discovery-bridge",
-  "status": "active",
+  "status": "closed",
   "branch": "change/079-workflow-discovery-bridge",
   "worktree": ".work/worktrees/079-workflow-discovery-bridge",
   "base": "main",

@@ -2,7 +2,7 @@
 
 ## Status
 
-**Open — final shared workflow integration is implemented and undergoing final verification/PR landing.** Change 079 claimed only the three released central adapter paths after 063 cleanup.
+**Closed.** Final shared workflow integration landed through PR #96 after exact-head Work Management run #33 passed. This metadata-only closeout releases change 079's remaining claims after it lands on `main`.
 
 ## Implemented scope
 
@@ -34,9 +34,11 @@
 - Batch 1: PR #87; exact head `0effcacee1b5b03d524df4d2ff52db30ed59af6d`; Work Management run #22 passed; merge `fcead20d83a2383df2cb03078918db13e584339b`.
 - Batch 2: PR #89; exact head `f1f6b50b65551f130bcf1fcb341d1470956c4a3e`; Work Management run #25 passed; merge `d062d11eb4c9eeae7a971e3e0c4a56af51868239`.
 - Batch 3: PR #90; exact head `5a69fb85d0da61facb28383b1844732eb95c0da0`; Work Management run #26 passed; merge `2c7bc90da8b2de773de0343264692c2b25b7239f`.
-- Dependency 063 closed on `main` via PR #95, merge `07d4684873b547d6c274decda9183282d3007b61`; its governed worktree cleanup completed before 079 resumes shared integration.
-- Cleanup remains deferred until final adapter merge and metadata closeout.
+- Dependency 063 closed on `main` via PR #95, merge `07d4684873b547d6c274decda9183282d3007b61`; its governed worktree cleanup completed before 079 resumed shared integration.
+- Superseded dependency-record PR #92 was closed with an audit note because its immutable head was a separate obsolete branch.
+- Final shared adapter: PR #96, exact head `0a7b2ff8469bfc35991c88430b93b09dd1221d6d`; Work Management run #33 (`31265390655`) passed; merge `dec0658375faff3efab5eb69707ad550600540b2`.
+- Cleanup remains deferred only until this metadata-only closeout lands on `main`.
 
 ## Residual items
 
-- Claim the released central catalogue/resolver/workflow paths, adapt the Batch 3 specs into shared `WorkflowDescriptor` metadata, add declared executable-step resolution to eligibility/recommendation, delegate deterministic workflow matching to the weighted scorer, verify realistic recommendation prompts, and then complete final PR/closeout/cleanup.
+- No remaining 079 implementation scope. Governed branch/worktree cleanup is the final lifecycle action.
