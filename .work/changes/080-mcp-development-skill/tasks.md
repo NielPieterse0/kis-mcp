@@ -19,4 +19,4 @@
 - [x] Commit the second skill/final verification record (`4ec617f`, concurrency alignment `df9d56a`) and raise PR #91.
 - [x] Reproduce PR #91 exact-head Work Management failure #27 and isolate missing intrinsic catalogue metadata in the two new skill entrypoints.
 - [x] Add a failing regression test, then add intrinsic `category`/`capabilities` frontmatter without touching 078-owned settings.
-- [ ] Rerun local and exact-head canonical verification, then merge and safe-cleanup only after the gate passes.
+- [x] Rerun local and exact-head canonical verification, merge PR #91 after Work Management run #29 passes, and record the merge for governed cleanup.
