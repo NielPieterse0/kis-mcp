@@ -31,6 +31,7 @@ class SkillsValidation:
     reject_reparse_points: bool
     reject_hard_links: bool
     reject_backslashes: bool
+    allowed_filenames: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,7 @@ _LIMIT_KEYS = {
 _VALIDATION_KEYS = {
     "skill_id_pattern",
     "allowed_suffixes",
+    "allowed_filenames",
     "reject_links",
     "reject_reparse_points",
     "reject_hard_links",
@@ -158,9 +160,23 @@ def load_skills_config(repository_root: Path | None = None) -> SkillsConfig:
     ):
         raise RuntimeError("Skills validation allowed_suffixes is invalid")
 
+    filenames_value = validation_raw["allowed_filenames"]
+    if (
+        not isinstance(filenames_value, list)
+        or not filenames_value
+        or not all(
+            isinstance(item, str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", item) is not None
+            for item in filenames_value
+        )
+        or len(set(filenames_value)) != len(filenames_value)
+    ):
+        raise RuntimeError("Skills validation allowed_filenames is invalid")
+
     validation = SkillsValidation(
         skill_id_pattern=pattern,
         allowed_suffixes=tuple(suffixes_value),
+        allowed_filenames=tuple(filenames_value),
         reject_links=_true(validation_raw["reject_links"], "reject_links"),
         reject_reparse_points=_true(
             validation_raw["reject_reparse_points"], "reject_reparse_points"

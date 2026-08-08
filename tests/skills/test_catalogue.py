@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -171,6 +172,31 @@ def test_validate_create_and_replacement_are_read_only(
 
     with pytest.raises(SkillsError, match="SKILLS_ID_MISMATCH"):
         catalogue.validate_create("different-id", before)
+
+
+def test_catalogue_accepts_exact_allowed_extensionless_filename_only(
+    skills_config: SkillsConfig, make_skill
+) -> None:
+    root = make_skill("alpha-skill")
+    (root / "LICENSE").write_text("approved package license", encoding="utf-8")
+    configured = replace(
+        skills_config,
+        validation=replace(skills_config.validation, allowed_filenames=("LICENSE",)),
+    )
+
+    catalogue = SkillCatalogue(configured)
+    assert catalogue.read_skill_file("alpha-skill", "LICENSE").content == (
+        "approved package license"
+    )
+    replacement = catalogue.validate_replacement(
+        "alpha-skill", "LICENSE", "updated package license"
+    )
+    assert replacement.relative_path == "LICENSE"
+    assert replacement.content == "updated package license"
+
+    (root / "NOTICE").write_text("not configured", encoding="utf-8")
+    with pytest.raises(SkillsError, match="SKILLS_SUFFIX_FORBIDDEN"):
+        SkillCatalogue(configured)
 
 
 def test_catalogue_rejects_disallowed_suffix_and_oversize_file(

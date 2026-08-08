@@ -147,7 +147,10 @@ class SkillSourceReader:
         if not candidate.is_file():
             raise SkillsError("SKILLS_FILE_INVALID", "Skill entry must be a file")
         suffix = candidate.suffix.casefold()
-        if suffix not in self.config.validation.allowed_suffixes:
+        if (
+            suffix not in self.config.validation.allowed_suffixes
+            and candidate.name not in self.config.validation.allowed_filenames
+        ):
             raise SkillsError(
                 "SKILLS_SUFFIX_FORBIDDEN",
                 f"Skill file suffix is not configured: {suffix or '<none>'}",
@@ -179,7 +182,10 @@ class SkillSourceReader:
     def virtual_file(self, relative_path: str, content: str) -> SkillFile:
         relative = self.safe_relative_path(relative_path)
         suffix = relative.suffix.casefold()
-        if suffix not in self.config.validation.allowed_suffixes or suffix == ".png":
+        if suffix == ".png" or (
+            suffix not in self.config.validation.allowed_suffixes
+            and relative.name not in self.config.validation.allowed_filenames
+        ):
             raise SkillsError(
                 "SKILLS_SUFFIX_FORBIDDEN", "Replacement target must be configured text"
             )

@@ -64,6 +64,90 @@
     "preview_depth": 4
   },
   "skill_metadata": {
+    "agentproof": {
+      "category": "verification",
+      "capabilities": ["agent.execution.capture", "agent.receipt.verify"],
+      "activation_terms": ["agentproof", "execution evidence", "receipt verification"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["verification"]
+    },
+    "code-verification": {
+      "category": "verification",
+      "capabilities": ["code.change.review", "verification.execute", "regression.detect"],
+      "activation_terms": ["code verification", "verify code", "release readiness"],
+      "effects": ["read_only", "process"],
+      "workflow_roles": ["review", "verification"]
+    },
+    "code-work": {
+      "category": "development",
+      "capabilities": ["code.change.plan", "code.change.implement", "verification.execute"],
+      "activation_terms": ["code work", "implement code", "fix defect"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["implementation", "verification"]
+    },
+    "commit-workspace-changes": {
+      "category": "git-workflow",
+      "capabilities": ["git.change.commit", "verification.execute", "pull-request.prepare"],
+      "activation_terms": ["commit changes", "workspace changes", "prepare pull request"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["orchestration", "verification"]
+    },
+    "gh-address-comments": {
+      "category": "github",
+      "capabilities": ["pull-request.review.inspect", "pull-request.review.address"],
+      "activation_terms": ["address review comments", "requested changes", "pr review feedback"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["review", "implementation"]
+    },
+    "gh-fix-ci": {
+      "category": "github",
+      "capabilities": ["github.actions.diagnose", "code.change.implement", "verification.execute"],
+      "activation_terms": ["fix ci", "failing github actions", "pr checks"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["analysis", "implementation", "verification"]
+    },
+    "gh-review-comment-triage": {
+      "category": "github",
+      "capabilities": ["pull-request.review.triage", "pull-request.review.resolve"],
+      "activation_terms": ["review comment triage", "resolve review threads", "codex review comments"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["review", "implementation"]
+    },
+    "github": {
+      "category": "github",
+      "capabilities": ["github.repository.triage", "pull-request.triage", "issue.triage"],
+      "activation_terms": ["github", "pull request", "issue triage"],
+      "effects": ["read_only", "process"],
+      "workflow_roles": ["analysis", "orchestration"]
+    },
+    "manage-code-ontology": {
+      "category": "architecture",
+      "capabilities": ["code.ontology.manage", "impact.static.analyze"],
+      "activation_terms": ["code ontology", "knowledge graph", "static impact analysis"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["analysis"]
+    },
+    "merge-conflict-resolution": {
+      "category": "git-workflow",
+      "capabilities": ["git.conflict.resolve", "verification.execute"],
+      "activation_terms": ["merge conflict", "rebase conflict", "resolve conflicts"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["implementation", "verification"]
+    },
+    "take-pr-to-completion": {
+      "category": "github",
+      "capabilities": ["pull-request.prepare", "pull-request.complete", "verification.execute"],
+      "activation_terms": ["pr completion", "take pr to completion", "merge pull request"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["orchestration", "verification"]
+    },
+    "yeet": {
+      "category": "github",
+      "capabilities": ["git.change.publish", "pull-request.create"],
+      "activation_terms": ["publish changes", "push branch", "open draft pr"],
+      "effects": ["read_only", "local_change", "process"],
+      "workflow_roles": ["orchestration", "implementation"]
+    },
     "build-mcp-app": {
       "category": "mcp-development",
       "capabilities": [

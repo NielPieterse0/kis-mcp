@@ -19,7 +19,21 @@ def test_default_capability_settings_are_complete() -> None:
     assert sum(settings.suitability_weights.values()) == 100
     assert sum(settings.quality_weights.values()) == 100
     assert len(settings.direct_operations) <= settings.direct_profile_max
-    assert len(settings.skill_metadata) == 17
+    assert len(settings.skill_metadata) == 29
+    assert {
+        "agentproof",
+        "code-verification",
+        "code-work",
+        "commit-workspace-changes",
+        "gh-address-comments",
+        "gh-fix-ci",
+        "gh-review-comment-triage",
+        "github",
+        "manage-code-ontology",
+        "merge-conflict-resolution",
+        "take-pr-to-completion",
+        "yeet",
+    } <= set(settings.skill_metadata)
     assert all(item.category != "uncategorized" for item in settings.skill_metadata.values())
     assert all(item.capabilities for item in settings.skill_metadata.values())
     assert "search_capabilities" in settings.discovery_operations

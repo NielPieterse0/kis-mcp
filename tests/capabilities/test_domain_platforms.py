@@ -127,9 +127,9 @@ def test_all_registered_shared_skills_gain_capability_metadata() -> None:
     enriched = tuple(enrich_skill_card(card, settings) for card in cards)
     contributions = skill_capability_contributions(enriched, settings)
 
-    assert len(enriched) == 17
+    assert len(enriched) == len(settings.skill_metadata)
     assert all(card.category != "uncategorized" and card.capabilities for card in enriched)
-    assert len(contributions) == 17
+    assert len(contributions) == len(settings.skill_metadata)
     assert all(item.domain.value == "skill" for item in contributions)
 
 

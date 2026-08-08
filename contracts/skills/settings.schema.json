@@ -39,6 +39,7 @@
       "required": [
         "skill_id_pattern",
         "allowed_suffixes",
+        "allowed_filenames",
         "reject_links",
         "reject_reparse_points",
         "reject_hard_links",
@@ -51,6 +52,12 @@
           "minItems": 1,
           "uniqueItems": true,
           "items": {"type": "string", "pattern": "^\\.[a-z0-9]+$"}
+        },
+        "allowed_filenames": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$"}
         },
         "reject_links": {"const": true},
         "reject_reparse_points": {"const": true},
