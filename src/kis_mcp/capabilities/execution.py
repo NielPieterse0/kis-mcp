@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
@@ -9,6 +10,73 @@ from fastmcp.exceptions import ToolError
 from .contracts import OperationEffect
 from .eligibility import evaluate_eligibility
 from .runtime import CapabilityRuntimeState
+from .settings import ResultBudgetSettings
+
+
+def _json_chars(value: Any) -> int:
+    return len(
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+    )
+
+
+def _preview_value(value: Any, budget: ResultBudgetSettings, *, depth: int) -> Any:
+    if depth <= 0:
+        return {"truncated": True, "type": type(value).__name__}
+    if isinstance(value, Mapping):
+        entries = sorted(value.items(), key=lambda item: str(item[0]))
+        preview = {
+            str(key): _preview_value(item, budget, depth=depth - 1)
+            for key, item in entries[: budget.preview_items]
+        }
+        omitted = len(entries) - min(len(entries), budget.preview_items)
+        if omitted:
+            preview["__omitted_fields__"] = omitted
+        return preview
+    if isinstance(value, (list, tuple)):
+        selected = value[: budget.preview_items]
+        return {
+            "items": [
+                _preview_value(item, budget, depth=depth - 1)
+                for item in selected
+            ],
+            "omitted_items": len(value) - len(selected),
+        }
+    if isinstance(value, str) and len(value) > budget.preview_string_chars:
+        omitted = len(value) - budget.preview_string_chars
+        return value[: budget.preview_string_chars] + f"...<omitted {omitted} chars>"
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+def _budget_result(operation: str, result: Any, budget: ResultBudgetSettings) -> Any:
+    structured = getattr(result, "structured_content", None)
+    if structured is None:
+        return result
+    original_chars = _json_chars(structured)
+    if original_chars <= budget.max_chars:
+        return result
+
+    payload = {
+        "truncated": True,
+        "reason": "RESULT_BUDGET_EXCEEDED",
+        "operation": operation,
+        "original_chars": original_chars,
+        "max_chars": budget.max_chars,
+        "preview": _preview_value(structured, budget, depth=budget.preview_depth),
+    }
+    if _json_chars(payload) >= budget.max_chars:
+        payload["preview"] = {
+            "truncated": True,
+            "type": type(structured).__name__,
+        }
+    return payload
 
 
 class CapabilityExecutionRouter:
@@ -110,11 +178,12 @@ class CapabilityExecutionRouter:
                 "OPERATION_INELIGIBLE: " + "; ".join(decision.reasons)
             )
 
-        return await self.server.call_tool(
+        result = await self.server.call_tool(
             operation.name,
             dict(arguments),
             run_middleware=True,
         )
+        return _budget_result(operation.name, result, self.runtime.settings.result_budget)
 
 
 __all__ = ["CapabilityExecutionRouter"]

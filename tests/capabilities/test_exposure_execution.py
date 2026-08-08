@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 from fastmcp import Client, FastMCP
@@ -155,6 +156,63 @@ def test_execution_router_preserves_original_schema_and_effect_boundary() -> Non
         asyncio.run(router.execute_read("hidden_read", {"value": "bad"}))
     with pytest.raises(ToolError, match="EFFECT_MISMATCH"):
         asyncio.run(router.execute_change("hidden_read", {"value": 4}))
+
+
+def test_generic_execution_budgets_oversized_provider_result() -> None:
+    server = FastMCP("execution-budget-test")
+
+    @server.tool
+    def huge_external() -> dict[str, object]:
+        return {
+            "workflow_runs": [
+                {
+                    "id": index,
+                    "repository": {
+                        "name": "kis-mcp",
+                        "description": "x" * 12_000,
+                    },
+                }
+                for index in range(20)
+            ]
+        }
+
+    runtime = state(contribution("github-like", "huge_external", OperationEffect.EXTERNAL))
+    register_capability_tools(server, runtime)
+
+    payload = asyncio.run(
+        server.call_tool(
+            "execute_external_action",
+            {"operation": "huge_external", "arguments": {}},
+        )
+    ).structured_content
+
+    assert payload is not None
+    assert payload["truncated"] is True
+    assert payload["reason"] == "RESULT_BUDGET_EXCEEDED"
+    assert payload["operation"] == "huge_external"
+    assert payload["original_chars"] > payload["max_chars"]
+    assert payload["preview"]["workflow_runs"]["omitted_items"] == 10
+    assert len(json.dumps(payload, ensure_ascii=False)) < payload["max_chars"]
+
+
+def test_generic_execution_preserves_small_provider_result() -> None:
+    server = FastMCP("execution-budget-small-test")
+
+    @server.tool
+    def small_external() -> dict[str, object]:
+        return {"items": [{"id": 1, "name": "ok"}], "count": 1}
+
+    runtime = state(contribution("github-like", "small_external", OperationEffect.EXTERNAL))
+    register_capability_tools(server, runtime)
+
+    payload = asyncio.run(
+        server.call_tool(
+            "execute_external_action",
+            {"operation": "small_external", "arguments": {}},
+        )
+    ).structured_content
+
+    assert payload == {"items": [{"id": 1, "name": "ok"}], "count": 1}
 
 
 def test_execution_router_never_bypasses_approval_or_readiness() -> None:

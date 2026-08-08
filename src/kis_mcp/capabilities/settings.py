@@ -39,6 +39,7 @@ _TOP_LEVEL_KEYS = {
     "direct_profile",
     "discovery_operations",
     "readiness",
+    "result_budget",
     "skill_metadata",
 }
 
@@ -121,6 +122,14 @@ class SkillCapabilityMetadata:
 
 
 @dataclass(frozen=True, slots=True)
+class ResultBudgetSettings:
+    max_chars: int
+    preview_items: int
+    preview_string_chars: int
+    preview_depth: int
+
+
+@dataclass(frozen=True, slots=True)
 class CapabilitySettings:
     schema_version: int
     suitability_weights: Mapping[str, int]
@@ -129,6 +138,7 @@ class CapabilitySettings:
     direct_profile_max: int
     discovery_operations: tuple[str, ...]
     degraded_penalty: int
+    result_budget: ResultBudgetSettings
     skill_metadata: Mapping[str, SkillCapabilityMetadata]
 
 
@@ -170,6 +180,26 @@ def load_capability_settings(path: Path | None = None) -> CapabilitySettings:
     if not isinstance(degraded_penalty, int) or not 0 <= degraded_penalty <= 100:
         raise CapabilitySettingsError("readiness.degraded_penalty must be an integer from 0 to 100")
 
+    result_budget = payload["result_budget"]
+    budget_fields = {
+        "max_chars": (1_000, 1_000_000),
+        "preview_items": (1, 100),
+        "preview_string_chars": (100, 100_000),
+        "preview_depth": (1, 10),
+    }
+    if not isinstance(result_budget, dict) or set(result_budget) != set(budget_fields):
+        raise CapabilitySettingsError(
+            "result_budget must contain max_chars, preview_items, preview_string_chars, and preview_depth"
+        )
+    normalized_budget: dict[str, int] = {}
+    for key, (minimum, maximum) in budget_fields.items():
+        value = result_budget[key]
+        if not isinstance(value, int) or not minimum <= value <= maximum:
+            raise CapabilitySettingsError(
+                f"result_budget.{key} must be an integer from {minimum} to {maximum}"
+            )
+        normalized_budget[key] = value
+
     raw_skills = payload["skill_metadata"]
     if not isinstance(raw_skills, dict) or not raw_skills:
         raise CapabilitySettingsError("skill_metadata must be a non-empty object")
@@ -186,6 +216,7 @@ def load_capability_settings(path: Path | None = None) -> CapabilitySettings:
         direct_profile_max=direct_max,
         discovery_operations=_unique_text_list(payload["discovery_operations"], "discovery_operations"),
         degraded_penalty=degraded_penalty,
+        result_budget=ResultBudgetSettings(**normalized_budget),
         skill_metadata=MappingProxyType(skills),
     )
 
@@ -193,6 +224,7 @@ def load_capability_settings(path: Path | None = None) -> CapabilitySettings:
 __all__ = [
     "CapabilitySettings",
     "CapabilitySettingsError",
+    "ResultBudgetSettings",
     "SkillCapabilityMetadata",
     "load_capability_settings",
 ]
