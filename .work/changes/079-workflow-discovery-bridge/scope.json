@@ -13,6 +13,9 @@
     "src/kis_mcp/discover/tools.py",
     "src/kis_mcp/gateway/operations.py",
     "src/kis_mcp/workflows/verification/**",
+    "src/kis_mcp/capabilities/contracts.py",
+    "src/kis_mcp/capabilities/resolver.py",
+    "src/kis_mcp/workflows/platform.py",
     "tests/discover/test_plan_change.py",
     "tests/discover/test_tools.py",
     "tests/discover/test_tool_registration.py",
@@ -24,8 +27,6 @@
   "shared_paths": [],
   "excluded_paths": [
     "policy/**",
-    "src/kis_mcp/capabilities/**",
-    "src/kis_mcp/workflows/platform.py",
     "settings/capabilities.settings.json"
   ],
   "dependencies": [],

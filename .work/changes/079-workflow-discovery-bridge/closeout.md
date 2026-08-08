@@ -2,26 +2,31 @@
 
 ## Status
 
-**Open — dependency 063 is now closed and the final shared workflow integration can proceed.** Change 079 has not yet claimed or modified the released central capability/workflow paths.
+**Open — final shared workflow integration is implemented and undergoing final verification/PR landing.** Change 079 claimed only the three released central adapter paths after 063 cleanup.
 
 ## Implemented scope
 
 - Batch 1: bounded read-only `plan_change` with authority/context, affected tests/contracts/verifications, active change claims, conflict evidence, deterministic fingerprinting, and no execution.
 - Batch 2: `run_verification(project, verification_id, timeout_ms)` with stable-ID re-discovery, fixed semantic profiles, middleware-backed process execution, policy-error propagation, and `verification-result-v1` evidence.
 - Batch 3: conflict-free specs for `verify-current-change` and `triage-exact-head-ci`, stable CI failure classes, executable-step integrity helper, and deterministic weighted workflow matching.
+- Final shared adapter: `WorkflowDescriptor` now preserves optional declared executable steps; the shared workflow catalogue includes both verification workflows; workflow eligibility rejects unresolved declared execution targets against the live augmented catalogue; recommendation scoring delegates to the deterministic weighted matcher. Legacy workflows retain empty executable-step metadata, so symbolic procedure steps are not newly hard-filtered.
 
 ## Validation evidence
 
 - Batch 1 focused Discover suite: 20 passed; canonical `scripts/verify.ps1`: passed.
 - Batch 2 focused verification/registration suite: 30 passed; canonical `scripts/verify.ps1`: passed after resolving pytest module-name collisions.
 - Batch 3 focused workflow/discovery suite: 25 passed; canonical `scripts/verify.ps1`: passed with 2 skips, 223 Python files syntax-valid, and exact three-rule verification passed.
+- Final adapter TDD RED: shared platform lacked `verify-current-change`; `WorkflowDescriptor` rejected `executable_steps`; central resolver had no executable-step or weighted-matcher integration.
+- Final adapter focused GREEN: four shared-adapter tests pass, including unresolved-step rejection, natural verification intent, and realistic exact-head CI triage intent.
+- Final integrated regression set across capabilities, verification workflows, Discover, and remote runtime passed with the existing single skip.
+- Final local `scripts/verify.ps1` passed after reconciliation with current `main`: line endings, configuration, locked interpreter/dependencies, 223-file Python syntax, governance, complete pytest, and exact three-rule verification were green.
 - `change-workflow.ps1 check` and `git diff --check` passed for each implementation batch.
 
 ## Review
 
-- Each implementation batch received findings-first advisory review.
-- No substantiated blocking correctness, policy, or security defect remained before its PR was published.
-- Unsupported review concerns were checked against existing `ReadAuthority`, runtime middleware, and provider schemas rather than accepted mechanically.
+- Each earlier implementation batch received findings-first advisory review.
+- Final automated review was attempted but the configured backend failed with `AGENT_BACKEND_FAILED:NvidiaNimError`; no automated-agent pass is claimed.
+- Manual bounded change inspection and final diff review found no substantiated blocking correctness, policy, provider-authentication, or scope defect. The adapter changes only shared workflow metadata/recommendation behavior and leave policy/settings/provider schemas unchanged.
 
 ## Git and merge
 

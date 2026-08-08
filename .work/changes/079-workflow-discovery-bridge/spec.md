@@ -13,7 +13,7 @@ Deliver the next two approved workflow/discovery slices: bounded `plan_change` p
 
 Authority order is `AGENTS.md` → `docs/TRUST-MODEL.md` → `SPEC.md` → `docs/PLATFORM-CONCEPT.md` → policy JSON → `docs/OPERATIONS.md`. The attached optimization programme supplies the approved feature design. Preserve HR-001/002/003 unchanged, progressive exposure, original provider schemas, and Discover's read-only boundary.
 
-Active change 063 exclusively owns central capability/workflow files; this change must not overlap those paths unless that claim is cleanly released and `scope.json` is updated first.
+Change 063 released its central capability/workflow claims through merged closeout PR #95 and governed cleanup. Change 079 then updated `scope.json` before claiming only `src/kis_mcp/capabilities/contracts.py`, `src/kis_mcp/capabilities/resolver.py`, and `src/kis_mcp/workflows/platform.py` for the final adapter.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ Active change 063 exclusively owns central capability/workflow files; this chang
 
 ## Risks and recovery
 
-Primary risks are command-injection through discovered declarations, duplicated Discover logic, central workflow conflicts with active change 063, and misleading eligibility. Mitigate by mapping only fixed discovered profiles/arguments, composing existing services, respecting claims, and validating executable step resolution. Recovery is branch/PR revert; no migration or persistent state is introduced.
+Primary risks are command-injection through discovered declarations, duplicated Discover logic, overlapping central workflow claims, and misleading eligibility. Mitigate by mapping only fixed discovered profiles/arguments, composing existing services, claiming exact shared paths only after release, and validating executable-step resolution against the live augmented catalogue. Recovery is branch/PR revert; no migration or persistent state is introduced.
 
 ## Out of scope
 
