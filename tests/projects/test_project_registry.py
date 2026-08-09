@@ -15,6 +15,7 @@ def test_registry_indexes_declared_provider_resources() -> None:
     registry = load_project_registry_settings(REGISTRY_PATH, boundary="C:\\Projects")
 
     assert registry.github_repositories == (
+        "nielpieterse0/college",
         "nielpieterse0/gpt-os",
         "nielpieterse0/kis-mcp",
     )
