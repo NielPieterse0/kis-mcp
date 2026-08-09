@@ -1,0 +1,72 @@
+{
+  "change_id": "084-discover-persistent-memory-closeout",
+  "context7": {
+    "external_document_query_exercised": false,
+    "package_version": "3.2.5",
+    "reason": "Commissioning validates local MCP startup/discovery without bypassing KIS network policy.",
+    "required_tools": [
+      "query-docs",
+      "resolve-library-id"
+    ],
+    "required_tools_present": [
+      "query-docs",
+      "resolve-library-id"
+    ],
+    "source_revision": "b250c2515694eee4b6df4db82fa056df9ed3e306",
+    "status": "passed",
+    "tool_count": 2
+  },
+  "generated_at": "2026-08-09T15:25:02.551391+00:00",
+  "schema_version": 1,
+  "serena": {
+    "first_session": {
+      "activation_error": false,
+      "memories": "{\"memories\": [\"084-proof\"]}",
+      "memory": "serena hr3-07 live proof",
+      "overview_error": false,
+      "overview_excerpt": "{\"Class\": [\"Commissioned\"], \"Function\": [\"meaning\"]}",
+      "required_tools_present": [
+        "activate_project",
+        "delete_memory",
+        "find_referencing_symbols",
+        "find_symbol",
+        "get_symbols_overview",
+        "list_memories",
+        "read_memory"
+      ],
+      "tool_count": 23
+    },
+    "forwarded_delete": false,
+    "memory_artifacts": [
+      "C:\\Projects\\.kis-mcp\\commissioning\\084-serena-20260809T152455363226Z\\.serena\\memories\\084-proof.md"
+    ],
+    "offline_enforced": true,
+    "package_version": "1.6.1",
+    "post_restart_memories": [
+      "084-proof"
+    ],
+    "project": "C:\\Projects\\.kis-mcp\\commissioning\\084-serena-20260809T152455363226Z",
+    "quarantine_operation_id": "20260809T152459653912Z-b8dfdeed49fd",
+    "restored_sha256_matches": true,
+    "second_session": {
+      "activation_error": false,
+      "memories": "{\"memories\": [\"084-proof\"]}",
+      "memory": "serena hr3-07 live proof",
+      "overview_error": false,
+      "overview_excerpt": "{\"Class\": [\"Commissioned\"], \"Function\": [\"meaning\"]}",
+      "required_tools_present": [
+        "activate_project",
+        "delete_memory",
+        "find_referencing_symbols",
+        "find_symbol",
+        "get_symbols_overview",
+        "list_memories",
+        "read_memory"
+      ],
+      "tool_count": 23
+    },
+    "source_revision": "bcac0969fb8685783ea6d0f2642468fcc47e6395",
+    "status": "passed"
+  },
+  "status": "passed"
+}

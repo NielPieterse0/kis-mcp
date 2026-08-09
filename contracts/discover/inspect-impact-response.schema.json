@@ -60,12 +60,12 @@
       "type": "object", "additionalProperties": false,
       "required": ["kind", "source_path", "target_path", "reason", "confidence", "provenance"],
       "properties": {
-        "kind": {"enum": ["contract_reference", "configuration_reference", "task_term"]},
+        "kind": {"enum": ["contract_reference", "configuration_reference", "semantic_reference", "task_term"]},
         "source_path": {"type": "string", "minLength": 1},
         "target_path": {"type": "string", "minLength": 1},
         "reason": {"type": "string", "minLength": 1},
         "confidence": {"enum": ["high", "medium", "low"]},
-        "provenance": {"enum": ["path_token_reference", "task_token_match"]}
+        "provenance": {"enum": ["path_token_reference", "semantic_provider", "task_token_match"]}
       }
     },
     "implementation_step": {
@@ -86,7 +86,7 @@
       "properties": {
         "path": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1},
         "confidence": {"enum": ["high", "medium", "low"]}, "matched_targets": {"$ref": "#/$defs/strings"},
-        "provenance": {"enum": ["observed", "python_ast", "conventional"]}
+        "provenance": {"enum": ["observed", "python_ast", "semantic_provider", "conventional"]}
       }
     },
     "handoff": {

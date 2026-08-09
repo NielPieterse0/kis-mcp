@@ -9,10 +9,11 @@ from urllib.parse import urlparse
 from .git_context import git_remote_targets, parse_git_invocation
 from .models import InvocationEffects
 from .paths import PathValidationError, normalize_windows_path
-from .shell_parser import ShellState, resolve_shell_segments, shell_from_command
-
-_REDIRECT_RE = re.compile(
-    r"(?<![<])(?:>>|>)\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s;&|]+))"
+from .shell_parser import (
+    ShellState,
+    output_redirection_targets,
+    resolve_shell_segments,
+    shell_from_command,
 )
 
 _NETWORK_PROGRAMS = {
@@ -93,6 +94,7 @@ _NETWORK_FLAG_OPTIONS = {
     "--fail",
     "--head",
     "--compressed",
+    "--dry-run",
     "-usebasicparsing",
     "-batchmode",
     "-n",
@@ -391,30 +393,67 @@ def _operation_and_tail(tokens: list[str]) -> tuple[str, list[str]]:
     return "", []
 
 
+def _network_option_role(program: str, option: str) -> str:
+    """Classify one known option without folding case-sensitive short forms."""
+
+    folded = option.casefold()
+    if program == "curl":
+        if option == "-x" or folded in {
+            "--url",
+            "--proxy",
+            "--connect-to",
+            "--resolve",
+        }:
+            return "target"
+        if option == "-X" or folded in _NETWORK_VALUE_OPTIONS:
+            return "value"
+        if folded in _NETWORK_FLAG_OPTIONS:
+            return "flag"
+        return "unknown"
+    if program in {"ssh", "scp", "sftp"}:
+        if option == "-J" or folded in {"--jump-host", "--proxyjump"}:
+            return "target"
+        if folded in _NETWORK_VALUE_OPTIONS:
+            return "value"
+        if folded in _NETWORK_FLAG_OPTIONS:
+            return "flag"
+        return "unknown"
+    if folded in _NETWORK_TARGET_OPTIONS:
+        return "target"
+    if folded in _NETWORK_VALUE_OPTIONS:
+        return "value"
+    if folded in _NETWORK_FLAG_OPTIONS:
+        return "flag"
+    return "unknown"
+
+
 def _network_targets(tokens: list[str]) -> list[str]:
     targets: list[str] = []
+    if not tokens:
+        return targets
+    program = _program_name(tokens[0])
     arguments = [_clean_token(token) for token in tokens[1:]]
     index = 0
     while index < len(arguments):
         value = arguments[index]
-        lowered = value.casefold()
-        key, separator, inline_value = lowered.partition("=")
-        if separator and key in _NETWORK_TARGET_OPTIONS:
-            targets.append(value.partition("=")[2])
+        option, separator, inline_value = value.partition("=")
+        role = _network_option_role(program, option)
+        if separator and role == "target":
+            targets.append(inline_value)
             index += 1
             continue
-        if separator and key in _NETWORK_VALUE_OPTIONS:
+        if separator and role in {"value", "flag"}:
             index += 1
             continue
-        if lowered in _NETWORK_TARGET_OPTIONS:
+        if role == "target":
             if index + 1 < len(arguments):
                 targets.append(arguments[index + 1])
             index += 2
             continue
-        if lowered in _NETWORK_VALUE_OPTIONS:
+        if role == "value":
             index += 2
             continue
-        if lowered in _NETWORK_FLAG_OPTIONS:
+        if role == "flag":
             index += 1
             continue
         if value.startswith(("-", "/")):
@@ -529,10 +568,30 @@ def _non_option_values(tokens: Iterable[str]) -> list[str]:
     return values
 
 
-def _redirection_paths(command: str, *, cwd: str) -> list[str]:
+def _positional_operands(
+    tokens: Iterable[str], *, value_options: frozenset[str] = frozenset()
+) -> list[str]:
+    values: list[str] = []
+    items = list(tokens)
+    index = 0
+    while index < len(items):
+        clean = _clean_token(items[index])
+        key, separator, _inline = clean.partition("=")
+        folded = key.casefold()
+        if folded in value_options:
+            index += 1 if separator else 2
+            continue
+        if clean.startswith(("-", "/")):
+            index += 1
+            continue
+        values.append(clean)
+        index += 1
+    return values
+
+
+def _redirection_paths(command: str, *, cwd: str, shell: str) -> list[str]:
     paths: list[str] = []
-    for match in _REDIRECT_RE.finditer(command):
-        candidate = next(value for value in match.groups() if value is not None)
+    for candidate in output_redirection_targets(command, shell=shell):
         resolved = _resolve_path(candidate, cwd=cwd)
         if resolved:
             paths.append(resolved)
@@ -650,8 +709,10 @@ def _delete_paths(tokens: list[str], command: str, *, cwd: str) -> list[str]:
     return [value for value in resolved if value]
 
 
-def _explicit_write_paths(tokens: list[str], command: str, *, cwd: str) -> list[str]:
-    paths = _redirection_paths(command, cwd=cwd)
+def _explicit_write_paths(
+    tokens: list[str], command: str, *, cwd: str, shell: str
+) -> list[str]:
+    paths = _redirection_paths(command, cwd=cwd, shell=shell)
     if not tokens:
         return paths
 
@@ -664,6 +725,41 @@ def _explicit_write_paths(tokens: list[str], command: str, *, cwd: str) -> list[
         return list(dict.fromkeys(paths))
 
     values = _non_option_values(tokens[1:])
+    if program == "new-item":
+        values = _positional_operands(
+            tokens[1:],
+            value_options=frozenset(
+                {
+                    "-credential",
+                    "-itemtype",
+                    "-name",
+                    "-path",
+                    "-value",
+                }
+            ),
+        )
+    elif program == "touch":
+        values = _positional_operands(
+            tokens[1:],
+            value_options=frozenset(
+                {"-d", "--date", "-r", "--reference", "-t", "--time"}
+            ),
+        )
+    elif program in _WRITE_CMDLETS:
+        values = _positional_operands(
+            tokens[1:],
+            value_options=frozenset(
+                {
+                    "-credential",
+                    "-encoding",
+                    "-inputobject",
+                    "-literalpath",
+                    "-path",
+                    "-filepath",
+                    "-width",
+                }
+            ),
+        )
 
     if program in _COPY_PROGRAMS and values:
         resolved = _resolve_path(values[-1], cwd=cwd)
@@ -741,7 +837,12 @@ def _resolve_command_recursive(
         tokens = _tokens(segment.text)
         direct = InvocationEffects(
             write_paths=tuple(
-                _explicit_write_paths(tokens, segment.text, cwd=segment.cwd)
+                _explicit_write_paths(
+                    tokens,
+                    segment.text,
+                    cwd=segment.cwd,
+                    shell=segment.shell,
+                )
             ),
             entry_paths=tuple(_entry_paths(tokens, cwd=segment.cwd)),
             delete_paths=tuple(

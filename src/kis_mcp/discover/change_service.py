@@ -18,6 +18,7 @@ from .change_inspection_contracts import (
 )
 from .change_targets import ChangeTargetInventory
 from .impact_graph import ImpactGraphService
+from .intelligence import ProjectIntelligenceService
 
 
 class LocalChangeReader(Protocol):
@@ -110,7 +111,12 @@ _HANDOFFS = (
 
 
 class InspectChangeService:
-    def __init__(self, reader: LocalChangeReader | TargetChangeReader) -> None:
+    def __init__(
+        self,
+        reader: LocalChangeReader | TargetChangeReader,
+        *,
+        intelligence_service: ProjectIntelligenceService | None = None,
+    ) -> None:
         self._reader = reader
         authority = getattr(reader, "authority", None)
         settings = getattr(reader, "settings", None)
@@ -120,6 +126,7 @@ class InspectChangeService:
                 impact_service=ImpactGraphService(
                     boundary=authority.boundary,
                     settings=settings,
+                    intelligence_service=intelligence_service,
                 ),
                 max_changes=settings.limits.max_files,
                 max_task_terms=settings.limits.max_evidence,

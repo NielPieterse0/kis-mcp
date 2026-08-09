@@ -5,6 +5,8 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from ..projects import ProjectRegistry
+
 from .budgeting import ResultBudgeter
 from .context_broker import ContextBrokerService
 from .context_contracts import GetCodeContextRequest, GetCodeContextResponse
@@ -27,8 +29,9 @@ from .contracts import (
 )
 from .detectors import RepositoryDetector
 from .errors import DiscoverError
-from .git_reader import GitReader
-from .python_index import PythonProjectIndexer
+from .intelligence import ProjectIntelligenceService
+from .intelligence_contracts import ProjectIntelligenceRuntime
+from .python_index import PythonProjectIndexResult
 from .read_authority import ReadAuthority
 from .scanner import RepositoryScanner
 from .settings import DiscoverSettings
@@ -36,9 +39,21 @@ from .verification import VerificationDiscoveryService
 
 
 class InspectProjectService:
-    def __init__(self, *, boundary: Path, settings: DiscoverSettings) -> None:
+    def __init__(
+        self,
+        *,
+        boundary: Path,
+        settings: DiscoverSettings,
+        projects: ProjectRegistry | None = None,
+        intelligence_service: ProjectIntelligenceService | None = None,
+    ) -> None:
         self._boundary = boundary
         self._settings = settings
+        self._intelligence = intelligence_service or ProjectIntelligenceService(
+            boundary=boundary,
+            settings=settings,
+            projects=projects,
+        )
 
     def get_code_context(
         self,
@@ -46,10 +61,14 @@ class InspectProjectService:
     ) -> GetCodeContextResponse:
         """Delegate bounded task context assembly through the Discover facade."""
 
-        return ContextBrokerService(
+        broker = ContextBrokerService(
             boundary=self._boundary,
             settings=self._settings,
-        ).get(request)
+        )
+        binder = getattr(broker, "use_intelligence_service", None)
+        if callable(binder):
+            binder(self._intelligence)
+        return broker.get(request)
 
     def inspect(self, request: InspectProjectRequest) -> InspectProjectResponse:
         if not self._settings.enabled:
@@ -76,25 +95,25 @@ class InspectProjectService:
                 ),
             ) from exc
         settings = replace(self._settings, limits=limits)
+        intelligence = self._intelligence.get(request.path)
         authority = ReadAuthority(self._boundary, settings)
-        scanner = RepositoryScanner(authority, settings)
-        snapshot = scanner.snapshot(request.path)
+        if request.limits:
+            snapshot = RepositoryScanner(authority, settings).snapshot(request.path)
+            snapshot = replace(snapshot, project=intelligence.project)
+            python_index = _project_index_view(
+                intelligence.python_index,
+                {item.label for item in snapshot.files},
+            )
+        else:
+            snapshot = intelligence.snapshot
+            python_index = intelligence.python_index
         detection = RepositoryDetector(authority, settings).detect(request.path, snapshot)
-        python_index = PythonProjectIndexer(
-            authority=authority,
-            settings=settings,
-        ).index(request.path, snapshot)
         verification = VerificationDiscoveryService(
             authority=authority,
             settings=settings,
         ).discover(request.path, snapshot)
-        git = GitReader(authority=authority, settings=settings).inspect(request.path)
-
-        project = replace(
-            snapshot.project,
-            git_root=snapshot.project.canonical_path if git.repository else None,
-            remote_identity=git.remote,
-        )
+        git = intelligence.git
+        project = intelligence.project
         evidence = list(detection.evidence)
         normalized_declarations = []
         handoffs: list[Handoff] = []
@@ -228,13 +247,20 @@ class InspectProjectService:
                 id="unknown-remote",
                 code="REMOTE_EVIDENCE_UNAVAILABLE",
                 reason="No approved remote repository provider is configured for this slice.",
-            ),
-            Unknown(
-                id="unknown-semantic",
-                code="SEMANTIC_PROVIDER_UNAVAILABLE",
-                reason="No semantic provider is configured for this slice.",
-            ),
+            )
         ]
+        if intelligence.semantic.status != "ready":
+            unknowns.append(
+                Unknown(
+                    id="unknown-semantic",
+                    code="SEMANTIC_PROVIDER_UNAVAILABLE",
+                    reason=(
+                        intelligence.semantic.unknowns[0]
+                        if intelligence.semantic.unknowns
+                        else "No optional semantic provider is currently available."
+                    ),
+                )
+            )
         for index, reason in enumerate(detection.unknowns):
             unknowns.append(
                 Unknown(
@@ -304,10 +330,28 @@ class InspectProjectService:
             }
             for path in detection.instructions
         )
+        visible_paths = {item.label for item in snapshot.files}
+        code_atlas_payload = {
+            **python_index.to_json_dict(),
+            "symbol_atlas": [
+                dict(item)
+                for item in intelligence.symbol_atlas
+                if str(item.get("path", "")) in visible_paths
+            ],
+            "relationship_graph": [
+                dict(item)
+                for item in intelligence.relationship_graph
+                if str(item.get("source_evidence", {}).get("path", "")) in visible_paths
+            ],
+            "persistence": dict(intelligence.persistence),
+            "source_fingerprint": intelligence.source_fingerprint,
+            "settings_fingerprint": intelligence.settings_fingerprint,
+            "provider_fingerprint": intelligence.provider_fingerprint,
+        }
         response = InspectProjectResponse(
             project=project,
             repository_atlas=repository_atlas,
-            code_atlas=python_index.to_json_dict(),
+            code_atlas=code_atlas_payload,
             verification=verification_payload,
             contracts={
                 "artifacts": [item.to_json_dict() for item in detection.contract_artifacts]
@@ -322,7 +366,15 @@ class InspectProjectService:
                 },
                 "git": {"available": git.available, "provider": "local_git"},
                 "remote": {"available": False, "reason": "not_configured"},
-                "semantic": {"available": False, "reason": "not_configured"},
+                "semantic": (
+                    {
+                        "available": True,
+                        "provider": intelligence.semantic.provider_id,
+                        "version": intelligence.semantic.provider_version,
+                    }
+                    if intelligence.semantic.status == "ready"
+                    else {"available": False, "reason": "not_configured"}
+                ),
             },
             evidence=tuple(evidence),
             findings=tuple(findings),
@@ -343,6 +395,40 @@ class InspectProjectService:
             max_evidence=settings.limits.max_evidence,
             max_output_chars=settings.limits.max_output_chars,
         ).apply(response)
+
+
+def _project_index_view(
+    index: PythonProjectIndexResult,
+    visible_paths: set[str],
+) -> PythonProjectIndexResult:
+    modules = tuple(item for item in index.modules if item.path in visible_paths)
+    symbols = tuple(item for item in index.symbols if item.path in visible_paths)
+    imports = tuple(item for item in index.imports if item.path in visible_paths)
+    inheritance = tuple(item for item in index.inheritance if item.path in visible_paths)
+    calls = tuple(item for item in index.calls if item.path in visible_paths)
+    diagnostics = tuple(
+        item for item in index.diagnostics if item.path is None or item.path in visible_paths
+    )
+    summary = {
+        **index.summary,
+        "files_considered": len(modules),
+        "modules": len(modules),
+        "symbols": len(symbols),
+        "imports": len(imports),
+        "inheritance_edges": len(inheritance),
+        "call_edges": len(calls),
+        "diagnostics": len(diagnostics),
+    }
+    return replace(
+        index,
+        modules=modules,
+        symbols=symbols,
+        imports=imports,
+        inheritance=inheritance,
+        calls=calls,
+        diagnostics=diagnostics,
+        summary=summary,
+    )
 
 
 def _stable_id(prefix: str, value: str) -> str:

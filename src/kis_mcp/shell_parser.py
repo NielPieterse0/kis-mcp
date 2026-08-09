@@ -207,10 +207,80 @@ def _resolve(value: str, cwd: str) -> str | None:
         return None
 
 
+def output_redirection_targets(command: str, *, shell: str = "generic") -> tuple[str, ...]:
+    """Return syntactic output-redirection targets while preserving shell quoting."""
+
+    dialect = normalize_shell(shell)
+    escape = "^" if dialect == "cmd" else "`" if dialect == "powershell" else None
+    targets: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(command):
+        character = command[index]
+        if quote is not None:
+            if character == escape and index + 1 < len(command):
+                index += 2
+                continue
+            if character == quote:
+                quote = None
+            index += 1
+            continue
+        if character in {'"', "'"}:
+            quote = character
+            index += 1
+            continue
+        if character == escape and index + 1 < len(command):
+            index += 2
+            continue
+        if character != ">" or (index > 0 and command[index - 1] == "<"):
+            index += 1
+            continue
+
+        index += 2 if command.startswith(">>", index) else 1
+        while index < len(command) and command[index].isspace():
+            index += 1
+        if index >= len(command):
+            break
+
+        target: list[str] = []
+        target_quote: str | None = None
+        if command[index] in {'"', "'"}:
+            target_quote = command[index]
+            index += 1
+        while index < len(command):
+            character = command[index]
+            if target_quote is not None:
+                if character == escape and index + 1 < len(command):
+                    index += 1
+                    target.append(command[index])
+                    index += 1
+                    continue
+                if character == target_quote:
+                    index += 1
+                    break
+                target.append(character)
+                index += 1
+                continue
+            if character.isspace() or character in ";|&":
+                break
+            if character == escape and index + 1 < len(command):
+                index += 1
+                target.append(command[index])
+                index += 1
+                continue
+            target.append(character)
+            index += 1
+        value = "".join(target).strip()
+        if value:
+            targets.append(value)
+    return tuple(targets)
+
+
 __all__ = [
     "ShellSegment",
     "ShellState",
     "normalize_shell",
+    "output_redirection_targets",
     "resolve_shell_segments",
     "shell_from_command",
     "split_shell_segments",

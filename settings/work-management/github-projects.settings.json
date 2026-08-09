@@ -23,7 +23,7 @@
   "features": {
     "intake": "read_only",
     "review_import": "read_only",
-    "reconciliation": "read_only",
+    "reconciliation": "enabled",
     "programme_status": "enabled"
   },
   "automation": {

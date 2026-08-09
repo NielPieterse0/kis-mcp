@@ -104,6 +104,16 @@ def _provider_id(raw: Mapping[str, Any], operation: str, label: str) -> str:
     return normalized
 
 
+def _project_item_id(raw: Mapping[str, Any], operation: str) -> str:
+    candidate = raw.get("id", raw.get("item_id"))
+    if isinstance(candidate, bool) or not isinstance(candidate, (str, int)):
+        raise _invalid(operation, "item id was missing")
+    normalized = str(candidate).strip()
+    if not normalized:
+        raise _invalid(operation, "item id was missing")
+    return normalized
+
+
 def _nodes(
     document: Mapping[str, Any],
     key: str,
@@ -260,8 +270,8 @@ def _field_values(raw: Any, operation: str) -> tuple[ProjectFieldValue, ...]:
         if not isinstance(entry, Mapping):
             raise _invalid(operation, "field value was not an object")
         field = entry.get("field")
-        field_name = entry.get("field_name", entry.get("fieldName"))
-        field_id = entry.get("field_id", entry.get("fieldId"))
+        field_name = entry.get("field_name", entry.get("fieldName", entry.get("name")))
+        field_id = entry.get("field_id", entry.get("fieldId", entry.get("id")))
         if isinstance(field, Mapping):
             field_name = field_name or field.get("name")
             field_id = field_id or field.get("id")
@@ -278,7 +288,7 @@ def _field_values(raw: Any, operation: str) -> tuple[ProjectFieldValue, ...]:
 def _normalize_item(raw: Mapping[str, Any], operation: str) -> ProjectItem:
     content = raw.get("content")
     content = dict(content) if isinstance(content, Mapping) else {}
-    item_type = raw.get("type", raw.get("contentType"))
+    item_type = raw.get("type", raw.get("contentType", raw.get("content_type")))
     if item_type is None:
         item_type = content.get("type", content.get("__typename"))
     title = raw.get("title", content.get("title"))
@@ -290,13 +300,16 @@ def _normalize_item(raw: Mapping[str, Any], operation: str) -> ProjectItem:
         if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
             raise _invalid(operation, "item number was not a positive integer")
     state = raw.get("state", content.get("state"))
-    url = raw.get("url", content.get("url"))
+    url = raw.get("url", raw.get("html_url", content.get("url", content.get("html_url"))))
     values = raw.get(
         "fieldValues",
-        raw.get("field_values", content.get("fieldValues", content.get("field_values"))),
+        raw.get(
+            "field_values",
+            raw.get("fields", content.get("fieldValues", content.get("field_values"))),
+        ),
     )
     return ProjectItem(
-        item_id=_required_text(raw.get("id"), operation, "item id"),
+        item_id=_project_item_id(raw, operation),
         kind=_item_kind(item_type),
         title=_required_text(title, operation, "item title"),
         repository=repository,

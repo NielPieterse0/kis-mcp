@@ -13,6 +13,7 @@ from .analyzers.dependencies import DependencyImportsAnalyzer
 from .analyzers.repository_map import RepositoryMapAnalyzer
 from .contracts import Confidence, VerificationDeclaration
 from .errors import DiscoverError
+from .intelligence import ProjectIntelligenceService
 from .impact_contracts import (
     ImpactBudget,
     ImpactDependant,
@@ -34,17 +35,26 @@ from .verification import VerificationDiscoveryService
 
 
 class ImpactGraphService:
-    def __init__(self, *, boundary: Path, settings: DiscoverSettings) -> None:
+    def __init__(
+        self,
+        *,
+        boundary: Path,
+        settings: DiscoverSettings,
+        intelligence_service: ProjectIntelligenceService | None = None,
+    ) -> None:
         self._boundary = boundary
         self._settings = settings
+        self._intelligence = intelligence_service or ProjectIntelligenceService(
+            boundary=boundary,
+            settings=settings,
+        )
 
     def inspect(self, request: InspectImpactRequest) -> InspectImpactResponse:
         self._validate_budget(request.budget)
+        intelligence = self._intelligence.get(request.project)
         authority = ReadAuthority(self._boundary, self._settings)
-        snapshot = RepositoryScanner(authority, self._settings).snapshot(request.project)
-        index = PythonProjectIndexer(authority=authority, settings=self._settings).index(
-            request.project, snapshot
-        )
+        snapshot = intelligence.snapshot
+        index = intelligence.python_index
         verification = VerificationDiscoveryService(
             authority=authority,
             settings=self._settings,
@@ -110,12 +120,18 @@ class ImpactGraphService:
             javascript_dependants,
         )
         dependants = dependants_all[: request.budget.max_dependants]
+        semantic_relationships = _semantic_relationship_impacts(
+            relationship_graph=intelligence.relationship_graph,
+            symbol_atlas=intelligence.symbol_atlas,
+            changed_paths=changed,
+        )
         tests_all = _affected_tests(
             snapshot=snapshot,
             changed_paths=changed,
             changed_modules=changed_modules,
             changed_symbols=changed_symbol_records,
             dependants=dependants_all,
+            relationship_paths={item.source_path for item in semantic_relationships},
         )
         tests = tests_all[: request.budget.max_tests]
         verification_all = tuple(
@@ -124,10 +140,13 @@ class ImpactGraphService:
             if _verification_applicable(item, request.changed_paths)
         )
         handoffs = verification_all[: request.budget.max_verifications]
-        relationships_all = _relationship_impacts(
-            snapshot=snapshot,
-            changed_paths=request.changed_paths,
-            task_terms=request.task_terms,
+        relationships_all = _merge_relationship_impacts(
+            semantic_relationships,
+            _relationship_impacts(
+                snapshot=snapshot,
+                changed_paths=request.changed_paths,
+                task_terms=request.task_terms,
+            ),
         )
         remaining_relationship_budget = max(
             0,
@@ -359,13 +378,22 @@ def _merge_dependants(*groups: tuple[ImpactDependant, ...]) -> tuple[ImpactDepen
     return tuple(records.values())
 
 
-def _affected_tests(*, snapshot, changed_paths, changed_modules, changed_symbols, dependants):
+def _affected_tests(
+    *,
+    snapshot,
+    changed_paths,
+    changed_modules,
+    changed_symbols,
+    dependants,
+    relationship_paths: set[str] | None = None,
+):
     targets = {
         *changed_modules,
         *(item.name for item in changed_symbols),
         *(item.qualified_name for item in changed_symbols),
     }
     dependant_paths = {item.path for item in dependants}
+    semantic_paths = relationship_paths or set()
     changed_stems = {
         Path(path).stem.removeprefix("test_").removesuffix("_test").casefold()
         for path in changed_paths
@@ -392,6 +420,11 @@ def _affected_tests(*, snapshot, changed_paths, changed_modules, changed_symbols
             reason = "The test contains a deterministic parser-confirmed dependant relationship."
             provenance = "python_ast"
             confidence = Confidence.HIGH
+        if normalized in semantic_paths and not matches:
+            matches.add(normalized)
+            reason = "The test contains a normalized semantic-provider reference to changed code."
+            provenance = "semantic_provider"
+            confidence = Confidence.MEDIUM
         tokens = _tokens(normalized)
         conventional = sorted(
             term
@@ -420,6 +453,75 @@ def _affected_tests(*, snapshot, changed_paths, changed_modules, changed_symbols
                 item.path.casefold(),
                 item.path,
             ),
+        )
+    )
+
+
+def _semantic_relationship_impacts(
+    *,
+    relationship_graph,
+    symbol_atlas,
+    changed_paths: frozenset[str],
+) -> tuple[ImpactRelationship, ...]:
+    changed_symbols: dict[str, str] = {}
+    for item in symbol_atlas:
+        if not isinstance(item, dict) or str(item.get("path", "")) not in changed_paths:
+            continue
+        path = str(item["path"])
+        for key in ("qualified_name", "name"):
+            value = str(item.get(key, "")).strip()
+            if value:
+                changed_symbols[value] = path
+    records: dict[tuple[str, str], ImpactRelationship] = {}
+    for edge in relationship_graph:
+        if not isinstance(edge, dict) or edge.get("classification") != "semantic":
+            continue
+        evidence = edge.get("source_evidence")
+        if not isinstance(evidence, dict):
+            continue
+        source_path = str(evidence.get("path", "")).replace("\\", "/")
+        if not source_path or source_path in changed_paths:
+            continue
+        source = str(edge.get("source", ""))
+        target = str(edge.get("target", ""))
+        target_path = next(
+            (
+                path
+                for identifier, path in changed_symbols.items()
+                if target == identifier
+                or source == identifier
+                or target.endswith(f"::{identifier}")
+                or source.endswith(f"::{identifier}")
+            ),
+            None,
+        )
+        if target_path is None:
+            continue
+        records[(source_path, target_path)] = ImpactRelationship(
+            kind="semantic_reference",
+            source_path=source_path,
+            target_path=target_path,
+            reason="Normalized semantic-provider evidence references a changed symbol.",
+            confidence=Confidence.MEDIUM,
+            provenance="semantic_provider",
+        )
+    return tuple(
+        sorted(
+            records.values(),
+            key=lambda item: (item.source_path.casefold(), item.target_path.casefold()),
+        )
+    )
+
+
+def _merge_relationship_impacts(*groups: tuple[ImpactRelationship, ...]) -> tuple[ImpactRelationship, ...]:
+    records: dict[tuple[str, str, str], ImpactRelationship] = {}
+    for group in groups:
+        for item in group:
+            records.setdefault((item.kind, item.source_path, item.target_path), item)
+    return tuple(
+        sorted(
+            records.values(),
+            key=lambda item: (item.kind, item.source_path.casefold(), item.target_path.casefold()),
         )
     )
 

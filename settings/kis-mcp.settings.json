@@ -168,7 +168,28 @@
       "utf-8-sig",
       "utf-16"
     ],
-    "reject_hard_links": true
+    "reject_hard_links": true,
+    "memory": {
+      "schema_version": 1,
+      "enabled": true,
+      "state_root": "C:\\Projects\\.kis-mcp\\discover",
+      "max_stored_bytes": 25000000,
+      "max_files": 5000,
+      "max_modules": 5000,
+      "max_symbols": 10000,
+      "max_relationships": 20000,
+      "fingerprint_fields": [
+        "git_revision",
+        "dirty_tree",
+        "settings",
+        "provider_version"
+      ],
+      "provider_inclusion": [
+        "serena"
+      ],
+      "corruption_handling": "refresh_and_retain",
+      "supersession_behavior": "retain_generations"
+    }
   },
   "implementation_status": {
     "policy_core": "diagnostic_unit_verified",

@@ -8,17 +8,17 @@
 | Module | Discover |
 | Repository | `C:\Projects\kis-mcp` |
 | Canonical remote | `https://github.com/NielPieterse0/kis-mcp.git` |
-| Status | Approved; bounded local Discover v1 runtime complete; optional provider expansion remains staged |
-| Date | 2026-08-05 |
+| Status | Approved; bounded local Discover v1 runtime plus persistent project intelligence and optional Serena semantics implemented; unrelated provider expansion remains staged |
+| Date | 2026-08-09 |
 | Parent platform concept | [`PLATFORM-CONCEPT.md`](PLATFORM-CONCEPT.md) |
 
 This specification defines the complete product boundary, target architecture, workflows, evidence contracts, provider-harvesting model, testing relationship, security posture, migration strategy, delivery roadmap, and acceptance criteria for the Discover plane of `kis-mcp`.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY** are normative.
 
-Runtime capability is established only by checked-in contracts, settings, tool registration, and fresh tests. As of 2026-08-05, the bounded local Discover v1 runtime exposes `inspect_project`, `inspect_change`, `get_code_context`, and the unified `analyze_change` workflow through the existing kis-mcp composition seams. `analyze_change` accepts bounded local Git targets or supplied change metadata, including normalized GitHub pull-request context supplied by the caller; Discover does not execute a GitHub connector. Provider-admission evidence, raw `inspect_impact`, and explicit project-catalog services remain internal foundations rather than additional public tools.
+Runtime capability is established only by checked-in contracts, settings, tool registration, and fresh tests. As of 2026-08-09, the bounded local Discover v1 runtime exposes `inspect_project`, `inspect_change`, `get_code_context`, and the unified `analyze_change` workflow through the existing kis-mcp composition seams. The same workflows share a registered-project intelligence service that persists and reuses bounded Code Atlas, Symbol Atlas, and Relationship Graph generations under the central KIS state root. `analyze_change` accepts bounded local Git targets or supplied change metadata, including normalized GitHub pull-request context supplied by the caller; Discover does not execute a GitHub connector. Provider-admission evidence, raw `inspect_impact`, and explicit project-catalog services remain internal foundations rather than additional public tools.
 
-Optional semantic-provider, remote-forge, registry, background-index, and process-backed analyzer capabilities remain staged. Their absence must produce bounded degraded evidence or explicit unknowns; it does not make the deterministic local Discover v1 runtime unavailable.
+Pinned Serena 1.6.1 is implemented as an optional normalized semantic provider with deterministic local fallback and offline-enforced language-server startup. Remote-forge expansion, broad registry harvesting, mandatory background indexing, vector retrieval, and additional process-backed analyzers remain staged. Their absence must produce bounded degraded evidence or explicit unknowns; it does not make deterministic Discover unavailable.
 
 ## 1. Executive summary
 
@@ -761,17 +761,17 @@ Optimization order:
 5. semantic-provider indexes;
 6. optional vector retrieval.
 
-Generated caches remain beneath `C:\Projects\.kis-mcp` and are never repository authority.
+Generated caches and persistent project-intelligence generations remain beneath `C:\Projects\.kis-mcp` and are never repository authority. Persisted intelligence is derived evidence: a registered `project_id`, worktree identity, Git/source fingerprint, Discover settings fingerprint, parser/index version, and semantic-provider fingerprint determine whether it may be reused. Missing, stale, incompatible, or corrupt generations are refreshed on demand; superseded/corrupt evidence remains recoverable. The shared persisted contract contains bounded Code Atlas, Symbol Atlas, and Relationship Graph artifacts with provenance, freshness, confidence, classification, truncation, and SHA-256 integrity metadata.
 
-### 14.1 Implementation checkpoint — 2026-08-05
+### 14.1 Implementation checkpoint — 2026-08-09
 
 | Area | v1 status | Boundary |
 |---|---|---|
 | D0 contracts, read authority, budgeting, architecture, and harvest traceability | Complete | Deterministic local foundation |
 | D1 repository intelligence and public `inspect_project` | Complete | Bounded local repository evidence |
 | D2 local change intelligence and public `inspect_change` | Complete | Working tree, staged, commit, range, and branch targets; remote PR/MR evidence remains provider-dependent |
-| D3 semantic code intelligence | Staged | Python AST plus static JavaScript/TypeScript relationships are available; optional Serena/LSP/SCIP providers are not required for local v1 readiness |
-| D4 context broker and public `get_code_context` | Complete | Explicit task and budget; no repository dump |
+| D3 semantic code intelligence | Complete for planned persistent-memory/Serena slice | Bounded Code/Symbol/Relationship state is persisted on demand; Python AST/static JavaScript remain deterministic fallbacks; pinned Serena 1.6.1 supplies optional normalized read-only semantic evidence with `UV_OFFLINE=1`; SCIP/Sourcegraph/vector expansion remains optional future work |
+| D4 context broker and public `get_code_context` | Complete with persistent read-through | Explicit task and budget; reuses current project-intelligence generations while still reading current task evidence; no repository dump |
 | D5 verification intelligence and Work handoffs | Complete for local declarations | Discover does not execute checks |
 | D6 provider harvesting and admission | Local evidence foundation complete | Explicit checked-in candidate manifest, pending Govern request, and non-executing Work plan; installation and activation remain prohibited |
 | D7 API and contract intelligence | Initial local foundation complete | OpenAPI JSON, JSON Schema, and checked-in MCP contract classification; additional formats remain staged |
@@ -809,11 +809,14 @@ The bounded local Discover v1 completion gate is the four public workflows, thei
 
 ### Phase D3 — Semantic code intelligence
 
-- evaluate and integrate Serena as the first read-only semantic provider;
-- normalize symbol, reference, implementation, and diagnostic contracts;
-- add provider health and deterministic fallback behavior;
-- evaluate LSP, SCIP, Ctags, Sourcegraph, Greptile, and other provider options;
-- persist bounded Code Atlas, Symbol Atlas, and Relationship Graph state under the central state root.
+Completed for the approved persistent-memory/Serena scope:
+
+- Serena 1.6.1 is integrated as the first optional read-only semantic provider behind the Provider runtime; its public mount exposes only semantic reads and enforces offline language-server startup;
+- semantic symbols/references are normalized into provider-neutral KIS evidence before Discover consumes or persists them;
+- provider health, explicit degradation, and deterministic Python AST/static JavaScript fallbacks are implemented;
+- bounded Code Atlas, Symbol Atlas, and Relationship Graph generations are persisted beneath the central state root and reused on demand by inspect/context/impact workflows.
+
+Future optional D3 expansion may evaluate SCIP, Ctags, Sourcegraph, Greptile, vector retrieval, or additional language providers only when a proven gap justifies them.
 
 ### Phase D4 — Context broker
 

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "change_id": "040-context7-serena-adapters",
+  "status": "closed",
+  "branch": "change/040-context7-serena-adapters",
+  "worktree": ".work/worktrees/040-context7-serena-adapters",
+  "base": "main",
+  "outcome": "Integrate pinned Context7 and Serena tool adapters through the existing Tools foundation, using only operator-approved HR-001, HR-002, and HR-003 mappings",
+  "owned_paths": [
+    "docs/HARD-BLOCK-APPROVAL-REGISTER.md",
+    "docs/development/tools/context7-serena.md",
+    "src/kis_mcp/tools/__init__.py",
+    "src/kis_mcp/tools/platform.py",
+    "src/kis_mcp/tools/context7/**",
+    "src/kis_mcp/tools/serena/**",
+    "src/kis_mcp/server.py",
+    "src/kis_mcp/command_intent.py",
+    "src/kis_mcp/shell_parser.py",
+    "settings/tools/context7.tool.json",
+    "settings/tools/serena.tool.json",
+    "contracts/tools/context7/**",
+    "contracts/tools/serena/**",
+    "scripts/install-context7.ps1",
+    "scripts/install-serena.ps1",
+    "tests/tools/test_context7_tool.py",
+    "tests/tools/test_serena_tool.py",
+    "tests/tools/test_context7_serena_registration.py",
+    "tests/test_desktop_commander.py",
+    "tests/test_shell_parser.py",
+    "tests/architecture/test_modularity_boundaries.py",
+    ".work/changes/041-dual-instance-commissioning/scope.json",
+    ".work/changes/041-dual-instance-commissioning/closeout.md",
+    ".work/changes/046-modularity-hardening/scope.json",
+    ".work/changes/046-modularity-hardening/closeout.md",
+    ".work/changes/040-context7-serena-adapters/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/config.py",
+    "pyproject.toml",
+    "uv.lock",
+    "scripts/start.ps1",
+    "scripts/start-chatgpt.ps1",
+    "src/kis_mcp/discover/**",
+    "tests/discover/**",
+    "policy/**"
+  ],
+  "dependencies": [
+    "029-tools-code-tooling"
+  ],
+  "integration_owner": null
+}

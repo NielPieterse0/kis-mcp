@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "source_revision": "b250c2515694eee4b6df4db82fa056df9ed3e306",
+  "package_version": "3.2.5",
+  "operations": {
+    "resolve-library-id": {
+      "required": ["query", "libraryName"],
+      "effects": ["external_network", "read_only"]
+    },
+    "query-docs": {
+      "required": ["libraryId", "query"],
+      "effects": ["external_network", "read_only"]
+    }
+  }
+}
