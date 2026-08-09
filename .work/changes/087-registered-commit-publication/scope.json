@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "087-registered-commit-publication",
-  "status": "active",
+  "status": "closed",
   "branch": "change/087-registered-commit-publication",
   "worktree": ".work/worktrees/087-registered-commit-publication",
   "base": "main",

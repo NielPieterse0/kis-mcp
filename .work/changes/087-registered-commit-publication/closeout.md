@@ -25,10 +25,13 @@
 - Worktree: `.work/worktrees/087-registered-commit-publication`
 - Implementation commit: `cd549a0` (`feat: add exact registered GitHub operations`).
 - Documentation commit: `3682c49` (`docs: document exact registered GitHub operations`).
-- Latest integrated verification head includes final 085 closeout and current `main`; local merge/publication evidence remains to be recorded below.
-- Cleanup: pending final live publication/commissioning and exact-head `main` verification.
+- The verified 087 branch was fast-forwarded into local `main`; fresh `kis-dev` restart then exposed all three new operations as ready/eligible through capability discovery.
+- First live exact publication succeeded: local `main` `2b8411371532b941921ef4d797d96ba183e4e69a` was published over expected remote base `489153044433b61ad127ca7c3b91bcc53f9d3a23`, and an independent GitHub provider read verified remote `main` at the exact target SHA.
+- Exact registered-branch deletion was then commissioned across the full set of 28 remote branches independently proven merged into final local `main`; every deletion matched its expected head and returned that commit as the recovery SHA.
+- Final remote inventory after cleanup contains only `main` plus four deliberately preserved branches not proven merged: `automation/047-publish-temp`, `change/007-chatgpt-remote-commissioning`, `change/079-workflow-discovery-bridge-dependency`, and `change/079-workflow-discovery-dependency-v2`.
+- Cleanup: remote merged-branch cleanup is complete. Final local tracking/branch cleanup and publication of this closeout-only commit are performed from primary `main` after this record is committed.
 
 ## Residual items
 
-- Live commissioning must prove the freshly loaded KIS surface can publish the exact final local `main` commit and verify GitHub `main` at that same SHA.
-- Stale merged remote/local change branches will be removed only with exact-head evidence and normal non-force cleanup; unmerged or recovery branches will be preserved.
+- No implementation or commissioning item remains.
+- Preserve the four unmerged remote branches above and local `recovery/080-local-divergent` until separately reconciled; they are not safe cleanup candidates in this closeout.
