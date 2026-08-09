@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "change_id": "082-register-college-project",
+  "status": "closed",
+  "branch": "change/082-register-college-project",
+  "worktree": ".work/worktrees/082-register-college-project",
+  "base": "main",
+  "outcome": "Register college project for KIS GitHub routing without GitHub Projects",
+  "owned_paths": [
+    "settings/projects.settings.json",
+    "tests/projects/test_project_registry.py",
+    "tests/repositories/test_project_registry_settings.py",
+    ".work/changes/082-register-college-project/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

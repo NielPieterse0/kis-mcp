@@ -25,6 +25,7 @@ def test_registry_backed_repository_settings_need_no_target_repo_kis_file() -> N
     assert gpt.repository_id == "gpt-os"
     assert gpt.github_repository == "nielpieterse0/gpt-os"
     assert gpt.github_repositories == (
+        "nielpieterse0/college",
         "nielpieterse0/gpt-os",
         "nielpieterse0/kis-mcp",
     )

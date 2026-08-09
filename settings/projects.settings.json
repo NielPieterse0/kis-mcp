@@ -30,6 +30,16 @@
         "projects": []
       },
       "supabase": null
+    },
+    {
+      "project_id": "college",
+      "display_name": "college",
+      "local_root": "C:\\Projects\\college",
+      "github": {
+        "repository": "NielPieterse0/college",
+        "projects": []
+      },
+      "supabase": null
     }
   ]
 }
