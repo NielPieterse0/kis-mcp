@@ -455,7 +455,7 @@ function Set-KisMcpCurrentInstanceStopped {
     catch {
         return
     }
-    if ([string]$Document.run_id -cne $RunId) {
+    if (-not $Document.ContainsKey('run_id') -or [string]$Document['run_id'] -cne $RunId) {
         return
     }
     $Document.lifecycle = 'stopped'

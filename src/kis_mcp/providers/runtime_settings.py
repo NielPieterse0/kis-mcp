@@ -12,12 +12,15 @@ from typing import Any
 _APPROVED_PROVIDER_NAMESPACES = MappingProxyType(
     {
         "control-center": "controlcenter",
+        "context7-mcp": "context7",
         "github-mcp": "github",
+        "serena-mcp": "serena",
         "supabase": "supabase",
     }
 )
-APPROVED_EXTERNAL_PROVIDER_IDS = frozenset({"github-mcp", "supabase"})
+APPROVED_EXTERNAL_PROVIDER_IDS = frozenset({"context7-mcp", "github-mcp", "supabase"})
 APPROVED_PROVIDER_IDS = frozenset(_APPROVED_PROVIDER_NAMESPACES)
+_REQUIRED_BASELINE_PROVIDER_IDS = frozenset({"github-mcp", "supabase"})
 _SETTINGS_KEYS = frozenset({"schema_version", "providers"})
 _PROVIDER_KEYS = frozenset({"provider_id", "enabled", "namespace"})
 _NAMESPACE_PATTERN = re.compile(r"^[a-z][a-z0-9]*$")
@@ -78,7 +81,7 @@ class ProviderRuntimeSettings:
                 "providers contains duplicate namespace values"
             )
         actual_ids = set(provider_ids)
-        if not APPROVED_EXTERNAL_PROVIDER_IDS.issubset(actual_ids):
+        if not _REQUIRED_BASELINE_PROVIDER_IDS.issubset(actual_ids):
             raise ProviderRuntimeSettingsError(
                 "providers must contain exactly the approved external providers"
             )

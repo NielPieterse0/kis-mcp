@@ -10,7 +10,7 @@
     "providers": {
       "type": "array",
       "minItems": 2,
-      "maxItems": 3,
+      "maxItems": 5,
       "uniqueItems": true,
       "items": {
         "type": "object",
@@ -19,7 +19,7 @@
         "properties": {
           "provider_id": {
             "type": "string",
-            "enum": ["control-center", "github-mcp", "supabase"]
+            "enum": ["context7-mcp", "control-center", "github-mcp", "serena-mcp", "supabase"]
           },
           "enabled": {"type": "boolean"},
           "namespace": {
@@ -29,12 +29,20 @@
         },
         "allOf": [
           {
+            "if": {"properties": {"provider_id": {"const": "context7-mcp"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "context7"}}}
+          },
+          {
             "if": {"properties": {"provider_id": {"const": "control-center"}}, "required": ["provider_id"]},
             "then": {"properties": {"namespace": {"const": "controlcenter"}}}
           },
           {
             "if": {"properties": {"provider_id": {"const": "github-mcp"}}, "required": ["provider_id"]},
             "then": {"properties": {"namespace": {"const": "github"}}}
+          },
+          {
+            "if": {"properties": {"provider_id": {"const": "serena-mcp"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "serena"}}}
           },
           {
             "if": {"properties": {"provider_id": {"const": "supabase"}}, "required": ["provider_id"]},

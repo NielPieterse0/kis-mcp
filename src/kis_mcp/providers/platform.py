@@ -3,21 +3,15 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from ..capabilities.contracts import (
-    CapabilityContribution,
-    CapabilityDomain,
-    ExposureMode,
-    ExposurePolicy,
-    OperationDescriptor,
-    ReadinessSnapshot,
-    ReadinessState,
-)
-from ..capabilities.normalization import default_quality, normalize_effects
+if TYPE_CHECKING:
+    from ..capabilities.contracts import CapabilityContribution, ReadinessSnapshot
+
 from ..config import RuntimeConfig
 from ..repositories import RepositorySettings, SelectedRepositorySettings
 from .contracts import ProviderDescriptor, ProviderState
+from .context7 import register_context7_provider
 from .control_center import register_control_center_provider
 from .desktop_commander import register_desktop_commander_provider
 from .github import GitHubProviderSettings, register_github_provider
@@ -36,6 +30,7 @@ from .runtime import (
     provider_runtime_status,
 )
 from .runtime_settings import ProviderRuntimeSettings, load_provider_runtime_settings
+from .serena import SerenaRuntimeAdapter, build_serena_adapter, register_serena_provider
 from .service import ProviderService
 
 
@@ -63,6 +58,7 @@ def build_platform_provider_registry(
     environment: Mapping[str, str] | None = None,
     control_center_status_source=None,
     repository_settings_source: Callable[[], RepositorySettings] | None = None,
+    serena_adapter: SerenaRuntimeAdapter | None = None,
 ) -> ProviderRegistry:
     """Register approved providers explicitly without building or probing them."""
 
@@ -77,6 +73,9 @@ def build_platform_provider_registry(
         environ=environment,
         repository_settings_source=repository_settings_source,
     )
+    register_context7_provider(registry, environment=environment)
+    active_serena = serena_adapter or build_serena_adapter(environment=environment)
+    register_serena_provider(registry, active_serena)
     register_nvidia_provider(
         registry,
         settings=nvidia_settings or disabled_nvidia_settings(),
@@ -94,6 +93,7 @@ def build_platform_provider_service(
     environment: Mapping[str, str] | None = None,
     control_center_status_source=None,
     repository_settings_source: Callable[[], RepositorySettings] | None = None,
+    serena_adapter: SerenaRuntimeAdapter | None = None,
 ) -> ProviderService:
     """Build the provider-neutral service over the explicit platform registry."""
 
@@ -105,6 +105,7 @@ def build_platform_provider_service(
             environment=environment,
             control_center_status_source=control_center_status_source,
             repository_settings_source=repository_settings_source,
+            serena_adapter=serena_adapter,
         )
     )
 
@@ -202,6 +203,7 @@ class PlatformProviderRuntime:
     settings: ProviderRuntimeSettings
     composition: ProviderRuntimeComposition
     selected_repository: SelectedRepositorySettings
+    serena_adapter: SerenaRuntimeAdapter
 
 
 def compose_platform_providers(
@@ -213,11 +215,13 @@ def compose_platform_providers(
     provider_runtime_settings: ProviderRuntimeSettings | None = None,
     environment: Mapping[str, str] | None = None,
     selected_repository: SelectedRepositorySettings | None = None,
+    serena_adapter: SerenaRuntimeAdapter | None = None,
 ) -> PlatformProviderRuntime:
     holder: dict[str, object] = {}
     repository_selection = selected_repository or SelectedRepositorySettings(
         boundary=Path(runtime_config.project_boundary),
     )
+    active_serena = serena_adapter or build_serena_adapter(environment=environment)
 
     def current_status():
         active_service = holder.get("service")
@@ -234,6 +238,7 @@ def compose_platform_providers(
         environment=environment,
         control_center_status_source=current_status,
         repository_settings_source=repository_selection.current,
+        serena_adapter=active_serena,
     )
     holder["service"] = service
     settings = provider_runtime_settings or load_provider_runtime_settings()
@@ -244,10 +249,13 @@ def compose_platform_providers(
         settings=settings,
         composition=composition,
         selected_repository=repository_selection,
+        serena_adapter=active_serena,
     )
 
 
 def _mount_readiness(result: ProviderMountResult) -> ReadinessSnapshot | None:
+    from ..capabilities.contracts import ReadinessSnapshot, ReadinessState
+
     state = {
         ProviderMountState.DISABLED: ReadinessState.DISABLED,
         ProviderMountState.UNREGISTERED: ReadinessState.UNAVAILABLE,
@@ -270,6 +278,8 @@ def _mount_readiness(result: ProviderMountResult) -> ReadinessSnapshot | None:
 
 
 def _descriptor_readiness(descriptor: ProviderDescriptor) -> ReadinessSnapshot:
+    from ..capabilities.contracts import ReadinessSnapshot, ReadinessState
+
     raw = descriptor.readiness_probe()
     details = dict(raw.details)
     user_status = details.get("user_status")
@@ -299,6 +309,15 @@ def provider_capability_contributions(
     service: ProviderService,
     composition: ProviderRuntimeComposition,
 ) -> tuple[CapabilityContribution, ...]:
+    from ..capabilities.contracts import (
+        CapabilityContribution,
+        CapabilityDomain,
+        ExposureMode,
+        ExposurePolicy,
+        OperationDescriptor,
+    )
+    from ..capabilities.normalization import default_quality, normalize_effects
+
     mount_by_id = {item.provider_id: item for item in composition.results}
     contributions: list[CapabilityContribution] = []
     for descriptor in service.registry.list():

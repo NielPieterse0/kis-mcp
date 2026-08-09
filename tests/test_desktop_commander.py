@@ -132,6 +132,41 @@ def test_network_client_option_values_are_not_mistaken_for_targets() -> None:
     assert effects.external_network is False
 
 
+def test_network_bearing_client_options_are_consuming_targets() -> None:
+    for command in (
+        "curl --proxy https://proxy.example http://localhost:3000",
+        "curl -x https://proxy.example http://localhost:3000",
+        "curl --connect-to example.com:443:route.example:443 https://localhost",
+        "curl --resolve example.com:443:203.0.113.10 https://localhost",
+        "ssh -J jump.example localhost",
+    ):
+        effects = RESOLVER.resolve(
+            "start_process",
+            {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+        )
+        assert effects.external_network is True, command
+
+
+def test_curl_short_options_preserve_case_sensitive_semantics() -> None:
+    method_data = RESOLVER.resolve(
+        "start_process",
+        {
+            "command": "curl -X https://example.com http://localhost:3000",
+            "cwd": r"C:\Projects\kis-mcp",
+        },
+    )
+    local_proxy = RESOLVER.resolve(
+        "start_process",
+        {
+            "command": "curl -x http://localhost:8080 http://localhost:3000",
+            "cwd": r"C:\Projects\kis-mcp",
+        },
+    )
+
+    assert method_data.external_network is False
+    assert local_proxy.external_network is False
+
+
 def test_network_client_positional_host_is_detected() -> None:
     effects = RESOLVER.resolve(
         "start_process",
@@ -382,6 +417,40 @@ def test_terminal_redirection_outside_boundary_is_detected() -> None:
         },
     )
     assert effects.write_paths == (r"C:\Windows\temp\ki-test.txt",)
+
+
+def test_quoted_redirection_text_is_not_a_write_target() -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {
+            "command": 'Write-Output "literal > C:\\Windows\\Temp\\not-a-target.txt"',
+            "cwd": r"C:\Projects\kis-mcp",
+        },
+    )
+    assert effects.write_paths == ()
+
+
+def test_exact_write_command_operand_contracts_skip_option_values() -> None:
+    cases = (
+        (
+            r"New-Item -ItemType File C:\Windows\Temp\new.txt",
+            (r"C:\Windows\Temp\new.txt",),
+        ),
+        (
+            r'touch -d "2026-01-01" C:\Windows\Temp\stamp.txt',
+            (r"C:\Windows\Temp\stamp.txt",),
+        ),
+        (
+            r"Set-Content -Encoding utf8 C:\Windows\Temp\content.txt value",
+            (r"C:\Windows\Temp\content.txt",),
+        ),
+    )
+    for command, expected in cases:
+        effects = RESOLVER.resolve(
+            "start_process",
+            {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+        )
+        assert effects.write_paths == expected, command
 
 
 def test_positional_powershell_write_path_is_detected() -> None:

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "namespace": "context7",
+  "source_repository": "https://github.com/upstash/context7",
+  "source_revision": "b250c2515694eee4b6df4db82fa056df9ed3e306",
+  "package_name": "@upstash/context7-mcp",
+  "package_version": "3.2.5",
+  "package_integrity": "sha512-m+GIwQKBx2yCnLN7Et3wqkuTk1iPkMySQH2i6KiUf4B9wVI0tgtjeXRcDfFZPf5rnRA3gjYhr1FqQqMb9aSRnw==",
+  "node_minimum_version": "20.18.1",
+  "install_root": "C:\\Projects\\.kis-mcp\\context7",
+  "executable": "node",
+  "entry_point": "C:\\Projects\\.kis-mcp\\context7\\node_modules\\@upstash\\context7-mcp\\dist\\index.js",
+  "arguments": ["--transport", "stdio"],
+  "environment_names": ["CONTEXT7_API_KEY"]
+}

@@ -24,7 +24,11 @@ def test_project_tools_are_bounded_read_only_catalogue_operations() -> None:
     listed = asyncio.run(server.call_tool("kis_list_projects", {})).structured_content
     assert listed is not None
     assert listed["default_project_id"] == "kis-mcp"
-    assert [item["project_id"] for item in listed["projects"]] == ["gpt-os", "kis-mcp"]
+    assert [item["project_id"] for item in listed["projects"]] == [
+        "college",
+        "gpt-os",
+        "kis-mcp",
+    ]
 
     status = asyncio.run(
         server.call_tool("kis_project_status", {"project_id": "kis-mcp"})

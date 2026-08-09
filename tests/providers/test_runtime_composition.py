@@ -71,6 +71,19 @@ def _valid_document() -> dict[str, Any]:
     }
 
 
+def _canonical_document() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "providers": [
+            {"provider_id": "context7-mcp", "enabled": True, "namespace": "context7"},
+            {"provider_id": "github-mcp", "enabled": True, "namespace": "github"},
+            {"provider_id": "supabase", "enabled": True, "namespace": "supabase"},
+            {"provider_id": "control-center", "enabled": True, "namespace": "controlcenter"},
+            {"provider_id": "serena-mcp", "enabled": True, "namespace": "serena"},
+        ],
+    }
+
+
 def _runtime_settings(
     *,
     control_center_enabled: bool = False,
@@ -158,13 +171,17 @@ def test_canonical_runtime_settings_select_exact_approved_providers() -> None:
 
     assert settings.schema_version == 1
     assert [item.provider_id for item in settings.providers] == [
+        "context7-mcp",
         "control-center",
         "github-mcp",
+        "serena-mcp",
         "supabase",
     ]
     assert [item.namespace for item in settings.providers] == [
+        "context7",
         "controlcenter",
         "github",
+        "serena",
         "supabase",
     ]
     assert all(item.enabled for item in settings.providers)
@@ -182,18 +199,20 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
     assert provider_schema["additionalProperties"] is False
     assert set(provider_schema["required"]) == set(provider_schema["properties"])
     assert set(provider_schema["properties"]["provider_id"]["enum"]) == {
+        "context7-mcp",
         "control-center",
         "github-mcp",
+        "serena-mcp",
         "supabase",
     }
-    assert settings_document == _valid_document()
+    assert settings_document == _canonical_document()
 
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
     assert list(validator.iter_errors(settings_document)) == []
 
     duplicate_namespace = deepcopy(settings_document)
-    duplicate_namespace["providers"][1]["namespace"] = "github"
+    duplicate_namespace["providers"][1]["namespace"] = "context7"
     assert list(validator.iter_errors(duplicate_namespace))
 
     mismatched_namespace = deepcopy(settings_document)

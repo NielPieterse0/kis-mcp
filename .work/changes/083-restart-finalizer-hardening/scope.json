@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "083-restart-finalizer-hardening",
+  "status": "closed",
+  "branch": "change/083-restart-finalizer-hardening",
+  "worktree": ".work/worktrees/083-restart-finalizer-hardening",
+  "base": "main",
+  "outcome": "Make displaced kis-op launcher finalization tolerate restart-state handoff without error while preserving ownership-safe state updates.",
+  "owned_paths": [
+    "scripts/startup-instance-lifecycle.ps1",
+    "tests/test_startup_scripts.py",
+    ".work/changes/083-restart-finalizer-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

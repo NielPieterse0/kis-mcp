@@ -2,6 +2,11 @@
   "schema_version": 1,
   "providers": [
     {
+      "provider_id": "context7-mcp",
+      "enabled": true,
+      "namespace": "context7"
+    },
+    {
       "provider_id": "github-mcp",
       "enabled": true,
       "namespace": "github"
@@ -15,6 +20,11 @@
       "provider_id": "control-center",
       "enabled": true,
       "namespace": "controlcenter"
+    },
+    {
+      "provider_id": "serena-mcp",
+      "enabled": true,
+      "namespace": "serena"
     }
   ]
 }

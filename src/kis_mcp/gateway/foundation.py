@@ -98,8 +98,58 @@ def quarantine_payload(record: QuarantineRecord) -> dict[str, Any]:
     }
 
 
+def remote_mcp_implementation_status(
+    runtime: RuntimeConfig,
+    *,
+    environment: Mapping[str, str] | None = None,
+    current_pid: int | None = None,
+    state_root: Path | None = None,
+) -> str | None:
+    env = environment if environment is not None else os.environ
+    selected = env.get("KIS_MCP_RUNTIME_INSTANCE")
+    if not isinstance(selected, str) or not selected.strip():
+        return None
+    try:
+        instance = runtime.remote_instance(selected)
+    except RuntimeError:
+        return None
+    path = (
+        state_root if state_root is not None else Path(runtime.state_root)
+    ) / "tunnel-client" / "runtime" / instance.name / "current.json"
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(document, Mapping):
+        return None
+    listener_pid = document.get("server_listener_pid")
+    expected_pid = os.getpid() if current_pid is None else int(current_pid)
+    if (
+        document.get("schema_version") != 1
+        or document.get("lifecycle") != "ready"
+        or document.get("instance") != instance.name
+        or document.get("endpoint") != instance.endpoint_url
+        or isinstance(listener_pid, bool)
+        or not isinstance(listener_pid, int)
+        or listener_pid != expected_pid
+    ):
+        return None
+    current = runtime.implementation_status.get("remote_mcp", "").strip()
+    pending = "external_tunnel_pending_configuration"
+    ready = "external_tunnel_ready"
+    if current.endswith(pending):
+        return f"{current[:-len(pending)]}{ready}"
+    if current.endswith(ready):
+        return current
+    return ready
+
+
 def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> HealthResponse:
     entry = Path(str(launch.get("args", [""])[0]))
+    implementation_status = dict(runtime.implementation_status)
+    remote_status = remote_mcp_implementation_status(runtime)
+    if remote_status is not None:
+        implementation_status["remote_mcp"] = remote_status
     return HealthResponse(
         ready=entry.is_file(),
         server=runtime.server_name,
@@ -109,13 +159,14 @@ def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> Health
         desktop_commander_installed=entry.is_file(),
         policy_rules=tuple(policy_rule_response(rule) for rule in runtime.raw_policy["rules"]),
         policy_fingerprint=policy_fingerprint(runtime),
-        implementation_status=dict(runtime.implementation_status),
+        implementation_status=implementation_status,
     )
 
 
 __all__ = [
     "ensure_state_directories",
     "health_response",
+    "remote_mcp_implementation_status",
     "provider_environment",
     "quarantine_payload",
     "quarantine_response",

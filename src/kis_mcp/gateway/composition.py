@@ -90,7 +90,6 @@ def compose_gateway(
         boundary=Path(runtime.project_boundary),
     )
 
-    register_platform_discover(server, runtime)
     register_project_tools(server, projects)
     providers = compose_platform_providers(
         server,
@@ -100,6 +99,12 @@ def compose_gateway(
         provider_runtime_settings=provider_runtime_settings,
         environment=os.environ,
         selected_repository=repository_selection,
+    )
+    register_platform_discover(
+        server,
+        runtime,
+        projects,
+        semantic_provider=providers.serena_adapter,
     )
 
     quarantine = QuarantineService(

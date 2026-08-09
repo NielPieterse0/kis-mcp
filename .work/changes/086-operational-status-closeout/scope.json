@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "086-operational-status-closeout",
+  "status": "closed",
+  "branch": "change/086-operational-status-closeout",
+  "worktree": ".work/worktrees/086-operational-status-closeout",
+  "base": "main",
+  "outcome": "Make Supabase registered-project live verification and remote MCP commissioning status reflect current runtime evidence instead of stale hard-coded labels.",
+  "owned_paths": [
+    "src/kis_mcp/providers/supabase/server.py",
+    "src/kis_mcp/providers/supabase/routing.py",
+    "src/kis_mcp/remote_runtime.py",
+    "src/kis_mcp/gateway/foundation.py",
+    "tests/commissioning/**",
+    ".work/changes/086-operational-status-closeout/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

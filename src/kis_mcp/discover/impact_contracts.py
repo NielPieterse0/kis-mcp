@@ -207,7 +207,12 @@ class ImpactRelationship(_Record):
     provenance: str
 
     def __post_init__(self) -> None:
-        if self.kind not in {"contract_reference", "configuration_reference", "task_term"}:
+        if self.kind not in {
+            "contract_reference",
+            "configuration_reference",
+            "semantic_reference",
+            "task_term",
+        }:
             raise ValueError("impact relationship kind is unsupported")
         for value, label in (
             (self.source_path, "impact relationship source_path"),

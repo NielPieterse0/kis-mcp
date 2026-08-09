@@ -28,6 +28,7 @@ from .context_ranking import (
 from .contracts import Confidence, GitSummary, ProjectIdentity
 from .errors import DiscoverError
 from .git_reader import GitReader
+from .intelligence import ProjectIntelligenceService
 from .python_index import (
     PythonModuleRecord,
     PythonProjectIndexResult,
@@ -64,6 +65,8 @@ class _SymbolCandidate:
     record: PythonSymbolRecord
     score: int
     matched_terms: tuple[str, ...]
+    provider: str = "python_ast"
+    provenance: str = "parser_confirmed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,14 +78,32 @@ class _RelationshipCandidate:
     line: int
     score: int
     confidence: str
+    provider: str = "python_ast"
+    provenance: str = "parser_confirmed"
 
 
 class ContextBrokerService:
     """Assemble the smallest sufficient local evidence bundle for one task."""
 
-    def __init__(self, *, boundary: Path, settings: DiscoverSettings) -> None:
+    def __init__(
+        self,
+        *,
+        boundary: Path,
+        settings: DiscoverSettings,
+        intelligence_service: ProjectIntelligenceService | None = None,
+    ) -> None:
         self._boundary = boundary
         self._settings = settings
+        self._intelligence = intelligence_service or ProjectIntelligenceService(
+            boundary=boundary,
+            settings=settings,
+        )
+
+    def use_intelligence_service(
+        self,
+        intelligence_service: ProjectIntelligenceService,
+    ) -> None:
+        self._intelligence = intelligence_service
 
     def get(self, request: GetCodeContextRequest) -> GetCodeContextResponse:
         if not self._settings.enabled:
@@ -94,14 +115,12 @@ class ContextBrokerService:
             )
         self._validate_budget(request.budget)
 
+        intelligence = self._intelligence.get(request.project)
         authority = ReadAuthority(self._boundary, self._settings)
-        snapshot = RepositoryScanner(authority, self._settings).snapshot(request.project)
-        python_index = PythonProjectIndexer(
-            authority=authority,
-            settings=self._settings,
-        ).index(request.project, snapshot)
+        snapshot = intelligence.snapshot
+        python_index = intelligence.python_index
         git_reader = GitReader(authority=authority, settings=self._settings)
-        git = git_reader.inspect(request.project)
+        git = intelligence.git
         local_changes = git_reader.inspect_local_changes(request.project)
         changed_paths = {
             path
@@ -109,15 +128,15 @@ class ContextBrokerService:
             for path in (item.path, item.previous_path)
             if path is not None
         }
-        project = replace(
-            snapshot.project,
-            git_root=snapshot.project.canonical_path if git.repository else None,
-            remote_identity=git.remote,
-        )
+        project = intelligence.project
         terms = task_terms(request.task)
 
         module_candidates = self._module_candidates(python_index, terms)
-        symbol_candidates = self._symbol_candidates(python_index, terms)
+        symbol_candidates = self._symbol_candidates(
+            python_index,
+            terms,
+            intelligence.symbol_atlas,
+        )
         files = self._file_candidates(
             snapshot,
             terms,
@@ -158,6 +177,7 @@ class ContextBrokerService:
             terms,
             selected_identifiers,
             selected_paths,
+            intelligence.relationship_graph,
         )
         relevant_relationships = tuple(
             item
@@ -256,9 +276,22 @@ class ContextBrokerService:
                 "authority": "bounded_read",
             },
             "semantic": {
-                "available": bool(python_index.modules),
-                "provider": "python_ast" if python_index.modules else None,
-                "scope": "python_only",
+                "available": bool(python_index.modules) or intelligence.semantic.status == "ready",
+                "provider": (
+                    intelligence.semantic.provider_id
+                    if intelligence.semantic.status == "ready"
+                    else "python_ast" if python_index.modules else None
+                ),
+                "fallback": (
+                    "python_ast"
+                    if intelligence.semantic.status != "ready" and python_index.modules
+                    else None
+                ),
+                "semantic_status": intelligence.semantic.status,
+            },
+            "project_intelligence": {
+                **dict(intelligence.persistence),
+                "freshness": "current",
             },
             "git": {
                 "available": git.available,
@@ -354,8 +387,10 @@ class ContextBrokerService:
     def _symbol_candidates(
         index: PythonProjectIndexResult,
         terms: tuple[str, ...],
+        symbol_atlas: tuple[Any, ...] = (),
     ) -> tuple[_SymbolCandidate, ...]:
-        candidates = []
+        candidates: list[_SymbolCandidate] = []
+        seen: set[tuple[str, str, int]] = set()
         for record in index.symbols:
             score = score_named_candidate(
                 identifier=record.qualified_name,
@@ -371,6 +406,48 @@ class ContextBrokerService:
                     matched_terms=score.matched_terms,
                 )
             )
+            seen.add((record.qualified_name, record.path, record.line))
+        for item in symbol_atlas:
+            if not isinstance(item, dict) or item.get("provider") == "python_ast":
+                continue
+            try:
+                record = PythonSymbolRecord(
+                    qualified_name=str(item["qualified_name"]),
+                    module=str(item.get("module") or item.get("path") or "semantic"),
+                    name=str(item["name"]),
+                    kind=str(item["kind"]),
+                    path=str(item["path"]),
+                    line=int(item.get("line", 1)),
+                    end_line=(None if item.get("end_line") is None else int(item["end_line"])),
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+            identity = (record.qualified_name, record.path, record.line)
+            if identity in seen:
+                continue
+            score = score_named_candidate(
+                identifier=record.qualified_name,
+                name=record.name,
+                path=record.path,
+                kind=record.kind,
+                terms=terms,
+            )
+            candidates.append(
+                _SymbolCandidate(
+                    record=record,
+                    score=score.score,
+                    matched_terms=score.matched_terms,
+                    provider=str(item.get("provider", "semantic")),
+                    provenance=(
+                        "inferred"
+                        if item.get("classification") == "semantic"
+                        else "conventional"
+                        if item.get("classification") == "heuristic"
+                        else "parser_confirmed"
+                    ),
+                )
+            )
+            seen.add(identity)
         return tuple(
             sorted(
                 candidates,
@@ -459,44 +536,26 @@ class ContextBrokerService:
         terms: tuple[str, ...],
         selected_identifiers: set[str],
         selected_paths: set[str],
+        relationship_atlas: tuple[Any, ...] = (),
     ) -> tuple[_RelationshipCandidate, ...]:
-        records: list[tuple[str, str, str, str, int, str]] = []
-        for item in index.imports:
-            records.append(
-                (
-                    "import",
-                    item.source_module,
-                    item.target_module or item.imported_name or "unknown",
-                    item.path,
-                    item.line,
-                    "high" if item.internal else "medium",
-                )
-            )
-        for item in index.inheritance:
-            records.append(
-                (
-                    "inheritance",
-                    item.symbol,
-                    item.base,
-                    item.path,
-                    item.line,
-                    "high",
-                )
-            )
-        for item in index.calls:
-            records.append(
-                (
-                    "call",
-                    item.caller,
-                    item.callee,
-                    item.path,
-                    item.line,
-                    "high",
-                )
-            )
-
-        candidates = []
-        for kind, source, target, path, line, confidence in records:
+        del index
+        candidates: list[_RelationshipCandidate] = []
+        for item in relationship_atlas:
+            if not isinstance(item, dict):
+                continue
+            evidence = item.get("source_evidence", {})
+            if not isinstance(evidence, dict):
+                continue
+            try:
+                kind = str(item["type"])
+                source = str(item["source"])
+                target = str(item["target"])
+                path = str(evidence["path"])
+                line = int(evidence.get("line", 1))
+            except (KeyError, TypeError, ValueError):
+                continue
+            if kind not in {"import", "call", "inheritance"}:
+                continue
             score = score_relationship_candidate(
                 kind=kind,
                 source=source,
@@ -515,7 +574,15 @@ class ContextBrokerService:
                     path=path,
                     line=line,
                     score=score.score,
-                    confidence=confidence,
+                    confidence=str(item.get("confidence", "medium")),
+                    provider=str(item.get("provider", "project_intelligence")),
+                    provenance=(
+                        "inferred"
+                        if item.get("classification") == "semantic"
+                        else "conventional"
+                        if item.get("classification") == "heuristic"
+                        else "parser_confirmed"
+                    ),
                 )
             )
         return tuple(
@@ -816,8 +883,8 @@ def _context_symbol(item: _SymbolCandidate) -> ContextSymbol:
         relevance_score=item.score,
         matched_terms=item.matched_terms,
         provenance=ContextProvenance(
-            kind="parser_confirmed",
-            provider="python_ast",
+            kind=item.provenance,
+            provider=item.provider,
             identifier=item.record.qualified_name,
         ),
     )
@@ -833,8 +900,8 @@ def _context_relationship(item: _RelationshipCandidate) -> ContextRelationship:
         relevance_score=item.score,
         confidence=item.confidence,
         provenance=ContextProvenance(
-            kind="parser_confirmed",
-            provider="python_ast",
+            kind=item.provenance,
+            provider=item.provider,
             identifier=f"{item.kind}:{item.source}:{item.target}:{item.path}:{item.line}",
         ),
     )

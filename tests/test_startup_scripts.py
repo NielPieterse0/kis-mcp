@@ -302,6 +302,43 @@ def test_chatgpt_startup_uses_authoritative_per_instance_current_state() -> None
     )
 
 
+def test_stopped_finalizer_ignores_restart_handoff_without_run_id(tmp_path: Path) -> None:
+    runtime_root = tmp_path.as_posix().replace("'", "''")
+    result = _run_startup_lifecycle(
+        "$root='"
+        + runtime_root
+        + "'; [System.IO.Directory]::CreateDirectory($root) | Out-Null; "
+        "$path=Join-Path $root 'current.json'; "
+        "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{schema_version=1;lifecycle='restarting';instance='operation'}); "
+        "$remote=[pscustomobject]@{runtime_root=$root}; "
+        "Set-KisMcpCurrentInstanceStopped -Remote $remote -RunId 'old-run'; "
+        "$document=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; "
+        "Write-Output $document.lifecycle"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "restarting"
+
+
+def test_stopped_finalizer_updates_only_matching_run_id(tmp_path: Path) -> None:
+    runtime_root = tmp_path.as_posix().replace("'", "''")
+    result = _run_startup_lifecycle(
+        "$root='"
+        + runtime_root
+        + "'; [System.IO.Directory]::CreateDirectory($root) | Out-Null; "
+        "$path=Join-Path $root 'current.json'; $remote=[pscustomobject]@{runtime_root=$root}; "
+        "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{schema_version=1;lifecycle='ready';run_id='old-run'}); "
+        "Set-KisMcpCurrentInstanceStopped -Remote $remote -RunId 'old-run'; "
+        "$matched=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; Write-Output $matched.lifecycle; "
+        "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{schema_version=1;lifecycle='ready';run_id='new-run'}); "
+        "Set-KisMcpCurrentInstanceStopped -Remote $remote -RunId 'old-run'; "
+        "$mismatched=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; Write-Output $mismatched.lifecycle"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["stopped", "ready"]
+
+
 def test_selected_preflight_invalidates_previous_ready_state_before_reclaim() -> None:
     lifecycle = _script("startup-instance-lifecycle.ps1")
 

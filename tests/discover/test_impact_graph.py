@@ -10,6 +10,8 @@ from jsonschema import Draft202012Validator
 from kis_mcp.discover.errors import DiscoverError
 from kis_mcp.discover.impact_contracts import ImpactBudget, InspectImpactRequest
 from kis_mcp.discover.impact_graph import ImpactGraphService
+from kis_mcp.discover.intelligence import ProjectIntelligenceService
+from kis_mcp.discover.semantic import SemanticEvidence, SemanticRelationship, SemanticSymbol
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -194,3 +196,72 @@ def test_response_matches_checked_in_schema(project_root: Path, discover_setting
         )
     )
     assert list(Draft202012Validator(schema).iter_errors(response.to_json_dict())) == []
+
+
+class _SemanticImpactProvider:
+    provider_id = "semantic-test"
+    provider_version = "1"
+    state_fingerprint = "semantic-test-1"
+
+    def read(self, project_path: str, source_paths: tuple[str, ...] = ()) -> SemanticEvidence:
+        del project_path, source_paths
+        return SemanticEvidence(
+            provider_id=self.provider_id,
+            provider_version=self.provider_version,
+            status="ready",
+            symbols=(
+                SemanticSymbol(
+                    qualified_name="src/core.py::ChangedBase",
+                    name="ChangedBase",
+                    kind="class",
+                    path="src/core.py",
+                    line=1,
+                    language="python",
+                ),
+            ),
+            relationships=(
+                SemanticRelationship(
+                    kind="reference",
+                    source="semantic_probe",
+                    target="src/core.py::ChangedBase",
+                    path="tests/semantic_probe.py",
+                    line=3,
+                ),
+            ),
+        )
+
+
+def test_semantic_relationship_selects_affected_test_without_naming_convention(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write_python_fixture(project_root)
+    (project_root / "tests" / "semantic_probe.py").write_text(
+        "def verify_reference():\n    assert True\n",
+        encoding="utf-8",
+    )
+    intelligence = ProjectIntelligenceService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+        semantic_provider=_SemanticImpactProvider(),
+    )
+    response = ImpactGraphService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+        intelligence_service=intelligence,
+    ).inspect(
+        InspectImpactRequest(
+            project=str(project_root),
+            changed_paths=("src/core.py",),
+            budget=_budget(),
+        )
+    )
+
+    assert any(
+        item.kind == "semantic_reference"
+        and item.source_path == "tests/semantic_probe.py"
+        for item in response.relationship_impacts
+    )
+    selected = next(item for item in response.affected_tests if item.path == "tests/semantic_probe.py")
+    assert selected.provenance == "semantic_provider"
+    assert selected.confidence.value == "medium"

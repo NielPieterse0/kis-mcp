@@ -131,17 +131,21 @@ def test_platform_registry_contains_exact_approved_providers_without_probing() -
     )
 
     assert [item.provider_id for item in registry.list()] == [
+        "context7-mcp",
         "control-center",
         "desktop-commander",
         "github-mcp",
         "nvidia-nim",
+        "serena-mcp",
         "supabase",
     ]
     assert [item.provider_id for item in platform_module.ProviderService(registry).catalogue().entries()] == [
+        "context7-mcp",
         "control-center",
         "desktop-commander",
         "github-mcp",
         "nvidia-nim",
+        "serena-mcp",
         "supabase",
     ]
 
@@ -180,6 +184,11 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
 
     monkeypatch.setattr(
         platform_module,
+        "register_context7_provider",
+        registrar("context7-mcp"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_control_center_provider",
         registrar("control-center"),
     )
@@ -200,6 +209,11 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
     )
     monkeypatch.setattr(
         platform_module,
+        "register_serena_provider",
+        registrar("serena-mcp"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_supabase_provider",
         registrar("supabase"),
     )
@@ -210,7 +224,7 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
     )
     entries = platform_module.ProviderService(registry).catalogue().entries()
 
-    assert len(entries) == 5
+    assert len(entries) == 7
     assert builders == 0
     assert probes == 0
 
@@ -248,6 +262,11 @@ def test_platform_health_probes_all_providers_but_builds_none(
 
     monkeypatch.setattr(
         platform_module,
+        "register_context7_provider",
+        registrar("context7-mcp"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_control_center_provider",
         registrar("control-center"),
     )
@@ -268,6 +287,11 @@ def test_platform_health_probes_all_providers_but_builds_none(
     )
     monkeypatch.setattr(
         platform_module,
+        "register_serena_provider",
+        registrar("serena-mcp"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_supabase_provider",
         registrar("supabase"),
     )
@@ -280,10 +304,12 @@ def test_platform_health_probes_all_providers_but_builds_none(
 
     assert health.state is ProviderState.READY
     assert probes == [
+        "context7-mcp",
         "control-center",
         "desktop-commander",
         "github-mcp",
         "nvidia-nim",
+        "serena-mcp",
         "supabase",
     ]
     assert builders == 0
