@@ -1,8 +1,8 @@
 # Tasks: Registered Commit Publication
 
-- [ ] Confirm authority and scope.
-- [ ] Implement the approved change.
-- [ ] Run `pwsh -File scripts/change-workflow.ps1 check`.
-- [ ] Run focused tests and `pwsh -File scripts/verify.ps1`.
-- [ ] Record review and closeout evidence.
-- [ ] Merge and run safe cleanup from `main`.
+- [x] Confirm authority and scope.
+- [x] Implement the approved change.
+- [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
+- [x] Run focused tests and `pwsh -File scripts/verify.ps1`.
+- [ ] Record live commissioning, review, and closeout evidence.
+- [ ] Merge, publish exact `main`, and run safe cleanup from `main`.
