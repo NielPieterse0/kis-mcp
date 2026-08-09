@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "change_id": "088-serena-project-state-relocation",
+  "status": "active",
+  "branch": "change/088-serena-project-state-relocation",
+  "worktree": ".work/worktrees/088-serena-project-state-relocation",
+  "base": "main",
+  "outcome": "Relocate Serena project state outside repository worktrees and prevent local state recreation.",
+  "owned_paths": [
+    "settings/providers/serena.provider.json",
+    "src/kis_mcp/providers/serena/settings.py",
+    "src/kis_mcp/providers/serena/adapter.py",
+    "src/kis_mcp/providers/serena/memory.py",
+    "tests/providers/test_context7_serena_providers.py",
+    "tests/providers/test_serena_memory_safety.py",
+    "scripts/run-provider-live-smoke.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/088-serena-project-state-relocation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

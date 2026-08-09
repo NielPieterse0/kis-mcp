@@ -18,6 +18,7 @@
   "temp_root": "C:\\Projects\\.kis-mcp\\serena\\temp",
   "language_server_root": "C:\\Projects\\.kis-mcp\\serena\\language-servers",
   "global_memory_root": "C:\\Projects\\.kis-mcp\\serena\\home\\.serena\\memories",
+  "project_data_root": "C:\\Projects\\.kis-mcp\\serena\\projects",
   "project_data_directory": ".serena",
   "environment_names": ["APPDATA", "HOME", "LOCALAPPDATA", "SERENA_USAGE_REPORTING", "TEMP", "TMP", "USERPROFILE"]
 }

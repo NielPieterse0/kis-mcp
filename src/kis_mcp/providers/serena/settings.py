@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import ntpath
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +34,7 @@ _KEYS = frozenset(
         "temp_root",
         "language_server_root",
         "global_memory_root",
+        "project_data_root",
         "project_data_directory",
         "environment_names",
     }
@@ -79,6 +81,7 @@ class SerenaSettings:
     temp_root: Path
     language_server_root: Path
     global_memory_root: Path
+    project_data_root: Path
     project_data_directory: str
     environment_names: tuple[str, ...]
     schema_version: int = 1
@@ -115,12 +118,18 @@ class SerenaSettings:
             "temp_root",
             "language_server_root",
             "global_memory_root",
+            "project_data_root",
         ):
             normalized = normalize_windows_path(str(getattr(self, field_name)), base=boundary)
             if not is_within_windows_boundary(normalized, boundary=boundary):
                 raise ValueError(f"{field_name} must remain inside project_boundary")
             object.__setattr__(self, field_name, Path(normalized))
 
+        if not is_within_windows_boundary(
+            str(self.project_data_root),
+            boundary=str(self.install_root),
+        ):
+            raise ValueError("project_data_root must remain inside install_root")
         if self.project_data_directory != ".serena":
             raise ValueError("project_data_directory must be .serena")
         launcher_prefix = (
@@ -143,6 +152,91 @@ class SerenaSettings:
             raise ValueError("environment_names must use upper-case shell syntax")
         if len(set(self.environment_names)) != len(self.environment_names):
             raise ValueError("environment_names must be unique")
+
+    @property
+    def project_serena_folder_template(self) -> str:
+        return ntpath.join(
+            str(self.project_data_root),
+            "$projectFolderName",
+            self.project_data_directory,
+        )
+
+    def normalized_project_root(self, project_root: str) -> str:
+        normalized_project = normalize_windows_path(
+            project_root,
+            base=self.project_boundary,
+        )
+        if not is_within_windows_boundary(
+            normalized_project,
+            boundary=self.project_boundary,
+        ):
+            raise ValueError("project_root must remain inside project_boundary")
+        folder_name = ntpath.basename(normalized_project.rstrip("\\"))
+        if not folder_name:
+            raise ValueError("project_root must resolve to a named project folder")
+        return normalized_project
+
+    def project_data_path(self, project_root: str) -> Path:
+        normalized_project = self.normalized_project_root(project_root)
+        folder_name = ntpath.basename(normalized_project.rstrip("\\"))
+        project_data = normalize_windows_path(
+            ntpath.join(
+                str(self.project_data_root),
+                folder_name,
+                self.project_data_directory,
+            ),
+            base=str(self.project_data_root),
+        )
+        if not is_within_windows_boundary(
+            project_data,
+            boundary=str(self.project_data_root),
+        ):
+            raise ValueError("project data path must remain inside project_data_root")
+        return Path(project_data)
+
+    def project_identity_path(self, project_root: str) -> Path:
+        return self.project_data_path(project_root).parent / "project-root.json"
+
+    def ensure_project_data_path(self, project_root: str) -> Path:
+        normalized_project = self.normalized_project_root(project_root)
+        project_data = self.project_data_path(normalized_project)
+        identity_path = self.project_identity_path(normalized_project)
+        expected = {
+            "schema_version": 1,
+            "project_root": normalized_project,
+        }
+
+        def validate_existing() -> None:
+            if not identity_path.is_file():
+                raise ValueError("Serena project identity marker must be a file")
+            try:
+                existing = json.loads(identity_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+                raise ValueError("Serena project identity marker is unreadable") from exc
+            existing_root = existing.get("project_root") if isinstance(existing, dict) else None
+            if (
+                not isinstance(existing, dict)
+                or existing.get("schema_version") != 1
+                or not isinstance(existing_root, str)
+                or existing_root.casefold() != normalized_project.casefold()
+            ):
+                raise ValueError(
+                    "Serena project state collision: project folder name is already bound "
+                    "to a different project root"
+                )
+
+        identity_path.parent.mkdir(parents=True, exist_ok=True)
+        if identity_path.exists():
+            validate_existing()
+        else:
+            try:
+                with identity_path.open("x", encoding="utf-8", newline="\n") as stream:
+                    json.dump(expected, stream, indent=2)
+                    stream.write("\n")
+            except FileExistsError:
+                validate_existing()
+        project_data.mkdir(parents=True, exist_ok=True)
+        return project_data
 
     @classmethod
     def load(cls, path: Path) -> "SerenaSettings":
@@ -168,6 +262,7 @@ class SerenaSettings:
                 "temp_root",
                 "language_server_root",
                 "global_memory_root",
+                "project_data_root",
             )
         }
         return cls(

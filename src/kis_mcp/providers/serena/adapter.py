@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
+import subprocess
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from threading import get_ident
@@ -66,6 +68,55 @@ def _provider_environment(
         }
     )
     return environment
+
+
+_PROJECT_STATE_SETTING = re.compile(
+    r"(?m)^project_serena_folder_location:\s*.*$"
+)
+
+
+def _prepare_serena_project_state(
+    settings: SerenaSettings,
+    *,
+    environment: Mapping[str, str],
+    project_root: str,
+) -> Path:
+    settings.project_data_root.mkdir(parents=True, exist_ok=True)
+    settings.config_root.mkdir(parents=True, exist_ok=True)
+    config_path = settings.config_root / "serena_config.yml"
+    if not config_path.is_file():
+        completed = subprocess.run(
+            [
+                str(settings.executable),
+                "-c",
+                (
+                    "from serena.config.serena_config import SerenaConfig; "
+                    "SerenaConfig.from_config_file()"
+                ),
+            ],
+            cwd=settings.install_root,
+            env=dict(environment),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        if completed.returncode != 0 or not config_path.is_file():
+            raise RuntimeError("Serena global configuration bootstrap failed")
+
+    content = config_path.read_text(encoding="utf-8")
+    matches = tuple(_PROJECT_STATE_SETTING.finditer(content))
+    if len(matches) != 1:
+        raise RuntimeError(
+            "Serena global configuration must contain exactly one project state location"
+        )
+    template = settings.project_serena_folder_template.replace("\\", "/")
+    expected = f'project_serena_folder_location: "{template}"'
+    if matches[0].group(0) != expected:
+        updated = _PROJECT_STATE_SETTING.sub(expected, content, count=1)
+        config_path.write_text(updated, encoding="utf-8")
+
+    return settings.ensure_project_data_path(project_root)
 
 
 class _SharedProviderClient:
@@ -134,11 +185,17 @@ class SerenaRuntimeAdapter:
         if not self.settings.executable.is_file():
             raise RuntimeError("Serena pinned venv interpreter is missing")
         cwd = self.default_project or str(Path(__file__).resolve().parents[4])
+        provider_environment = _provider_environment(self.settings, self.environment)
+        _prepare_serena_project_state(
+            self.settings,
+            environment=provider_environment,
+            project_root=cwd,
+        )
         transport = StdioTransport(
             command=str(self.settings.executable),
             args=list(self.settings.arguments),
             cwd=cwd,
-            env=_provider_environment(self.settings, self.environment),
+            env=provider_environment,
         )
         shared_client = _SharedProviderClient(self.client_factory(transport), self)
         startup_call = (
@@ -186,6 +243,7 @@ class SerenaRuntimeAdapter:
         project_path: str,
         source_paths: tuple[str, ...] = (),
     ) -> SemanticEvidence:
+        self.settings.ensure_project_data_path(project_path)
         self._call_sync("activate_project", {"project": project_path})
         symbols: list[SemanticSymbol] = []
         relationships: list[SemanticRelationship] = []

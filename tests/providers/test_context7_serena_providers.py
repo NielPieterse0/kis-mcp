@@ -37,6 +37,43 @@ def test_context7_descriptor_remains_external_documentation_only() -> None:
     assert "semantic" not in capability.capability_id
 
 
+def test_serena_project_state_is_centralized_outside_repository() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+
+    assert str(settings.project_data_root) == r"C:\Projects\.kis-mcp\serena\projects"
+    assert settings.project_serena_folder_template == (
+        r"C:\Projects\.kis-mcp\serena\projects\$projectFolderName\.serena"
+    )
+    project_state = settings.project_data_path(str(ROOT))
+    assert project_state == settings.project_data_root / ROOT.name / ".serena"
+    assert project_state != ROOT / ".serena"
+
+
+def test_serena_project_state_root_must_remain_inside_install_root(tmp_path: Path) -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+
+    with pytest.raises(ValueError, match="project_data_root must remain inside install_root"):
+        replace(settings, project_data_root=tmp_path / "outside-serena-state")
+
+
+def test_serena_project_state_rejects_same_name_root_collisions(tmp_path: Path) -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    install_root = tmp_path / "serena"
+    settings = replace(
+        settings,
+        install_root=install_root,
+        project_data_root=install_root / "projects",
+    )
+    first = tmp_path / "first" / "shared-name"
+    second = tmp_path / "second" / "shared-name"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+
+    settings.ensure_project_data_path(str(first))
+    with pytest.raises(ValueError, match="project state collision"):
+        settings.ensure_project_data_path(str(second))
+
+
 def test_serena_descriptor_is_local_read_only_and_offline() -> None:
     settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
     adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))

@@ -18,6 +18,10 @@ from fastmcp.client.transports import StdioTransport
 
 from kis_mcp.providers.context7 import load_context7_settings
 from kis_mcp.providers.serena import load_serena_settings
+from kis_mcp.providers.serena.adapter import (
+    _prepare_serena_project_state,
+    _provider_environment,
+)
 from kis_mcp.providers.serena.memory import quarantine_serena_memory_delete
 from kis_mcp.quarantine import QuarantineService
 
@@ -81,29 +85,18 @@ async def _context7_smoke() -> dict[str, Any]:
     }
 
 
-def _serena_environment(settings) -> dict[str, str]:
-    environment = _minimal_environment()
-    environment.update(
-        {
-            "HOME": str(settings.home_root),
-            "USERPROFILE": str(settings.home_root),
-            "APPDATA": str(settings.home_root / "AppData" / "Roaming"),
-            "LOCALAPPDATA": str(settings.home_root / "AppData" / "Local"),
-            "TEMP": str(settings.temp_root),
-            "TMP": str(settings.temp_root),
-            "SERENA_USAGE_REPORTING": "false",
-            "UV_OFFLINE": "1",
-        }
-    )
-    return environment
-
-
 def _serena_transport(settings, project: Path) -> StdioTransport:
+    environment = _provider_environment(settings, os.environ)
+    _prepare_serena_project_state(
+        settings,
+        environment=environment,
+        project_root=str(project),
+    )
     return StdioTransport(
         command=str(settings.executable),
         args=list(settings.arguments),
         cwd=str(project),
-        env=_serena_environment(settings),
+        env=environment,
     )
 
 
@@ -133,14 +126,14 @@ async def _serena_session(settings, project: Path, memory_name: str) -> dict[str
 async def _serena_smoke() -> dict[str, Any]:
     settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
     run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
-    project = STATE / "commissioning" / f"084-serena-{run_id}"
+    project = STATE / "commissioning" / f"088-serena-{run_id}"
     project.mkdir(parents=True, exist_ok=False)
     (project / "sample.py").write_text(
         "class Commissioned:\n    pass\n\ndef meaning():\n    return 42\n",
         encoding="utf-8",
     )
-    memory_name = "084-proof"
-    memory_path = project / ".serena" / "memories" / f"{memory_name}.md"
+    memory_name = "088-proof"
+    memory_path = settings.project_data_path(str(project)) / "memories" / f"{memory_name}.md"
     memory_path.parent.mkdir(parents=True, exist_ok=True)
     memory_path.write_text("serena hr3-07 live proof\n", encoding="utf-8")
     before_hash = _sha256(memory_path)
@@ -162,6 +155,7 @@ async def _serena_smoke() -> dict[str, Any]:
     restored = quarantine.restore(quarantined.records[0].operation_id)
     restored_hash = _sha256(memory_path)
     second = await _serena_session(settings, project, memory_name)
+    repo_local_state_absent = not (project / ".serena").exists()
     memories_after = sorted(
         str(path.relative_to(memory_path.parent).with_suffix("")).replace("\\", "/")
         for path in memory_path.parent.rglob("*.md")
@@ -178,6 +172,7 @@ async def _serena_smoke() -> dict[str, Any]:
             restored_hash == before_hash,
             memory_name in second["memories"],
             second["memory"].strip() == "serena hr3-07 live proof",
+            repo_local_state_absent,
             memories_after == [memory_name],
         )
     )
@@ -187,6 +182,8 @@ async def _serena_smoke() -> dict[str, Any]:
         "source_revision": settings.source_revision,
         "offline_enforced": True,
         "project": str(project),
+        "project_state": str(settings.project_data_path(str(project))),
+        "repo_local_state_absent": repo_local_state_absent,
         "memory_artifacts": list(quarantined.artifacts),
         "quarantine_operation_id": quarantined.records[0].operation_id,
         "forwarded_delete": quarantined.forwarded_delete,
@@ -202,7 +199,7 @@ async def _run() -> dict[str, Any]:
     serena = await _serena_smoke()
     return {
         "schema_version": 1,
-        "change_id": "084-discover-persistent-memory-closeout",
+        "change_id": "088-serena-project-state-relocation",
         "generated_at": datetime.now(UTC).isoformat(),
         "context7": context7,
         "serena": serena,

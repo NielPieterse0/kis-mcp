@@ -43,8 +43,8 @@ def memory_root(
         )
     else:
         root = normalize_windows_path(
-            ntpath.join(project_root, settings.project_data_directory, "memories"),
-            base=project_root,
+            ntpath.join(str(settings.ensure_project_data_path(project_root)), "memories"),
+            base=str(settings.project_data_root),
         )
     if not is_within_windows_boundary(root, boundary=settings.project_boundary):
         raise ValueError("memory root must remain inside project_boundary")
