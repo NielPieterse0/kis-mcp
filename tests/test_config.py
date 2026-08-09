@@ -56,6 +56,23 @@ def test_settings_and_policy_share_boundaries() -> None:
     assert config.quarantine_root == config.raw_policy["quarantine_root"]
 
 
+def test_github_cli_auth_directory_is_json_governed() -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    assert config.github_cli_config_dir == r"C:\Projects\.mcp-external-state\gh-config"
+
+
+def test_github_cli_auth_directory_must_stay_inside_project_boundary(
+    tmp_path: Path,
+) -> None:
+    root = _configuration_copy(tmp_path)
+    settings = _read_settings(root)
+    settings["github_cli"]["config_dir"] = r"C:\Users\operator\AppData\Roaming\GitHub CLI"  # type: ignore[index]
+    _write_settings(root, settings)
+
+    with pytest.raises(RuntimeError, match="github_cli.config_dir.*C:\\\\Projects"):
+        load_runtime_config(root)
+
+
 def test_status_fields_do_not_control_tool_availability() -> None:
     config = load_runtime_config(REPOSITORY_ROOT)
     assert "commissioning" not in config.raw_settings

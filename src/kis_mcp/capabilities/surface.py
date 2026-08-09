@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import replace
 from typing import Any
 
+from ..projects.github_exact import REGISTERED_GITHUB_OPERATION_SCHEMAS
 from .contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -118,6 +119,48 @@ def capability_control_contribution() -> CapabilityContribution:
         )
         for name, description, effect in operations
     )
+    virtual_descriptors = (
+        OperationDescriptor(
+            operation_id="capability-control.kis-github-publish-registered-commit",
+            name="kis_github_publish_registered_commit",
+            description="Publish one immutable local commit to its registered GitHub branch with exact ref verification.",
+            capabilities=("operation.kis_github_publish_registered_commit",),
+            effects=(OperationEffect.EXTERNAL,),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=92),
+            quality=default_quality(context_cost=20, reversibility=70, reliability=90, workflow_integration=95),
+            approval_required=True,
+            tags=("registered-github", "virtual"),
+            input_schema=REGISTERED_GITHUB_OPERATION_SCHEMAS["kis_github_publish_registered_commit"],
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.kis-github-merge-registered-pull-request",
+            name="kis_github_merge_registered_pull_request",
+            description="Merge one registered-repository pull request only at its explicitly approved head SHA.",
+            capabilities=("operation.kis_github_merge_registered_pull_request",),
+            effects=(OperationEffect.EXTERNAL,),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=92),
+            quality=default_quality(context_cost=20, reversibility=70, reliability=90, workflow_integration=95),
+            approval_required=True,
+            tags=("registered-github", "virtual"),
+            input_schema=REGISTERED_GITHUB_OPERATION_SCHEMAS["kis_github_merge_registered_pull_request"],
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.kis-github-delete-registered-branch",
+            name="kis_github_delete_registered_branch",
+            description="Delete one non-default registered GitHub branch only at its explicitly approved head SHA.",
+            capabilities=("operation.kis_github_delete_registered_branch",),
+            effects=(OperationEffect.EXTERNAL,),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=92),
+            quality=default_quality(context_cost=20, reversibility=70, reliability=90, workflow_integration=95),
+            approval_required=True,
+            tags=("registered-github", "virtual"),
+            input_schema=REGISTERED_GITHUB_OPERATION_SCHEMAS["kis_github_delete_registered_branch"],
+        ),
+    )
+    descriptors = (*descriptors, *virtual_descriptors)
     contribution_id = "capability-control"
     return CapabilityContribution(
         contribution_id=contribution_id,
@@ -156,6 +199,8 @@ def augment_with_runtime_surface(
         operations = tuple(
             replace(operation, input_schema=_input_schema(tools_by_name[operation.name]))
             if operation.name in actual_names
+            else operation
+            if "virtual" in operation.tags
             else replace(
                 operation,
                 enabled=False,
@@ -205,7 +250,10 @@ def augment_with_runtime_surface(
                 reliability=85,
                 workflow_integration=70,
             ),
-            approval_required=any(term in name.casefold() for term in ("merge", "publish", "deploy", "send_email")),
+            approval_required=any(
+                term in name.casefold()
+                for term in ("merge", "publish", "deploy", "send_email")
+            ),
             authentication_preflight=any(term in name.casefold() for term in ("auth", "status", "health", "preflight")),
             input_schema=_input_schema(tool),
         )

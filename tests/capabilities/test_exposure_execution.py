@@ -7,6 +7,7 @@ import pytest
 from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
+from kis_mcp.capabilities import execution as execution_module
 from kis_mcp.capabilities.catalogue import CapabilityCatalogue
 from kis_mcp.capabilities.contracts import (
     CapabilityContribution,
@@ -253,6 +254,120 @@ def test_execution_router_never_bypasses_approval_or_readiness() -> None:
         )
 
 
+def test_nonvirtual_approved_field_cannot_bypass_generic_approval_gate() -> None:
+    server = FastMCP("approval-hardening-test")
+    operation = OperationDescriptor(
+        operation_id="provider.generic-approved",
+        name="generic_approved_external",
+        description="Generic approval-gated external operation.",
+        capabilities=("generic.approved",),
+        effects=(OperationEffect.EXTERNAL,),
+        dependencies=(),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+        approval_required=True,
+        input_schema={
+            "type": "object",
+            "properties": {"approved": {"type": "boolean"}},
+            "required": ["approved"],
+        },
+    )
+    generic = CapabilityContribution(
+        contribution_id="provider.generic",
+        domain=CapabilityDomain.PROVIDER,
+        category="connector",
+        capabilities=("generic.approved",),
+        operations=(operation,),
+        dependencies=(),
+        effects=(OperationEffect.EXTERNAL,),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id="provider.generic",
+            state=ReadinessState.READY,
+            summary="ready",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+    )
+
+    with pytest.raises(ToolError, match="APPROVAL_REQUIRED"):
+        asyncio.run(
+            CapabilityExecutionRouter(server, state(generic)).execute_external(
+                "generic_approved_external",
+                {"approved": True},
+            )
+        )
+
+
+def test_schema_bound_approval_dispatches_only_registered_virtual_operation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = FastMCP("virtual-external-test")
+    operation = OperationDescriptor(
+        operation_id="projects.kis-github-publish",
+        name="kis_github_publish_registered_commit",
+        description="Publish an exact registered commit.",
+        capabilities=("operation.kis_github_publish_registered_commit",),
+        effects=(OperationEffect.EXTERNAL,),
+        dependencies=(),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+        approval_required=True,
+        tags=("registered-github", "virtual"),
+        input_schema={
+            "type": "object",
+            "properties": {"approved": {"type": "boolean"}},
+            "required": ["approved"],
+        },
+    )
+    virtual = CapabilityContribution(
+        contribution_id="projects",
+        domain=CapabilityDomain.TOOL,
+        category="project-context",
+        capabilities=("operation.kis_github_publish_registered_commit",),
+        operations=(operation,),
+        dependencies=(),
+        effects=(OperationEffect.EXTERNAL,),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id="projects",
+            state=ReadinessState.READY,
+            summary="ready",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE),
+        quality=default_quality(),
+    )
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def execute_virtual(name: str, arguments: Mapping[str, object]) -> dict[str, object]:
+        calls.append((name, dict(arguments)))
+        return {"state": "published"}
+
+    monkeypatch.setattr(
+        execution_module,
+        "execute_registered_github_operation",
+        execute_virtual,
+        raising=False,
+    )
+    router = CapabilityExecutionRouter(server, state(virtual))
+
+    with pytest.raises(ToolError, match="APPROVAL_REQUIRED"):
+        asyncio.run(
+            router.execute_external(
+                "kis_github_publish_registered_commit",
+                {"approved": False},
+            )
+        )
+
+    result = asyncio.run(
+        router.execute_external(
+            "kis_github_publish_registered_commit",
+            {"approved": True},
+        )
+    )
+    assert result == {"state": "published"}
+    assert calls == [
+        ("kis_github_publish_registered_commit", {"approved": True})
+    ]
+
 
 def test_execution_router_rejects_capability_control_recursion() -> None:
     server = FastMCP("execution-recursion-test")
@@ -266,7 +381,6 @@ def test_execution_router_rejects_capability_control_recursion() -> None:
                 {"operation": "execute_read_action", "arguments": {}},
             )
         )
-
 
 
 def test_runtime_capabilities_exclude_contributions_without_registered_operations() -> None:
@@ -298,7 +412,6 @@ def test_runtime_capabilities_exclude_contributions_without_registered_operation
 
     assert "unregistered.operate" not in runtime.available_capabilities
     assert "analysis.skill" in runtime.available_capabilities
-
 
 
 def test_capability_search_reports_per_category_truncation() -> None:

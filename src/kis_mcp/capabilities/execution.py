@@ -7,10 +7,22 @@ from typing import Any
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from .contracts import OperationEffect
+from ..projects.github_exact import execute_registered_github_operation
+from .contracts import OperationDescriptor, OperationEffect
 from .eligibility import evaluate_eligibility
 from .runtime import CapabilityRuntimeState
 from .settings import ResultBudgetSettings
+
+_CONTROL_DISPATCH_OPERATIONS = frozenset(
+    {
+        "search_capabilities",
+        "describe_capability",
+        "recommend_workflow",
+        "execute_read_action",
+        "execute_change_action",
+        "execute_external_action",
+    }
+)
 
 
 def _json_chars(value: Any) -> int:
@@ -79,6 +91,23 @@ def _budget_result(operation: str, result: Any, budget: ResultBudgetSettings) ->
     return payload
 
 
+def _schema_bound_approval(
+    operation: OperationDescriptor,
+    arguments: Mapping[str, Any],
+) -> bool:
+    properties = operation.input_schema.get("properties")
+    required = operation.input_schema.get("required")
+    if not isinstance(properties, Mapping) or not isinstance(required, list):
+        return False
+    approved_schema = properties.get("approved")
+    return (
+        isinstance(approved_schema, Mapping)
+        and approved_schema.get("type") == "boolean"
+        and "approved" in required
+        and arguments.get("approved") is True
+    )
+
+
 class CapabilityExecutionRouter:
     """Invoke registered operations through their original FastMCP contracts."""
 
@@ -141,10 +170,13 @@ class CapabilityExecutionRouter:
             raise ToolError(f"UNKNOWN_CAPABILITY_OPERATION: {operation_name}") from exc
 
         contribution = self.runtime.catalogue.contribution_for(operation)
-        if contribution.contribution_id == "capability-control":
+        if (
+            contribution.contribution_id == "capability-control"
+            and operation.name in _CONTROL_DISPATCH_OPERATIONS
+        ):
             raise ToolError(
-                "DISPATCH_RECURSION_BLOCKED: capability control operations cannot "
-                "be invoked through a generic dispatcher"
+                "DISPATCH_RECURSION_BLOCKED: capability control dispatch operations "
+                "cannot be invoked through a generic dispatcher"
             )
 
         effects = frozenset(operation.effects)
@@ -160,10 +192,16 @@ class CapabilityExecutionRouter:
             raise ToolError(
                 f"EFFECT_MISMATCH: {operation.name} has incompatible effects"
             )
-        if operation.approval_required:
+        schema_bound_registered_github_approval = (
+            "virtual" in operation.tags
+            and "registered-github" in operation.tags
+            and _schema_bound_approval(operation, arguments)
+        )
+        if operation.approval_required and not schema_bound_registered_github_approval:
             raise ToolError(
                 "APPROVAL_REQUIRED: this registered operation requires its original "
-                "approval workflow and cannot be dispatched generically"
+                "approval workflow; only registered-GitHub virtual operations may "
+                "use an explicit schema-bound approved=true input"
             )
 
         decision = evaluate_eligibility(
@@ -176,6 +214,21 @@ class CapabilityExecutionRouter:
         if not decision.eligible:
             raise ToolError(
                 "OPERATION_INELIGIBLE: " + "; ".join(decision.reasons)
+            )
+
+        if "virtual" in operation.tags:
+            if "registered-github" not in operation.tags:
+                raise ToolError(
+                    f"VIRTUAL_OPERATION_UNSUPPORTED: {operation.name}"
+                )
+            result = execute_registered_github_operation(
+                operation.name,
+                dict(arguments),
+            )
+            return _budget_result(
+                operation.name,
+                result,
+                self.runtime.settings.result_budget,
             )
 
         result = await self.server.call_tool(

@@ -125,6 +125,10 @@ class RuntimeConfig:
         return str(self.raw_settings["fastmcp"]["server_name"])
 
     @property
+    def github_cli_config_dir(self) -> str:
+        return str(self.raw_settings["github_cli"]["config_dir"])
+
+    @property
     def transport(self) -> str:
         return str(self.raw_settings["fastmcp"]["transport"])
 
@@ -338,6 +342,34 @@ def _validate_provider(settings: Mapping[str, Any]) -> None:
         raise RuntimeError("Desktop Commander entry point must remain beneath its install root")
 
 
+def _validate_github_cli(
+    settings: Mapping[str, Any],
+    *,
+    repository_root: Path,
+) -> None:
+    github_cli = _object(settings.get("github_cli"), "settings.github_cli")
+    paths = _object(settings.get("paths"), "settings.paths")
+    project_boundary = _string(paths.get("project_boundary"), "settings.paths.project_boundary")
+    config_dir = _validated_effective_path(
+        github_cli.get("config_dir"),
+        base=project_boundary,
+        label="settings.github_cli.config_dir",
+    )
+    if not is_within_windows_boundary(config_dir, boundary=project_boundary):
+        raise RuntimeError(
+            "settings.github_cli.config_dir must resolve beneath C:\\Projects"
+        )
+    effective_repository = resolve_windows_effective_path(
+        str(repository_root.resolve()),
+        base=project_boundary,
+        follow_final=True,
+    )
+    if is_within_windows_boundary(config_dir, boundary=effective_repository):
+        raise RuntimeError(
+            "settings.github_cli.config_dir must remain outside the repository"
+        )
+
+
 def _validate_remote_mcp(settings: Mapping[str, Any]) -> None:
     remote = _object(settings.get("remote_mcp"), "settings.remote_mcp")
     if _string(remote.get("transport"), "settings.remote_mcp.transport") != "http":
@@ -457,6 +489,7 @@ def load_runtime_config(repository_root: Path | None = None) -> RuntimeConfig:
 
     _validate_path_layout(settings, policy, repository_root=root)
     _validate_provider(settings)
+    _validate_github_cli(settings, repository_root=root)
     _validate_remote_mcp(settings)
 
     from .discover.settings import DiscoverSettings

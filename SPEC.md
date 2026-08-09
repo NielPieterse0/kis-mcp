@@ -218,6 +218,7 @@ All project settings and policy declarations are JSON.
 - `settings/providers/platform-runtime.provider.json` selects exactly the approved mounted MCP provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
 - `settings/providers/github-mcp.provider.json` contains only GitHub provider identity, pinned executable/source, OAuth mode, PAT-conflict metadata, and toolsets. Repository and GitHub Project routing are not provider-authentication settings.
 - `settings/projects.settings.json` is the strict central project registry. It maps stable project IDs to absolute local roots and optional GitHub repository, GitHub Project, and Supabase routing coordinates without storing credentials.
+- `settings.github_cli.config_dir` is the non-secret GitHub CLI authentication-state directory used only by KIS exact registered-repository mutations. It must resolve beneath `C:\\Projects`, remain outside the repository, and is passed to `gh`/Git only as process-scoped `GH_CONFIG_DIR`; KIS never reads or stores the credential value.
 - `settings/kis-repository.settings.json` remains a legacy compatibility source for callers that explicitly use the repository-settings loader; gateway composition uses the central registry-backed selector instead.
 - `settings/agents/code-review-agent.settings.json` defines the single advisory code-review agent, its NVIDIA NIM and Codex CLI backends, preferred/fallback order, fixed script path, and evidence/output budgets. It stores only the NVIDIA API-key environment-variable name, never the key value.
 - `settings.remote_mcp` defines the loopback HTTP endpoint, `C:\Tools\openai-tunnel-client\tunnel-client.exe`, the active instance, and separate `operation` and `development` records.
@@ -308,6 +309,7 @@ The current implementation includes:
 - provider-neutral contracts, registry, health, explicit construction, and runtime composition;
 - a provider-neutral persistent FastMCP client lifecycle with one outer connection per parent runtime and injectable provider startup bootstrap;
 - a strict central project registry with bounded `kis_list_projects` / `kis_project_status` catalogue operations and legacy repository-settings compatibility;
+- three approval-gated exact registered-GitHub operations for immutable commit publication, exact-head pull-request merge, and exact-head non-default remote-branch deletion, exposed as discoverable virtual operations through `execute_external_action` with exact remote-state verification;
 - GitHub MCP using one runtime-scoped client with one `get_me` bootstrap and explicit repository/Project authorization against all registered GitHub bindings, without mutable active-project authorization state;
 - Supabase using one persistent account-scoped OAuth client against the unscoped official endpoint, with registered per-call `project_id` validation and targetless read-only discovery only;
 - GitHub MCP and Supabase adapters mounted under `github_*` and `supabase_*` when enabled adapters build successfully;
@@ -349,6 +351,6 @@ Both remote instance records contain distinct configured tunnel IDs and loopback
 
 The KIS Control Center can run independently with `python -m kis_mcp.control_center` and is also mounted under `controlcenter_*` when enabled in provider-runtime settings. Both forms expose the same read-only evidence model. The mounted form receives the owning gateway instance?s provider status explicitly; no process-global latest-composition state is used.
 
-The `settings.remote_mcp.stateless_http` field and the current runtime startup mode are contradictory. This executable/configuration defect is not resolved by documentation and requires a separate code/configuration change with tests.
+The remote runtime starts FastMCP with the checked-in `stateless_http=true` and JSON-response settings; startup and transport regression coverage keep the executable mode aligned with configuration.
 
 None of these implementation-status statements restrict normal Work beyond HR-001, HR-002, and HR-003.

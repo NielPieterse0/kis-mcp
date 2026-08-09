@@ -48,6 +48,9 @@
     "server_name": "kis-mcp",
     "transport": "stdio"
   },
+  "github_cli": {
+    "config_dir": "C:\\Projects\\.mcp-external-state\\gh-config"
+  },
   "discover": {
     "enabled": true,
     "limits": {

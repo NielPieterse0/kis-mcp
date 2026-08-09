@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "change_id": "087-registered-commit-publication",
+  "status": "active",
+  "branch": "change/087-registered-commit-publication",
+  "worktree": ".work/worktrees/087-registered-commit-publication",
+  "base": "main",
+  "outcome": "Publish an immutable local commit from any registered repository through the authenticated GitHub connector with explicit content-equivalent semantics, remote-base preconditions, and verified remote state.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/projects/platform.py",
+    "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "src/kis_mcp/capabilities/execution.py",
+    "src/kis_mcp/config.py",
+    "settings/capabilities.settings.json",
+    "settings/kis-mcp.settings.json",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "tests/workflows/test_registered_commit_publication.py",
+    "tests/capabilities/test_registered_commit_workflow.py",
+    "tests/capabilities/test_exposure_execution.py",
+    "tests/capabilities/test_decision_pipeline.py",
+    "tests/test_config.py",
+    ".work/changes/087-registered-commit-publication/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
