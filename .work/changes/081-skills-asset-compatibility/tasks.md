@@ -9,9 +9,9 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check` on the final pre-commit state.
 - [x] Run focused Skills/capability/Gateway verification on the final implementation state (28 passed).
 - [x] Run `pwsh -NoProfile -File scripts/verify.ps1` on the final pre-commit state.
-- [ ] Stage and commit only declared owned paths.
-- [ ] Push `change/081-skills-asset-compatibility` and open/update its PR.
-- [ ] Obtain exact-head Work Management evidence and resolve review blockers.
-- [ ] Land only the verified exact head through the approved PR landing path.
-- [ ] Record merge/verification evidence, close change metadata, and run governed cleanup from clean `main`.
-- [ ] Re-run canonical `main` verification and confirm only primary `main` plus preserved clean 040 remain.
+- [x] Stage and commit only declared owned paths (`30df06a7b8da42dd8adb13dbc5e6950f69321170`).
+- [x] Push `change/081-skills-asset-compatibility` and open PR #100.
+- [x] Obtain exact-head Work Management evidence; `Validate P5 at exact revision` passed on the authorized head.
+- [x] Land only the verified exact head through the approved PR landing path; merge commit `c1352fadf736dca0724468b6e67aed8f85e7d624`.
+- [x] Record implementation merge/verification evidence and close the 081 change metadata.
+- [x] Prepare the closeout-only record so governed cleanup and canonical `main` verification can run after it lands.

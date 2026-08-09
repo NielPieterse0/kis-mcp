@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "081-skills-asset-compatibility",
-  "status": "active",
+  "status": "closed",
   "branch": "change/081-skills-asset-compatibility",
   "worktree": ".work/worktrees/081-skills-asset-compatibility",
   "base": "main",
