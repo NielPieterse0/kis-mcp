@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "085-college-registry-test-reconciliation",
+  "status": "closed",
+  "branch": "change/085-college-registry-test-reconciliation",
+  "worktree": ".work/worktrees/085-college-registry-test-reconciliation",
+  "base": "main",
+  "outcome": "Reconcile stale checked-in project registry expectations after the already-merged college project registration.",
+  "owned_paths": [
+    "tests/projects/test_project_registry_platform.py",
+    "tests/projects/test_project_registry_settings.py",
+    ".work/changes/085-college-registry-test-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
