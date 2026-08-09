@@ -42,6 +42,25 @@ VALID_DISCOVER_SETTINGS = {
     "allowed_filenames": ["Makefile", "Dockerfile", "CMakeLists.txt"],
     "text_encodings": ["utf-8", "utf-8-sig", "utf-16"],
     "reject_hard_links": True,
+    "memory": {
+        "schema_version": 1,
+        "enabled": True,
+        "state_root": r"C:\Projects\.kis-mcp\discover",
+        "max_stored_bytes": 25_000_000,
+        "max_files": 5_000,
+        "max_modules": 5_000,
+        "max_symbols": 10_000,
+        "max_relationships": 20_000,
+        "fingerprint_fields": [
+            "git_revision",
+            "dirty_tree",
+            "settings",
+            "provider_version",
+        ],
+        "provider_inclusion": ["serena"],
+        "corruption_handling": "refresh_and_retain",
+        "supersession_behavior": "retain_generations",
+    },
 }
 
 
@@ -73,6 +92,9 @@ def test_discover_settings_parse_exact_json_contract() -> None:
     )
     assert settings.text_encodings == ("utf-8", "utf-8-sig", "utf-16")
     assert settings.reject_hard_links is True
+    assert settings.memory.enabled is True
+    assert settings.memory.state_root == r"C:\Projects\.kis-mcp\discover"
+    assert settings.memory.provider_inclusion == ("serena",)
 
 
 def test_checked_in_runtime_exposes_discover_settings() -> None:

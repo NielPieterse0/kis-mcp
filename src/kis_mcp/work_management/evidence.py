@@ -2,25 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import os
-import tempfile
 from dataclasses import dataclass
-from enum import StrEnum
 from pathlib import Path
 from typing import Mapping
 
+from ..evidence import EvidenceStore as SharedEvidenceStore
+from ..evidence import EvidenceWriteDisposition
 from .reviews import (
     ReviewArtifact,
     ReviewArtifactKind,
     ReviewEvidenceManifest,
 )
-
-
-class EvidenceWriteDisposition(StrEnum):
-    CREATED = "created"
-    UPDATED = "updated"
-    UNCHANGED = "unchanged"
-    CONFLICT = "conflict"
-    NOT_WRITTEN = "not_written"
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +62,12 @@ class ReviewEvidenceStore:
         self.repository_root = repository_root.resolve()
         self.max_file_bytes = max_file_bytes
         self.max_total_bytes = max_total_bytes
+        self._shared_store = SharedEvidenceStore(
+            self.repository_root,
+            max_file_bytes=max_file_bytes,
+            max_total_bytes=max_total_bytes,
+            replace_fn=lambda source, destination: os.replace(source, destination),
+        )
 
     @staticmethod
     def _artifact(
@@ -174,23 +172,20 @@ class ReviewEvidenceStore:
         }:
             return result
         artifact = self._artifact(manifest, kind)
-        target = self._target(artifact)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        descriptor, temporary_name = tempfile.mkstemp(
-            prefix=f".{target.name}.",
-            suffix=".tmp",
-            dir=target.parent,
+        shared = self._shared_store.write_bytes(
+            artifact.path,
+            payload,
+            expected_sha256=expected_sha256,
         )
-        try:
-            with os.fdopen(descriptor, "wb") as stream:
-                stream.write(payload)
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary_name, target)
-        except Exception:
-            # Retain the staged file for recovery evidence when replacement fails.
-            raise
-        return result
+        if shared.disposition is not result.disposition:
+            raise RuntimeError("shared evidence preflight diverged from review evidence contract")
+        return EvidenceWriteResult(
+            kind=kind,
+            path=artifact.path,
+            disposition=shared.disposition,
+            sha256=shared.sha256,
+            previous_sha256=shared.previous_sha256,
+        )
 
     def read_artifact(
         self,
@@ -198,13 +193,10 @@ class ReviewEvidenceStore:
         kind: ReviewArtifactKind,
     ) -> bytes:
         artifact = self._artifact(manifest, kind)
-        target = self._target(artifact)
-        if not target.is_file():
-            raise FileNotFoundError(artifact.path)
-        content = target.read_bytes()
-        if len(content) > self.max_file_bytes:
-            raise ValueError("stored evidence exceeds max_file_bytes")
-        return content
+        try:
+            return self._shared_store.read_bytes(artifact.path)
+        except ValueError as exc:
+            raise ValueError("stored evidence exceeds max_file_bytes") from exc
 
     def write_bundle(
         self,

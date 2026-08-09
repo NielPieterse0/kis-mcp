@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/context7/settings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "enabled", "namespace", "source_repository",
+    "source_revision", "package_name", "package_version",
+    "package_integrity", "node_minimum_version", "install_root",
+    "executable", "entry_point", "arguments", "environment_names"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "namespace": {"const": "context7"},
+    "source_repository": {"const": "https://github.com/upstash/context7"},
+    "source_revision": {"const": "b250c2515694eee4b6df4db82fa056df9ed3e306"},
+    "package_name": {"const": "@upstash/context7-mcp"},
+    "package_version": {"const": "3.2.5"},
+    "package_integrity": {"const": "sha512-m+GIwQKBx2yCnLN7Et3wqkuTk1iPkMySQH2i6KiUf4B9wVI0tgtjeXRcDfFZPf5rnRA3gjYhr1FqQqMb9aSRnw=="},
+    "node_minimum_version": {"type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$"},
+    "install_root": {"type": "string", "pattern": "^C:\\\\Projects\\\\\\.kis-mcp\\\\context7$"},
+    "executable": {"const": "node"},
+    "entry_point": {"type": "string", "pattern": "^C:\\\\Projects\\\\\\.kis-mcp\\\\context7\\\\"},
+    "arguments": {"const": ["--transport", "stdio"]},
+    "environment_names": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z_][A-Z0-9_]*$"}}
+  }
+}

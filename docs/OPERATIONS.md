@@ -25,6 +25,11 @@ All generated state remains inside the approved write boundary and outside the r
 C:\Projects\.kis-mcp\
 ├── .claude-server-commander\
 ├── desktop-commander\
+├── context7\
+├── serena\
+├── discover\
+│   └── projects\<project-id>\<worktree-fingerprint>\
+├── commissioning\
 ├── tools\
 │   ├── agentsys\6.0.1\
 │   └── agnix\0.45.0\
@@ -120,6 +125,8 @@ Edit only the canonical JSON files:
 
 - `settings/kis-mcp.settings.json` for identity, paths, Desktop Commander version and launch settings, Discover retrieval settings, local stdio transport, ChatGPT remote transport, and informational implementation status.
 - `settings/providers/platform-runtime.provider.json` for the exact approved mounted MCP provider IDs, runtime enablement, and unique lower-case namespaces. Do not place credentials in this file.
+- `settings/providers/context7.provider.json` for the pinned local Context7 MCP package/entry point and independent external-documentation connector contract.
+- `settings/providers/serena.provider.json` for the pinned Serena 1.6.1 installation, contained provider state, and relocatable venv-interpreter launch. Normal runtime forces `UV_OFFLINE=1`; do not replace it with the promoted `serena.exe` console launcher or allow language-server package acquisition.
 - `settings/providers/github-mcp.provider.json` for GitHub provider identity, pinned source/executable, OAuth mode, PAT-conflict metadata, and toolsets only. Do not place repository or Project routing in provider authentication settings.
 - `settings/projects.settings.json` for the strict central project registry: stable project IDs, absolute local roots, and optional GitHub repository, GitHub Project, and Supabase routing coordinates. Store no credentials here.
 - `settings/kis-repository.settings.json` only for legacy repository-settings compatibility callers; normal gateway routing is registry-backed.
@@ -131,7 +138,7 @@ The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removin
 
 The normal approved boundary is `C:\Projects`. State and quarantine roots must remain true descendants of it.
 
-`settings.discover` owns all Discover retrieval behavior: enablement, exclusions, allowed text extensions and conventional filenames, encodings, hard-link handling, and file, directory, byte, depth, traversal-time, Git, Python-index, evidence, and output budgets. Change those values in JSON rather than hard-coding new limits or exclusions. Request-side limits may only narrow configured maxima.
+`settings.discover` owns all Discover retrieval and persistent-intelligence behavior: enablement, exclusions, allowed text extensions and conventional filenames, encodings, hard-link handling, file/directory/Git/index/evidence/output budgets, plus the project-memory state root, schema version, maximum stored bytes/files/modules/symbols/relationships, fingerprint fields, provider inclusion, corruption handling, and recoverable supersession behavior. The default memory root is `C:\Projects\.kis-mcp\discover`. Change those values in JSON rather than hard-coding new limits or exclusions. Request-side limits may only narrow configured maxima. Persisted generations are derived evidence and never override newer repository, Git, documentation, contract, or registered-project evidence.
 
 `settings.remote_mcp` contains two canonical internal instances and external ChatGPT app identities:
 
@@ -162,7 +169,7 @@ Startup does not install or update packages. It requires the external locked Pyt
 
 Provider readiness rejects enabled telemetry, a missing or non-loopback feature-flag URL, and missing local Chrome when configured as required because the pinned provider source proves those states cause automatic external activity. It also requires Desktop Commander's persisted `blockedCommands` and `allowedDirectories` fields to remain empty so the provider cannot add independent command or directory restrictions beneath FastMCP.
 
-After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled GitHub, Supabase, and Control Center adapter builds in stable provider-ID order. Successful adapters mount as `github_*`, `supabase_*`, and `controlcenter_*`. NVIDIA NIM is registered in the Provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
+After the core gateway is created, startup loads the strict provider-runtime JSON and attempts enabled Context7, GitHub, Serena, Supabase, and Control Center adapter builds in stable provider-ID order. Successful adapters mount under `context7_*`, `github_*`, `serena_*`, `supabase_*`, and `controlcenter_*`. Context7 exposes only its pinned external documentation reads. Serena mounts only `get_symbols_overview`, `find_symbol`, and `find_referencing_symbols`; project activation is internal, mutation/memory tools are hidden, provider state remains beneath `C:\Projects\.kis-mcp\serena`, and `UV_OFFLINE=1` prevents language-server acquisition. Discover shares that Serena runtime when ready and otherwise uses deterministic local parsers. NVIDIA NIM is registered in the Provider catalogue but is consumed only by the advisory agent rather than mounted as a general provider passthrough. Codex CLI is a local Tool-registry adapter behind the same agent. Missing binaries, credentials, invalid builder results, transport failures, or mount failures do not prevent the Work, deterministic Discover, Skills, agent-registration, or gateway surfaces from starting. Invalid provider-runtime JSON remains a startup configuration error. Missing or invalid agent JSON disables only the optional code-review agent and its NVIDIA/Codex backends.
 
 For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. Before the mounted provider lifespan starts, aggregate tool inspection exposes only the GitHub adapter's local surface and deliberately does not connect the upstream GitHub process. After the shared client connects, a single `get_me` startup call triggers OAuth and initial upstream tool discovery publishes the current runtime tool snapshot without closing that connection. Downstream tool sessions reuse the authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated independently on every call against the GitHub repository/Project union in `settings/projects.settings.json`.
 
@@ -236,7 +243,7 @@ Current work-management routing uses the central registry binding for `kis-mcp` 
 }
 ```
 
-Request limits are optional and may only narrow values in `settings.discover.limits`. The result contains versioned repository, evidence, local Git, verification-discovery, Python-structure, confidence, truncation, and handoff records. Verification declarations are evidence only: Discover does not execute repository code, tests, builds, or discovered commands.
+Request limits are optional and may only narrow values in `settings.discover.limits`. For a root registered in `settings/projects.settings.json`, `inspect_project` creates or reuses the project/worktree generation under the configured Discover state root; `get_code_context`, `inspect_change` impact analysis, and `analyze_change` consume the same normalized intelligence. Generation applicability includes stable `project_id`, canonical/worktree identity, Git/source fingerprint, Discover settings/index fingerprints, and semantic-provider fingerprint. A stale, incompatible, or corrupt generation is never represented as current: it is refreshed on demand, with superseded/corrupt state retained recoverably. The result contains versioned repository, evidence, local Git, verification-discovery, Python-structure, persistent symbol/relationship, confidence, freshness, truncation, and handoff records. Verification declarations are evidence only: Discover does not execute repository code, tests, builds, or discovered commands.
 
 `inspect_change` is exposed through the same transports for bounded inspection of the current working tree:
 
@@ -268,6 +275,16 @@ Interpret the normal onboarding states as follows:
 - **Supabase: `Ready — authenticated`** means the persistent account-scoped client is connected and upstream tools are discovered. Explicit registered-project live verification may still be pending and is reported separately.
 
 A mounted provider is not automatically authenticated, upstream-connected, tool-discovered, or live verified. Reserve degraded, unavailable, or failed states for genuine local faults such as a missing executable, unavailable Windows credential storage, a legacy PAT conflict, invalid configuration, builder failure, mount failure, protocol failure, or runtime failure. `build_failed` with `RuntimeError` for GitHub indicates a local builder or settings failure, not a normal sign-in requirement. Do not add PATs, OAuth values, project references, or other secrets to repository JSON.
+
+For bounded Context7/Serena commissioning, run from the source checkout through the locked environment:
+
+```powershell
+$env:UV_PROJECT_ENVIRONMENT='C:\Projects\.kis-mcp\python-env'
+$env:UV_CACHE_DIR='C:\Projects\.kis-mcp\uv-cache'
+uv run --offline --no-sync python scripts\run-provider-live-smoke.py
+```
+
+The smoke validates local Context7 MCP startup/tool discovery without bypassing HR-002, starts Serena with `UV_OFFLINE=1`, performs bounded semantic reads, and proves Serena HR3-07 memory safety by quarantining the exact pinned 1.6.1 delete artifact, restoring it, restarting Serena, and rechecking the derived memory catalogue/content. The smoke stores test projects beneath `C:\Projects\.kis-mcp\commissioning`; it never treats Serena `.serena/memories` as KIS project memory and never forwards permanent deletion after successful quarantine.
 
 ## Authenticate GitHub MCP
 

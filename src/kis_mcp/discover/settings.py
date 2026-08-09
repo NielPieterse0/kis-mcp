@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import codecs
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
+from pathlib import PureWindowsPath
 from typing import Any
 
 _ROOT_KEYS = {
@@ -13,7 +14,25 @@ _ROOT_KEYS = {
     "allowed_filenames",
     "text_encodings",
     "reject_hard_links",
+    "memory",
 }
+_MEMORY_KEYS = {
+    "schema_version",
+    "enabled",
+    "state_root",
+    "max_stored_bytes",
+    "max_files",
+    "max_modules",
+    "max_symbols",
+    "max_relationships",
+    "fingerprint_fields",
+    "provider_inclusion",
+    "corruption_handling",
+    "supersession_behavior",
+}
+_FINGERPRINT_FIELDS = frozenset({"git_revision", "dirty_tree", "settings", "provider_version"})
+_CORRUPTION_HANDLING = frozenset({"refresh_and_retain", "fail_closed"})
+_SUPERSESSION_BEHAVIOR = frozenset({"retain_generations"})
 _LIMIT_KEYS = {
     "max_files",
     "max_directories",
@@ -68,6 +87,12 @@ def _positive_int(value: Any, label: str) -> int:
 def _boolean(value: Any, label: str) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{label} must be a boolean")
+    return value
+
+
+def _choice(value: Any, label: str, allowed: frozenset[str]) -> str:
+    if not isinstance(value, str) or value not in allowed:
+        raise ValueError(f"{label} must be one of: {', '.join(sorted(allowed))}")
     return value
 
 
@@ -133,6 +158,56 @@ class DiscoverLimits:
 
 
 @dataclass(frozen=True, slots=True)
+class DiscoverMemorySettings:
+    schema_version: int
+    enabled: bool
+    state_root: str
+    max_stored_bytes: int
+    max_files: int
+    max_modules: int
+    max_symbols: int
+    max_relationships: int
+    fingerprint_fields: tuple[str, ...]
+    provider_inclusion: tuple[str, ...]
+    corruption_handling: str
+    supersession_behavior: str
+
+    @classmethod
+    def from_mapping(cls, value: Any) -> "DiscoverMemorySettings":
+        data = _object(value, "settings.discover.memory")
+        _exact_keys(data, _MEMORY_KEYS, "settings.discover.memory")
+        if data["schema_version"] != 1:
+            raise ValueError("settings.discover.memory.schema_version must be 1")
+        state_root = str(data["state_root"]).strip()
+        path = PureWindowsPath(state_root)
+        approved = PureWindowsPath(r"C:\Projects\.kis-mcp")
+        if not path.is_absolute() or str(path).casefold() == str(approved).casefold():
+            raise ValueError("settings.discover.memory.state_root must be beneath C:\\Projects\\.kis-mcp")
+        try:
+            path.relative_to(approved)
+        except ValueError as exc:
+            raise ValueError("settings.discover.memory.state_root must be beneath C:\\Projects\\.kis-mcp") from exc
+        fields = _strings(data["fingerprint_fields"], "settings.discover.memory.fingerprint_fields")
+        if set(fields) != set(_FINGERPRINT_FIELDS):
+            raise ValueError("settings.discover.memory.fingerprint_fields must contain the supported fingerprint fields")
+        providers = _strings(data["provider_inclusion"], "settings.discover.memory.provider_inclusion", allow_empty=True)
+        return cls(
+            schema_version=1,
+            enabled=_boolean(data["enabled"], "settings.discover.memory.enabled"),
+            state_root=str(path),
+            max_stored_bytes=_positive_int(data["max_stored_bytes"], "settings.discover.memory.max_stored_bytes"),
+            max_files=_positive_int(data["max_files"], "settings.discover.memory.max_files"),
+            max_modules=_positive_int(data["max_modules"], "settings.discover.memory.max_modules"),
+            max_symbols=_positive_int(data["max_symbols"], "settings.discover.memory.max_symbols"),
+            max_relationships=_positive_int(data["max_relationships"], "settings.discover.memory.max_relationships"),
+            fingerprint_fields=tuple(sorted(fields)),
+            provider_inclusion=tuple(sorted(providers)),
+            corruption_handling=_choice(data["corruption_handling"], "settings.discover.memory.corruption_handling", _CORRUPTION_HANDLING),
+            supersession_behavior=_choice(data["supersession_behavior"], "settings.discover.memory.supersession_behavior", _SUPERSESSION_BEHAVIOR),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DiscoverSettings:
     enabled: bool
     limits: DiscoverLimits
@@ -141,6 +216,22 @@ class DiscoverSettings:
     allowed_filenames: tuple[str, ...]
     text_encodings: tuple[str, ...]
     reject_hard_links: bool
+    memory: DiscoverMemorySettings = field(
+        default_factory=lambda: DiscoverMemorySettings(
+            schema_version=1,
+            enabled=True,
+            state_root=r"C:\Projects\.kis-mcp\discover",
+            max_stored_bytes=25_000_000,
+            max_files=5_000,
+            max_modules=5_000,
+            max_symbols=10_000,
+            max_relationships=20_000,
+            fingerprint_fields=tuple(sorted(_FINGERPRINT_FIELDS)),
+            provider_inclusion=("serena",),
+            corruption_handling="refresh_and_retain",
+            supersession_behavior="retain_generations",
+        )
+    )
 
     @classmethod
     def from_mapping(cls, value: Any) -> "DiscoverSettings":
@@ -182,7 +273,8 @@ class DiscoverSettings:
             reject_hard_links=_boolean(
                 data["reject_hard_links"], "settings.discover.reject_hard_links"
             ),
+            memory=DiscoverMemorySettings.from_mapping(data["memory"]),
         )
 
 
-__all__ = ["DiscoverLimits", "DiscoverSettings"]
+__all__ = ["DiscoverLimits", "DiscoverMemorySettings", "DiscoverSettings"]

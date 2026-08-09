@@ -33,7 +33,7 @@ Govern   → evaluate evidence against declared standards
 Work     → perform controlled change under HR-001 / HR-002 / HR-003
 ```
 
-The current gateway implements Work, bounded Discover, Skills, Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow descriptors and recommendations, effect-specific long-tail dispatch, quarantine operations, and one executable advisory code-review workflow. Govern remains target-state work.
+The current gateway implements Work, bounded Discover with persistent registered-project intelligence, Skills, Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow descriptors and recommendations, effect-specific long-tail dispatch, quarantine operations, and one executable advisory code-review workflow. Discover persists bounded derived Code Atlas, Symbol Atlas, and Relationship Graph generations beneath the central KIS state root and may enrich them with optional normalized Serena semantics; repository/Git/document evidence remains authoritative. Govern remains target-state work.
 
 ### Capability exposure
 
@@ -54,9 +54,9 @@ The future platform model does not alter the closed Work enforcement decision se
 |---|---|
 | Desktop Commander | Provides ordinary filesystem, edit, search, process, testing, and local-development tools. |
 | FastMCP gateway | Composes domain platform entry points, owns instance-scoped capability and readiness state, presents the curated tool surface, evaluates concrete Work invocations, and forwards allowed calls through original contracts. |
-| Discover module | Exposes bounded `inspect_project` and working-tree `inspect_change`; also contains tested internal change-target, context, impact, contract, project-catalog, and provider-admission services. |
+| Discover module | Exposes bounded `inspect_project`, `inspect_change`, `get_code_context`, and `analyze_change`; all share one registered-project intelligence service that persists bounded Code Atlas, Symbol Atlas, and Relationship Graph generations with freshness/fingerprint/provenance metadata and deterministic local fallback. |
 | Skills module | Resolves the approved shared catalogue, overlays reviewed category and capability metadata, contributes Skills to the normalized catalogue, and routes create/improve mutations back through Work middleware. |
-| Provider runtime | Registers Desktop Commander, GitHub MCP, NVIDIA NIM, and Supabase descriptors; mounts enabled GitHub and Supabase adapters under unique namespaces; owns runtime-scoped authenticated provider clients independently from registry-backed project routing; contains failures; and reports readiness and commissioning separately. |
+| Provider runtime | Registers Desktop Commander, Context7 MCP, GitHub MCP, NVIDIA NIM, Serena MCP, Supabase, and Control Center descriptors; mounts enabled connectors under unique namespaces; keeps Context7 independent from project memory; exposes Serena only through a read-only semantic surface with offline-enforced startup; owns runtime-scoped provider clients; contains failures; and reports readiness and commissioning separately. |
 | Capability composition | Normalizes Provider, Tool, Discover, Skill, and Workflow contributions; evaluates readiness and eligibility; scores explainable recommendations; and plans direct, discoverable, or status-only exposure. |
 | Tools and workflows | Registers local executable adapters such as Codex CLI, contributes normalized operations, describes complete user workflows, and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection. |
 | Managed bootstrap tooling | Installs pinned AgentSys and agnix distributions beneath `C:\Projects`, creates isolated host profiles, validates staged state, and preserves replaced state through quarantine without mounting either tool into the gateway. |
@@ -214,8 +214,10 @@ Tool breadth, arbitrary arguments, incomplete prediction of all possible side ef
 All project settings and policy declarations are JSON.
 
 - `settings/kis-mcp.settings.json` defines identity, paths, provider source/version/launch configuration, Discover retrieval settings, the local stdio transport, and the ChatGPT remote transport.
-- `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, and all file, directory, byte, depth, time, Git, Python-index, evidence, and output budgets.
+- `settings.discover` defines the enable flag, exclusions, text types, encodings, hard-link behavior, file/directory/Git/index/output budgets, and the strict persistent-intelligence block: central state root, schema version, stored-byte/file/module/symbol/relationship limits, fingerprint fields, provider inclusion, corruption handling, and recoverable supersession behavior.
 - `settings/providers/platform-runtime.provider.json` selects exactly the approved mounted MCP provider IDs, records runtime enablement, and assigns unique lower-case namespaces. It contains no credentials.
+- `settings/providers/context7.provider.json` pins the independent Context7 external-documentation MCP installation and launch contract; it is not a Discover project-memory source.
+- `settings/providers/serena.provider.json` pins Serena `1.6.1`, the relocatable venv-interpreter launch contract, contained provider state roots, and semantic-provider identity. Runtime startup enforces `UV_OFFLINE=1`; Serena's own `.serena/memories` files are provider-managed state, not KIS project memory.
 - `settings/providers/github-mcp.provider.json` contains only GitHub provider identity, pinned executable/source, OAuth mode, PAT-conflict metadata, and toolsets. Repository and GitHub Project routing are not provider-authentication settings.
 - `settings/projects.settings.json` is the strict central project registry. It maps stable project IDs to absolute local roots and optional GitHub repository, GitHub Project, and Supabase routing coordinates without storing credentials.
 - `settings/kis-repository.settings.json` remains a legacy compatibility source for callers that explicitly use the repository-settings loader; gateway composition uses the central registry-backed selector instead.

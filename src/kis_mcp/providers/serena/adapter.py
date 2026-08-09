@@ -1,0 +1,333 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+from collections.abc import Mapping, Sequence
+from pathlib import Path
+from threading import get_ident
+from typing import Any
+
+from fastmcp import Client, FastMCP
+from fastmcp.client.transports import StdioTransport
+from fastmcp.server.transforms.visibility import Visibility
+
+from ...discover.semantic import (
+    SemanticEvidence,
+    SemanticRelationship,
+    SemanticSymbol,
+)
+from ..client_runtime import (
+    PersistentClientProxyProvider,
+    ProviderRuntimeToolState,
+    ProviderStartupCall,
+    ProviderStartupState,
+)
+from .settings import SerenaSettings
+
+_PUBLIC_READ_TOOLS = frozenset(
+    {
+        "get_symbols_overview",
+        "find_symbol",
+        "find_referencing_symbols",
+    }
+)
+_SUPPORTED_SUFFIXES = frozenset({".py", ".js", ".jsx", ".ts", ".tsx"})
+
+
+def _result_text(result: Any) -> str:
+    texts = [
+        text
+        for block in getattr(result, "content", ())
+        if isinstance((text := getattr(block, "text", None)), str)
+    ]
+    return "\n".join(texts).strip()
+
+
+def _provider_environment(
+    settings: SerenaSettings,
+    source: Mapping[str, str],
+) -> dict[str, str]:
+    environment = {
+        key: source[key]
+        for key in ("PATH", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT")
+        if source.get(key)
+    }
+    environment.update(
+        {
+            "HOME": str(settings.home_root),
+            "USERPROFILE": str(settings.home_root),
+            "APPDATA": str(settings.home_root / "AppData" / "Roaming"),
+            "LOCALAPPDATA": str(settings.home_root / "AppData" / "Local"),
+            "TEMP": str(settings.temp_root),
+            "TMP": str(settings.temp_root),
+            "SERENA_USAGE_REPORTING": "false",
+            "UV_OFFLINE": "1",
+        }
+    )
+    return environment
+
+
+class _SharedProviderClient:
+    def __init__(self, inner: Any, owner: "SerenaRuntimeAdapter") -> None:
+        self._inner = inner
+        self._owner = owner
+
+    async def __aenter__(self):
+        active = await self._inner.__aenter__()
+        self._owner._publish_active_client(active)
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        try:
+            await self._inner.__aexit__(*args)
+        finally:
+            self._owner._clear_active_client()
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> object:
+        return await self._inner.call_tool(name, arguments)
+
+    async def list_tools(self) -> Sequence[Any]:
+        return await self._inner.list_tools()
+
+
+class SerenaRuntimeAdapter:
+    provider_id = "serena-mcp"
+
+    def __init__(
+        self,
+        settings: SerenaSettings,
+        *,
+        environment: Mapping[str, str] | None = None,
+        default_project: str | None = None,
+        client_factory=Client,
+    ) -> None:
+        self.settings = settings
+        self.environment = os.environ if environment is None else environment
+        self.default_project = default_project
+        self.client_factory = client_factory
+        self.startup_state = ProviderStartupState()
+        self.runtime_tools = ProviderRuntimeToolState()
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._loop_thread_id: int | None = None
+        self._active_client: Any | None = None
+
+    @property
+    def provider_version(self) -> str:
+        return self.settings.package_version
+
+    @property
+    def state_fingerprint(self) -> str:
+        return f"{self.settings.source_revision}:{self.settings.package_sha256}:offline"
+
+    def _publish_active_client(self, client: Any) -> None:
+        self._active_client = client
+        self._loop = asyncio.get_running_loop()
+        self._loop_thread_id = get_ident()
+
+    def _clear_active_client(self) -> None:
+        self._active_client = None
+        self._loop = None
+        self._loop_thread_id = None
+
+    def build_server(self) -> FastMCP:
+        if not self.settings.executable.is_file():
+            raise RuntimeError("Serena pinned venv interpreter is missing")
+        cwd = self.default_project or str(Path(__file__).resolve().parents[4])
+        transport = StdioTransport(
+            command=str(self.settings.executable),
+            args=list(self.settings.arguments),
+            cwd=cwd,
+            env=_provider_environment(self.settings, self.environment),
+        )
+        shared_client = _SharedProviderClient(self.client_factory(transport), self)
+        startup_call = (
+            ProviderStartupCall("activate_project", {"project": self.default_project})
+            if self.default_project
+            else None
+        )
+        provider = PersistentClientProxyProvider(
+            shared_client,
+            startup_call=startup_call,
+            startup_state=self.startup_state,
+            runtime_tools=self.runtime_tools,
+        )
+        server = FastMCP("kis-mcp-serena")
+        server.add_provider(provider)
+        server.add_transform(Visibility(False, match_all=True))
+        server.add_transform(Visibility(True, names=set(_PUBLIC_READ_TOOLS)))
+        return server
+
+    def _call_sync(self, name: str, arguments: Mapping[str, Any]) -> Any:
+        if self._active_client is None or self._loop is None:
+            raise RuntimeError("Serena runtime client is not active")
+        if self._loop_thread_id == get_ident():
+            raise RuntimeError("Serena semantic read cannot block its provider event loop")
+        future = asyncio.run_coroutine_threadsafe(
+            self._active_client.call_tool(name, dict(arguments)),
+            self._loop,
+        )
+        return future.result(timeout=90)
+
+    @staticmethod
+    def _json_result(result: Any) -> Any:
+        if getattr(result, "is_error", False):
+            raise RuntimeError("Serena semantic read returned an MCP error")
+        text = _result_text(result)
+        if not text:
+            return None
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Serena semantic read returned non-JSON evidence") from exc
+
+    def read(
+        self,
+        project_path: str,
+        source_paths: tuple[str, ...] = (),
+    ) -> SemanticEvidence:
+        self._call_sync("activate_project", {"project": project_path})
+        symbols: list[SemanticSymbol] = []
+        relationships: list[SemanticRelationship] = []
+        unknowns: list[str] = []
+        selected_paths = tuple(
+            path
+            for path in source_paths
+            if Path(path).suffix.casefold() in _SUPPORTED_SUFFIXES
+        )[:64]
+
+        for path in selected_paths:
+            try:
+                overview = self._json_result(
+                    self._call_sync(
+                        "get_symbols_overview",
+                        {"relative_path": path, "depth": 0, "max_answer_chars": 8000},
+                    )
+                )
+            except Exception as exc:
+                unknowns.append(f"Serena overview unavailable for {path}: {type(exc).__name__}")
+                continue
+            if not isinstance(overview, dict):
+                continue
+            for kind, names in overview.items():
+                if not isinstance(names, list):
+                    continue
+                for raw_name in names:
+                    if not isinstance(raw_name, str) or not raw_name.strip():
+                        continue
+                    symbols.append(
+                        SemanticSymbol(
+                            qualified_name=f"{path}::{raw_name.strip()}",
+                            name=raw_name.strip(),
+                            kind=str(kind).casefold(),
+                            path=path,
+                            line=1,
+                            language=Path(path).suffix.casefold().lstrip("."),
+                        )
+                    )
+                    if len(symbols) >= 512:
+                        break
+                if len(symbols) >= 512:
+                    break
+            if len(symbols) >= 512:
+                break
+
+        refined: list[SemanticSymbol] = []
+        for item in symbols[:64]:
+            try:
+                found = self._json_result(
+                    self._call_sync(
+                        "find_symbol",
+                        {
+                            "name_path_pattern": item.name,
+                            "relative_path": item.path,
+                            "include_body": False,
+                            "depth": 0,
+                            "max_matches": 2,
+                            "max_answer_chars": 4000,
+                        },
+                    )
+                )
+            except Exception:
+                refined.append(item)
+                continue
+            record = found[0] if isinstance(found, list) and found else None
+            location = record.get("body_location") if isinstance(record, dict) else None
+            if not isinstance(record, dict) or not isinstance(location, dict):
+                refined.append(item)
+                continue
+            refined.append(
+                SemanticSymbol(
+                    qualified_name=f"{record.get('relative_path', item.path)}::{record.get('name_path', item.name)}",
+                    name=str(record.get("name_path", item.name)).split("/")[-1],
+                    kind=str(record.get("kind", item.kind)).casefold(),
+                    path=str(record.get("relative_path", item.path)).replace("\\", "/"),
+                    line=int(location.get("start_line", 0)) + 1,
+                    end_line=int(location.get("end_line", 0)) + 1,
+                    language=item.language,
+                )
+            )
+        refined.extend(symbols[len(refined) :])
+        symbols = refined
+
+        for item in symbols[:8]:
+            try:
+                result = self._call_sync(
+                    "find_referencing_symbols",
+                    {
+                        "name_path": item.name,
+                        "relative_path": item.path,
+                        "max_answer_chars": 12000,
+                    },
+                )
+                text = _result_text(result)
+                marker = "References without surrounding lines:\n"
+                if marker in text:
+                    text = text.split(marker, 1)[1]
+                payload = json.loads(text)
+            except Exception as exc:
+                unknowns.append(
+                    f"Serena references unavailable for {item.path}::{item.name}: {type(exc).__name__}"
+                )
+                continue
+            if isinstance(payload, dict):
+                for raw_path, by_kind in payload.items():
+                    if not isinstance(by_kind, dict):
+                        continue
+                    for records in by_kind.values():
+                        if not isinstance(records, list):
+                            continue
+                        for record in records:
+                            if not isinstance(record, dict):
+                                continue
+                            relationships.append(
+                                SemanticRelationship(
+                                    kind="reference",
+                                    source=str(record.get("name_path", raw_path)),
+                                    target=item.qualified_name,
+                                    path=str(raw_path).replace("\\", "/"),
+                                    line=int(record.get("reference_line", 0)) + 1,
+                                )
+                            )
+                            if len(relationships) >= 256:
+                                break
+                        if len(relationships) >= 256:
+                            break
+                    if len(relationships) >= 256:
+                        break
+            if len(relationships) >= 256:
+                break
+
+        status = "ready" if symbols else "partial"
+        if not selected_paths:
+            unknowns.append("Serena has no supported source files in this bounded snapshot.")
+        elif not symbols:
+            unknowns.append("Serena returned no semantic symbols; deterministic local parsing remains active.")
+        return SemanticEvidence(
+            provider_id=self.provider_id,
+            provider_version=self.provider_version,
+            status=status,
+            symbols=tuple(symbols),
+            relationships=tuple(relationships),
+            unknowns=tuple(unknowns),
+        )

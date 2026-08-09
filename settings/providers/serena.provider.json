@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "namespace": "serena",
+  "source_repository": "https://github.com/oraios/serena",
+  "source_revision": "bcac0969fb8685783ea6d0f2642468fcc47e6395",
+  "package_name": "serena-agent",
+  "package_version": "1.6.1",
+  "package_sha256": "04ddd985bd3feb25598ab8732bf3a998f961d5b46dce271b816126c0a68a91e1",
+  "project_boundary": "C:\\Projects",
+  "install_root": "C:\\Projects\\.kis-mcp\\serena",
+  "executable": "C:\\Projects\\.kis-mcp\\serena\\venv\\Scripts\\python.exe",
+  "arguments": ["-c", "from serena.cli import top_level; top_level()", "start-mcp-server", "--context=codex", "--project-from-cwd", "--enable-web-dashboard=false", "--open-web-dashboard=false", "--enable-gui-log-window=false"],
+  "home_root": "C:\\Projects\\.kis-mcp\\serena\\home",
+  "config_root": "C:\\Projects\\.kis-mcp\\serena\\home\\.serena",
+  "cache_root": "C:\\Projects\\.kis-mcp\\serena\\cache",
+  "log_root": "C:\\Projects\\.kis-mcp\\serena\\logs",
+  "temp_root": "C:\\Projects\\.kis-mcp\\serena\\temp",
+  "language_server_root": "C:\\Projects\\.kis-mcp\\serena\\language-servers",
+  "global_memory_root": "C:\\Projects\\.kis-mcp\\serena\\home\\.serena\\memories",
+  "project_data_directory": ".serena",
+  "environment_names": ["APPDATA", "HOME", "LOCALAPPDATA", "SERENA_USAGE_REPORTING", "TEMP", "TMP", "USERPROFILE"]
+}

@@ -12,6 +12,7 @@ from .context_contracts import CodeContextBudget, GetCodeContextRequest
 from .contracts import Confidence, InspectProjectRequest
 from .git_reader import GitReader
 from .impact_contracts import ImpactBudget
+from .intelligence import ProjectIntelligenceService
 from .read_authority import ReadAuthority
 from .service import InspectProjectService
 from .settings import DiscoverSettings
@@ -36,13 +37,25 @@ class PlanChangeService:
         boundary: Path,
         settings: DiscoverSettings,
         max_claims: int | None = None,
+        intelligence_service: ProjectIntelligenceService | None = None,
     ) -> None:
         self._boundary = boundary
         self._settings = settings
         self._authority = ReadAuthority(boundary, settings)
-        self._project = InspectProjectService(boundary=boundary, settings=settings)
+        shared_intelligence = intelligence_service or ProjectIntelligenceService(
+            boundary=boundary,
+            settings=settings,
+        )
+        self._project = InspectProjectService(
+            boundary=boundary,
+            settings=settings,
+            intelligence_service=shared_intelligence,
+        )
         reader = GitReader(authority=self._authority, settings=settings)
-        self._change = InspectChangeService(reader)
+        self._change = InspectChangeService(
+            reader,
+            intelligence_service=shared_intelligence,
+        )
         self._max_claims = min(max_claims or settings.limits.max_evidence, settings.limits.max_evidence)
 
     def plan(self, request: PlanChangeRequest) -> PlanChangeResponse:

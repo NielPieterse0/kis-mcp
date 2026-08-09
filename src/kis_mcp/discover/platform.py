@@ -5,9 +5,12 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from ..config import RuntimeConfig
+from ..projects import ProjectRegistry
 from .change_service import InspectChangeService
 from .git_reader import GitReader
+from .intelligence import ProjectIntelligenceService
 from .read_authority import ReadAuthority
+from .semantic import SemanticEvidenceProvider
 from .service import InspectProjectService
 from .planning import PlanChangeService
 from .tools import register_change_tools, register_discover_tools, register_plan_change_tool
@@ -101,19 +104,34 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
     )
 
 
-def register_platform_discover(server: FastMCP, runtime: RuntimeConfig) -> None:
+def register_platform_discover(
+    server: FastMCP,
+    runtime: RuntimeConfig,
+    projects: ProjectRegistry | None = None,
+    semantic_provider: SemanticEvidenceProvider | None = None,
+) -> None:
+    boundary = Path(runtime.project_boundary)
+    intelligence = ProjectIntelligenceService(
+        boundary=boundary,
+        settings=runtime.discover_settings,
+        projects=projects,
+        semantic_provider=semantic_provider,
+    )
     register_discover_tools(
         server,
         InspectProjectService(
-            boundary=Path(runtime.project_boundary),
+            boundary=boundary,
             settings=runtime.discover_settings,
+            projects=projects,
+            intelligence_service=intelligence,
         ),
     )
     register_plan_change_tool(
         server,
         PlanChangeService(
-            boundary=Path(runtime.project_boundary),
+            boundary=boundary,
             settings=runtime.discover_settings,
+            intelligence_service=intelligence,
         ),
     )
     change_server = FastMCP("kis-mcp-discover-change")
@@ -121,12 +139,10 @@ def register_platform_discover(server: FastMCP, runtime: RuntimeConfig) -> None:
         change_server,
         InspectChangeService(
             GitReader(
-                authority=ReadAuthority(
-                    Path(runtime.project_boundary),
-                    runtime.discover_settings,
-                ),
+                authority=ReadAuthority(boundary, runtime.discover_settings),
                 settings=runtime.discover_settings,
-            )
+            ),
+            intelligence_service=intelligence,
         ),
     )
     server.mount(change_server)
