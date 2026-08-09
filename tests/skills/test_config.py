@@ -26,8 +26,8 @@ def _valid_payload() -> dict[str, object]:
         "root": APPROVED_SKILLS_ROOT,
         "staging_root": APPROVED_SKILLS_STAGING_ROOT,
         "limits": {
-            "max_file_bytes": 512_000,
-            "max_skill_bytes": 2_000_000,
+            "max_file_bytes": 2_000_000,
+            "max_skill_bytes": 3_000_000,
             "list_default_limit": 20,
             "list_max_limit": 100,
             "search_default_limit": 10,
@@ -48,7 +48,13 @@ def _valid_payload() -> dict[str, object]:
                 ".txt",
                 ".toml",
                 ".png",
+                ".svg",
+                ".css",
+                ".html",
+                ".js",
+                ".ttl",
             ],
+            "allowed_filenames": ["LICENSE"],
             "reject_links": True,
             "reject_reparse_points": True,
             "reject_hard_links": True,
@@ -64,9 +70,13 @@ def test_load_skills_config_accepts_exact_approved_roots(tmp_path: Path) -> None
 
     assert str(config.root) == APPROVED_SKILLS_ROOT
     assert str(config.staging_root) == APPROVED_SKILLS_STAGING_ROOT
-    assert config.limits.max_file_bytes == 512_000
+    assert config.limits.max_file_bytes == 2_000_000
+    assert config.limits.max_skill_bytes == 3_000_000
     assert config.limits.search_max_limit == 50
     assert config.validation.allowed_suffixes[0] == ".md"
+    assert ".svg" in config.validation.allowed_suffixes
+    assert ".js" in config.validation.allowed_suffixes
+    assert config.validation.allowed_filenames == ("LICENSE",)
     assert config.validation.skill_id_pattern.fullmatch("modularity-assessment")
 
 

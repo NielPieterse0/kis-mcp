@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "change_id": "081-skills-asset-compatibility",
+  "status": "active",
+  "branch": "change/081-skills-asset-compatibility",
+  "worktree": ".work/worktrees/081-skills-asset-compatibility",
+  "base": "main",
+  "outcome": "Restore Skills catalogue compatibility with approved packaged skill assets without permitting arbitrary extensionless files.",
+  "owned_paths": [
+    "settings/skills.settings.json",
+    "settings/capabilities.settings.json",
+    "contracts/skills/settings.schema.json",
+    "src/kis_mcp/skills/config.py",
+    "src/kis_mcp/skills/source.py",
+    "tests/skills/test_config.py",
+    "tests/skills/test_catalogue.py",
+    "tests/capabilities/test_capability_settings.py",
+    "tests/capabilities/test_domain_platforms.py",
+    ".work/changes/081-skills-asset-compatibility/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

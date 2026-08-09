@@ -3,8 +3,8 @@
   "root": "C:\\Projects\\.agents\\skills",
   "staging_root": "C:\\Projects\\.kis-mcp\\temp\\skills",
   "limits": {
-    "max_file_bytes": 512000,
-    "max_skill_bytes": 2000000,
+    "max_file_bytes": 2000000,
+    "max_skill_bytes": 3000000,
     "list_default_limit": 20,
     "list_max_limit": 100,
     "search_default_limit": 10,
@@ -24,7 +24,15 @@
       ".sh",
       ".txt",
       ".toml",
-      ".png"
+      ".png",
+      ".svg",
+      ".css",
+      ".html",
+      ".js",
+      ".ttl"
+    ],
+    "allowed_filenames": [
+      "LICENSE"
     ],
     "reject_links": true,
     "reject_reparse_points": true,
