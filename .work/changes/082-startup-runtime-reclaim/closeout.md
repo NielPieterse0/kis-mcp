@@ -24,9 +24,9 @@
 
 - Branch: `change/082-startup-runtime-reclaim`
 - Worktree: `.work/worktrees/082-startup-runtime-reclaim`
-- Commit: pending final verification.
-- Pull request or merge: pending final verification.
-- Cleanup: pending merge.
+- Implementation commit: `5ad41835d844c013d94ae2c3da864eb8c0f98aff`.
+- Merge: verified implementation fast-forwarded to local `main` at the same SHA before this metadata closeout commit.
+- Cleanup: pending this closed metadata commit being merged to `main`.
 
 ## Recovery
 

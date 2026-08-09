@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "082-startup-runtime-reclaim",
-  "status": "active",
+  "status": "closed",
   "branch": "change/082-startup-runtime-reclaim",
   "worktree": ".work/worktrees/082-startup-runtime-reclaim",
   "base": "main",

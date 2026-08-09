@@ -10,5 +10,6 @@
 - [x] Run `pwsh -NoProfile -File scripts/change-workflow.ps1 check`.
 - [x] Run focused tests and `pwsh -NoProfile -File scripts/verify.ps1`.
 - [x] Record review and closeout evidence.
-- [ ] Merge and run safe cleanup from `main`.
+- [x] Merge the verified implementation to local `main`.
+- [ ] Run safe governed cleanup from `main`.
 - [ ] Start and commission fresh `kis-op` from clean `main`.
