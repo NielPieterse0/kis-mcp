@@ -21,4 +21,9 @@
 - Focused 085 + existing GitHub Project adapter suites: 22/22 passed; the final settings/project-onboarding regression set passed 10/10 after reconciling the stale `reconciliation=read_only` assertion left behind by the now-closed parallel change.
 - Final canonical `scripts/verify.ps1` on the integrated 085 worktree passed at 100% pytest completion with two existing expected skips; configuration, interpreter, dependencies, Python syntax, change governance, and repository line-ending checks all passed.
 - External code-review backend was attempted and failed with `NvidiaNimError`; direct diff review and focused/full verification found no blocking 085 defect.
-- Final high-level reconciliation replay/conflict/Done proof remains post-reload evidence.
+- Fresh `kis-dev` reload completed on the integrated 085 `main` tree.
+- High-level reconciliation preview for issue #102 produced `update` from `In Progress` to `Done` at observed revision `2026-08-09T12:03:24Z`.
+- Apply with idempotency key `085-closeout-done-v1` succeeded and returned provider revision `2026-08-09T16:31:47Z`; replaying the identical request with the same key returned the identical successful outcome without a second command.
+- A second apply request with stale expected revision `2026-08-09T12:03:24Z` against observed revision `2026-08-09T16:31:47Z` returned `action=conflict`, `applied=false`, `success=false`.
+- Final live Project item `225838119` is `Status=Done`; issue #102 is closed/completed; bounded Project inventory contains exactly one item and `hasNextPage=false`.
+- 085 implementation and commissioning are complete; only governed worktree/branch cleanup remains after repository-wide final integration.
