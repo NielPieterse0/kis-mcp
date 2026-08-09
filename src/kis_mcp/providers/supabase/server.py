@@ -33,7 +33,11 @@ from .config import (
     SupabaseProviderConfigError,
     load_supabase_provider_config,
 )
-from .routing import SupabaseProjectRouting, SupabaseProjectRoutingMiddleware
+from .routing import (
+    SupabaseCommissioningState,
+    SupabaseProjectRouting,
+    SupabaseProjectRoutingMiddleware,
+)
 from .runtime import (
     SupabaseProviderRuntimeError,
     build_oauth_token_storage,
@@ -106,6 +110,7 @@ def build_server(
     client_factory: Callable[[Any], Any] = Client,
     startup_state: ProviderStartupState | None = None,
     runtime_tools: ProviderRuntimeToolState | None = None,
+    commissioning_state: SupabaseCommissioningState | None = None,
 ) -> FastMCP:
     runtime = config or load_supabase_provider_config()
     runtime_environment = environment if environment is not None else os.environ
@@ -113,6 +118,7 @@ def build_server(
     server = FastMCP(runtime.server_name)
     shared_startup_state = startup_state or ProviderStartupState()
     shared_runtime_tools = runtime_tools or ProviderRuntimeToolState()
+    shared_commissioning_state = commissioning_state or SupabaseCommissioningState()
 
     if readiness.ready:
         transport = build_transport(runtime, runtime_environment)
@@ -125,7 +131,8 @@ def build_server(
         projects = project_registry or load_project_registry_settings()
         server.add_middleware(
             SupabaseProjectRoutingMiddleware(
-                SupabaseProjectRouting(projects, shared_runtime_tools.snapshot)
+                SupabaseProjectRouting(projects, shared_runtime_tools.snapshot),
+                shared_commissioning_state,
             )
         )
 
@@ -142,6 +149,7 @@ def provider_health(
     config: SupabaseProviderConfig | None = None,
     environment: Mapping[str, str] | None = None,
     startup_state: ProviderStartupState | None = None,
+    commissioning_state: SupabaseCommissioningState | None = None,
 ) -> ProviderReadiness:
     """Return account-OAuth preflight and runtime-lifetime connection readiness."""
 
@@ -206,13 +214,19 @@ def provider_health(
             "label": "Ready — authenticated",
             "required_action": "No authentication action is required for this running KIS runtime.",
         }
+        live_verified = (
+            "ready_registered_project_read"
+            if commissioning_state is not None
+            and commissioning_state.registered_project_read_verified
+            else "pending_registered_project_read"
+        )
         commissioning = {
             "installed": "ready",
             "configured": "ready",
             "authenticated": "ready",
             "upstream_connected": "ready",
             "tools_discovered": "ready",
-            "live_verified": "pending_registered_project_read",
+            "live_verified": live_verified,
         }
     else:
         state = ProviderState.READY
@@ -256,6 +270,7 @@ def build_provider_descriptor(
     runtime = config or load_supabase_provider_config()
     startup_state = ProviderStartupState()
     runtime_tools = ProviderRuntimeToolState()
+    commissioning_state = SupabaseCommissioningState()
     return ProviderDescriptor(
         provider_id=runtime.provider_id,
         display_name="Supabase MCP",
@@ -277,10 +292,12 @@ def build_provider_descriptor(
             runtime,
             startup_state=startup_state,
             runtime_tools=runtime_tools,
+            commissioning_state=commissioning_state,
         ),
         readiness_probe=lambda: provider_health(
             runtime,
             startup_state=startup_state,
+            commissioning_state=commissioning_state,
         ),
         runtime_tools_probe=runtime_tools.snapshot,
     )
