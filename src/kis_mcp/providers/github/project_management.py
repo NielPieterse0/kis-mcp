@@ -139,7 +139,17 @@ def _revision(item: Mapping[str, Any], operation: str) -> str | None:
 
 
 def _item_id(item: Mapping[str, Any], operation: str) -> str:
-    return _required_text(item.get("id", item.get("item_id")), f"{operation} item id")
+    candidate = item.get("item_id", item.get("id"))
+    if isinstance(candidate, bool) or not isinstance(candidate, (str, int)):
+        raise GitHubProjectManagementError(
+            f"GITHUB_PROJECT_MANAGEMENT_INVALID_RESPONSE: {operation} item id was missing"
+        )
+    normalized = str(candidate).strip()
+    if not normalized:
+        raise GitHubProjectManagementError(
+            f"GITHUB_PROJECT_MANAGEMENT_INVALID_RESPONSE: {operation} item id was missing"
+        )
+    return normalized
 
 
 class GitHubProjectManagementAdapter:

@@ -20,22 +20,25 @@ Complete official GitHub Projects write commissioning for `kis-mcp` against the 
 
 - **R1**: Preserve `kis-mcp` binding to `NielPieterse0`, owner type `user`, Project `#1`, stable Work Management binding `github-default`.
 - **R2**: Prove live inventory reports Project title `KIS Work Management`, open state, complete pagination, and `Status` options `Todo`, `In Progress`, `Done`.
-- **R3**: Use 085's pull request as the first tracked item and use the existing bounded Project/Work Management path for commissioning mutations.
-- **R4**: Prove add/update behavior, no duplicate source item on replay, and stale-revision conflict protection without overwrite.
-- **R5**: After write commissioning evidence, change only `features.reconciliation` from `read_only` to `enabled`.
-- **R6**: Keep `intake` and `review_import` read-only, `programme_status` enabled, and every automation flag `false`.
-- **R7**: Add focused regression coverage and commissioning evidence without changing provider auth, GraphQL exposure, deletion behavior, or unrelated Work Management architecture.
+- **R3**: Use GitHub issue #102 for change 085 as the first tracked Project item and use the existing bounded GitHub Project/Work Management path for commissioning mutations.
+- **R4**: Normalize the official provider's live REST Project item shape: integer `id`, `content_type`, `fields`, `html_url`, and write responses containing numeric `item_id` plus node `id`.
+- **R5**: Preserve provider-neutral string IDs by converting positive numeric Project item IDs to digit text and prefer `item_id` over node `id` for write follow-up calls.
+- **R6**: Prove add/update behavior, no duplicate source item on replay, and stale-revision conflict protection without overwrite.
+- **R7**: After write commissioning evidence, change only `features.reconciliation` from `read_only` to `enabled`.
+- **R8**: Keep `intake` and `review_import` read-only, `programme_status` enabled, and every automation flag `false`.
+- **R9**: Add focused regression coverage and commissioning evidence without changing provider auth, GraphQL exposure, deletion behavior, or unrelated Work Management architecture.
 
 ## Acceptance
 
 1. Checked-in settings and registry still resolve `kis-mcp` to user Project #1 and stable backend binding `github-default`.
 2. Fresh live inventory confirms Project #1 identity and the exact required `Status` options with no truncation.
 3. Before promotion, a focused regression test fails because reconciliation is still `read_only`.
-4. 085's PR is added exactly once, then set to `In Progress`; replay does not create a duplicate.
-5. A stale-revision update returns conflict and does not overwrite newer Project state.
-6. After commissioning, focused tests prove reconciliation is `enabled` and all six automation flags remain `false`.
-7. Scope check, code review, and canonical repository verification are run on the final branch state; any unrelated baseline failure is recorded rather than edited around.
-8. After landing, the tracked PR item is set to `Done` and final inventory confirms exactly one matching item.
+4. Live REST-shaped item evidence normalizes successfully and follow-up writes use the numeric Project item ID as digit text rather than the GraphQL node ID.
+5. Issue #102 is present exactly once and has `Status=In Progress`; replay does not create a duplicate.
+6. A stale-revision update returns conflict and does not overwrite newer Project state.
+7. After commissioning, focused tests prove reconciliation is `enabled` and all six automation flags remain `false`.
+8. Scope check, code review, and canonical repository verification are run on the final branch state; any unrelated baseline failure is recorded rather than edited around.
+9. After landing, issue #102 is set to `Done` and final inventory confirms exactly one matching item.
 
 ## Risks and recovery
 
