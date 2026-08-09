@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "082-register-college-project",
-  "status": "active",
+  "status": "closed",
   "branch": "change/082-register-college-project",
   "worktree": ".work/worktrees/082-register-college-project",
   "base": "main",
