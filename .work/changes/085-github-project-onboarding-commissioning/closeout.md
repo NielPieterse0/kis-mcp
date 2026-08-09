@@ -18,7 +18,7 @@
 - GraphQL node-ID update was rejected by the official provider as non-numeric.
 - Digit-text numeric ID update succeeded and set `Status=In Progress`.
 - Re-adding issue #102 returned the same numeric Project item ID `225838119`; inventory still contains exactly one matching item.
-- Focused 085 + existing GitHub Project adapter suites: 22/22 passed.
-- Canonical verification currently has three assertion failures: two pre-existing `college` registry expectation drifts in `tests/projects/**`, plus `tests/work_management/test_settings.py` still expecting `reconciliation=read_only` in a path exclusively owned by active change 084.
-- External code-review backend was attempted and failed with `NvidiaNimError`; direct diff review and focused tests found no blocking 085 defect.
-- Final high-level reconciliation replay/conflict/Done proof remains post-merge/restart evidence.
+- Focused 085 + existing GitHub Project adapter suites: 22/22 passed; the final settings/project-onboarding regression set passed 10/10 after reconciling the stale `reconciliation=read_only` assertion left behind by the now-closed parallel change.
+- Final canonical `scripts/verify.ps1` on the integrated 085 worktree passed at 100% pytest completion with two existing expected skips; configuration, interpreter, dependencies, Python syntax, change governance, and repository line-ending checks all passed.
+- External code-review backend was attempted and failed with `NvidiaNimError`; direct diff review and focused/full verification found no blocking 085 defect.
+- Final high-level reconciliation replay/conflict/Done proof remains post-reload evidence.

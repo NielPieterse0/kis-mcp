@@ -11,6 +11,7 @@
     "src/kis_mcp/providers/github/project_management.py",
     "settings/work-management/github-projects.settings.json",
     "tests/project_onboarding/**",
+    "tests/work_management/test_settings.py",
     "docs/development/github-project-onboarding/**",
     ".work/changes/085-github-project-onboarding-commissioning/**"
   ],

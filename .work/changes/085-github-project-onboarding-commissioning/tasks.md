@@ -7,6 +7,6 @@
 - [x] Implement and focus-test REST item normalization and numeric write-ID handling.
 - [x] Set issue #102 to `In Progress` through the live provider.
 - [x] Promote reconciliation to `enabled` with all automation disabled.
-- [ ] Run scope check, final review, and canonical repository verification.
-- [ ] Push exact head and open isolated PR when base is clean.
-- [ ] Land, reload runtime, prove high-level reconcile replay/conflict, set issue #102 `Done`, and clean worktree.
+- [x] Run scope check, final review, and canonical repository verification.
+- [x] Integrate the exact head into local `main` after reconciling current main.
+- [ ] Reload runtime, prove high-level reconcile replay/conflict, set issue #102 `Done`, and clean worktree.
