@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "change_id": "085-github-project-onboarding-commissioning",
+  "status": "active",
+  "branch": "change/085-github-project-onboarding-commissioning",
+  "worktree": ".work/worktrees/085-github-project-onboarding-commissioning",
+  "base": "main",
+  "outcome": "Complete GitHub Project #1 write commissioning for kis-mcp, enable supervised reconciliation, and keep every automation mode disabled.",
+  "owned_paths": [
+    "settings/work-management/github-projects.settings.json",
+    "tests/project_onboarding/**",
+    "docs/development/github-project-onboarding/**",
+    ".work/changes/085-github-project-onboarding-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
