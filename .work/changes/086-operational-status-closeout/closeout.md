@@ -37,9 +37,20 @@
 - An explicit Codex CLI review attempt also returned `AGENT_BACKEND_UNAVAILABLE`.
 - The repository review contract was therefore performed directly; no unavailable specialist result is represented as a pass.
 
-## Recovery and residual work
+## Live ChatGPT-side commissioning evidence
 
-- Recovery is a normal revert of the bounded 086 commit; no migration or persistent commissioning state is introduced.
-- Process-local evidence resets on runtime restart and must be re-established by a successful registered-project read.
-- Final operational closeout still requires local merge, safe cleanup of 086, restart of only `kis-op`, and live ChatGPT-side verification of the corrected fields.
+- Local `main` was fast-forwarded to verified implementation commit `081154eb94463f64704ce89dec0eee2a3958737b`; no push was performed.
+- `kis-op` replacement run `20260809T1247347935671Z` reached `lifecycle=ready` with listener PID `712` and tunnel PID `33932`.
+- Actual `kis_health` returned `ready=true` and `remote_mcp=local_http_discover_write_read_quarantine_verified_external_tunnel_ready`.
+- After restart, actual `kis_provider_status` correctly reported Supabase `live_verified=pending_registered_project_read`.
+- Actual `supabase_get_project_url` succeeded for registered project `mmxuicfrdalymczdapjq`.
+- A subsequent actual `kis_provider_status` reported Supabase `live_verified=ready_registered_project_read`.
+- GitHub and Supabase are ready; NVIDIA NIM remains the sole optional degraded provider because `NVIDIA_API_KEY` is absent.
+
+## Recovery and final cleanup gate
+
+- Recovery is a normal revert of the bounded 086 commits; no migration or persistent commissioning state is introduced.
+- Process-local Supabase evidence resets on runtime restart and must be re-established by a successful registered-project read.
+- The first same-process detached restart attempt was reclaimed with the old `kis-op` process tree; the independent operator relaunch then completed successfully. This is a launcher-ownership constraint, not a runtime commissioning failure.
+- Scope status is now `closed`; governed cleanup runs only after this metadata commit is merged into `main`.
 - Changes 040, 084, and 085 remain explicitly out of scope and untouched. No push to `origin/main` is part of this change.

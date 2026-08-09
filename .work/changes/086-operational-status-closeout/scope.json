@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "086-operational-status-closeout",
-  "status": "active",
+  "status": "closed",
   "branch": "change/086-operational-status-closeout",
   "worktree": ".work/worktrees/086-operational-status-closeout",
   "base": "main",

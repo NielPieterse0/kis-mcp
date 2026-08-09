@@ -10,6 +10,6 @@
 - [x] Review final diff against spec and policy boundaries; specialist backends unavailable, direct review completed.
 - [x] Run canonical `pwsh -File scripts/verify.ps1`: exit 0.
 - [x] Record implementation and verification closeout evidence.
-- [ ] Commit the change and merge locally to `main`.
-- [ ] Safely clean change 086 from primary `main`.
-- [ ] Restart only `kis-op` and verify both corrected statuses through the actual tool.
+- [x] Commit the implementation and fast-forward local `main` to the verified 086 commit.
+- [x] Restart only `kis-op` and verify both corrected statuses through the actual ChatGPT-side tool.
+- [x] Mark 086 closed and prepare it for governed cleanup after this metadata commit is merged.
