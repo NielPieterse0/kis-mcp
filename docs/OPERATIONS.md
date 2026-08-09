@@ -464,7 +464,7 @@ The launcher retrieves only the selected instance's tunnel secret from the appli
 - validates the exact external app, internal instance, and canonical port mapping;
 - runs lifecycle preflight only for the selected instance; the peer instance is neither inspected for cleanup nor stopped;
 - accepts a clean selected-instance preflight with zero matching stale server or tunnel processes and reclaims matching stale processes only when they exist;
-- reclaims a selected-instance listener or orphan process tree only when the canonical executable, instance, profile, and endpoint identity match; an unrelated listener fails with PID/process diagnostics and is never terminated;
+- reclaims a selected-instance listener or orphan process tree only when the canonical project Python launch path, exact remote-runtime instance, profile, and endpoint identity match; Windows may report the underlying base Python as `ExecutablePath`, so the canonical launch path may instead be proven by the first command-line token; an unrelated listener fails with PID/process diagnostics and is never terminated;
 - enforces the external canonical Python environment and moves repository-local `.venv` or `.pytest_cache` transients into recoverable quarantine before startup;
 - starts the selected remote runtime on `127.0.0.1:8010` for `kis-op` or `127.0.0.1:8011` for `kis-dev`;
 - gives server startup and supervised provider authentication a separate 900-second default budget and echoes retained server stderr live so OAuth/device-code guidance remains visible;

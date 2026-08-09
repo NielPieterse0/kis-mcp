@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "change_id": "082-startup-runtime-reclaim",
+  "status": "active",
+  "branch": "change/082-startup-runtime-reclaim",
+  "worktree": ".work/worktrees/082-startup-runtime-reclaim",
+  "base": "main",
+  "outcome": "Safely force-stop a stale selected kis-mcp runtime during startup and verify its configured port is released before launching a replacement.",
+  "owned_paths": [
+    "scripts/startup-instance-lifecycle.ps1",
+    "tests/test_startup_scripts.py",
+    "docs/OPERATIONS.md",
+    ".work/changes/082-startup-runtime-reclaim/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

@@ -164,6 +164,30 @@ def test_startup_lifecycle_matches_only_selected_server_instance() -> None:
     assert result.stdout.splitlines() == ["True", "False"]
 
 
+def test_startup_lifecycle_accepts_canonical_launcher_when_windows_resolves_base_python() -> None:
+    python = r"C:\Projects\.kis-mcp\python-env\Scripts\python.exe"
+    base_python = r"C:\Users\operator\AppData\Roaming\uv\python\cpython-3.13\python.exe"
+    command = f'"{python}" -m kis_mcp.remote_runtime --instance operation'
+    result = _run_startup_lifecycle(
+        "$p=[pscustomobject]@{ExecutablePath='"
+        + base_python
+        + "';CommandLine='"
+        + command.replace("'", "''")
+        + "'}; "
+        "Write-Output (Test-KisMcpSelectedServerProcess -Process $p "
+        "-PythonPath '"
+        + python
+        + "' -Instance 'operation'); "
+        "Write-Output (Test-KisMcpSelectedServerProcess -Process $p "
+        "-PythonPath '"
+        + python
+        + "' -Instance 'development')"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == ["True", "False"]
+
+
 def test_endpoint_owner_accepts_listener_descendant_of_canonical_python_launcher() -> None:
     python = r"C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe"
     base_python = r"C:\\Users\\operator\\AppData\\Roaming\\uv\\python\\cpython-3.13\\python.exe"

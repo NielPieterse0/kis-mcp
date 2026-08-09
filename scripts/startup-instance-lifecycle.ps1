@@ -36,7 +36,13 @@ function Test-KisMcpSelectedServerProcess {
     if ([string]::IsNullOrWhiteSpace($Executable) -or [string]::IsNullOrWhiteSpace($CommandLine)) {
         return $false
     }
-    if (-not (Test-KisMcpPathEqual $Executable $PythonPath)) {
+    $ExecutableMatches = Test-KisMcpPathEqual $Executable $PythonPath
+    $PythonToken = [Regex]::Escape((Get-KisMcpNormalizedPath $PythonPath))
+    $CommandLineMatches = [Regex]::IsMatch(
+        $CommandLine,
+        ('(?i)^\s*(?:"' + $PythonToken + '"|' + $PythonToken + ')(?:\s|$)')
+    )
+    if (-not $ExecutableMatches -and -not $CommandLineMatches) {
         return $false
     }
     $Pattern = (
