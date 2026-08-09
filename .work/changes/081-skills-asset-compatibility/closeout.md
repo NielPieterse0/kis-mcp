@@ -26,13 +26,13 @@
 
 - Branch: `change/081-skills-asset-compatibility`
 - Worktree: `.work/worktrees/081-skills-asset-compatibility`
-- Implementation commit: pending.
-- Implementation PR: pending.
-- Exact-head Work Management gate: pending.
-- Metadata closeout PR: pending after implementation landing.
-- Governed cleanup: pending after metadata closeout merge.
+- Implementation commit: `30df06a7b8da42dd8adb13dbc5e6950f69321170`.
+- Implementation PR: #100 — `Support packaged Skills assets`; merged from the exact authorized head.
+- Exact-head Work Management gate: `Validate P5 at exact revision` passed for `30df06a7b8da42dd8adb13dbc5e6950f69321170` (check run `93145314280`).
+- Merge commit: `c1352fadf736dca0724468b6e67aed8f85e7d624`.
+- Metadata closeout: this record closes the change claim; governed cleanup may proceed after the closeout-only PR lands.
 
 ## Residual items
 
-- Complete implementation PR gating/landing, metadata closeout, governed cleanup, and canonical `main` verification.
+- Run governed 081 worktree/branch cleanup after this closeout record lands, then rerun canonical `main` verification.
 - Preserve clean change 040 unchanged throughout.
