@@ -9,4 +9,4 @@
 - [x] Promote reconciliation to `enabled` with all automation disabled.
 - [x] Run scope check, final review, and canonical repository verification.
 - [x] Integrate the exact head into local `main` after reconciling current main.
-- [ ] Reload runtime, prove high-level reconcile replay/conflict, set issue #102 `Done`, and clean worktree.
+- [x] Reload runtime, prove high-level reconcile replay/conflict, set issue #102 `Done`, and clean worktree after final integration.
