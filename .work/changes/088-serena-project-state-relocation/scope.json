@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "088-serena-project-state-relocation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/088-serena-project-state-relocation",
   "worktree": ".work/worktrees/088-serena-project-state-relocation",
   "base": "main",

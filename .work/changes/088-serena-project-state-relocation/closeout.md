@@ -25,12 +25,13 @@
 
 - Branch: `change/088-serena-project-state-relocation`
 - Worktree: `.work/worktrees/088-serena-project-state-relocation`
-- Implementation commit: pending this evidence checkpoint.
-- Integration: pending fast-forward into verified local `main`.
-- Cleanup: pending post-integration primary-runtime proof and exact GitHub publication.
+- Implementation commit: `a9626a98bb8fcd5be8766cc0b7bf077225aead22`.
+- Integration: the implementation commit was fast-forwarded into local `main`.
+- Post-integration runtime proof: fresh `kis-dev` reached `ready`; Serena created `C:\Projects\.kis-mcp\serena\projects\kis-mcp\.serena\project.yml`; `C:\Projects\kis-mcp\.serena` remained absent; primary Git status remained clean apart from the expected unpublished-main ahead count.
+- This closeout record is the final metadata-only branch change before exact-head verification/publication.
 
-## Residual items
+## Post-closeout procedure
 
-- After integration, restart `kis-dev`, activate Serena against primary `C:\Projects\kis-mcp`, confirm central `C:\Projects\.kis-mcp\serena\projects\kis-mcp\.serena` exists, confirm `C:\Projects\kis-mcp\.serena` does not exist, and confirm primary `git status` remains clean.
-- Publish the exact final verified `main` SHA through the registered-GitHub operation, reconcile local `origin/main`, then governed-clean the 088 worktree/branch.
+- Fast-forward this closeout record into `main`, run canonical `scripts\verify.ps1` on that exact head, and publish only that verified SHA through the registered-GitHub exact operation.
+- Reconcile local `origin/main` to the independently verified remote SHA, then run governed `change-workflow.ps1 cleanup 088-serena-project-state-relocation`; do not force-delete the branch or worktree.
 - Preserve local `recovery/080-local-divergent`, remote `automation/047-publish-temp`, and remote `change/007-chatgpt-remote-commissioning`: each still contains unique patches relative to `main` and is not a safe cleanup candidate without separate reconciliation.
