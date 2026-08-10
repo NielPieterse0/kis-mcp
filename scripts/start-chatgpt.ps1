@@ -10,6 +10,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
 . (Join-Path $PSScriptRoot 'windows-credential.ps1')
+. (Join-Path $PSScriptRoot 'secret-vault.ps1')
 . (Join-Path $PSScriptRoot 'startup-instance-lifecycle.ps1')
 
 function Start-OwnedProcess {
@@ -221,6 +222,19 @@ if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
 }
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$AgentSettingsPath = Join-Path $RepositoryRoot 'settings\agents\code-review-agent.settings.json'
+if (-not (Test-Path -LiteralPath $AgentSettingsPath -PathType Leaf)) {
+    throw "KIS_MCP_AGENT_SETTINGS_MISSING: $AgentSettingsPath"
+}
+$AgentSettings = Get-Content -LiteralPath $AgentSettingsPath -Raw | ConvertFrom-Json
+$NvidiaSecretReference = [string]$AgentSettings.nvidia.secret_ref
+$NvidiaApiKeyEnvironment = [string]$AgentSettings.nvidia.api_key_env
+if ($NvidiaSecretReference -ne 'secret://provider/nvidia-nim/api-key') {
+    throw 'KIS_MCP_NVIDIA_SECRET_REFERENCE_INVALID'
+}
+if ($NvidiaApiKeyEnvironment -ne 'NVIDIA_API_KEY') {
+    throw 'KIS_MCP_NVIDIA_API_KEY_ENVIRONMENT_INVALID'
+}
 $PolicyPath = Join-Path $RepositoryRoot 'policy\kis-mcp.policy.json'
 if (-not (Test-Path -LiteralPath $PolicyPath -PathType Leaf)) {
     throw "KIS_MCP_POLICY_MISSING: $PolicyPath"
@@ -262,7 +276,17 @@ $Tunnel = $null
 $ServerListenerPid = $null
 $CurrentStateWritten = $false
 $CurrentStatePath = $null
+$NvidiaUnlockPayload = @{}
+$NvidiaApiKey = $null
 try {
+    $NvidiaUnlockPayload = Get-KisMcpUnlockPayload -Prompt 'Unlock kis-mcp secrets for NVIDIA NIM'
+    $NvidiaApiKey = Resolve-KisMcpSecretInternal `
+        -Reference $NvidiaSecretReference `
+        -SecurePayload $NvidiaUnlockPayload
+    if (-not $NvidiaApiKey) {
+        throw 'KIS_MCP_NVIDIA_API_KEY_MISSING'
+    }
+    $ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey
     $Server = Start-OwnedProcess `
         -Executable $Python `
         -Arguments @(
@@ -275,6 +299,12 @@ try {
         -Environment $ServerEnvironment `
         -StandardOutputPath $ServerStdoutLog `
         -StandardErrorPath $ServerStderrLog
+    $ServerEnvironment.Remove($NvidiaApiKeyEnvironment)
+    if ($null -ne $Server.StartInfo) {
+        $Server.StartInfo.Environment.Remove($NvidiaApiKeyEnvironment)
+    }
+    $NvidiaApiKey = $null
+    $NvidiaUnlockPayload.Clear()
 
     $AuthenticationDeadline = [DateTime]::UtcNow.AddSeconds($AuthenticationTimeoutSeconds)
     Wait-McpReady -Uri $Remote.endpoint_url -Deadline $AuthenticationDeadline -Process $Server
@@ -470,6 +500,13 @@ finally {
     }
     Stop-OwnedProcessLogging -Process $Tunnel
     Stop-OwnedProcessLogging -Process $Server -EchoStandardError
+    if ($ServerEnvironment.ContainsKey($NvidiaApiKeyEnvironment)) {
+        $ServerEnvironment.Remove($NvidiaApiKeyEnvironment)
+    }
+    if ($null -ne $NvidiaUnlockPayload) {
+        $NvidiaUnlockPayload.Clear()
+    }
+    $NvidiaApiKey = $null
     $Credential = $null
     $CredentialTarget = $null
 }

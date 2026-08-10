@@ -310,7 +310,6 @@ pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
 This verifies the runtime client lifecycle, central project-registry wiring, GitHub registered-coordinate routing, scripts, and legacy repository-settings compatibility without claiming live authentication. Use `-RequireLive` only for an explicit supervised live commissioning check; it may require interactive OAuth and remains separate from repository verification.
 
 ## Configure and use the code-review agent
-
 The gateway exposes one additive advisory operation:
 
 ```text
@@ -325,22 +324,44 @@ The default backend order is defined in `settings/agents/code-review-agent.setti
 nvidia-nim -> codex-cli
 ```
 
-For NVIDIA NIM, provide the key only in the supervised launcher process environment before starting kis-mcp:
+NVIDIA NIM remains one backend with three named model profiles. `super` is the default when no model is specified:
+
+| Profile | Model | Use it for |
+|---|---|---|
+| `nano` | `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning` | Fast first-pass review, focused diffs, routine regression/error-handling checks, triage, and repeated iterative review where responsiveness matters. |
+| `super` | `nvidia/nemotron-3-super-120b-a12b` | Default substantive review: multi-file changes, correctness and regressions, implementation-plan checks, and broad repository-context analysis. |
+| `ultra` | `nvidia/nemotron-3-ultra-550b-a55b` | Deepest/high-impact analysis: architecture, subtle cross-component failures, complex state/concurrency, difficult failure analysis, and safety/security-sensitive review. |
+
+The configured NVIDIA parameters are profile-specific. KIS uses non-streaming chat completions for this advisory workflow. Nano's upstream model supports multimodal inputs, but `review_change_with_agent` currently supplies text repository evidence only; this workflow does not claim image, audio, or video review.
+
+The NVIDIA API key is stored in the application-managed encrypted vault under the canonical non-secret reference:
+
+```text
+secret://provider/nvidia-nim/api-key
+```
+
+`settings/agents/code-review-agent.settings.json` stores only that reference and the process environment name `NVIDIA_API_KEY`, never the credential value. To set or replace the credential through the supervised vault path:
 
 ```powershell
-$SecureKey = Read-Host 'NVIDIA API key' -AsSecureString
-$KeyPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($SecureKey)
-try {
-    $env:NVIDIA_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($KeyPointer)
-    pwsh -File .\scripts\start.ps1
-}
-finally {
-    Remove-Item Env:NVIDIA_API_KEY -ErrorAction SilentlyContinue
-    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($KeyPointer)
+pwsh -NoProfile -File .\scripts\set-secret.ps1 -Reference secret://provider/nvidia-nim/api-key
+```
+
+The script prompts for the vault unlock material and secret value using secure input. Do not use a repository `.env` file as a persistent credential store; `.env/` is ignored. `scripts\start-chatgpt.ps1` resolves the configured NVIDIA vault reference only while starting the selected KIS server child, injects it as `NVIDIA_API_KEY`, and clears the launcher's transient plaintext references after process creation. Starting `kis-dev` does not inspect, stop, or reconfigure the peer `kis-op` instance.
+
+Do not put the NVIDIA key in repository JSON, command arguments, logs, an MCP request, or retained startup state. A missing or inaccessible key reports degraded NVIDIA readiness; when no model is explicitly selected, normal backend fallback remains available.
+
+Model selection is explicit and bounded. Example:
+
+```json
+{
+  "path": "C:\\Projects\\example",
+  "instructions": "Prioritize correctness, error handling, and regressions.",
+  "backend": "nvidia-nim",
+  "model": "super"
 }
 ```
 
-Do not put the key in repository JSON, a command argument, logs, or an MCP request. NVIDIA calls use the configured OpenAI-compatible HTTPS chat-completions endpoint. The provider remains optional; a missing key reports unavailable/degraded readiness and permits fallback.
+`model` accepts only `nano`, `super`, or `ultra`. Omitting both `backend` and `model` uses the configured preferred/fallback order and defaults NVIDIA to `super`. Supplying a model without `backend` explicitly selects NVIDIA and does not silently fall back to Codex. Supplying an NVIDIA model together with `backend="codex-cli"` is an invalid request rather than an ignored setting.
 
 For Codex CLI, install and authenticate the `codex` executable through an explicit operator-supervised action outside normal Work, then keep the executable name or approved absolute location in the JSON settings. The gateway invokes only `scripts\invoke-codex-agent.ps1`, passes the review prompt through standard input, and requests:
 
@@ -350,17 +371,9 @@ codex exec --ephemeral --json --sandbox read-only --color never -C <project> -
 
 The read-only Codex sandbox request is defense in depth, not a replacement for operator supervision or OS-level containment. The wrapper fingerprints Git-visible repository state before and after the run, including HEAD, status, tracked diff, and untracked-file content hashes. If the fingerprint changes, the call fails with `CODEX_CLI_MUTATION_DETECTED`; it does not silently accept or automatically overwrite the detected change.
 
-Example call:
+Codex installation/authentication and its expanded role are a separate commissioning slice. That slice is intended to make local Codex independently selectable for both code-quality review and safety/security review, rather than treating it only as NVIDIA fallback. This NVIDIA slice preserves the existing fallback path but does not claim live Codex commissioning.
 
-```json
-{
-  "path": "C:\\Projects\\example",
-  "instructions": "Prioritize correctness, error handling, and regressions.",
-  "backend": null
-}
-```
-
-Omit `backend` to use preferred/fallback order. Set it to `nvidia-nim` or `codex-cli` to require that backend without silently switching. Tests validate request shape, bounds, fallback, redaction, and additive registration; they do not prove live NVIDIA credentials or live Codex authentication.
+Tests validate NVIDIA profile parsing and payloads, model selection, bounds, fallback semantics, redaction, vault-backed selected-instance startup, and additive tool registration. Live NVIDIA commissioning is recorded separately from repository verification; live Codex authentication remains separate until its own slice.
 
 ## Run the KIS Control Center
 

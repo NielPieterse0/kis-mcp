@@ -9,11 +9,39 @@
   "nvidia": {
     "enabled": true,
     "base_url": "https://integrate.api.nvidia.com/v1",
-    "model": "meta/llama-3.3-70b-instruct",
     "api_key_env": "NVIDIA_API_KEY",
+    "secret_ref": "secret://provider/nvidia-nim/api-key",
+    "default_profile": "super",
     "timeout_seconds": 90,
-    "temperature": 0.1,
-    "max_tokens": 4096
+    "profiles": {
+      "nano": {
+        "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        "guidance": "Fast first-pass and focused iterative review for routine diffs, triage, and repeated review cycles.",
+        "temperature": 0.6,
+        "top_p": 0.95,
+        "max_tokens": 65536,
+        "reasoning_budget": 16384,
+        "enable_thinking": true
+      },
+      "super": {
+        "model": "nvidia/nemotron-3-super-120b-a12b",
+        "guidance": "Default substantive review for multi-file changes, correctness, regressions, implementation plans, and broad repository context.",
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "max_tokens": 16384,
+        "reasoning_budget": 16384,
+        "enable_thinking": true
+      },
+      "ultra": {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+        "guidance": "Deepest review for architecture, subtle cross-component failures, complex state or concurrency, and high-impact safety or security analysis.",
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "max_tokens": 16384,
+        "reasoning_budget": 16384,
+        "enable_thinking": true
+      }
+    }
   },
   "codex": {
     "enabled": true,
