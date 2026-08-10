@@ -49,6 +49,17 @@ def _finding(value: Any) -> dict[str, Any] | None:
     return normalized
 
 
+def _model_provenance(
+    settings: AgentSettings, backend: str, model_profile: str | None
+) -> dict[str, str]:
+    if backend != "nvidia-nim" or model_profile is None:
+        return {}
+    return {
+        "model_profile": model_profile,
+        "model": settings.nvidia.profile(model_profile).model,
+    }
+
+
 class CodeReviewAgent:
     """One bounded advisory reviewer with configurable provider/tool backends."""
 
@@ -75,9 +86,16 @@ class CodeReviewAgent:
             f"Repository evidence:\n{evidence}"
         )
 
-    def _normalize(self, backend: str, output: str) -> dict[str, Any]:
+    def _normalize(
+        self,
+        backend: str,
+        output: str,
+        *,
+        model_profile: str | None = None,
+    ) -> dict[str, Any]:
         diagnostics: list[str] = []
         bounded = output
+        provenance = _model_provenance(self.settings, backend, model_profile)
         if len(bounded) > self.settings.max_output_chars:
             bounded = bounded[: self.settings.max_output_chars]
             diagnostics.append("AGENT_OUTPUT_TRUNCATED")
@@ -89,6 +107,7 @@ class CodeReviewAgent:
                 "agent_id": self.settings.agent_id,
                 "status": "completed_unstructured",
                 "backend": backend,
+                **provenance,
                 "summary": bounded.strip(),
                 "findings": [],
                 "unknowns": [],
@@ -110,10 +129,26 @@ class CodeReviewAgent:
             "agent_id": self.settings.agent_id,
             "status": "completed",
             "backend": backend,
+            **provenance,
             "summary": summary.strip() if isinstance(summary, str) else "",
             "findings": findings,
             "unknowns": unknowns,
             "diagnostics": diagnostics,
+        }
+
+    def _invalid_request(
+        self, backend: str | None, model: str | None, diagnostic: str, summary: str
+    ) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "agent_id": self.settings.agent_id,
+            "status": "invalid_request",
+            "backend": backend,
+            "model_profile": model,
+            "summary": summary,
+            "findings": [],
+            "unknowns": [],
+            "diagnostics": [diagnostic],
         }
 
     def review(
@@ -121,6 +156,7 @@ class CodeReviewAgent:
         path: str | Path,
         instructions: str = "",
         backend: str | None = None,
+        model: str | None = None,
     ) -> dict[str, Any]:
         project = Path(path).resolve()
         if not self.settings.enabled:
@@ -135,29 +171,45 @@ class CodeReviewAgent:
                 "diagnostics": ["AGENT_DISABLED"],
             }
         if backend is not None and backend not in self._backends:
-            return {
-                "schema_version": 1,
-                "agent_id": self.settings.agent_id,
-                "status": "invalid_request",
-                "backend": backend,
-                "summary": "Requested backend is not configured.",
-                "findings": [],
-                "unknowns": [],
-                "diagnostics": ["AGENT_BACKEND_UNKNOWN"],
-            }
+            return self._invalid_request(
+                backend,
+                model,
+                "AGENT_BACKEND_UNKNOWN",
+                "Requested backend is not configured.",
+            )
+        if model is not None:
+            if not isinstance(model, str) or model not in self.settings.nvidia.profiles:
+                return self._invalid_request(
+                    backend,
+                    model if isinstance(model, str) else None,
+                    "AGENT_MODEL_UNKNOWN",
+                    "Requested NVIDIA model profile is not configured.",
+                )
+            if backend is not None and backend != "nvidia-nim":
+                return self._invalid_request(
+                    backend,
+                    model,
+                    "AGENT_MODEL_BACKEND_CONFLICT",
+                    "NVIDIA model profiles may be used only with the nvidia-nim backend.",
+                )
+
         evidence = self._collector.collect(project)
         prompt = self._prompt(evidence, instructions)
         order = (
-            [backend]
-            if backend is not None
-            else [
-                item
-                for item in (
-                    self.settings.preferred_backend,
-                    self.settings.fallback_backend,
-                )
-                if item is not None
-            ]
+            ["nvidia-nim"]
+            if model is not None
+            else (
+                [backend]
+                if backend is not None
+                else [
+                    item
+                    for item in (
+                        self.settings.preferred_backend,
+                        self.settings.fallback_backend,
+                    )
+                    if item is not None
+                ]
+            )
         )
         first_failure: tuple[str, str] | None = None
         first_unavailable: str | None = None
@@ -167,13 +219,30 @@ class CodeReviewAgent:
                 if first_unavailable is None:
                     first_unavailable = backend_name
                 continue
+            selected_model = (
+                model or self.settings.nvidia.default_profile
+                if backend_name == "nvidia-nim"
+                else None
+            )
             try:
-                output = selected.review(project, prompt)
+                if backend_name == "nvidia-nim" and selected_model is not None:
+                    review_with_model = getattr(selected, "review_with_model", None)
+                    output = (
+                        review_with_model(project, prompt, selected_model)
+                        if callable(review_with_model)
+                        else selected.review(project, prompt)
+                    )
+                else:
+                    output = selected.review(project, prompt)
             except Exception as exc:
                 if first_failure is None:
                     first_failure = (backend_name, type(exc).__name__)
                 continue
-            return self._normalize(backend_name, output)
+            return self._normalize(
+                backend_name,
+                output,
+                model_profile=selected_model,
+            )
         if first_failure is not None:
             failed_backend, error_type = first_failure
             return {

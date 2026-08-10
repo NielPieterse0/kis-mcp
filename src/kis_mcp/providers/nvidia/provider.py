@@ -16,6 +16,13 @@ from .client import NvidiaNimClient
 from .settings import NvidiaSettings
 
 
+def _profile_details(settings: NvidiaSettings) -> dict[str, object]:
+    return {
+        alias: {"model": profile.model, "guidance": profile.guidance}
+        for alias, profile in settings.profiles.items()
+    }
+
+
 def nvidia_provider_descriptor(
     settings: NvidiaSettings,
     *,
@@ -41,7 +48,10 @@ def nvidia_provider_descriptor(
             provider_id="nvidia-nim",
             state=ProviderState.READY,
             summary="NVIDIA NIM configuration and API key reference are ready.",
-            details={"model": settings.model},
+            details={
+                "default_profile": settings.default_profile,
+                "profiles": _profile_details(settings),
+            },
         )
 
     def build() -> NvidiaNimClient:

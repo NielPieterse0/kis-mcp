@@ -6,7 +6,7 @@ from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from .settings import NvidiaSettings
+from .settings import NvidiaSettings, NvidiaSettingsError
 
 RequestSender = Callable[[Request, int], bytes]
 
@@ -48,14 +48,31 @@ class NvidiaNimClient:
         del project_path
         return self.complete(prompt)
 
-    def complete(self, prompt: str) -> str:
+    def review_with_model(
+        self, project_path: object, prompt: str, model_profile: str
+    ) -> str:
+        del project_path
+        return self.complete(prompt, model_profile=model_profile)
+
+    def complete(self, prompt: str, model_profile: str | None = None) -> str:
         if not isinstance(prompt, str) or not prompt.strip():
             raise NvidiaNimError("NVIDIA_NIM_PROMPT_INVALID", "Prompt must be a non-empty string")
+        selected = model_profile or self.settings.default_profile
+        try:
+            profile = self.settings.profile(selected)
+        except NvidiaSettingsError as exc:
+            raise NvidiaNimError(
+                "NVIDIA_NIM_MODEL_PROFILE_INVALID",
+                "NVIDIA NIM model profile is invalid",
+            ) from exc
         payload = {
-            "model": self.settings.model,
+            "model": profile.model,
             "messages": [{"role": "user", "content": prompt}],
-            "temperature": self.settings.temperature,
-            "max_tokens": self.settings.max_tokens,
+            "temperature": profile.temperature,
+            "top_p": profile.top_p,
+            "max_tokens": profile.max_tokens,
+            "reasoning_budget": profile.reasoning_budget,
+            "chat_template_kwargs": {"enable_thinking": profile.enable_thinking},
             "stream": False,
         }
         request = Request(

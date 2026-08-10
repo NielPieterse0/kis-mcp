@@ -1,6 +1,7 @@
 from .client import NvidiaNimClient, NvidiaNimError
 from .provider import nvidia_provider_descriptor, register_nvidia_provider
 from .settings import (
+    NvidiaModelProfile,
     NvidiaSettings,
     NvidiaSettingsError,
     disabled_nvidia_settings,
@@ -8,6 +9,7 @@ from .settings import (
 )
 
 __all__ = [
+    "NvidiaModelProfile",
     "NvidiaNimClient",
     "NvidiaNimError",
     "NvidiaSettings",

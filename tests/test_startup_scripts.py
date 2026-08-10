@@ -104,18 +104,25 @@ def test_chatgpt_startup_separates_supervised_authentication_from_tunnel_deadlin
     assert "if ([DateTime]::UtcNow -ge $TunnelDeadline)" in content
 
 
-def test_chatgpt_startup_does_not_unlock_application_vault() -> None:
+def test_chatgpt_startup_resolves_nvidia_secret_only_for_selected_server_child() -> None:
     content = _script("start-chatgpt.ps1")
 
     preflight = content.index("$Preflight = Invoke-KisMcpSelectedInstancePreflight")
+    secret_read = content.index("$NvidiaApiKey = Resolve-KisMcpSecretInternal")
+    server_environment = content.index("$ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey")
     server_start = content.index("$Server = Start-OwnedProcess")
+    secret_clear = content.index("$ServerEnvironment.Remove($NvidiaApiKeyEnvironment)")
 
-    assert preflight < server_start
-    assert "Get-KisMcpUnlockPayload" not in content
+    assert ". (Join-Path $PSScriptRoot 'secret-vault.ps1')" in content
+    assert "$AgentSettings.nvidia.secret_ref" in content
+    assert "$AgentSettings.nvidia.api_key_env" in content
+    assert "Get-KisMcpUnlockPayload" in content
+    assert "Resolve-KisMcpSecretInternal" in content
+    assert preflight < secret_read < server_environment < server_start < secret_clear
     assert "kis_mcp.secrets.launcher" not in content
     assert "Start-KisMcpSecretAwareProcess" not in content
-    assert "Unlock kis-mcp secrets" not in content
     assert "kis_mcp.remote_runtime" in content
+    assert "$OtherInstance" not in content
 
 
 def test_chatgpt_startup_allows_peer_instance_to_remain_active() -> None:
@@ -352,10 +359,19 @@ def test_chatgpt_startup_records_failure_after_successful_preflight() -> None:
     content = _script("start-chatgpt.ps1")
     lifecycle = _script("startup-instance-lifecycle.ps1")
 
-    assert "$CurrentStatePath = $null\ntry {\n    $Server = Start-OwnedProcess" in content
+    current_state = content.index("$CurrentStatePath = $null")
+    assert current_state < content.index("try {", current_state)
     assert "Set-KisMcpCurrentInstanceStartupFailed -Remote $Remote -RunId $RunId" in content
-    assert "Get-KisMcpUnlockPayload" not in content
+    assert content.index("$Preflight = Invoke-KisMcpSelectedInstancePreflight") < content.index(
+        "$NvidiaApiKey = Resolve-KisMcpSecretInternal"
+    )
     assert "lifecycle = 'startup_failed'" in lifecycle
+
+
+def test_repository_ignores_plaintext_env_directories() -> None:
+    ignored = _document(".gitignore").splitlines()
+
+    assert ".env/" in ignored
 
 
 def test_chatgpt_startup_quarantines_noncanonical_repository_transients() -> None:

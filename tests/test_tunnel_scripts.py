@@ -165,17 +165,25 @@ def test_tunnel_state_helper_reads_non_secret_identifiers_and_reference() -> Non
     assert "tunnel_client_path" in content
 
 
-def test_runtime_startup_does_not_unlock_application_vault() -> None:
+def test_chatgpt_startup_uses_application_vault_only_for_nvidia() -> None:
     chatgpt = _script("start-chatgpt.ps1")
     stdio = _script("start.ps1")
 
-    for content in (chatgpt, stdio):
-        assert "secret-vault.ps1" not in content
-        assert "Get-KisMcpUnlockPayload" not in content
-        assert "kis_mcp.secrets.launcher" not in content
-        assert "Start-KisMcpSecretAwareProcess" not in content
-        assert "Unlock kis-mcp secrets" not in content
+    assert "secret-vault.ps1" in chatgpt
+    assert "Get-KisMcpUnlockPayload" in chatgpt
+    assert "Resolve-KisMcpSecretInternal" in chatgpt
+    assert "$AgentSettings.nvidia.secret_ref" in chatgpt
+    assert "$AgentSettings.nvidia.api_key_env" in chatgpt
+    assert "$ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey" in chatgpt
+    assert "kis_mcp.secrets.launcher" not in chatgpt
+    assert "Start-KisMcpSecretAwareProcess" not in chatgpt
     assert "kis_mcp.remote_runtime" in chatgpt
+
+    assert "secret-vault.ps1" not in stdio
+    assert "Get-KisMcpUnlockPayload" not in stdio
+    assert "Resolve-KisMcpSecretInternal" not in stdio
+    assert "kis_mcp.secrets.launcher" not in stdio
+    assert "Start-KisMcpSecretAwareProcess" not in stdio
     assert "kis_mcp.server" in stdio
 
 
@@ -216,7 +224,7 @@ def test_setup_script_reads_windows_credential_without_persisting_plaintext() ->
     assert "sk-" not in content
 
 
-def test_chatgpt_launcher_uses_windows_credential_only_for_tunnel() -> None:
+def test_chatgpt_launcher_keeps_tunnel_on_windows_credential_boundary() -> None:
     content = _script("start-chatgpt.ps1")
 
     assert "windows-credential.ps1" in content
@@ -229,8 +237,11 @@ def test_chatgpt_launcher_uses_windows_credential_only_for_tunnel() -> None:
     assert "Kill()" not in content
     assert "Get-KisMcpTunnelCredentialTarget" in content
     assert "Get-KisMcpWindowsCredential" in content
-    assert "$TunnelEnvironment" in content
-    assert "Get-KisMcpUnlockPayload" not in content
+    assert "$TunnelEnvironment[$CredentialEnvironmentName] = $Credential" in content
+    assert "$TunnelEnvironment[$NvidiaApiKeyEnvironment]" not in content
+    assert "$ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey" in content
+    assert "Get-KisMcpUnlockPayload" in content
+    assert "Resolve-KisMcpSecretInternal" in content
     assert "kis_mcp.secrets.launcher" not in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content
 
