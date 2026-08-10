@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "change_id": "091-nvidia-nim-model-profiles",
+  "status": "active",
+  "branch": "change/091-nvidia-nim-model-profiles",
+  "worktree": ".work/worktrees/091-nvidia-nim-model-profiles",
+  "base": "main",
+  "outcome": "Configure and commission NVIDIA Nemotron Nano Super and Ultra profiles with secure local secret bootstrap and explicit model guidance",
+  "owned_paths": [
+    "settings/agents/code-review-agent.settings.json",
+    "src/kis_mcp/providers/nvidia/**",
+    "src/kis_mcp/workflows/code_review/**",
+    "tests/providers/nvidia/**",
+    "tests/workflows/code_review/**",
+    ".gitignore",
+    "docs/OPERATIONS.md",
+    "SPEC.md",
+    "scripts/start-chatgpt.ps1",
+    "scripts/secret-vault.ps1",
+    ".work/changes/091-nvidia-nim-model-profiles/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
