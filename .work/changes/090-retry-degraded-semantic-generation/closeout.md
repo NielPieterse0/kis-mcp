@@ -25,12 +25,22 @@
 
 - Branch: `change/090-retry-degraded-semantic-generation`.
 - Worktree: `.work/worktrees/090-retry-degraded-semantic-generation`.
-- Implementation checkpoint, integration, final live commissioning, exact publication, and governed cleanup remain pending.
+- Implementation checkpoint: `0e2192ca7e6bddacd2b61a204d33aab776b6d6f9`.
+- Integrated by fast-forward into local primary `main` at the same SHA before live commissioning.
 
-## Required final commissioning
+## Live commissioning
 
-- Fast-forward the verified 090 checkpoint into clean primary `main`.
-- Restart `kis-dev` from that integrated head.
-- Call `inspect_project` against the existing degraded persisted generation and prove it refreshes to Serena `ready`, then prove the next call reuses that recovered generation.
-- Re-run provider live smoke, GitHub Project preview, registered GitHub exact publication verification, Work/HR-003 smoke, and clean-state audit.
-- Run a final canonical verifier on the exact closeout head before publishing and governed cleanup.
+- Fresh `kis-dev` reached `ready` from integrated primary `main` on `127.0.0.1:8011`.
+- First identical `inspect_project` call refreshed the previously degraded generation to Serena 1.6.1 `available=true`, with no `SEMANTIC_PROVIDER_UNAVAILABLE` unknown.
+- Second identical call returned `persistence.status=reused` with the same recovered generation ID, proving normal warm reuse after recovery.
+- Provider live smoke passed: Context7 local startup/tool discovery; Serena offline semantic reads; memory quarantine/restore; restart verification; `repo_local_state_absent=true`.
+- GitHub Project issue #102 reconciliation preview remained `noop`, `success=true`, `Status=Done`.
+- Work write/read passed; direct permanent-delete intent returned `HR-003_QUARANTINE_REQUIRED`; the marker was recoverably quarantined as `20260810T081416981766Z-e811ef09e174`.
+
+## Post-closeout procedure
+
+- Fast-forward this metadata-only closeout commit into `main`.
+- Run canonical `scripts\\verify.ps1` on that exact primary head.
+- Publish only that verified SHA through the registered-GitHub exact operation using the observed remote `main` SHA as the expected base.
+- Independently verify GitHub `main`, reconcile local `origin/main`, and run governed cleanup for 090 without force deletion.
+- Restart `kis-dev` from the exact published head and repeat health plus Discover semantic recovery/reuse checks before declaring commissioning complete.

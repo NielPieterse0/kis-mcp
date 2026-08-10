@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "090-retry-degraded-semantic-generation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/090-retry-degraded-semantic-generation",
   "worktree": ".work/worktrees/090-retry-degraded-semantic-generation",
   "base": "main",
