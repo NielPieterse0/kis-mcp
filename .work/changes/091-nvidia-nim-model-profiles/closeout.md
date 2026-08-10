@@ -28,9 +28,10 @@
 - Branch: `change/091-nvidia-nim-model-profiles`
 - Worktree: `.work/worktrees/091-nvidia-nim-model-profiles`
 - Design commit: `0f321f49e7c9d5610c0bff151696bbde6c0f5b95`
-- Candidate implementation commit: pending.
-- Candidate `kis-dev` commissioning: pending.
-- Final integrated-head `kis-dev` commissioning: pending.
+- Candidate implementation commit: `68d9e7f5f5d425d59a1aa15ba0fd7c92aff6c4c9`.
+- Candidate `kis-dev` commissioning: PASS on development run `20260810T1220335123910Z`, repository root `C:\Projects\kis-mcp\.work\worktrees\091-nvidia-nim-model-profiles`. `kis_health.ready=true`; NVIDIA state `ready`; default profile `super`; public review schema exposes `model`; live reviews completed for Nano (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`), Super (`nvidia/nemotron-3-super-120b-a12b`), and Ultra (`nvidia/nemotron-3-ultra-550b-a55b`). `kis-op` remained independently `ready=true` throughout.
+- Final integrated-head `kis-dev` commissioning: pending after merge/publication/cleanup so the exact stable final head can be signed off without later repository drift.
+- Final exact-head commissioning evidence will be retained beneath canonical generated state `C:\Projects\.kis-mcp\commissioning\091-nvidia-nim-model-profiles-final.json`; this record is written only after all repository mutations and cleanup are complete.
 - Cleanup: pending.
 
 ## Residual items
