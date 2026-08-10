@@ -1,7 +1,7 @@
 # Change Specification: NVIDIA NIM Model Profiles
 
 - **Change ID**: `091-nvidia-nim-model-profiles`
-- **Status**: Approved design / written-spec review
+- **Status**: Closed implementation scope; final exact-head runtime signoff is post-branch generated-state evidence
 - **Development Level**: Complex
 - **Risk Profile**: rigorous
 
