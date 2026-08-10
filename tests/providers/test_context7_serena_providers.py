@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -17,6 +18,7 @@ from kis_mcp.providers.serena import (
     load_serena_settings,
     serena_provider_descriptor,
 )
+from kis_mcp.providers.serena.adapter import _SharedProviderClient
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -95,6 +97,42 @@ def test_serena_descriptor_is_local_read_only_and_offline() -> None:
     )
     assert "delete_memory" not in capability.tool_names
     assert descriptor.readiness_probe().details["offline_enforced"] is True
+
+
+def test_shared_serena_client_survives_nested_proxy_context_exit() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))
+
+    class ReentrantClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            del args
+
+        async def call_tool(self, name: str, arguments: dict[str, object]):
+            del name, arguments
+            return _result("ok")
+
+        async def list_tools(self):
+            return ()
+
+    inner = ReentrantClient()
+    shared = _SharedProviderClient(inner, adapter)
+
+    async def scenario() -> None:
+        async with shared:
+            outer_loop = adapter._loop
+            assert adapter._active_client is inner
+            assert outer_loop is not None
+            async with shared:
+                assert adapter._active_client is inner
+            assert adapter._active_client is inner
+            assert adapter._loop is outer_loop
+        assert adapter._active_client is None
+        assert adapter._loop is None
+
+    asyncio.run(scenario())
 
 
 def test_serena_normalizes_symbols_and_references_without_schema_leakage() -> None:

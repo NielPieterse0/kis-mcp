@@ -123,9 +123,11 @@ class _SharedProviderClient:
     def __init__(self, inner: Any, owner: "SerenaRuntimeAdapter") -> None:
         self._inner = inner
         self._owner = owner
+        self._context_depth = 0
 
     async def __aenter__(self):
         active = await self._inner.__aenter__()
+        self._context_depth += 1
         self._owner._publish_active_client(active)
         return self
 
@@ -133,7 +135,9 @@ class _SharedProviderClient:
         try:
             await self._inner.__aexit__(*args)
         finally:
-            self._owner._clear_active_client()
+            self._context_depth -= 1
+            if self._context_depth == 0:
+                self._owner._clear_active_client()
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> object:
         return await self._inner.call_tool(name, arguments)

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "089-discover-serena-shared-client-lifecycle",
+  "status": "active",
+  "branch": "change/089-discover-serena-shared-client-lifecycle",
+  "worktree": ".work/worktrees/089-discover-serena-shared-client-lifecycle",
+  "base": "main",
+  "outcome": "Keep Serena's shared runtime client active across nested FastMCP proxy contexts so Discover semantic enrichment works while the provider lifespan is ready.",
+  "owned_paths": [
+    "src/kis_mcp/providers/serena/adapter.py",
+    "tests/providers/test_context7_serena_providers.py",
+    ".work/changes/089-discover-serena-shared-client-lifecycle/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
