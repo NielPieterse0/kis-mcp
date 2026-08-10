@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "089-discover-serena-shared-client-lifecycle",
-  "status": "active",
+  "status": "closed",
   "branch": "change/089-discover-serena-shared-client-lifecycle",
   "worktree": ".work/worktrees/089-discover-serena-shared-client-lifecycle",
   "base": "main",

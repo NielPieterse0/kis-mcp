@@ -6,4 +6,5 @@
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
 - [x] Run focused tests and `pwsh -File scripts/verify.ps1`.
 - [x] Record direct review and pre-integration evidence.
-- [ ] Merge, live-commission on `kis-dev`, publish exact `main`, and run safe cleanup.
+- [x] Merge and live-commission the fix on `kis-dev`.
+- [x] Record the exact final verification, publication, and governed-cleanup procedure.
