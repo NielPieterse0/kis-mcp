@@ -601,29 +601,34 @@ class ProjectIntelligenceService:
                 recovered_pointer = store.retain_corrupt_current_pointer(namespace) if store else None
                 current_generation = None
             else:
-                return ProjectIntelligenceRuntime(
-                    project=project,
-                    snapshot=replace(snapshot, project=project),
-                    python_index=index,
-                    git=git,
-                    code_atlas=code_atlas,
-                    symbol_atlas=symbols,
-                    relationship_graph=relationships,
-                    semantic=semantic,
-                    persistence={
-                        "status": "reused",
-                        "available": True,
-                        "current": True,
-                        "namespace": namespace,
-                        "generation_id": current_generation.generation_id,
-                        "applicability_fingerprint": applicability_fingerprint,
-                    },
-                    source_fingerprint=source_fingerprint,
-                    settings_fingerprint=settings_fingerprint,
-                    provider_fingerprint=provider_fingerprint,
-                    truncated=bool(code_atlas.get("truncated", False)),
-                    truncation_reasons=tuple(code_atlas.get("truncation_reasons", ())),
+                reusable_semantic = not (
+                    semantic.status == "degraded"
+                    and self._semantic_provider.provider_id != "none"
                 )
+                if reusable_semantic:
+                    return ProjectIntelligenceRuntime(
+                        project=project,
+                        snapshot=replace(snapshot, project=project),
+                        python_index=index,
+                        git=git,
+                        code_atlas=code_atlas,
+                        symbol_atlas=symbols,
+                        relationship_graph=relationships,
+                        semantic=semantic,
+                        persistence={
+                            "status": "reused",
+                            "available": True,
+                            "current": True,
+                            "namespace": namespace,
+                            "generation_id": current_generation.generation_id,
+                            "applicability_fingerprint": applicability_fingerprint,
+                        },
+                        source_fingerprint=source_fingerprint,
+                        settings_fingerprint=settings_fingerprint,
+                        provider_fingerprint=provider_fingerprint,
+                        truncated=bool(code_atlas.get("truncated", False)),
+                        truncation_reasons=tuple(code_atlas.get("truncation_reasons", ())),
+                    )
 
 
         try:

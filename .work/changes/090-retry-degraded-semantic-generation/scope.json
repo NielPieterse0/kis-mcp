@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "090-retry-degraded-semantic-generation",
+  "status": "active",
+  "branch": "change/090-retry-degraded-semantic-generation",
+  "worktree": ".work/worktrees/090-retry-degraded-semantic-generation",
+  "base": "main",
+  "outcome": "Do not reuse persisted Discover generations with transiently degraded semantic evidence when a semantic provider is configured; retry enrichment so recovered Serena can be commissioned.",
+  "owned_paths": [
+    "src/kis_mcp/discover/intelligence.py",
+    "tests/discover/test_project_intelligence.py",
+    ".work/changes/090-retry-degraded-semantic-generation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

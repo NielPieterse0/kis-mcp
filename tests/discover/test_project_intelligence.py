@@ -139,6 +139,43 @@ class _SemanticProvider:
         )
 
 
+class _RecoveringSemanticProvider(_SemanticProvider):
+    def __init__(self, version: str) -> None:
+        super().__init__(version)
+        self.calls = 0
+
+    def read(self, project_path: str, source_paths: tuple[str, ...] = ()):
+        self.calls += 1
+        if self.calls == 1:
+            raise RuntimeError("transient semantic startup failure")
+        return super().read(project_path, source_paths)
+
+
+def test_degraded_semantic_generation_is_retried_after_provider_recovers(tmp_path: Path) -> None:
+    project = tmp_path / "demo"
+    project.mkdir()
+    (project / "module.py").write_text("def one():\n    return 1\n", encoding="utf-8")
+    provider = _RecoveringSemanticProvider("1")
+    service = ProjectIntelligenceService(
+        boundary=tmp_path,
+        settings=_settings(tmp_path / "state"),
+        projects=_registry("demo", project),
+        semantic_provider=provider,
+    )
+
+    degraded = service.get(str(project))
+    recovered = service.get(str(project))
+    warm = service.get(str(project))
+
+    assert degraded.semantic.status == "degraded"
+    assert degraded.persistence["status"] == "created"
+    assert recovered.semantic.status == "ready"
+    assert recovered.persistence["status"] == "refreshed"
+    assert recovered.persistence["generation_id"] != degraded.persistence["generation_id"]
+    assert warm.persistence["status"] == "reused"
+    assert provider.calls == 2
+
+
 def test_settings_and_provider_version_invalidate_persisted_generation(tmp_path: Path) -> None:
     project = tmp_path / "demo"
     project.mkdir()
