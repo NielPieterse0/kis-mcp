@@ -30,9 +30,11 @@
 - Design commit: `0f321f49e7c9d5610c0bff151696bbde6c0f5b95`
 - Candidate implementation commit: `68d9e7f5f5d425d59a1aa15ba0fd7c92aff6c4c9`.
 - Candidate `kis-dev` commissioning: PASS on development run `20260810T1220335123910Z`, repository root `C:\Projects\kis-mcp\.work\worktrees\091-nvidia-nim-model-profiles`. `kis_health.ready=true`; NVIDIA state `ready`; default profile `super`; public review schema exposes `model`; live reviews completed for Nano (`nvidia/nemotron-3-nano-omni-30b-a3b-reasoning`), Super (`nvidia/nemotron-3-super-120b-a12b`), and Ultra (`nvidia/nemotron-3-ultra-550b-a55b`). `kis-op` remained independently `ready=true` throughout.
-- Final integrated-head `kis-dev` commissioning: pending after merge/publication/cleanup so the exact stable final head can be signed off without later repository drift.
-- Final exact-head commissioning evidence will be retained beneath canonical generated state `C:\Projects\.kis-mcp\commissioning\091-nvidia-nim-model-profiles-final.json`; this record is written only after all repository mutations and cleanup are complete.
-- Cleanup: pending.
+- First integration merge: `983448984a2f816e394881532a982957c2f9e8c4`; canonical verification passed and registered-GitHub publication moved remote `main` exactly from `6c02ac29d0b5fb93652f63b9a0e68e19c7506201` to that commit.
+- This closed-scope metadata commit is intentionally merged after the first integration so governed cleanup can prove `status=closed`. After that merge is verified and published, no further repository content is required for commissioning.
+- Final integrated-head `kis-dev` commissioning is performed only after merge/publication/cleanup so the exact stable final head can be signed off without later repository drift.
+- Final exact-head commissioning evidence is retained beneath canonical generated state `C:\Projects\.kis-mcp\commissioning\091-nvidia-nim-model-profiles-final.json`; that record is written only after all repository mutations and cleanup are complete.
+- Cleanup: post-merge operational step; no tracked-file mutation is performed by the cleanup implementation.
 
 ## Residual items
 

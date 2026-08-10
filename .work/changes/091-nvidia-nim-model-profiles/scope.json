@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "091-nvidia-nim-model-profiles",
-  "status": "active",
+  "status": "closed",
   "branch": "change/091-nvidia-nim-model-profiles",
   "worktree": ".work/worktrees/091-nvidia-nim-model-profiles",
   "base": "main",
