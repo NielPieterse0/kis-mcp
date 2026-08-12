@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "change_id": "096-python-quality-tooling-evidence",
+  "status": "active",
+  "branch": "change/096-python-quality-tooling-evidence",
+  "worktree": ".work/worktrees/096-python-quality-tooling-evidence",
+  "base": "main",
+  "outcome": "Add deterministic Discover evidence for declared Python quality tooling (Ruff, coverage.py/pytest-cov, Vulture, LibCST, and type checking) and safe non-executing verification declarations without installing or executing project tooling.",
+  "owned_paths": [
+    "src/kis_mcp/discover/verification.py",
+    "tests/discover/test_verification_discovery.py",
+    ".work/changes/096-python-quality-tooling-evidence/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
