@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "change_id": "095-nim-subagent-models",
+  "status": "active",
+  "branch": "change/095-nim-subagent-models",
+  "worktree": ".work/worktrees/095-nim-subagent-models",
+  "base": "main",
+  "outcome": "Benchmark candidate NVIDIA NIM sub-agent models through the approved external reviewer boundary, then register only suitable bounded reviewer profiles with verification and commissioning.",
+  "owned_paths": [
+    "settings/agents/code-review-agent.settings.json",
+    "src/kis_mcp/providers/nvidia/**",
+    "src/kis_mcp/workflows/code_review/**",
+    "src/kis_mcp/capabilities/surface.py",
+    "tests/providers/nvidia/**",
+    "tests/capabilities/test_capability_contracts.py",
+    "tests/workflows/code_review/**",
+    "tests/test_llm_agent_registration.py",
+    "scripts/benchmark-nvidia-nim.py",
+    ".work/changes/095-nim-subagent-models/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "SPEC.md",
+    "README.md",
+    "docs/OPERATIONS.md",
+    "AGENTS.md"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
