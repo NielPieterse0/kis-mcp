@@ -210,6 +210,8 @@ class ImpactRelationship(_Record):
         if self.kind not in {
             "contract_reference",
             "configuration_reference",
+            "documentation_reference",
+            "policy_reference",
             "semantic_reference",
             "task_term",
         }:

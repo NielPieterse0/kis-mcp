@@ -8,8 +8,9 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from kis_mcp.discover.errors import DiscoverError
-from kis_mcp.discover.impact_contracts import ImpactBudget, InspectImpactRequest
-from kis_mcp.discover.impact_graph import ImpactGraphService
+from kis_mcp.discover.contracts import Confidence
+from kis_mcp.discover.impact_contracts import ImpactBudget, ImpactDependant, InspectImpactRequest
+from kis_mcp.discover.impact_graph import ImpactGraphService, _merge_dependants
 from kis_mcp.discover.intelligence import ProjectIntelligenceService
 from kis_mcp.discover.semantic import SemanticEvidence, SemanticRelationship, SemanticSymbol
 
@@ -265,3 +266,107 @@ def test_semantic_relationship_selects_affected_test_without_naming_convention(
     selected = next(item for item in response.affected_tests if item.path == "tests/semantic_probe.py")
     assert selected.provenance == "semantic_provider"
     assert selected.confidence.value == "medium"
+
+
+def test_python_import_impact_includes_bounded_transitive_dependants(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write_python_fixture(project_root)
+    (project_root / "src" / "outer.py").write_text(
+        "from .consumer import use_changed\n\ndef outer(value):\n    return use_changed(value)\n",
+        encoding="utf-8",
+    )
+
+    response = _service(project_root, discover_settings).inspect(
+        InspectImpactRequest(
+            project=str(project_root),
+            changed_paths=("src/core.py",),
+            budget=_budget(),
+        )
+    )
+
+    transitive = [item for item in response.dependants if item.provenance == "python_ast_transitive"]
+    assert len(transitive) == 1
+    assert transitive[0].source == "outer"
+    assert transitive[0].target == "core"
+    assert transitive[0].path == "src/outer.py"
+    assert transitive[0].confidence.value == "medium"
+
+
+def test_code_change_links_relevant_support_surfaces_with_explicit_provenance(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write_python_fixture(project_root)
+    for directory, name, content in (
+        ("docs", "core.md", "# Core behavior\n"),
+        ("settings", "core.json", "{}\n"),
+        ("contracts", "core.schema.json", "{}\n"),
+        ("policy", "core.json", "{}\n"),
+    ):
+        target = project_root / directory
+        target.mkdir(exist_ok=True)
+        (target / name).write_text(content, encoding="utf-8")
+
+    response = _service(project_root, discover_settings).inspect(
+        InspectImpactRequest(
+            project=str(project_root),
+            changed_paths=("src/core.py",),
+            task_terms=("core",),
+            budget=_budget(max_dependants=20),
+        )
+    )
+
+    by_kind = {item.kind: item for item in response.relationship_impacts}
+    assert by_kind["documentation_reference"].source_path == "docs/core.md"
+    assert by_kind["configuration_reference"].source_path == "settings/core.json"
+    assert by_kind["contract_reference"].source_path == "contracts/core.schema.json"
+    assert by_kind["policy_reference"].source_path == "policy/core.json"
+    assert all(
+        item.provenance == "path_token_reference"
+        for kind, item in by_kind.items()
+        if kind.endswith("_reference") and kind != "semantic_reference"
+    )
+
+
+def test_direct_cross_language_dependants_precede_transitive_evidence_under_tight_budget() -> None:
+    direct_python = ImpactDependant(
+        kind="import",
+        source="consumer",
+        target="core",
+        path="src/consumer.py",
+        line=1,
+        confidence=Confidence.HIGH,
+        provenance="python_ast",
+    )
+    transitive_python = ImpactDependant(
+        kind="import",
+        source="outer",
+        target="core",
+        path="src/outer.py",
+        line=1,
+        confidence=Confidence.MEDIUM,
+        provenance="python_ast_transitive",
+    )
+    direct_javascript = ImpactDependant(
+        kind="import",
+        source="web/direct.ts",
+        target="web/core.ts",
+        path="web/direct.ts",
+        line=1,
+        confidence=Confidence.HIGH,
+        provenance="javascript_static_import",
+    )
+
+    selected = _merge_dependants(
+        (direct_python,),
+        (transitive_python,),
+        (direct_javascript,),
+    )[:2]
+
+    assert {item.provenance for item in selected} == {
+        "python_ast",
+        "javascript_static_import",
+    }
+    assert not any("transitive" in item.provenance for item in selected)

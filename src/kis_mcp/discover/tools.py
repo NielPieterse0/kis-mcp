@@ -233,6 +233,8 @@ def register_analyze_change_tool(server: FastMCP, service: AnalyzeChangePort) ->
         task_terms: list[str] | None = None,
         supplied_changes: list[dict[str, Any]] | None = None,
         github_context: dict[str, Any] | None = None,
+        planned_paths: list[str] | None = None,
+        planned_impact_fingerprint: str | None = None,
         max_symbols: int = 100,
         max_dependants: int = 100,
         max_tests: int = 100,
@@ -258,6 +260,8 @@ def register_analyze_change_tool(server: FastMCP, service: AnalyzeChangePort) ->
                 task_terms=tuple(task_terms or ()),
                 supplied_changes=supplied,
                 github_context=github,
+                planned_paths=tuple(planned_paths or ()),
+                planned_impact_fingerprint=planned_impact_fingerprint,
                 budget=ImpactBudget(
                     max_symbols=max_symbols,
                     max_dependants=max_dependants,

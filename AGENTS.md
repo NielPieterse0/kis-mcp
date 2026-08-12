@@ -25,6 +25,38 @@ Read these files before changing the repository:
 
 When documents conflict, use the earliest applicable authority above.
 
+## Documentation ownership and routing
+
+Repository documentation follows one rule: **one governed fact has one canonical owner**. A non-owning document may summarize for its audience, specialize the fact within a narrower declared scope, link to the owner, or preserve historical evidence. It must not redefine the same current fact independently.
+
+Route information to the smallest durable owner:
+
+| Information | Canonical owner |
+|---|---|
+| Repository scope, agent operating rules, authority order, documentation routing, and parallel-change workflow | `AGENTS.md` |
+| Trust assumptions and the semantic meaning of HR-001, HR-002, and HR-003 | `docs/TRUST-MODEL.md` |
+| Current implemented product architecture, interfaces, boundaries, and implementation status | `SPEC.md` |
+| Approved target/future architecture | `docs/PLATFORM-CONCEPT.md` |
+| Machine-readable hard-rule declaration | `policy/kis-mcp.policy.json` |
+| Installation, configuration, startup, commissioning, verification, troubleshooting, and recovery | `docs/OPERATIONS.md` |
+| Human orientation, quick start, repository navigation, and links to canonical detail | `README.md` |
+| Durable module-specific contracts and roadmaps | the applicable `docs/*-MODULE-PRODUCT-SPEC.md`, subordinate to the authority order above |
+| One active change's scope, requirements, plan, execution state, and closeout evidence | `.work/changes/<change-id>/` |
+| Specialist engineering evidence or historical development notes | `docs/development/**` |
+| Reusable development procedures | `.agents/skills/**` |
+| Executable settings, schemas, contracts, and policy values | the applicable JSON, contract, source, or test artifact |
+
+Apply these rules when writing documentation:
+
+1. Update an existing canonical owner instead of creating an overlapping document.
+2. Keep `README.md` as a projection and index; link to architecture, policy, and operations rather than duplicating volatile detail.
+3. Use root `SPEC.md` only for current product truth. Use a module product spec only for a long-lived scoped architectural domain, and state its parent/current-implementation authority where needed.
+4. Use `.work/changes/<change-id>/spec.md` only for the bounded active change. After merge, the entire change record becomes historical evidence; reconcile durable outcomes into the canonical owner instead of continuously rewriting old `.work` records.
+5. Do not create new active feature `spec.md` or `plan.md` files under `docs/development/**`; this repository's active change system is `.work/changes/<change-id>/`.
+6. Supporting or historical documents must defer to the current authorities and must not be used to override them.
+7. Machine-enforceable facts belong in machine-readable artifacts and tests. Prose explains or links to them; it must not maintain a competing executable value.
+8. A new top-level `docs/*.md` file requires a distinct long-lived ownership domain. If an existing authority can own the information, update that authority instead.
+
 ## Skill authority and routing
 
 Repository-local skills under `.agents/skills` are procedural development aids. They are not product, runtime, policy, or repository authority, and their presence does not prove that a platform capability is implemented. The runtime Skills module is separate: it resolves the operator-approved shared catalogue at `C:\Projects\.agents\skills` through `settings/skills.settings.json`. Shared runtime skills remain reusable procedures rather than repository-specific authority; ChatGPT loads their instructions and executes resulting work through the ordinary kis-mcp Work surface.
@@ -148,6 +180,7 @@ Manual worktree creation is an emergency exception only. Register the same chang
 - Never permanently delete repository artifacts; use recoverable quarantine.
 - Keep temporary files under `C:\Projects\.kis-mcp\temp` or the repository `.temp` directory when one is explicitly needed.
 - Keep configuration in JSON.
+- Treat `.gitattributes` as the repository authority for tracked text line endings. KIS `write_file` and `edit_block` compatibility handling must honor Git's effective `text`/`eol` attributes; preserve explicit CRLF exceptions and binary paths instead of applying a blanket conversion.
 - Keep modules focused and dependency direction simple.
 - Do not commit secrets, tokens, machine-specific credentials, generated state, package caches, provider installation contents, or quarantine contents.
 - Do not represent target behavior as implemented without fresh applicable tests.

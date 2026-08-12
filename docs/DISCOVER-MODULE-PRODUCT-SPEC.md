@@ -763,19 +763,21 @@ Optimization order:
 
 Generated caches and persistent project-intelligence generations remain beneath `C:\Projects\.kis-mcp` and are never repository authority. Persisted intelligence is derived evidence: a registered `project_id`, worktree identity, Git/source fingerprint, Discover settings fingerprint, parser/index version, and semantic-provider fingerprint determine whether it may be reused. Missing, stale, incompatible, or corrupt generations are refreshed on demand; superseded/corrupt evidence remains recoverable. The shared persisted contract contains bounded Code Atlas, Symbol Atlas, and Relationship Graph artifacts with provenance, freshness, confidence, classification, truncation, and SHA-256 integrity metadata.
 
-### 14.1 Implementation checkpoint — 2026-08-09
+### 14.1 Implementation checkpoint — 2026-08-12
 
 | Area | v1 status | Boundary |
 |---|---|---|
 | D0 contracts, read authority, budgeting, architecture, and harvest traceability | Complete | Deterministic local foundation |
 | D1 repository intelligence and public `inspect_project` | Complete | Bounded local repository evidence |
-| D2 local change intelligence and public `inspect_change` | Complete | Working tree, staged, commit, range, and branch targets; remote PR/MR evidence remains provider-dependent |
+| D2 local change intelligence and public `inspect_change` | Complete | Working tree, staged, commit, range, and branch targets; impact adds bounded depth-2 Python reverse-import dependants plus advisory documentation/configuration/contract/policy relationships; remote PR/MR evidence remains provider-dependent |
 | D3 semantic code intelligence | Complete for planned persistent-memory/Serena slice | Bounded Code/Symbol/Relationship state is persisted on demand; Python AST/static JavaScript remain deterministic fallbacks; pinned Serena 1.6.1 supplies optional normalized read-only semantic evidence with `UV_OFFLINE=1`; SCIP/Sourcegraph/vector expansion remains optional future work |
-| D4 context broker and public `get_code_context` | Complete with persistent read-through | Explicit task and budget; reuses current project-intelligence generations while still reading current task evidence; no repository dump |
-| D5 verification intelligence and Work handoffs | Complete for local declarations | Discover does not execute checks |
+| D4 context broker and public `get_code_context` | Complete with persistent read-through | Explicit task and budget; reuses current project-intelligence generations and may retain bounded same-component support artifacts tied to selected source evidence; no repository dump |
+| D5 verification intelligence and Work handoffs | Complete for local declarations | `analyze_change` can reconcile optional planned paths/fingerprint against actual scope and identify reference-backed deleted/renamed replacement candidates; Discover does not execute checks |
 | D6 provider harvesting and admission | Local evidence foundation complete | Explicit checked-in candidate manifest, pending Govern request, and non-executing Work plan; installation and activation remain prohibited |
 | D7 API and contract intelligence | Initial local foundation complete | OpenAPI JSON, JSON Schema, and checked-in MCP contract classification; additional formats remain staged |
 | D8 cross-repository discovery | Local explicit-selection foundation complete | No implicit `C:\Projects` scan; indexes and provider-backed cross-repository impact remain staged |
+
+The read-only `plan_change` Work-planning bridge composes these Discover services without executing Work. It now returns planned implementation paths and an evidence fingerprint, active-claim conflicts, affected support surfaces, and advisory `REUSE`/`EXTEND`/`REPLACE`/`NEW` repository-pattern guidance. These classifications are evidence for supervised planning, not Govern decisions or authorization.
 
 The bounded local Discover v1 completion gate is the four public workflows, their deterministic local and supplied-change paths, explicit degradation, and internal governed evidence foundations. Optional provider-backed expansion remains roadmap work and MUST NOT be represented as installed or ready until separately admitted and verified.
 

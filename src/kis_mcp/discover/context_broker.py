@@ -147,6 +147,7 @@ class ContextBrokerService:
         relevant_files = tuple(item for item in files if item.score >= 10)
         if not relevant_files and files:
             relevant_files = files[:1]
+        relevant_files = _with_related_support_files(relevant_files, files)
         selected_file_candidates = list(relevant_files[: request.budget.max_files])
         selected_paths = {item.record.label for item in selected_file_candidates}
 
@@ -827,6 +828,69 @@ class ContextBrokerService:
             response = build()
             if _serialized_length(response) <= request.budget.max_chars:
                 return response
+
+
+def _with_related_support_files(
+    relevant: tuple[_FileCandidate, ...],
+    candidates: tuple[_FileCandidate, ...],
+) -> tuple[_FileCandidate, ...]:
+    """Append deterministic support artifacts tied to already-relevant source paths."""
+    anchors = tuple(item for item in relevant if item.category == "source")
+    if not anchors:
+        return relevant
+    support_categories = {"contract", "configuration", "documentation", "policy"}
+    ignored_tokens = {
+        "app",
+        "code",
+        "common",
+        "config",
+        "core",
+        "main",
+        "module",
+        "service",
+        "src",
+    }
+    anchor_tokens = tuple(
+        {
+            token
+            for token in _support_path_tokens(item.record.label)
+            if token not in ignored_tokens
+        }
+        for item in anchors
+    )
+    retained = list(relevant)
+    seen = {item.record.label for item in retained}
+    related: list[_FileCandidate] = []
+    for candidate in candidates:
+        if candidate.record.label in seen or candidate.category not in support_categories:
+            continue
+        support_tokens = {
+            token
+            for token in _support_path_tokens(candidate.record.label)
+            if token not in ignored_tokens
+        }
+        if not support_tokens:
+            continue
+        if not any(len(tokens & support_tokens) >= 2 for tokens in anchor_tokens):
+            continue
+        related.append(candidate)
+        seen.add(candidate.record.label)
+    related.sort(
+        key=lambda item: relevance_sort_key(
+            item.score,
+            item.category,
+            item.record.label,
+        )
+    )
+    retained.extend(related)
+    return tuple(retained)
+
+
+def _support_path_tokens(path: str) -> set[str]:
+    normalized = path.casefold().replace("\\", "/")
+    for marker in ("/", ".", "-", "_"):
+        normalized = normalized.replace(marker, " ")
+    return {token for token in normalized.split() if len(token) >= 3}
 
 
 def _context_category(record: ScannedFile) -> str:
