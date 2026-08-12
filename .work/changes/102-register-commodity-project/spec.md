@@ -1,7 +1,7 @@
 # Change Specification: Register Commodity Project
 
 - **Change ID**: `102-register-commodity-project`
-- **Status**: Active
+- **Status**: Closed
 - **Risk Profile**: lean
 
 ## Outcome
