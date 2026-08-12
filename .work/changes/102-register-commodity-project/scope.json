@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "102-register-commodity-project",
-  "status": "active",
+  "status": "closed",
   "branch": "change/102-register-commodity-project",
   "worktree": ".work/worktrees/102-register-commodity-project",
   "base": "main",

@@ -28,9 +28,10 @@
 
 - Branch: `change/102-register-commodity-project`.
 - Worktree: `.work/worktrees/102-register-commodity-project`.
-- Implementation commit: pending.
-- Pull request/merge: pending.
-- Governed cleanup: pending implementation merge.
+- Implementation commit: `afdeb67fe24a98bf546504c81886ac821d39e37a` locally; clean file-equivalent GitHub delivery head `eaa5d6bfcf358666f6a26a2d1e9354b5cf598726`.
+- Pull request/merge: PR #120 merged by exact approved head; remote merge SHA `43384551c83f281533ee8e2910eded8ea6cd65cd`.
+- Remote implementation branch: deleted through the exact registered-repository operation with recovery SHA `eaa5d6bfcf358666f6a26a2d1e9354b5cf598726`.
+- Governed local cleanup: closed-state record fast-forwarded to local `main`; worktree removed and local branch deleted non-forced by `change-workflow.ps1 cleanup`.
 
 ## Residual items
 
