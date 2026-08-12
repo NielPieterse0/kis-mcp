@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "093-change-intelligence-enrichment",
-  "status": "active",
+  "status": "closed",
   "branch": "change/093-change-intelligence-enrichment",
   "worktree": ".work/worktrees/093-change-intelligence-enrichment",
   "base": "main",
