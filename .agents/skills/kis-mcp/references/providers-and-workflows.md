@@ -193,7 +193,21 @@ Work-management operations are conditional on strict settings and provider
 bindings. Disabled configuration is a valid state and must not be interpreted as
 provider failure.
 
-When enabled, expect bounded inventory, preview/reconciliation, portfolio
-status, review-evidence persistence, and traceability verification workflows.
-Apply paths retain revision/idempotency controls; no unrestricted GitHub Project
-GraphQL or delete operation is implied by provider availability.
+When enabled, expect bounded inventory, preview/reconciliation, Project schema
+status, merge readiness, documentation reconciliation, portfolio status,
+review-evidence persistence, and traceability verification operations. The
+repository-owned desired Project projection is
+`settings/work-management/github-project-schema.json`.
+
+For managed tasks/specification slices, documentation impact is part of intake.
+Use the `complete-work-managed-pull-request` workflow for closeout: it requires
+`project_management_merge_readiness` before the exact-head registered merge and
+then `project_management_documentation_reconcile` after confirmed merge evidence.
+Required work remains in `Documentation` until `post_merge_complete` is recorded
+at an exact revision.
+
+Apply paths retain revision/idempotency controls. The approved GitHub MCP surface
+currently cannot provision generic Project fields, Status option schemas, saved
+views, or native Project workflows, so `project_management_schema_status`
+reports those gaps rather than bypassing the provider with unrestricted GraphQL.
+All custom/native automation remains disabled until separately commissioned.

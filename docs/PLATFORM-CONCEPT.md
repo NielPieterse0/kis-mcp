@@ -150,7 +150,7 @@ Implemented for the current gateway. Provider, Tool, Discover, Skill, and Workfl
 
 ### WorkflowCoordinator
 
-Partially implemented as first-class workflow descriptors, `recommend_workflow`, the advisory code-review workflow, and bounded P5 project-management orchestration. Current descriptors cover isolated development, change review, safe pull-request closeout, worktree cleanup, provider commissioning and diagnosis, skill creation or improvement, modularity assessment, work capture, review-evidence persistence, Project reconciliation, programme status, and traceability verification. Project-management tools remain disabled until strict settings are enabled and a valid backend binding is commissioned; broader general-purpose orchestration remains future work.
+Partially implemented as first-class workflow descriptors, `recommend_workflow`, the advisory code-review workflow, and bounded Work Management orchestration. Current descriptors cover isolated development, change review, safe pull-request closeout, worktree cleanup, provider commissioning and diagnosis, skill creation or improvement, modularity assessment, work capture, review-evidence persistence, Project schema inspection/reconciliation, programme status, traceability verification, and documentation closeout. Work Management also exposes merge-readiness and post-merge documentation-milestone operations; Project schema/view provisioning remains bounded by the approved provider surface. Broader general-purpose orchestration remains future work.
 
 ### VerificationRegistry
 

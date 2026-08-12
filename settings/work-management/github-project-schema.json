@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "project_id": "kis-mcp",
+  "fields": [
+    {"name": "Status", "type": "single_select", "options": ["Inbox", "Triage", "Proposed", "Approved", "Active", "Review", "Verification", "Documentation", "Done", "Blocked", "On Hold", "Deferred", "Rejected", "Superseded"]},
+    {"name": "Record Type", "type": "single_select", "options": ["Idea", "Task", "Specification Slice", "Review Run", "Finding", "Decision", "Assumption", "Risk", "Approval", "Hold", "Research", "Defect", "Security Finding"]},
+    {"name": "Priority", "type": "single_select", "options": ["Critical", "High", "Medium", "Low"]},
+    {"name": "Project ID", "type": "text", "options": []},
+    {"name": "Repository", "type": "repository", "options": []},
+    {"name": "Module", "type": "single_select", "options": []},
+    {"name": "Change ID", "type": "text", "options": []},
+    {"name": "Origin", "type": "single_select", "options": ["Operator", "Review", "Verification", "Implementation", "Research"]},
+    {"name": "Disposition", "type": "single_select", "options": ["Open", "Accepted", "Rejected", "Superseded", "Mitigated", "Deferred"]},
+    {"name": "Verification", "type": "single_select", "options": ["Not Run", "Pending", "Passed", "Failed", "Blocked"]},
+    {"name": "Severity", "type": "single_select", "options": ["Critical", "High", "Medium", "Low"]},
+    {"name": "Confidence", "type": "single_select", "options": ["High", "Medium", "Low"]},
+    {"name": "Review Trigger", "type": "text", "options": []},
+    {"name": "Target Date", "type": "date", "options": []},
+    {"name": "Iteration", "type": "iteration", "options": []},
+    {"name": "Source Review", "type": "text", "options": []},
+    {"name": "Authority Revision", "type": "text", "options": []},
+    {"name": "External Link", "type": "text", "options": []}
+  ],  "views": [
+    {"name": "01 Inbox", "purpose": "Untriaged ideas and tasks"},
+    {"name": "02 Programme Table", "purpose": "All active records and key fields"},
+    {"name": "03 Delivery Board", "purpose": "Delivery flow grouped by lifecycle status"},
+    {"name": "04 Roadmap", "purpose": "Dated or iterated specification and implementation slices"},
+    {"name": "05 Specification Slices", "purpose": "Proposed through completed specification records"},
+    {"name": "06 Decisions", "purpose": "Proposed, accepted, rejected, and superseded decisions"},
+    {"name": "07 Assumptions and Risks", "purpose": "Open validation and mitigation work"},
+    {"name": "08 Holds and Deferred", "purpose": "Paused items with review triggers"},
+    {"name": "09 Reviews and Findings", "purpose": "Review runs and extracted records"},
+    {"name": "10 Verification", "purpose": "Work awaiting or failing verification"},
+    {"name": "11 Documentation and Closeout", "purpose": "Records awaiting documentation reconciliation or final closeout"},
+    {"name": "12 Completed", "purpose": "Closed records retained for history"}
+  ]
+}

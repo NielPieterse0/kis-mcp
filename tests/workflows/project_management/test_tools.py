@@ -18,6 +18,17 @@ class Service:
             }
         )
 
+    async def schema_status(self, project_id: str):
+        return SimpleNamespace(
+            to_json_dict=lambda: {
+                "project_id": project_id,
+                "ready": False,
+                "fields_ready": False,
+                "views_ready": None,
+                "missing_fields": ["Record Type"],
+            }
+        )
+
     async def reconcile(
         self,
         project_id,
@@ -72,6 +83,9 @@ def test_registers_only_bounded_task_level_tools() -> None:
     assert names == {
         "project_management_inventory",
         "project_management_reconcile",
+        "project_management_schema_status",
+        "project_management_merge_readiness",
+        "project_management_documentation_reconcile",
         "project_management_portfolio_status",
         "project_management_persist_review",
         "project_management_verify_traceability",

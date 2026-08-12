@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "checked_on": "2026-08-12",
+  "project": {
+    "owner": "NielPieterse0",
+    "owner_type": "user",
+    "number": 1,
+    "title": "KIS Work Management",
+    "node_id": "PVT_kwHODUU4HM4Bfo87"
+  },
+  "live_fields": [
+    "Title",
+    "Assignees",
+    "Status",
+    "Labels",
+    "Linked pull requests",
+    "Milestone",
+    "Repository",
+    "Reviewers",
+    "Parent issue",
+    "Sub-issues progress"
+  ],
+  "live_status_options": ["Todo", "In Progress", "Done"],
+  "desired_manifest": "settings/work-management/github-project-schema.json",
+  "desired_field_count": 18,
+  "desired_view_count": 12,
+  "automation_enabled": false,
+  "provider_capability": {
+    "generic_field_creation": "unsupported",
+    "status_option_schema_update": "unsupported",
+    "saved_view_creation": "unsupported",
+    "native_workflow_configuration": "unsupported",
+    "iteration_field_creation": "supported_but_not_commissioned",
+    "iteration_reason": "The approved programme leaves iteration cadence optional; no cadence is configured and the bounded provider exposes no delete-field recovery path."
+  },
+  "commissioning_state": "implemented_with_provider_schema_gap",
+  "operator_action_required": [
+    "Provision the remaining approved Project fields, Status options, and 12 saved views when the approved connector exposes bounded schema/view mutation or through a separately approved supervised GitHub UI procedure.",
+    "Re-run project_management_schema_status after provisioning.",
+    "Keep all custom/native automation disabled until each rule is separately commissioned and verified."
+  ]
+}

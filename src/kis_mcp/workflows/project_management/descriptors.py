@@ -57,6 +57,16 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             (change,),
         ),
         _workflow(
+            "inspect-project-schema",
+            "Inspect project schema",
+            "Compare the configured GitHub Project field surface against the repository-owned schema manifest and report unobservable views explicitly.",
+            ("project_management.read", "work.reconcile"),
+            ("project_management_schema_status",),
+            ("field drift is explicit", "view observability is explicit", "repository schema remains authoritative"),
+            ("project schema", "project fields", "project commissioning"),
+            (read, external),
+        ),
+        _workflow(
             "reconcile-project-state",
             "Reconcile project state",
             "Compare desired and observed work state, preview deterministic actions, and apply bounded changes explicitly.",
@@ -83,8 +93,31 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             ("work.traceability.verify",),
             ("project_management_verify_traceability",),
             ("stage is explicit", "issues are classified", "no provider layout leaks"),
-            ("verify traceability", "merge readiness", "change evidence"),
+            ("verify traceability", "change evidence"),
             (read,),
+        ),
+        _workflow(
+            "complete-work-managed-pull-request",
+            "Complete a work-managed pull request",
+            "Require a ready Work Management gate, merge only the exact approved pull-request head, then record the post-merge documentation milestone before Done.",
+            (
+                "work.traceability.verify",
+                "operation.kis_github_merge_registered_pull_request",
+                "work.reconcile",
+            ),
+            (
+                "project_management_merge_readiness",
+                "kis_github_merge_registered_pull_request",
+                "project_management_documentation_reconcile",
+            ),
+            (
+                "an unready merge gate stops this workflow before merge",
+                "only the exact approved head is merged",
+                "documentation_reconciliation_due is evidence-linked after merge",
+                "post_merge_complete is required before Done",
+            ),
+            ("merge work-managed pull request", "documentation closeout", "post merge documentation"),
+            (read, external, change),
         ),
     )
 

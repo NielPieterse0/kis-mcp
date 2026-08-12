@@ -7,7 +7,8 @@
     "working_spec":  ".work/programmes/work-management/target-spec.md",
     "roadmap":  ".work/programmes/work-management/roadmap.md",
     "initial_backend":  "github",
-    "current_change":  null,
+    "current_change":  "110-work-management-documentation-completion",
+    "commissioning_state":  "implemented_with_provider_schema_gap",
     "dependencies":  [
                          "047-capability-composition-and-tool-experience"
                      ],

@@ -85,6 +85,14 @@ from .reviews import (
     extract_review_records,
     transition_finding,
 )
+from .schema import (
+    ProjectFieldSpec,
+    ProjectSchemaManifest,
+    ProjectSchemaStatus,
+    ProjectViewSpec,
+    compare_project_schema,
+    load_project_schema_manifest,
+)
 from .selection import CandidateEvaluation, WorkSelection, select_next_work
 from .service import (
     EvidenceStoreFactory,
@@ -171,6 +179,7 @@ __all__ = [
     "Priority",
     "ProjectBinding",
     "ProjectField",
+    "ProjectFieldSpec",
     "ProjectFieldKind",
     "ProjectFieldOption",
     "ProjectFieldValue",
@@ -181,6 +190,9 @@ __all__ = [
     "ProjectItemKind",
     "ProjectOwnerType",
     "ProjectProgrammeStatus",
+    "ProjectSchemaManifest",
+    "ProjectSchemaStatus",
+    "ProjectViewSpec",
     "PullRequestEvidence",
     "PullRequestState",
     "ReconciliationAction",
@@ -218,6 +230,7 @@ __all__ = [
     "apply_documentation_reconciliation_event",
     "build_portfolio_status",
     "capture_work_item",
+    "compare_project_schema",
     "complete_documentation_reconciliation",
     "create_documentation_reconciliation_due",
     "create_review_evidence_manifest",
@@ -226,6 +239,7 @@ __all__ = [
     "evaluate_traceability",
     "evaluate_transition",
     "extract_review_records",
+    "load_project_schema_manifest",
     "load_work_management_settings",
     "plan_reconciliation",
     "run_reconciliation",

@@ -22,6 +22,7 @@ class ProjectFieldKind(StrEnum):
     DATE = "date"
     SINGLE_SELECT = "single_select"
     ITERATION = "iteration"
+    REPOSITORY = "repository"
     UNKNOWN = "unknown"
 
 

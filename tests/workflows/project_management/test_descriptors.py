@@ -11,9 +11,11 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
     assert set(by_id) == {
         "capture-project-work",
         "persist-review-evidence",
+        "inspect-project-schema",
         "reconcile-project-state",
         "report-programme-status",
         "verify-change-traceability",
+        "complete-work-managed-pull-request",
     }
     assert by_id["capture-project-work"].required_steps == (
         "project_management_inventory",
@@ -26,6 +28,11 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
         OperationEffect.EXTERNAL,
         OperationEffect.LOCAL_CHANGE,
         OperationEffect.READ_ONLY,
+    )
+    assert by_id["complete-work-managed-pull-request"].required_steps == (
+        "project_management_merge_readiness",
+        "kis_github_merge_registered_pull_request",
+        "project_management_documentation_reconcile",
     )
     assert all(
         "delete" not in " ".join(item.required_steps).casefold()

@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from kis_mcp.work_management import LifecycleState, Priority, RecordType
+from kis_mcp.work_management import DocumentationImpact, LifecycleState, Priority, RecordType
 from kis_mcp.work_management.intake import (
     CaptureWorkItem,
     IntakeBackend,
@@ -53,6 +53,7 @@ def test_capture_defaults_to_low_friction_inbox_idea() -> None:
     assert command.record_type is RecordType.IDEA
     assert command.state is LifecycleState.INBOX
     assert command.priority is Priority.MEDIUM
+    assert command.documentation_impact is DocumentationImpact.NOT_ASSESSED
     assert command.note is None
     assert outcome.disposition is MutationDisposition.CREATED
 
@@ -71,6 +72,7 @@ def test_capture_accepts_explicit_type_state_and_metadata() -> None:
             priority=Priority.HIGH,
             module="work-management",
             state=LifecycleState.TRIAGE,
+            documentation_impact=DocumentationImpact.PLANNED,
         )
     )
 
@@ -78,6 +80,17 @@ def test_capture_accepts_explicit_type_state_and_metadata() -> None:
     assert command.record_type is RecordType.TASK
     assert command.state is LifecycleState.TRIAGE
     assert command.module == "work-management"
+    assert command.documentation_impact is DocumentationImpact.PLANNED
+
+
+def test_actionable_intake_requires_documentation_classification() -> None:
+    with pytest.raises(ValueError, match="documentation_impact"):
+        CaptureWorkItem(
+            project_id="kis-mcp",
+            title="Implement without docs classification",
+            idempotency_key="capture-docs-001",
+            record_type=RecordType.TASK,
+        )
 
 
 def test_capture_requires_stable_project_and_idempotency_identity() -> None:

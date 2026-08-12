@@ -138,6 +138,7 @@ Edit only the canonical JSON files:
 - `settings/providers/serena.provider.json` for the pinned Serena 1.6.1 installation, contained provider state, relocatable venv-interpreter launch, and the central per-project state root. Normal runtime forces `UV_OFFLINE=1`; KIS configures Serena's `project_serena_folder_location` as `C:\\Projects\\.kis-mcp\\serena\\projects\\$projectFolderName\\.serena`, pre-creates that path, and refuses same-folder-name collisions across different project roots. Do not replace it with the promoted `serena.exe` console launcher, allow language-server package acquisition, or permit repo-local `.serena` state.
 - `settings/providers/github-mcp.provider.json` for GitHub provider identity, pinned source/executable, OAuth mode, PAT-conflict metadata, and toolsets only. Do not place repository or Project routing in provider authentication settings.
 - `settings/projects.settings.json` for the strict central project registry: stable project IDs, absolute local roots, and optional GitHub repository, GitHub Project, and Supabase routing coordinates. Store no credentials here.
+- `settings/work-management/github-projects.settings.json` for Work Management feature/gate/automation/evidence modes and stable backend bindings, and `settings/work-management/github-project-schema.json` for the desired 18-field/12-view Project projection used by schema-drift checks.
 - `settings.github_cli.config_dir` for the non-secret GitHub CLI authentication-state directory used by KIS exact registered-repository mutations. It must stay beneath `C:\\Projects`, outside the repository, and is supplied only as process-scoped `GH_CONFIG_DIR`; do not place tokens in repository JSON.
 - `settings/kis-repository.settings.json` only for legacy repository-settings compatibility callers; normal gateway routing is registry-backed.
 - `settings/agents/code-review-agent.settings.json` for the one advisory code-review agent, NVIDIA NIM and Codex CLI backend configuration, preferred/fallback order, and evidence/output budgets. Store only the `NVIDIA_API_KEY` environment-variable name, never the API key value.
@@ -226,24 +227,33 @@ Use the fixed-shape CLI:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\project-workflow.ps1 settings --settings settings\work-management\github-projects.settings.json
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 schema-manifest --manifest settings\work-management\github-project-schema.json
 pwsh -NoProfile -File .\scripts\project-workflow.ps1 status --settings settings\work-management\github-projects.settings.json --records .\records.json
 pwsh -NoProfile -File .\scripts\project-workflow.ps1 reconcile --desired .\desired.json --observed .\observed.json --supported-field Status
 pwsh -NoProfile -File .\scripts\project-workflow.ps1 verify-traceability --trace .\trace.json --stage active
+pwsh -NoProfile -File .\scripts\project-workflow.ps1 merge-readiness --record .\record.json --trace .\trace.json --pull-request-number 123
 ```
 
-Standalone CLI reconciliation is preview-only. Live apply runs through the composed `project_management_reconcile` workflow tool and requires `apply=true` plus a non-empty idempotency key. The adapter preflights item revisions and searches the complete bounded Project inventory for an existing source issue or pull request before add. Conflicts, unsupported capabilities, inaccessible items, and incomplete pagination are reported without overwrite.
+Standalone CLI reconciliation is preview-only. Live apply runs through `project_management_reconcile` and requires `apply=true` plus a non-empty idempotency key. The adapter preflights item revisions and searches the complete bounded Project inventory for an existing source issue or pull request before add. Conflicts, unsupported capabilities, inaccessible items, and incomplete pagination are reported without overwrite.
 
-When enabled, platform composition adds:
+When enabled, platform composition adds eight bounded task-level operations:
 
 - `project_management_inventory`;
 - `project_management_reconcile`;
+- `project_management_schema_status`;
+- `project_management_merge_readiness`;
+- `project_management_documentation_reconcile`;
 - `project_management_portfolio_status`;
 - `project_management_persist_review`;
 - `project_management_verify_traceability`.
 
-Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, governance claims, focused P5 tests, and optionally the canonical verifier.
+Use `project_management_schema_status` before schema-dependent reconciliation. It reads the live field surface and compares it with `settings/work-management/github-project-schema.json`. The current approved GitHub MCP surface cannot create generic custom fields, alter Status option schemas, create saved views, or configure native Project workflows, so those live provisioning gaps are reported rather than bypassed through direct GraphQL. Do not create the supported iteration field until an iteration cadence is explicitly configured.
 
-Current work-management routing uses the central registry binding for `kis-mcp` user Project #1 while retaining the legacy `github-default` backend-binding ID for compatibility. Configuration alone is still not live commissioning evidence: use the exact-head Work Management workflow and read-only inventory/verification results before treating a change as commissioned. Runtime-scoped GitHub OAuth remains a separate supervised connection state.
+For managed implementation/specification work, classify documentation impact at intake. Use the `complete-work-managed-pull-request` workflow for closeout: `project_management_merge_readiness` combines the Work record with exact PR/head verification evidence and returns a failed gate result when required documentation is not `pre_merge_complete` or an evidenced reviewed `none`; that workflow must stop before the exact-head registered merge on an unready result. After confirmed merge evidence, invoke `project_management_documentation_reconcile` to create and apply `documentation_reconciliation_due`, moving required work from `Verification` to `Documentation`; a later invocation records `post_merge_complete` at an exact revision. Transition to `Done` remains governed by the existing lifecycle rule.
+
+Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, Project schema manifest, governance claims, focused Work Management tests, and optionally the canonical verifier.
+
+Current routing uses the central registry binding for `kis-mcp` user Project #1 while retaining `github-default` for compatibility. Live evidence from 2026-08-12 confirms the Project is reachable but still has only GitHub built-ins plus `Status = Todo / In Progress / Done`; the remaining 18-field/12-view provisioning gap is recorded in the commissioning guide and change 110 evidence. All custom/native automation remains disabled. Runtime-scoped GitHub OAuth remains a separate supervised connection state.
 
 ## Use Discover
 

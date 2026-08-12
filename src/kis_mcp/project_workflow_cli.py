@@ -11,7 +11,9 @@ from kis_mcp.work_management import (
     ReviewArtifactKind,
     build_portfolio_status,
     create_review_evidence_manifest,
+    evaluate_merge_readiness,
     evaluate_traceability,
+    load_project_schema_manifest,
     load_work_management_settings,
     plan_reconciliation,
 )
@@ -119,6 +121,30 @@ def _reconcile_command(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     }
 
 
+def _schema_manifest_command(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
+    manifest = load_project_schema_manifest(Path(args.manifest))
+    return EXIT_OK, {
+        "ok": True,
+        "command": "schema-manifest",
+        "revision": _revision(args.revision, args.repository_root),
+        "schema": manifest.to_json_dict(),
+    }
+
+
+def _merge_readiness_command(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
+    readiness = evaluate_merge_readiness(
+        work_record_from_json(_read_json(args.record)),
+        implementation_trace_from_json(_read_json(args.trace)),
+        args.pull_request_number,
+    )
+    return (EXIT_OK if readiness.ready else EXIT_GATE_FAILED), {
+        "ok": readiness.ready,
+        "command": "merge-readiness",
+        "revision": _revision(args.revision, args.repository_root),
+        "readiness": readiness.to_json_dict(),
+    }
+
+
 def _traceability_command(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     report = evaluate_traceability(
         implementation_trace_from_json(_read_json(args.trace)),
@@ -209,6 +235,20 @@ def _parser() -> argparse.ArgumentParser:
     reconcile.add_argument("--repository-root")
     reconcile.add_argument("--revision")
     reconcile.set_defaults(handler=_reconcile_command)
+
+    schema_manifest = subparsers.add_parser("schema-manifest")
+    schema_manifest.add_argument("--manifest", required=True)
+    schema_manifest.add_argument("--repository-root")
+    schema_manifest.add_argument("--revision")
+    schema_manifest.set_defaults(handler=_schema_manifest_command)
+
+    merge_readiness = subparsers.add_parser("merge-readiness")
+    merge_readiness.add_argument("--record", required=True)
+    merge_readiness.add_argument("--trace", required=True)
+    merge_readiness.add_argument("--pull-request-number", type=int, required=True)
+    merge_readiness.add_argument("--repository-root")
+    merge_readiness.add_argument("--revision")
+    merge_readiness.set_defaults(handler=_merge_readiness_command)
 
     traceability = subparsers.add_parser("verify-traceability")
     traceability.add_argument("--trace", required=True)

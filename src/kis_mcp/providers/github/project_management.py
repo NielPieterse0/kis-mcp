@@ -8,6 +8,7 @@ from typing import Any
 
 from ...work_management import (
     ProjectBinding,
+    ProjectField,
     ProjectInventory,
     ProjectItem,
     ProjectItemKind,
@@ -19,6 +20,7 @@ from .projects import GitHubProjectInventoryAdapter
 from .projects.adapter import (
     ToolCaller,
     _nodes,
+    _normalize_field,
     _normalize_item,
     _page_info,
     _result_mapping,
@@ -236,6 +238,44 @@ class GitHubProjectManagementAdapter:
             project_binding,
             field_names=field_names,
             item_limit=item_limit,
+        )
+
+    async def read_schema_fields(
+        self,
+        project_binding: ProjectBinding,
+    ) -> tuple[ProjectField, ...]:
+        if _PROJECT_LIST not in self.capabilities.available_tools:
+            raise GitHubProjectManagementError(
+                "GITHUB_PROJECT_MANAGEMENT_UNSUPPORTED: project field inventory is unavailable"
+            )
+        configured = self._binding(project_binding.managed_project_id)
+        if configured != project_binding:
+            raise ValueError("project_binding does not match configured GitHub binding")
+        fields: list[ProjectField] = []
+        cursor: str | None = None
+        for _page in range(self._max_pages):
+            arguments: dict[str, Any] = {
+                "method": "list_project_fields",
+                **self._base(project_binding),
+                "per_page": self._page_size,
+            }
+            if cursor is not None:
+                arguments["after"] = cursor
+            try:
+                raw = await self._caller.call_tool(_PROJECT_LIST, arguments)
+                document = _result_mapping(raw, "list_project_fields")
+                raw_fields, page_source = _nodes(document, "fields", "list_project_fields")
+                fields.extend(_normalize_field(item, "list_project_fields") for item in raw_fields)
+                has_next, cursor = _page_info(page_source, "list_project_fields")
+            except Exception as exc:
+                raise GitHubProjectManagementError(
+                    "GITHUB_PROJECT_MANAGEMENT_FAILED: list_project_fields: "
+                    f"{type(exc).__name__}"
+                ) from exc
+            if not has_next:
+                return tuple(sorted(fields, key=lambda item: item.name.casefold()))
+        raise GitHubProjectManagementError(
+            "GITHUB_PROJECT_MANAGEMENT_INCOMPLETE: field inventory exceeded max_pages"
         )
 
     def _unsupported(
