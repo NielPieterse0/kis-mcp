@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "095-nim-subagent-models",
-  "status": "active",
+  "status": "closed",
   "branch": "change/095-nim-subagent-models",
   "worktree": ".work/worktrees/095-nim-subagent-models",
   "base": "main",

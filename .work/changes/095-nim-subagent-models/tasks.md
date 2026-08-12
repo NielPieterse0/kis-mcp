@@ -7,9 +7,10 @@
 - [x] Verify benchmark is discoverable external + read-only and not direct.
 - [x] Run focused tests: 30 passed.
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
-- [ ] Run canonical `pwsh -File scripts/verify.ps1` to completion.
-- [ ] Review and commit benchmark seam.
-- [ ] Publish and merge benchmark PR.
-- [ ] Live-smoke allowlisted models through the commissioned external benchmark surface.
-- [ ] Implement a separate production-profile promotion change only for candidates that pass.
-- [ ] Complete final commissioning, PR closeout, and cleanup without touching other worktrees.
+- [x] Run canonical `pwsh -File scripts/verify.ps1` to completion before merge.
+- [x] Review and commit benchmark seam.
+- [x] Publish and merge benchmark PR #105.
+- [x] Live-smoke all allowlisted models through the commissioned external benchmark surface.
+- [x] Reconcile repeated candidate evidence: no experimental candidate is robust enough for automatic production promotion from 095.
+- [x] Complete final local cleanup: `kis-op` runs from current `main`, the 095 worktree is removed, and the merged local 095 branch is absent.
+- [x] Prepare the final reconciled closeout metadata for exact publication to remote `main`.
