@@ -170,7 +170,9 @@ def test_chatgpt_startup_uses_application_vault_only_for_nvidia() -> None:
     stdio = _script("start.ps1")
 
     assert "secret-vault.ps1" in chatgpt
-    assert "Get-KisMcpUnlockPayload" in chatgpt
+    assert "Get-KisMcpUnlockPayload" not in chatgpt
+    assert "Get-KisMcpRuntimeUnlockCredentialTarget" in chatgpt
+    assert "Get-KisMcpWindowsCredential" in chatgpt
     assert "Resolve-KisMcpSecretInternal" in chatgpt
     assert "$AgentSettings.nvidia.secret_ref" in chatgpt
     assert "$AgentSettings.nvidia.api_key_env" in chatgpt
@@ -240,7 +242,8 @@ def test_chatgpt_launcher_keeps_tunnel_on_windows_credential_boundary() -> None:
     assert "$TunnelEnvironment[$CredentialEnvironmentName] = $Credential" in content
     assert "$TunnelEnvironment[$NvidiaApiKeyEnvironment]" not in content
     assert "$ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey" in content
-    assert "Get-KisMcpUnlockPayload" in content
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "Get-KisMcpRuntimeUnlockCredentialTarget" in content
     assert "Resolve-KisMcpSecretInternal" in content
     assert "kis_mcp.secrets.launcher" not in content
     assert "KIS_MCP_OTHER_INSTANCE_ACTIVE" not in content

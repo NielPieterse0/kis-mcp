@@ -276,10 +276,27 @@ $Tunnel = $null
 $ServerListenerPid = $null
 $CurrentStateWritten = $false
 $CurrentStatePath = $null
+$RuntimeUnlockCredentialTarget = Get-KisMcpRuntimeUnlockCredentialTarget
+$RuntimeUnlockCredential = $null
 $NvidiaUnlockPayload = @{}
 $NvidiaApiKey = $null
 try {
-    $NvidiaUnlockPayload = Get-KisMcpUnlockPayload -Prompt 'Unlock kis-mcp secrets for NVIDIA NIM'
+    try {
+        $RuntimeUnlockCredential = Get-KisMcpWindowsCredential -Target $RuntimeUnlockCredentialTarget
+    }
+    catch {
+        throw 'KIS_MCP_RUNTIME_UNLOCK_CREDENTIAL_MISSING: run scripts\configure-secret-runtime-unlock.ps1 once for the existing vault.'
+    }
+    $NvidiaUnlockPayload['unlock'] = $RuntimeUnlockCredential
+    $RuntimeUnlockCredential = $null
+    try {
+        $null = Invoke-KisMcpSecretCommand `
+            -CommandArguments @('verify-unlock') `
+            -SecurePayload $NvidiaUnlockPayload
+    }
+    catch {
+        throw 'KIS_MCP_RUNTIME_UNLOCK_CREDENTIAL_INVALID: run scripts\configure-secret-runtime-unlock.ps1 to refresh the verified runtime credential.'
+    }
     $NvidiaApiKey = Resolve-KisMcpSecretInternal `
         -Reference $NvidiaSecretReference `
         -SecurePayload $NvidiaUnlockPayload
@@ -506,6 +523,8 @@ finally {
     if ($null -ne $NvidiaUnlockPayload) {
         $NvidiaUnlockPayload.Clear()
     }
+    $RuntimeUnlockCredential = $null
+    $RuntimeUnlockCredentialTarget = $null
     $NvidiaApiKey = $null
     $Credential = $null
     $CredentialTarget = $null

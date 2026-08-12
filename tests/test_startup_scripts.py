@@ -108,16 +108,23 @@ def test_chatgpt_startup_resolves_nvidia_secret_only_for_selected_server_child()
     content = _script("start-chatgpt.ps1")
 
     preflight = content.index("$Preflight = Invoke-KisMcpSelectedInstancePreflight")
+    runtime_credential_read = content.index("Get-KisMcpWindowsCredential")
     secret_read = content.index("$NvidiaApiKey = Resolve-KisMcpSecretInternal")
     server_environment = content.index("$ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey")
     server_start = content.index("$Server = Start-OwnedProcess")
     secret_clear = content.index("$ServerEnvironment.Remove($NvidiaApiKeyEnvironment)")
 
     assert ". (Join-Path $PSScriptRoot 'secret-vault.ps1')" in content
+    assert ". (Join-Path $PSScriptRoot 'windows-credential.ps1')" in content
     assert "$AgentSettings.nvidia.secret_ref" in content
     assert "$AgentSettings.nvidia.api_key_env" in content
-    assert "Get-KisMcpUnlockPayload" in content
+    assert "Get-KisMcpUnlockPayload" not in content
+    assert "Get-KisMcpRuntimeUnlockCredentialTarget" in content
+    assert "Get-KisMcpWindowsCredential" in content
+    assert "@('verify-unlock')" in content
     assert "Resolve-KisMcpSecretInternal" in content
+    verify_unlock = content.index("@('verify-unlock')")
+    assert runtime_credential_read < verify_unlock < secret_read
     assert preflight < secret_read < server_environment < server_start < secret_clear
     assert "kis_mcp.secrets.launcher" not in content
     assert "Start-KisMcpSecretAwareProcess" not in content

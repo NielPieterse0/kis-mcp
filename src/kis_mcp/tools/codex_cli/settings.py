@@ -6,7 +6,15 @@ from pathlib import Path
 from typing import Any
 
 _CODEX_KEYS = frozenset(
-    {"enabled", "script_path", "executable", "timeout_seconds", "max_output_chars"}
+    {
+        "enabled",
+        "script_path",
+        "executable",
+        "home_path",
+        "expected_version",
+        "timeout_seconds",
+        "max_output_chars",
+    }
 )
 
 
@@ -50,11 +58,28 @@ def _int(value: Any, label: str, minimum: int, maximum: int) -> int:
     return value
 
 
+def _project_path(value: Any, label: str) -> Path:
+    path = Path(_text(value, label))
+    if not path.is_absolute() or not str(path).casefold().startswith("c:\\projects\\"):
+        raise CodexSettingsError(f"{label} must be an absolute path under C:\\Projects")
+    return path
+
+
+def _version(value: Any) -> str:
+    version = _text(value, "codex.expected_version")
+    parts = version.split(".")
+    if len(parts) != 3 or any(not part.isdigit() for part in parts):
+        raise CodexSettingsError("codex.expected_version must be a semantic version")
+    return version
+
+
 @dataclass(frozen=True, slots=True)
 class CodexSettings:
     enabled: bool
     script_path: Path
     executable: str
+    home_path: Path
+    expected_version: str
     timeout_seconds: int
     max_output_chars: int
 
@@ -69,10 +94,14 @@ def codex_settings_from_mapping(value: Any, repository_root: Path) -> CodexSetti
         script_path.relative_to(root)
     except ValueError as exc:
         raise CodexSettingsError("codex.script_path must remain inside the repository") from exc
+    executable = _project_path(document["executable"], "codex.executable")
+    home_path = _project_path(document["home_path"], "codex.home_path")
     return CodexSettings(
         enabled=_bool(document["enabled"], "codex.enabled"),
         script_path=script_path,
-        executable=_text(document["executable"], "codex.executable"),
+        executable=str(executable),
+        home_path=home_path,
+        expected_version=_version(document["expected_version"]),
         timeout_seconds=_int(document["timeout_seconds"], "codex.timeout_seconds", 1, 1800),
         max_output_chars=_int(
             document["max_output_chars"], "codex.max_output_chars", 1000, 100000
@@ -85,7 +114,9 @@ def disabled_codex_settings(repository_root: Path) -> CodexSettings:
     return CodexSettings(
         enabled=False,
         script_path=(root / "scripts" / "invoke-codex-agent.ps1").resolve(),
-        executable="codex",
+        executable=r"C:\Projects\.kis-mcp\tools\codex\0.147.0\node_modules\.bin\codex.cmd",
+        home_path=Path(r"C:\Projects\.kis-mcp\agent-hosts\codex-reviewer"),
+        expected_version="0.147.0",
         timeout_seconds=180,
         max_output_chars=30000,
     )

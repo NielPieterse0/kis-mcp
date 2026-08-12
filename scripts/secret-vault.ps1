@@ -3,9 +3,26 @@ $ErrorActionPreference = 'Stop'
 
 $script:KisMcpRepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $script:KisMcpPython = 'C:\Projects\.kis-mcp\python-env\Scripts\python.exe'
-$script:KisMcpSecretsRoot = 'C:\Projects\.kis-mcp\secrets'
-$script:KisMcpBootstrapEnvironment = 'KIS_MCP_VAULT_KEY'
+$script:KisMcpSecretsSettingsPath = Join-Path $script:KisMcpRepositoryRoot 'settings\secrets.settings.json'
+$script:KisMcpSecretsSettings = Get-Content -LiteralPath $script:KisMcpSecretsSettingsPath -Raw | ConvertFrom-Json
+if ($script:KisMcpSecretsSettings.schema_version -ne 1) {
+    throw 'KIS_MCP_SECRET_SETTINGS_VERSION_UNSUPPORTED'
+}
+$script:KisMcpSecretsRoot = [string]$script:KisMcpSecretsSettings.root
+$script:KisMcpBootstrapEnvironment = [string]$script:KisMcpSecretsSettings.bootstrap_environment
 $script:KisMcpSecretPipeEnvironment = 'KIS_MCP_SECRET_INPUT_PIPE_HANDLE'
+
+function Get-KisMcpRuntimeUnlockCredentialTarget {
+    $RuntimeUnlock = $script:KisMcpSecretsSettings.runtime_unlock
+    if ($null -eq $RuntimeUnlock -or [string]$RuntimeUnlock.mode -ne 'windows-credential') {
+        throw 'KIS_MCP_RUNTIME_UNLOCK_MODE_INVALID'
+    }
+    $Target = [string]$RuntimeUnlock.target
+    if ([string]::IsNullOrWhiteSpace($Target) -or -not $Target.StartsWith('kis-mcp/secrets/', [StringComparison]::Ordinal)) {
+        throw 'KIS_MCP_RUNTIME_UNLOCK_TARGET_INVALID'
+    }
+    return $Target
+}
 
 function Assert-KisMcpSecretsRuntime {
     if (-not (Test-Path -LiteralPath $script:KisMcpPython -PathType Leaf)) {
@@ -160,6 +177,18 @@ function Assert-KisMcpSecureStringsMatch {
         if ($SecondPointer -ne [IntPtr]::Zero) {
             [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($SecondPointer)
         }
+    }
+}
+
+function Invoke-KisMcpPostRotationRuntimeCredentialUpdate {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][scriptblock]$Action)
+
+    try {
+        & $Action
+    }
+    catch {
+        throw 'KIS_MCP_ROTATION_RUNTIME_CREDENTIAL_UPDATE_FAILED: vault rotation succeeded but the runtime credential update failed. Run scripts\configure-secret-runtime-unlock.ps1 using the new unlock before starting kis-mcp.'
     }
 }
 

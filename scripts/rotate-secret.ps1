@@ -4,6 +4,7 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'secret-vault.ps1')
+. (Join-Path $PSScriptRoot 'windows-credential.ps1')
 
 $Payload = Get-KisMcpUnlockPayload
 $NewUnlock = Read-Host 'New kis-mcp secrets unlock' -AsSecureString
@@ -13,4 +14,9 @@ $Payload['new_unlock'] = $NewUnlock
 $Result = Invoke-KisMcpSecretCommand `
     -CommandArguments @('rotate') `
     -SecurePayload $Payload
+Invoke-KisMcpPostRotationRuntimeCredentialUpdate -Action {
+    Set-KisMcpWindowsCredential `
+        -Target (Get-KisMcpRuntimeUnlockCredentialTarget) `
+        -Secret $NewUnlock
+}
 Write-Output $Result

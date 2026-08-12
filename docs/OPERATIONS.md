@@ -346,9 +346,15 @@ secret://provider/nvidia-nim/api-key
 pwsh -NoProfile -File .\scripts\set-secret.ps1 -Reference secret://provider/nvidia-nim/api-key
 ```
 
-The script prompts for the vault unlock material and secret value using secure input. Do not use a repository `.env` file as a persistent credential store; `.env/` is ignored. `scripts\start-chatgpt.ps1` resolves the configured NVIDIA vault reference only while starting the selected KIS server child, injects it as `NVIDIA_API_KEY`, and clears the launcher's transient plaintext references after process creation. Starting `kis-dev` does not inspect, stop, or reconfigure the peer `kis-op` instance.
+The script prompts for the vault unlock material and secret value using secure input. Do not use a repository `.env` file as a persistent credential store; `.env/` is ignored. Vault content changes remain interactive. Ordinary KIS startup is non-interactive: `scripts\start-chatgpt.ps1` reads the cryptographically verified runtime vault unlock from Windows Credential Manager, resolves the configured NVIDIA vault reference only while starting the selected server child, injects it as process-scoped `NVIDIA_API_KEY`, then clears transient launcher references. Starting `kis-dev` does not inspect, stop, or reconfigure the peer `kis-op` instance.
 
-Do not put the NVIDIA key in repository JSON, command arguments, logs, an MCP request, or retained startup state. A missing or inaccessible key reports degraded NVIDIA readiness; when no model is explicitly selected, normal backend fallback remains available.
+For an existing vault, configure the runtime credential once from a local supervised terminal:
+
+```powershell
+pwsh -NoProfile -File .\scripts\configure-secret-runtime-unlock.ps1
+```
+
+That command asks for the existing vault unlock, verifies it against the encrypted vault, and only then stores it under the current Windows user. Vault initialization creates the runtime credential after successful initialization; master-key rotation updates it only after successful rotation. `set-secret.ps1` still asks for the vault unlock and never rewrites the runtime credential. Do not put the NVIDIA key or vault unlock in repository JSON, command arguments, logs, MCP requests, or retained startup state.
 
 Model selection is explicit and bounded. Example:
 
@@ -363,17 +369,44 @@ Model selection is explicit and bounded. Example:
 
 `model` accepts only `nano`, `super`, or `ultra`. Omitting both `backend` and `model` uses the configured preferred/fallback order and defaults NVIDIA to `super`. Supplying a model without `backend` explicitly selects NVIDIA and does not silently fall back to Codex. Supplying an NVIDIA model together with `backend="codex-cli"` is an invalid request rather than an ignored setting.
 
-For Codex CLI, install and authenticate the `codex` executable through an explicit operator-supervised action outside normal Work, then keep the executable name or approved absolute location in the JSON settings. The gateway invokes only `scripts\invoke-codex-agent.ps1`, passes the review prompt through standard input, and requests:
+Codex CLI is a pinned, project-contained independent reviewer. KIS installs exact `@openai/codex@0.147.0` beneath `C:\Projects\.kis-mcp\tools\codex\0.147.0` and keeps its authentication/state profile beneath `C:\Projects\.kis-mcp\agent-hosts\codex-reviewer`. Installation is an explicit supervised bootstrap operation:
+
+```powershell
+pwsh -NoProfile -File .\scripts\install-codex.ps1
+```
+
+Authenticate that managed profile with the operator's ChatGPT subscription rather than an OpenAI API key:
+
+```powershell
+pwsh -NoProfile -File .\scripts\auth-codex.ps1
+```
+
+The auth script runs Codex's ChatGPT login flow under the managed `CODEX_HOME`, removes API-key override variables for that process, and verifies `codex login status` reports ChatGPT authentication. KIS readiness also requires the exact configured CLI version and ChatGPT-authenticated managed profile.
+
+`review_change_with_agent` accepts `review_type="code-quality"` (default) or `review_type="safety-security"`. Code-quality review focuses on correctness, regressions, error handling, tests, maintainability, and stated requirements. Safety/security review focuses on secrets, authentication/authorization, trust boundaries, injection/command execution, network/filesystem effects, data handling, race/TOCTOU, dependencies/supply-chain risk, and policy bypass. Both require evidence-backed findings.
+
+To force an independent Codex review with no NVIDIA fallback:
+
+```json
+{
+  "path": "C:\\Projects\\example",
+  "backend": "codex-cli",
+  "review_type": "safety-security",
+  "instructions": "Review the current change only; prioritize concrete exploitable or policy-relevant findings."
+}
+```
+
+Explicit `backend="codex-cli"` invokes only Codex. Omitting `backend` retains the configured NVIDIA-first fallback order. NVIDIA `model` aliases are invalid with Codex.
+
+The gateway invokes only `scripts\invoke-codex-agent.ps1`, passes the prompt through standard input, sets the managed `CODEX_HOME`, removes API-key override variables for the Codex process, and requests:
 
 ```text
 codex exec --ephemeral --json --sandbox read-only --color never -C <project> -
 ```
 
-The read-only Codex sandbox request is defense in depth, not a replacement for operator supervision or OS-level containment. The wrapper fingerprints Git-visible repository state before and after the run, including HEAD, status, tracked diff, and untracked-file content hashes. If the fingerprint changes, the call fails with `CODEX_CLI_MUTATION_DETECTED`; it does not silently accept or automatically overwrite the detected change.
+The read-only sandbox is defense in depth. The wrapper fingerprints Git-visible repository state before and after the run, including HEAD, status, tracked diff, and untracked-file content hashes. Any change fails with `CODEX_CLI_MUTATION_DETECTED`; KIS never silently accepts or overwrites it.
 
-Codex installation/authentication and its expanded role are a separate commissioning slice. That slice is intended to make local Codex independently selectable for both code-quality review and safety/security review, rather than treating it only as NVIDIA fallback. This NVIDIA slice preserves the existing fallback path but does not claim live Codex commissioning.
-
-Tests validate NVIDIA profile parsing and payloads, model selection, bounds, fallback semantics, redaction, vault-backed selected-instance startup, and additive tool registration. Live NVIDIA commissioning is recorded separately from repository verification; live Codex authentication remains separate until its own slice.
+Tests cover NVIDIA profiles, explicit review purposes, Codex exact-version/auth readiness, read-only wrapper mutation detection, fallback semantics, secret redaction, non-interactive vault-backed startup, and additive tool registration. Live upstream commissioning remains distinct from deterministic repository verification.
 
 ## Run the KIS Control Center
 

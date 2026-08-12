@@ -5,46 +5,69 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version",
-    "enabled",
-    "agent_id",
-    "preferred_backend",
-    "fallback_backend",
-    "max_evidence_chars",
-    "max_output_chars",
-    "nvidia",
-    "codex"
+    "schema_version", "enabled", "agent_id", "preferred_backend",
+    "fallback_backend", "max_evidence_chars", "max_output_chars",
+    "nvidia", "codex"
   ],
   "properties": {
     "schema_version": {"const": 1},
     "enabled": {"type": "boolean"},
     "agent_id": {"const": "code-reviewer"},
     "preferred_backend": {"enum": ["nvidia-nim", "codex-cli"]},
-    "fallback_backend": {"type": ["string", "null"], "enum": ["nvidia-nim", "codex-cli", null]},
+    "fallback_backend": {"enum": ["nvidia-nim", "codex-cli", null]},
     "max_evidence_chars": {"type": "integer", "minimum": 1000, "maximum": 500000},
     "max_output_chars": {"type": "integer", "minimum": 1000, "maximum": 100000},
+    "nvidia": {"$ref": "#/$defs/nvidia"},
+    "codex": {"$ref": "#/$defs/codex"}
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "guidance", "temperature", "top_p", "max_tokens", "reasoning_budget", "enable_thinking"],
+      "properties": {
+        "model": {"type": "string", "minLength": 1},
+        "guidance": {"type": "string", "minLength": 1},
+        "temperature": {"type": "number", "minimum": 0, "maximum": 2},
+        "top_p": {"type": "number", "minimum": 0, "maximum": 1},
+        "max_tokens": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "reasoning_budget": {"type": "integer", "minimum": 0, "maximum": 65536},
+        "enable_thinking": {"type": "boolean"}
+      }
+    },
     "nvidia": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "base_url", "model", "api_key_env", "timeout_seconds", "temperature", "max_tokens"],
+      "required": ["enabled", "base_url", "api_key_env", "secret_ref", "default_profile", "timeout_seconds", "profiles"],
       "properties": {
         "enabled": {"type": "boolean"},
         "base_url": {"type": "string", "pattern": "^https://"},
-        "model": {"type": "string", "minLength": 1},
-        "api_key_env": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]*$"},
+        "api_key_env": {"const": "NVIDIA_API_KEY"},
+        "secret_ref": {"const": "secret://provider/nvidia-nim/api-key"},
+        "default_profile": {"const": "super"},
         "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 600},
-        "temperature": {"type": "number", "minimum": 0, "maximum": 2},
-        "max_tokens": {"type": "integer", "minimum": 1, "maximum": 32768}
+        "profiles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["nano", "super", "ultra"],
+          "properties": {
+            "nano": {"$ref": "#/$defs/profile"},
+            "super": {"$ref": "#/$defs/profile"},
+            "ultra": {"$ref": "#/$defs/profile"}
+          }
+        }
       }
     },
     "codex": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["enabled", "script_path", "executable", "timeout_seconds", "max_output_chars"],
+      "required": ["enabled", "script_path", "executable", "home_path", "expected_version", "timeout_seconds", "max_output_chars"],
       "properties": {
         "enabled": {"type": "boolean"},
-        "script_path": {"type": "string", "minLength": 1},
-        "executable": {"type": "string", "minLength": 1},
+        "script_path": {"const": "scripts/invoke-codex-agent.ps1"},
+        "executable": {"const": "C:\\Projects\\.kis-mcp\\tools\\codex\\0.147.0\\node_modules\\.bin\\codex.cmd"},
+        "home_path": {"const": "C:\\Projects\\.kis-mcp\\agent-hosts\\codex-reviewer"},
+        "expected_version": {"const": "0.147.0"},
         "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 1800},
         "max_output_chars": {"type": "integer", "minimum": 1000, "maximum": 100000}
       }
