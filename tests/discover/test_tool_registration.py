@@ -271,6 +271,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "get_code_context",
         "plan_change",
         "run_verification",
+        "select_change_verification",
         "validate_agent_configuration",
         "kis_health",
         "kis_list_projects",
