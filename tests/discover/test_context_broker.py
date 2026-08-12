@@ -301,3 +301,29 @@ def test_broker_response_matches_checked_in_schema(
     )
 
     assert list(Draft202012Validator(schema).iter_errors(response.to_json_dict())) == []
+
+
+def test_broker_retains_bounded_support_artifact_related_to_selected_source(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write_fixture(project_root)
+    docs = project_root / "docs"
+    docs.mkdir()
+    (docs / "context_broker-contract.md").write_text(
+        "# Lifecycle notes\nThis file intentionally does not name the requested method.\n",
+        encoding="utf-8",
+    )
+    request = GetCodeContextRequest(
+        project=str(project_root),
+        task="assemble behavior",
+        budget=_budget(max_files=3),
+    )
+
+    response = _service(project_root, discover_settings).get(request)
+    paths = tuple(item.path for item in response.files)
+
+    assert "src/context_broker.py" in paths
+    assert "docs/context_broker-contract.md" in paths
+    support = next(item for item in response.files if item.path == "docs/context_broker-contract.md")
+    assert support.category == "documentation"

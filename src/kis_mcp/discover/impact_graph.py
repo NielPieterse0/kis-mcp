@@ -114,9 +114,14 @@ class ImpactGraphService:
             calls=index.calls,
             inheritance=index.inheritance,
         )
+        python_transitive_dependants = _transitive_import_dependants(
+            changed_modules=changed_modules,
+            imports=index.imports,
+        )
         javascript_dependants = _javascript_dependants(change_analysis)
         dependants_all = _merge_dependants(
             python_dependants,
+            python_transitive_dependants,
             javascript_dependants,
         )
         dependants = dependants_all[: request.budget.max_dependants]
@@ -338,6 +343,58 @@ def _dependants(*, changed_modules, changed_symbols, imports, calls, inheritance
     )
 
 
+def _transitive_import_dependants(*, changed_modules, imports, max_depth: int = 2):
+    """Return bounded reverse-import evidence beyond the direct dependant layer."""
+    if max_depth < 2 or not changed_modules:
+        return ()
+    results: dict[tuple[str, str, str, int], ImpactDependant] = {}
+    for root in sorted(changed_modules, key=lambda value: (value.casefold(), value)):
+        frontier = {root}
+        seen = {root}
+        for depth in range(1, max_depth + 1):
+            next_frontier: set[str] = set()
+            for item in imports:
+                if item.source_module in seen:
+                    continue
+                if not any(
+                    item.target_module == target
+                    or item.target_module.startswith(f"{target}.")
+                    for target in frontier
+                ):
+                    continue
+                seen.add(item.source_module)
+                next_frontier.add(item.source_module)
+                if depth < 2:
+                    continue
+                record = ImpactDependant(
+                    kind="import",
+                    source=item.source_module,
+                    target=root,
+                    path=item.path,
+                    line=item.line,
+                    confidence=Confidence.MEDIUM,
+                    provenance="python_ast_transitive",
+                )
+                results[(record.source, record.target, record.path, record.line)] = record
+            frontier = next_frontier
+            if not frontier:
+                break
+    return tuple(
+        sorted(
+            results.values(),
+            key=lambda item: (
+                item.source.casefold(),
+                item.source,
+                item.target.casefold(),
+                item.target,
+                item.path.casefold(),
+                item.path,
+                item.line,
+            ),
+        )
+    )
+
+
 def _javascript_dependants(change_analysis) -> tuple[ImpactDependant, ...]:
     records: list[ImpactDependant] = []
     for item in change_analysis.facts.get("dependants", ()):
@@ -375,7 +432,10 @@ def _merge_dependants(*groups: tuple[ImpactDependant, ...]) -> tuple[ImpactDepen
                 item.provenance,
             )
             records.setdefault(key, item)
-    return tuple(records.values())
+    values = tuple(records.values())
+    direct = tuple(item for item in values if "transitive" not in item.provenance)
+    transitive = tuple(item for item in values if "transitive" in item.provenance)
+    return (*direct, *transitive)
 
 
 def _affected_tests(
@@ -529,23 +589,36 @@ def _merge_relationship_impacts(*groups: tuple[ImpactRelationship, ...]) -> tupl
 def _relationship_impacts(*, snapshot, changed_paths, task_terms) -> tuple[ImpactRelationship, ...]:
     records: dict[tuple[str, str, str], ImpactRelationship] = {}
     candidates = tuple(record.label.replace("\\", "/") for record in snapshot.files)
+    support_categories = {"contract", "configuration", "documentation", "policy"}
     for changed in changed_paths:
-        category = _path_category(changed)
-        if category not in {"contract", "configuration"}:
-            continue
+        changed_category = _path_category(changed)
         stem_terms = _tokens(Path(changed).stem)
         for candidate in candidates:
             if candidate == changed:
                 continue
+            candidate_category = _path_category(candidate)
+            if (
+                candidate_category not in support_categories
+                and changed_category not in support_categories
+            ):
+                continue
             overlap = stem_terms & _tokens(candidate)
             if not overlap:
                 continue
-            kind = f"{category}_reference"
+            relationship_category = (
+                candidate_category
+                if candidate_category in support_categories
+                else changed_category
+            )
+            kind = f"{relationship_category}_reference"
             record = ImpactRelationship(
                 kind=kind,
                 source_path=candidate,
                 target_path=changed,
-                reason=f"Path tokens overlap changed {category} evidence: {', '.join(sorted(overlap))}.",
+                reason=(
+                    f"Path tokens relate {relationship_category} evidence to the changed path: "
+                    f"{', '.join(sorted(overlap))}."
+                ),
                 confidence=Confidence.MEDIUM,
                 provenance="path_token_reference",
             )
@@ -581,7 +654,7 @@ def _task_term_matches(task_terms, changed_paths, changed_symbols, dependants, t
 def _implementation_steps(*, changed_paths, relationships, tests, handoffs) -> tuple[ImpactImplementationStep, ...]:
     steps: list[ImpactImplementationStep] = []
     categories: dict[str, tuple[str, ...]] = {}
-    for category in ("contract", "configuration", "documentation", "code"):
+    for category in ("contract", "configuration", "documentation", "policy", "code"):
         paths = tuple(path for path in changed_paths if _path_category(path) == category)
         if paths:
             categories[category] = paths
@@ -600,6 +673,7 @@ def _implementation_steps(*, changed_paths, relationships, tests, handoffs) -> t
                     "contract": "Update contract consumers and validate schema compatibility.",
                     "configuration": "Review configuration consumers and integration defaults.",
                     "documentation": "Reconcile documentation with the changed behavior.",
+                    "policy": "Review policy-sensitive consumers without treating Discover evidence as policy authority.",
                     "code": "Implement the changed code paths and preserve bounded interfaces.",
                 }[category],
                 paths=paths,
@@ -733,6 +807,8 @@ def _path_category(path: str) -> str:
     name = lowered.rsplit("/", 1)[-1]
     if lowered.startswith(("contracts/", "contract/", "schemas/", "schema/")) or name.endswith(".schema.json") or name.startswith(("openapi.", "asyncapi.")) or name.endswith((".proto", ".graphql", ".gql")):
         return "contract"
+    if lowered.startswith(("policy/", "policies/")) or name.startswith("policy."):
+        return "policy"
     if lowered.startswith(("settings/", "config/", "configs/", ".github/")) or name in {"pyproject.toml", "package.json", "tox.ini", "dockerfile", "makefile"} or name.endswith((".toml", ".yaml", ".yml", ".ini")):
         return "configuration"
     if name in {"uv.lock", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}:

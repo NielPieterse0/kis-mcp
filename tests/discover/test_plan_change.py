@@ -143,3 +143,136 @@ def test_plan_change_bounds_active_claim_inventory(
     assert len(result.governance.active_claims) == 2
     assert result.truncated is True
     assert "active_claims" in result.truncation_reasons
+
+
+def test_plan_change_classifies_existing_pre_change_source_as_reuse(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _fixture(project_root)
+    result = PlanChangeService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+    ).plan(
+        PlanChangeRequest(
+            project=str(project_root),
+            task="change value behavior",
+        )
+    )
+
+    assert "src/service.py" in result.change.planned_paths
+    assert result.change.planned_impact_fingerprint
+    pattern = next(item for item in result.patterns if item.path == "src/service.py")
+    assert pattern.classification == "REUSE"
+
+
+def test_plan_change_classifies_changed_source_as_extend_and_collects_support_surfaces(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _fixture(project_root)
+    for directory, name in (
+        ("docs", "service.md"),
+        ("settings", "service.json"),
+        ("contracts", "service.schema.json"),
+        ("policy", "service.json"),
+    ):
+        target = project_root / directory
+        target.mkdir(exist_ok=True)
+        (target / name).write_text("{}\n", encoding="utf-8")
+    (project_root / "src" / "service.py").write_text(
+        "def value():\n    return 2\n",
+        encoding="utf-8",
+    )
+
+    result = PlanChangeService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+    ).plan(
+        PlanChangeRequest(
+            project=str(project_root),
+            task="change service value",
+        )
+    )
+
+    pattern = next(item for item in result.patterns if item.path == "src/service.py")
+    assert pattern.classification == "EXTEND"
+    assert "docs/service.md" in result.affected.documentation
+    assert "settings/service.json" in result.affected.configuration
+    assert "contracts/service.schema.json" in result.affected.contracts
+    assert "policy/service.json" in result.affected.policy
+
+
+def test_plan_change_classifies_deleted_source_with_reference_evidence_as_replace(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _fixture(project_root)
+    _git(project_root, "rm", "src/service.py")
+
+    result = PlanChangeService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+    ).plan(
+        PlanChangeRequest(
+            project=str(project_root),
+            task="replace service value implementation",
+        )
+    )
+
+    pattern = next(item for item in result.patterns if item.path == "src/service.py")
+    assert pattern.classification == "REPLACE"
+
+
+def test_plan_change_classifies_absent_implementation_as_new(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    (project_root / "README.md").write_text("# Empty fixture\n", encoding="utf-8")
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Plan Tests")
+    _git(project_root, "config", "user.email", "plan@example.invalid")
+    _git(project_root, "add", "--all")
+    _git(project_root, "commit", "-m", "fixture")
+
+    result = PlanChangeService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+    ).plan(
+        PlanChangeRequest(
+            project=str(project_root),
+            task="add event processor",
+        )
+    )
+
+    assert result.patterns[0].classification == "NEW"
+    assert result.patterns[0].path is None
+
+
+def test_plan_change_preserves_staged_rename_when_destination_is_modified(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _fixture(project_root)
+    _git(project_root, "mv", "src/service.py", "src/service_v2.py")
+    (project_root / "src" / "service_v2.py").write_text(
+        "def value():\n    return 2\n",
+        encoding="utf-8",
+    )
+
+    result = PlanChangeService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+    ).plan(
+        PlanChangeRequest(
+            project=str(project_root),
+            task="replace service value implementation",
+        )
+    )
+
+    replacement = next(item for item in result.patterns if item.classification == "REPLACE")
+    assert replacement.path == "src/service.py"
+    assert not any(
+        item.classification == "EXTEND" and item.path == "src/service_v2.py"
+        for item in result.patterns
+    )

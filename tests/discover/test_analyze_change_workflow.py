@@ -15,6 +15,7 @@ from kis_mcp.discover.change_analysis import (
 from kis_mcp.discover.contracts import Confidence, ProjectIdentity
 from kis_mcp.discover.impact_contracts import (
     ImpactBudget,
+    ImpactDependant,
     ImpactOmissions,
     InspectImpactResponse,
 )
@@ -189,3 +190,158 @@ def test_service_rejects_task_terms_beyond_configured_limit() -> None:
 
     with pytest.raises(ValueError, match="task term limit"):
         service.analyze(request)
+
+
+class _ReferencedImpactService(_ImpactService):
+    def inspect(self, request: Any) -> InspectImpactResponse:
+        response = super().inspect(request)
+        return replace(
+            response,
+            dependants=(
+                ImpactDependant(
+                    kind="import",
+                    source="consumer",
+                    target="legacy",
+                    path="src/consumer.py",
+                    line=1,
+                    confidence=Confidence.HIGH,
+                ),
+            ),
+        )
+
+
+def test_service_reconciles_optional_planned_paths_against_actual_change() -> None:
+    impact = _ImpactService()
+    service = AnalyzeChangeService(
+        change_service=_ChangeService(("src/a.py", "src/extra.py")),
+        impact_service=impact,
+    )
+    response = service.analyze(
+        AnalyzeChangeRequest(
+            project=r"C:\Projects\fixture",
+            source="working_tree",
+            planned_paths=("src/a.py", "tests/test_a.py"),
+            planned_impact_fingerprint="a" * 64,
+            budget=_budget(),
+        )
+    )
+
+    assert response.reconciliation is not None
+    assert response.reconciliation.planned_paths == ("src/a.py", "tests/test_a.py")
+    assert response.reconciliation.actual_paths == ("src/a.py", "src/extra.py")
+    assert response.reconciliation.unplanned_paths == ("src/extra.py",)
+    assert response.reconciliation.missing_paths == ("tests/test_a.py",)
+    assert response.reconciliation.evidence_stale is True
+    assert response.reconciliation.planned_impact_fingerprint == "a" * 64
+
+
+def test_service_reports_replacement_candidate_only_with_remaining_reference_evidence() -> None:
+    service = AnalyzeChangeService(
+        change_service=_ChangeService(()),
+        impact_service=_ReferencedImpactService(),
+    )
+    response = service.analyze(
+        AnalyzeChangeRequest(
+            project=r"C:\Projects\fixture",
+            source="supplied",
+            supplied_changes=(SuppliedChange(path="src/legacy.py", status="deleted"),),
+            budget=_budget(),
+        )
+    )
+
+    assert len(response.replacement_candidates) == 1
+    candidate = response.replacement_candidates[0]
+    assert candidate.path == "src/legacy.py"
+    assert candidate.status == "deleted"
+    assert candidate.remaining_references == ("import:src/consumer.py:consumer->legacy",)
+
+
+def test_service_keeps_reconciliation_absent_for_legacy_callers() -> None:
+    response = AnalyzeChangeService(
+        change_service=_ChangeService(("src/a.py",)),
+        impact_service=_ImpactService(),
+    ).analyze(
+        AnalyzeChangeRequest(
+            project=r"C:\Projects\fixture",
+            source="working_tree",
+            budget=_budget(),
+        )
+    )
+
+    assert response.reconciliation is None
+    assert response.replacement_candidates == ()
+
+
+class _RenameChangeResponse:
+    def __init__(self) -> None:
+        self.changed_files = (
+            type(
+                "Changed",
+                (),
+                {
+                    "path": "src/new_name.py",
+                    "previous_path": "src/legacy.py",
+                    "staged_status": "renamed",
+                    "worktree_status": "modified",
+                },
+            )(),
+        )
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {"tool": "inspect_change", "changed_files": [{"path": "src/new_name.py"}]}
+
+
+class _RenameChangeService:
+    def inspect(self, request: Any) -> _RenameChangeResponse:
+        return _RenameChangeResponse()
+
+
+class _SubstringImpactService(_ImpactService):
+    def inspect(self, request: Any) -> InspectImpactResponse:
+        response = super().inspect(request)
+        return replace(
+            response,
+            dependants=(
+                ImpactDependant(
+                    kind="import",
+                    source="consumer",
+                    target="data",
+                    path="src/consumer.py",
+                    line=1,
+                    confidence=Confidence.HIGH,
+                ),
+            ),
+        )
+
+
+def test_service_preserves_staged_rename_when_new_path_is_also_modified() -> None:
+    response = AnalyzeChangeService(
+        change_service=_RenameChangeService(),
+        impact_service=_ReferencedImpactService(),
+    ).analyze(
+        AnalyzeChangeRequest(
+            project=r"C:\Projects\fixture",
+            source="working_tree",
+            budget=_budget(),
+        )
+    )
+
+    assert tuple((item.path, item.status) for item in response.replacement_candidates) == (
+        ("src/legacy.py", "renamed"),
+    )
+
+
+def test_service_does_not_treat_substring_module_name_as_remaining_reference() -> None:
+    response = AnalyzeChangeService(
+        change_service=_ChangeService(()),
+        impact_service=_SubstringImpactService(),
+    ).analyze(
+        AnalyzeChangeRequest(
+            project=r"C:\Projects\fixture",
+            source="supplied",
+            supplied_changes=(SuppliedChange(path="src/a.py", status="deleted"),),
+            budget=_budget(),
+        )
+    )
+
+    assert response.replacement_candidates == ()
