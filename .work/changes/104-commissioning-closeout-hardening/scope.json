@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "change_id": "104-commissioning-closeout-hardening",
+  "status": "active",
+  "branch": "change/104-commissioning-closeout-hardening",
+  "worktree": ".work/worktrees/104-commissioning-closeout-hardening",
+  "base": "main",
+  "outcome": "Harden change commissioning and PR closeout with canonical LF change records and an exact remote-main-rooted publication path for tree-equivalent local history",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "tests/test_change_governance.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    "tests/capabilities/test_registered_commit_workflow.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/104-commissioning-closeout-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
