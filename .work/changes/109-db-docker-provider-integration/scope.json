@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "109-db-docker-provider-integration",
-  "status": "active",
+  "status": "closed",
   "branch": "change/109-db-docker-provider-integration",
   "worktree": ".work/worktrees/109-db-docker-provider-integration",
   "base": "main",

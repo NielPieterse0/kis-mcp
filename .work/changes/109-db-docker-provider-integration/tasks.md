@@ -13,4 +13,4 @@
 - [x] Implement test-first in bounded slices.
 - [x] Reconcile all affected current-authority documents, settings, schemas, KIS skill guidance, status/UI projections, and commissioning artifacts.
 - [x] Run focused verification, stale-drift sweep, `change-workflow.ps1 check`, and canonical `verify.ps1`.
-- [ ] Complete specialist review attempts, delivery, merge, lifecycle reconciliation, and safe cleanup.
+- [x] Complete specialist review attempts, delivery, merge, lifecycle reconciliation, and safe cleanup.

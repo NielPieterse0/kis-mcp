@@ -26,9 +26,11 @@
 
 - Branch: `change/109-db-docker-provider-integration`
 - Worktree: `.work/worktrees/109-db-docker-provider-integration`
-- Commit:
-- Pull request or merge:
-- Cleanup:
+- Verified source commit: `d5bed7f5740d1d80a1f82684a0fb78c8cae8b234`.
+- Exact remote review head: `a585a19e0dec5585e4a13c54a95f21e74e9b05d2`, tree-equivalent to the verified source commit and rooted on GitHub `main` `9b092aa6ff87934f840e0620cdfaa938147109d3`.
+- Pull request #134 merged at exact approved head; GitHub `main` advanced to merge commit `1f57deaca89a0c565ee7a9ac313ded099eb6bf32`.
+- Remote review branch deleted through the registered exact-head operation with recovery SHA `a585a19e0dec5585e4a13c54a95f21e74e9b05d2` retained.
+- Local `main` fast-forwarded to the tree-equivalent verified source commit before lifecycle reconciliation; worktree cleanup follows the lifecycle closeout merge.
 
 ## Residual items
 
