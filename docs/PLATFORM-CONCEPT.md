@@ -252,17 +252,9 @@ Work:    What controlled action should change it?
 
 Repositories may contain source code, machine-readable contracts, generated documentation, human orientation, agent instructions, authority metadata, and verification evidence.
 
-| Artifact | Primary authority |
-|---|---|
-| `AGENTS.md` | Agent constraints, workflow routing, and repository-specific operating instructions |
-| `README.md` | Human orientation, purpose, setup, and links to canonical detail |
-| Architecture documents | Stable boundaries, decisions, dependency direction, and system structure |
-| Source and docstrings | Implementation-level contracts and behavior |
-| Generated API documentation | Derived, non-authoritative representation of source contracts |
-| Policy files | Machine-enforced authorization and operational constraints |
-| Governance manifest or registry | Canonical ownership, locations, required artifacts, and authority declarations |
-| CI workflows | Executable verification of repository rules |
-| Skills | Reusable procedures, not repository-specific authority |
+For `kis-mcp`, repository-specific document ownership and routing are defined only in [`../AGENTS.md`](../AGENTS.md). Govern must discover and evaluate that declared authority model rather than maintain a second file-by-file ownership table in this target-state document.
+
+The target Govern plane may reason over artifact classes such as source contracts, machine-readable policy/configuration, generated projections, human documentation, verification evidence, and reusable skills. Generated views remain derived from their source, and reusable skills remain procedures rather than repository-specific authority. Any future governance manifest or registry must reference or encode approved ownership without silently superseding the canonical owners declared by repository authority.
 
 ### Governance findings
 

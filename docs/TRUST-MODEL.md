@@ -1,5 +1,9 @@
 # Trust Model and Hard Rules
 
+## Authority boundary
+
+This document owns the repository's trust assumptions and the semantic meaning of HR-001, HR-002, and HR-003. Repository workflow and documentation routing are owned by [`../AGENTS.md`](../AGENTS.md), current product implementation by [`../SPEC.md`](../SPEC.md), machine-readable rule values by [`../policy/kis-mcp.policy.json`](../policy/kis-mcp.policy.json), and operator procedure by [`OPERATIONS.md`](OPERATIONS.md).
+
 ## Operating assumption
 
 `kis-mcp` is a private, single-operator, directly supervised local development system.

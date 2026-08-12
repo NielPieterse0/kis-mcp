@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "change_id": "094-documentation-authority-refresh",
+  "status": "closed",
+  "branch": "change/094-documentation-authority-refresh",
+  "worktree": ".work/worktrees/094-documentation-authority-refresh",
+  "base": "main",
+  "outcome": "Refresh current authoritative documentation around one governed fact / one canonical owner and prevent KIS text-write line-ending drift by honoring each Git worktree's effective attributes, without rewriting historical records or changing policy.",
+  "owned_paths": [
+    "AGENTS.md",
+    "README.md",
+    "docs/TRUST-MODEL.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "docs/OPERATIONS.md",
+    "src/kis_mcp/line_endings.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/gateway/composition.py",
+    "tests/test_line_endings.py",
+    ".work/changes/094-documentation-authority-refresh/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "SPEC.md",
+    "docs/development/**",
+    "docs/STARTUP-HARDENING.md",
+    "docs/LESSONS-APPLICABILITY.md"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

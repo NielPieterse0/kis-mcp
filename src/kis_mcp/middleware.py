@@ -10,6 +10,7 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools.tool import ToolResult
 
 from .contracts import PolicyEvaluator, ProviderEffectResolver
+from .line_endings import RepositoryLineEndingNormalizer
 from .models import DecisionKind, PolicyDecision
 from .quarantine import QuarantineError
 from .runtime_observability import RuntimeObservability, get_runtime_observability
@@ -28,11 +29,13 @@ class ThreeRuleMiddleware(Middleware):
         policy: PolicyEvaluator,
         quarantine_paths: QuarantinePaths,
         observability: RuntimeObservability | None = None,
+        text_normalizer: RepositoryLineEndingNormalizer | None = None,
     ) -> None:
         self.resolver = resolver
         self.policy = policy
         self.quarantine_paths = quarantine_paths
         self.observability = observability or get_runtime_observability()
+        self.text_normalizer = text_normalizer
 
     async def on_list_tools(
         self,
@@ -62,6 +65,13 @@ class ThreeRuleMiddleware(Middleware):
         tool_name = str(context.message.name)
         arguments = dict(context.message.arguments or {})
         argument_keys = tuple(arguments)
+        if self.text_normalizer is not None:
+            normalized_arguments = self.text_normalizer.normalize(tool_name, arguments)
+            if normalized_arguments != arguments:
+                arguments = normalized_arguments
+                context = context.copy(
+                    message=context.message.model_copy(update={"arguments": arguments})
+                )
         capabilities = self.resolver.capabilities
         configuration_tool = capabilities.configuration_tool_name
         if tool_name.casefold() in capabilities.network_only_tools:
