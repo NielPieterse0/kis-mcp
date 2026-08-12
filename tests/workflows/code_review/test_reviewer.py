@@ -219,6 +219,33 @@ def test_codex_safety_security_review_is_direct_and_purpose_specific(tmp_path: P
     assert "policy bypass" in prompt
 
 
+def test_specialist_review_purposes_are_bounded_and_purpose_specific(tmp_path: Path) -> None:
+    expected = {
+        "architecture": ("Architecture review purpose", "dependency direction", "blast radius"),
+        "performance": ("Performance review purpose", "blocking work", "Do not invent benchmarks"),
+        "test-quality": ("Test-quality review purpose", "failure-path coverage", "verification gaps"),
+        "documentation": ("Documentation review purpose", "authority ownership", "stale or duplicated"),
+        "api-contracts": ("API/contracts review purpose", "backward compatibility", "contract tests"),
+    }
+
+    for review_type, phrases in expected.items():
+        codex = FakeBackend("codex-cli", output=_structured_output())
+        agent = CodeReviewAgent(
+            _settings(),
+            collector=FakeCollector(),
+            backends={"nvidia-nim": FakeNvidiaBackend(output="unused"), "codex-cli": codex},
+        )
+        result = agent.review(tmp_path, backend="codex-cli", review_type=review_type)
+
+        assert result["status"] == "completed"
+        assert result["review_type"] == review_type
+        assert len(codex.calls) == 1
+        prompt = codex.calls[0][1]
+        assert all(phrase in prompt for phrase in phrases)
+        assert "Do not modify files" in prompt
+        assert "spawn another agent" in prompt
+
+
 def test_agent_uses_default_super_model_and_returns_provenance(tmp_path: Path) -> None:
     nvidia = FakeNvidiaBackend(output=_structured_output())
     codex = FakeBackend("codex-cli", output="unused")

@@ -37,7 +37,8 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
     ) -> dict[str, Any]:
         """Review one Git working-tree change without modifying it.
 
-        review_type is code-quality (default) or safety-security. For NVIDIA
+        review_type is code-quality (default), safety-security, architecture,
+        performance, test-quality, documentation, or api-contracts. For NVIDIA
         NIM, model may be nano, super, or ultra: nano is for fast focused
         iteration, super is the default substantive review, and ultra is for
         the deepest high-impact analysis. Supplying model selects NVIDIA

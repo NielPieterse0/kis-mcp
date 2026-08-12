@@ -9,7 +9,44 @@ from typing import Any
 from .contracts import EvidenceCollector, ReviewBackend
 from .settings import AgentSettings
 
-_REVIEW_TYPES = frozenset({"code-quality", "safety-security"})
+_REVIEW_PURPOSES = {
+    "code-quality": (
+        "Code-quality review purpose: assess correctness, regressions, error handling, "
+        "tests, maintainability, and stated requirements. Report only evidence-backed findings."
+    ),
+    "safety-security": (
+        "Safety/security review purpose: assess secrets, authentication and authorization, "
+        "trust boundaries, injection and command execution, network and filesystem effects, "
+        "data handling, race/TOCTOU risks, dependency and supply-chain risk, and policy bypass. "
+        "Report only evidence-backed findings."
+    ),
+    "architecture": (
+        "Architecture review purpose: assess module boundaries, dependency direction, cohesion, "
+        "coupling, duplicated responsibility, public contracts, state ownership, extension seams, "
+        "blast radius, and consistency with the repository architecture. Report only evidence-backed findings."
+    ),
+    "performance": (
+        "Performance review purpose: assess algorithmic cost, blocking work, repeated I/O, "
+        "unbounded loops or data growth, concurrency contention, excessive serialization, startup/runtime "
+        "latency risks, and missing measurement evidence. Do not invent benchmarks. Report only evidence-backed findings."
+    ),
+    "test-quality": (
+        "Test-quality review purpose: assess changed-behavior coverage, failure-path coverage, assertion quality, "
+        "fixture realism, brittleness, isolation, determinism, missing regression tests, and verification gaps. "
+        "Report only evidence-backed findings."
+    ),
+    "documentation": (
+        "Documentation review purpose: assess public/current behavior claims, authority ownership, stale or duplicated "
+        "facts, operational accuracy, missing user-facing changes, and code/documentation consistency. "
+        "Treat repository authority as evidence and report only evidence-backed findings."
+    ),
+    "api-contracts": (
+        "API/contracts review purpose: assess schema and interface compatibility, input/output invariants, versioning, "
+        "error contracts, backward compatibility, serialization changes, provider/tool contracts, and missing contract tests. "
+        "Report only evidence-backed findings."
+    ),
+}
+_REVIEW_TYPES = frozenset(_REVIEW_PURPOSES)
 _BENCHMARK_PROMPT = """You are being smoke-tested as a read-only software-review sub-agent. Analyze only the code below. Return exactly one JSON object with keys summary and findings. findings must be a list; each finding must contain category (exactly correctness or security), claim, and evidence. Identify at least one concrete correctness defect and at least one concrete security defect. Do not use tools or propose edits outside the snippet.
 
 ```python
@@ -140,16 +177,7 @@ class CodeReviewAgent:
 
     def _prompt(self, evidence: str, instructions: str, review_type: str) -> str:
         extra = instructions.strip() if isinstance(instructions, str) else ""
-        purpose = (
-            "Code-quality review purpose: assess correctness, regressions, error handling, "
-            "tests, maintainability, and stated requirements. Report only evidence-backed findings."
-            if review_type == "code-quality"
-            else
-            "Safety/security review purpose: assess secrets, authentication and authorization, "
-            "trust boundaries, injection and command execution, network and filesystem effects, "
-            "data handling, race/TOCTOU risks, dependency and supply-chain risk, and policy bypass. "
-            "Report only evidence-backed findings."
-        )
+        purpose = _REVIEW_PURPOSES[review_type]
         return (
             "You are the kis-mcp code-reviewer agent. Review only the supplied current "
             "working-tree evidence. Do not modify files, run mutating commands, commit, "

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "change_id": "098-specialist-review-purposes",
+  "status": "closed",
+  "branch": "change/098-specialist-review-purposes",
+  "worktree": ".work/worktrees/098-specialist-review-purposes",
+  "base": "main",
+  "outcome": "Expand bounded advisory change review with specialist architecture, performance, test-quality, documentation, and API-contract purposes without adding mutation or nested-agent authority",
+  "owned_paths": [
+    "src/kis_mcp/workflows/code_review/**",
+    "tests/workflows/code_review/**",
+    "docs/OPERATIONS.md",
+    "SPEC.md",
+    ".work/changes/098-specialist-review-purposes/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
