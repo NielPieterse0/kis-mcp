@@ -305,6 +305,11 @@ def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
     return claims
 
 
+def _write_text_lf(path: Path, content: str) -> None:
+    with path.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(content)
+
+
 def create_change_worktree(
     repository: Path,
     *,
@@ -360,8 +365,9 @@ def create_change_worktree(
     try:
         change_root = target / ".work" / "changes" / change_id
         change_root.mkdir(parents=True, exist_ok=False)
-        (change_root / "scope.json").write_text(
-            json.dumps(claim.to_mapping(), indent=2) + "\n", encoding="utf-8"
+        _write_text_lf(
+            change_root / "scope.json",
+            json.dumps(claim.to_mapping(), indent=2) + "\n",
         )
         template_root = root / ".work" / "changes" / "_template"
         replacements = {
@@ -373,7 +379,7 @@ def create_change_worktree(
             content = (template_root / name).read_text(encoding="utf-8")
             for marker, replacement in replacements.items():
                 content = content.replace(marker, replacement)
-            (change_root / name).write_text(content, encoding="utf-8")
+            _write_text_lf(change_root / name, content)
     except Exception:
         _run_git(root, "worktree", "remove", str(target), check=False)
         _run_git(root, "branch", "-d", branch, check=False)
