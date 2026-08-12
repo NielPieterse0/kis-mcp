@@ -13,5 +13,5 @@
 - [x] Commission every supported live Project #1 schema operation and re-read evidence; retain unsupported/unconfigured provisioning explicitly.
 - [x] Reconcile repository/programme/operator/skill documentation to actual commissioned state.
 - [x] Run scope check, focused verification, specialist reviews, and canonical verifier.
-- [ ] Commit, publish exact-tree PR, merge exact approved head, and delete review branch recoverably.
-- [ ] Reconcile change lifecycle closeout and safely clean the dedicated worktree.
+- [x] Commit, publish exact-tree PR, merge exact approved head, and delete review branch recoverably.
+- [x] Reconcile change lifecycle closeout and prepare governed worktree cleanup after the closeout PR merges.
