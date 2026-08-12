@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "110-work-management-documentation-completion",
-  "status": "active",
+  "status": "closed",
   "branch": "change/110-work-management-documentation-completion",
   "worktree": ".work/worktrees/110-work-management-documentation-completion",
   "base": "main",

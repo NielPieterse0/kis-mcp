@@ -21,7 +21,7 @@
 
 - Focused baseline before implementation: Work Management, GitHub Project adapter, and project-management workflow tests passed in the locked environment.
 - Final focused gate: `change-workflow.ps1 check`, complete Work Management/provider/workflow tests, and `git diff --check` all passed.
-- Canonical verification: `scripts/verify.ps1` exit 0 in 195.38 s; full pytest 100% with two expected skips; 269 Python files syntax-checked; line endings, configuration, interpreter, dependencies, change governance, and exact three-rule verification green.
+- Canonical verification passed twice during finalization. The final exact-state gate ran after closeout/governance edits: `scripts/verify.ps1` exit 0 in 218.67 s; full pytest 100% with two expected skips; 269 Python files syntax-checked; line endings, configuration, interpreter, dependencies, change governance, and exact three-rule verification green.
 - CLI wrapper smoke loaded the worktree source and validated the complete 18-field / 12-view schema manifest.
 - The accidental worktree-local `.venv` created during an early incorrect baseline invocation was moved recoverably to `C:\Projects\.kis-mcp\quarantine\110-accidental-worktree-venv-20260812`.
 
@@ -35,11 +35,13 @@
 
 - Branch: `change/110-work-management-documentation-completion`
 - Worktree: `.work/worktrees/110-work-management-documentation-completion`
-- Implementation commit: pending freeze.
-- Pull request / exact merge: pending.
-- Remote branch cleanup: pending.
-- Post-merge documentation milestone evidence: pending exact PR/merge revision.
-- Governed worktree cleanup: pending post-merge lifecycle closeout.
+- Implementation commit: `8a4b57ad593e6c121aa7b31313ef8659b46401d3`, exact child of GitHub `main` `3204724ca8e0ada06788dfc8b87288a5318ae2cc`.
+- Pull request: #132, opened non-draft at the exact implementation commit; GitHub reported `mergeable_state=clean`.
+- Work Management pre-merge commissioning gate on PR #132 returned `ready=true`, no blocking reasons, with exact-head traceability valid.
+- PR #132 merged only at the authorized head; GitHub merge commit is `bc622e41fd17662be9b79d6c56253e2bd694c7bf`.
+- The merged remote review branch was deleted with recovery SHA `8a4b57ad593e6c121aa7b31313ef8659b46401d3` retained.
+- Post-merge event `doc-110-work-management-documentation-completion-pr-132` first produced `documentation_reconciliation_due`, then `post_merge_complete` at revision `bc622e41fd17662be9b79d6c56253e2bd694c7bf`; the existing lifecycle subsequently permitted `Documentation -> Done`.
+- Governed worktree cleanup is the postcondition of this lifecycle-closeout PR.
 
 ## Residual items
 
