@@ -7,7 +7,7 @@ from fastmcp import FastMCP
 from ..config import RuntimeConfig
 from ..projects import ProjectRegistry
 from .change_service import InspectChangeService
-from .git_reader import GitReader
+from .git_change_reader import GitChangeReader
 from .intelligence import ProjectIntelligenceService
 from .read_authority import ReadAuthority
 from .semantic import SemanticEvidenceProvider
@@ -138,7 +138,7 @@ def register_platform_discover(
     register_change_tools(
         change_server,
         InspectChangeService(
-            GitReader(
+            GitChangeReader(
                 authority=ReadAuthority(boundary, runtime.discover_settings),
                 settings=runtime.discover_settings,
             ),

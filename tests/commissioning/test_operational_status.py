@@ -236,3 +236,23 @@ def test_health_response_uses_runtime_remote_status_without_mutating_settings(
     assert response.implementation_status["remote_mcp"] == resolved
     assert config.implementation_status["remote_mcp"] == original
     assert original.endswith("external_tunnel_pending_configuration")
+
+
+def test_health_response_exposes_process_stable_runtime_fingerprints(monkeypatch) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    monkeypatch.setenv(RUNTIME_INSTANCE_ENV, "development")
+
+    first = foundation_module.health_response(config, config.desktop_commander_launch)
+    second = foundation_module.health_response(config, config.desktop_commander_launch)
+
+    assert first.runtime_instance == "development"
+    assert first.server_instance_id == second.server_instance_id
+    assert first.server_started_at == second.server_started_at
+    assert first.source_revision == second.source_revision
+    assert len(first.contract_fingerprint) == 64
+    assert first.contract_fingerprint == second.contract_fingerprint
+    assert first.transport == {
+        "kind": "streamable_http",
+        "stateless_http": True,
+        "json_response": True,
+    }

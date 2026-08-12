@@ -13,12 +13,23 @@ def _timestamp() -> str:
 
 @dataclass(frozen=True, slots=True)
 class ToolCallRecord:
+    call_id: str
     timestamp: str
     tool_name: str
     argument_keys: tuple[str, ...]
     decision: str
     outcome: str
     code: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class BoundaryRequestRecord:
+    request_id: str
+    timestamp: str
+    method: str
+    outcome: str
+    tool_name: str | None = None
+    error_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +54,7 @@ class ActiveSearchRecord:
 class RuntimeObservabilitySnapshot:
     recent_calls: tuple[ToolCallRecord, ...]
     recent_policy_decisions: tuple[ToolCallRecord, ...]
+    recent_boundary_requests: tuple[BoundaryRequestRecord, ...]
     active_processes: tuple[ActiveProcessRecord, ...]
     active_searches: tuple[ActiveSearchRecord, ...]
 
@@ -58,15 +70,21 @@ class RuntimeObservability:
         *,
         max_recent_calls: int = 50,
         max_policy_decisions: int = 50,
+        max_boundary_requests: int = 50,
     ) -> None:
-        if max_recent_calls < 1 or max_policy_decisions < 1:
+        if min(max_recent_calls, max_policy_decisions, max_boundary_requests) < 1:
             raise ValueError("observability limits must be positive")
         self._recent_calls: deque[ToolCallRecord] = deque(maxlen=max_recent_calls)
         self._policy_decisions: deque[ToolCallRecord] = deque(
             maxlen=max_policy_decisions
         )
+        self._boundary_requests: deque[BoundaryRequestRecord] = deque(
+            maxlen=max_boundary_requests
+        )
         self._processes: dict[int, ActiveProcessRecord] = {}
         self._searches: dict[str, ActiveSearchRecord] = {}
+        self._next_call_id = 1
+        self._next_request_id = 1
         self._lock = RLock()
 
     def record_tool_call(
@@ -78,19 +96,44 @@ class RuntimeObservability:
         outcome: str,
         code: str | None = None,
     ) -> None:
-        record = ToolCallRecord(
-            timestamp=_timestamp(),
-            tool_name=str(tool_name),
-            argument_keys=tuple(sorted({str(key) for key in argument_keys})),
-            decision=str(decision),
-            outcome=str(outcome),
-            code=str(code) if code is not None else None,
-        )
         with self._lock:
+            call_id = f"call-{self._next_call_id:06d}"
+            self._next_call_id += 1
+            record = ToolCallRecord(
+                call_id=call_id,
+                timestamp=_timestamp(),
+                tool_name=str(tool_name),
+                argument_keys=tuple(sorted({str(key) for key in argument_keys})),
+                decision=str(decision),
+                outcome=str(outcome),
+                code=str(code) if code is not None else None,
+            )
             self._recent_calls.appendleft(record)
             if record.decision in {"block", "quarantine"}:
                 self._policy_decisions.appendleft(record)
 
+    def record_boundary_request(
+        self,
+        *,
+        method: str,
+        outcome: str,
+        tool_name: str | None = None,
+        error_type: str | None = None,
+    ) -> str:
+        with self._lock:
+            request_id = f"request-{self._next_request_id:06d}"
+            self._next_request_id += 1
+            self._boundary_requests.appendleft(
+                BoundaryRequestRecord(
+                    request_id=request_id,
+                    timestamp=_timestamp(),
+                    method=str(method),
+                    outcome=str(outcome),
+                    tool_name=str(tool_name) if tool_name is not None else None,
+                    error_type=str(error_type) if error_type is not None else None,
+                )
+            )
+            return request_id
     def process_started(self, *, pid: int, cwd: str, shell: str) -> None:
         now = _timestamp()
         record = ActiveProcessRecord(
@@ -152,6 +195,7 @@ class RuntimeObservability:
             return RuntimeObservabilitySnapshot(
                 recent_calls=tuple(self._recent_calls),
                 recent_policy_decisions=tuple(self._policy_decisions),
+                recent_boundary_requests=tuple(self._boundary_requests),
                 active_processes=tuple(
                     self._processes[pid] for pid in sorted(self._processes)
                 ),
@@ -177,6 +221,8 @@ def reset_runtime_observability_for_tests() -> RuntimeObservability:
 __all__ = [
     "ActiveProcessRecord",
     "ActiveSearchRecord",
+    "BoundaryRequestRecord",
+    "BoundaryRequestRecord",
     "RuntimeObservability",
     "RuntimeObservabilitySnapshot",
     "ToolCallRecord",

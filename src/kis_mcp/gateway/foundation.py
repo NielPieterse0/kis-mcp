@@ -3,13 +3,51 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 from collections.abc import Mapping
+from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from ..config import RuntimeConfig
 from ..models import HealthResponse, PolicyRuleResponse, QuarantineResponse
 from ..quarantine import QuarantineRecord
+
+
+_SERVER_INSTANCE_ID = uuid4().hex
+_SERVER_STARTED_AT = datetime.now(UTC).isoformat()
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+
+
+@lru_cache(maxsize=1)
+def _source_revision() -> str:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            cwd=_REPOSITORY_ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    revision = result.stdout.strip().lower()
+    if result.returncode != 0 or len(revision) != 40:
+        return "unknown"
+    return revision if all(char in "0123456789abcdef" for char in revision) else "unknown"
+
+
+def _contract_fingerprint(runtime: RuntimeConfig, source_revision: str) -> str:
+    payload = {
+        "source_revision": source_revision,
+        "settings": runtime.raw_settings,
+        "policy": runtime.raw_policy,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def ensure_state_directories(config: RuntimeConfig) -> None:
@@ -150,6 +188,9 @@ def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> Health
     remote_status = remote_mcp_implementation_status(runtime)
     if remote_status is not None:
         implementation_status["remote_mcp"] = remote_status
+    runtime_instance = os.environ.get("KIS_MCP_RUNTIME_INSTANCE", "stdio").strip() or "stdio"
+    is_remote = runtime_instance != "stdio"
+    source_revision = _source_revision()
     return HealthResponse(
         ready=entry.is_file(),
         server=runtime.server_name,
@@ -159,6 +200,16 @@ def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> Health
         desktop_commander_installed=entry.is_file(),
         policy_rules=tuple(policy_rule_response(rule) for rule in runtime.raw_policy["rules"]),
         policy_fingerprint=policy_fingerprint(runtime),
+        runtime_instance=runtime_instance,
+        server_instance_id=_SERVER_INSTANCE_ID,
+        server_started_at=_SERVER_STARTED_AT,
+        source_revision=source_revision,
+        contract_fingerprint=_contract_fingerprint(runtime, source_revision),
+        transport={
+            "kind": "streamable_http" if is_remote else "stdio",
+            "stateless_http": runtime.remote_stateless_http if is_remote else False,
+            "json_response": runtime.remote_json_response if is_remote else False,
+        },
         implementation_status=implementation_status,
     )
 

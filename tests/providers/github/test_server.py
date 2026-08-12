@@ -226,7 +226,7 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     ready = descriptor.readiness_probe()
     assert ready.state is ProviderState.READY
     assert ready.summary == (
-        "GitHub MCP is ready; one OAuth login is required when kis-op starts."
+        "GitHub MCP is ready; one OAuth login is required when the KIS runtime starts."
     )
     assert ready.details["user_status"]["state"] == "ready_authentication_required"
     assert ready.details["commissioning"]["authenticated"] == (
@@ -284,7 +284,7 @@ def test_descriptor_shares_runtime_auth_and_tool_discovery_state(
 
     after = descriptor.readiness_probe()
     assert after.state is ProviderState.READY
-    assert after.summary == "GitHub MCP is authenticated for the current kis-op runtime."
+    assert after.summary == "GitHub MCP is authenticated for the current KIS runtime."
     assert after.details["authenticated"] == "verified"
     assert after.details["user_status"]["state"] == "ready_authenticated"
     assert after.details["commissioning"]["authenticated"] == "ready"
@@ -362,4 +362,23 @@ def test_project_capabilities_contribute_namespaced_operations(
     assert project_write.effects == (
         OperationEffect.EXTERNAL,
         OperationEffect.LOCAL_CHANGE,
+    )
+
+
+def test_readiness_labels_the_selected_development_runtime(tmp_path: Path) -> None:
+    executable = tmp_path / "github-mcp-server.exe"
+    executable.write_bytes(b"official-binary-placeholder")
+    settings = _settings(str(executable))
+    startup = ProviderStartupState()
+    startup.mark_ready()
+
+    readiness = github_server.github_provider_readiness(
+        settings,
+        {"KIS_MCP_RUNTIME_INSTANCE": "development"},
+        startup,
+    )
+
+    assert readiness.summary == "GitHub MCP is authenticated for the current kis-dev runtime."
+    assert readiness.details["user_status"]["required_action"] == (
+        "No authentication action is required for the current kis-dev runtime."
     )

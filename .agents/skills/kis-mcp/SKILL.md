@@ -6,13 +6,13 @@ capabilities:
   - kis.capability.discover
   - kis.workflow.operate
 description: >
-  Use whenever operating the kis-mcp tool through kis-op, kis-dev, or another
-  kis-mcp MCP connection, including choosing tools, discovering long-tail
-  capabilities, inspecting schemas, selecting a project, using providers or
-  workflows, loading Skills, interpreting status/errors, or supporting startup
-  and commissioning. Apply kis-mcp's project-neutral routing and exact
-  HR-001/HR-002/HR-003 semantics. Do not use as a replacement for a target
-  repository's own authority or for generic MCP server development.
+  Use whenever operating kis-mcp through kis-op, kis-dev, or another kis-mcp
+  connection: resolve projects, inspect repositories or changes, plan work,
+  select or run verification, request specialist review, validate agent
+  configuration, discover long-tail tools/workflows, use providers or Skills,
+  close review branches safely, or diagnose runtime status. Apply project-neutral
+  routing and exact HR-001/HR-002/HR-003 semantics. Do not replace a target
+  repository's authority or generic MCP development guidance.
 ---
 
 # kis-mcp
@@ -33,6 +33,29 @@ This skill explains how to operate the tool. It is not repository authority.
 - Treat live tool schemas, capability records, provider status, and project
   status as runtime evidence.
 - Never let this skill add a fourth Work restriction beyond HR-001/002/003.
+
+## Fast path by user intent
+
+Use the shortest path that already satisfies the request:
+
+| User goal | Start here |
+|---|---|
+| "Is KIS healthy / what is connected?" | `kis_health`, then `kis_provider_status` only when provider detail matters. |
+| "Which project am I working on?" | `kis_list_projects` or `kis_project_status(project_id)`. |
+| "Understand this repository" | `inspect_project`; use task-scoped context only when deeper evidence is needed. |
+| "What does this change affect?" | `inspect_change` then `analyze_change`; use `plan_change` for a bounded implementation plan. |
+| "What should I verify?" | `select_change_verification`; it selects current declared checks but does not execute them. |
+| "Verify and review this change" | Prefer the advertised `execute-current-change` / `execute_change_workflow`; otherwise use selected `run_verification` calls plus `review_change_with_agent`. |
+| "Validate AGENTS/agent configuration" | Use the advertised `validate-agent-configuration` workflow / `validate_agent_configuration` operation. |
+| "Review architecture/security/tests/docs/API contracts" | `review_change_with_agent` with the matching fixed `review_type`. |
+| "Turn this verified commit into a reviewable PR" | If live-advertised, use Slice 7 `prepare_reviewable_pull_request`; otherwise keep verification, exact publication, and PR creation as explicit approved steps. |
+| "Merge or clean up an existing PR/change" | `recommend_workflow` for safe closeout, then follow exact-head approval and cleanup steps from live schemas. |
+| "I do not know the tool name" | `recommend_workflow` -> `search_capabilities` -> `describe_capability`. |
+
+Do not add discovery calls when the correct direct tool and schema are already
+known. Do not manually reproduce a bounded workflow merely to gain more control;
+inspect its result and fall back to individual operations only when the workflow
+is unavailable or the user explicitly needs a narrower step.
 
 ## Default operating workflow
 
@@ -102,7 +125,38 @@ and mounted while still requiring authentication or live verification.
 Load `references/providers-and-workflows.md` when provider readiness, GitHub,
 Supabase, Control Center, code review, or workflow execution matters.
 
-### 6. Use Skills as reusable procedures, not executable plugins
+### 6. Prefer the bounded change workflow stack for repository work
+
+Recent KIS slices form a deliberate progression. Use the highest-level available
+operation that matches the user's requested scope:
+
+1. `inspect_change` / `analyze_change` establish change and impact evidence.
+2. `plan_change` produces a read-only bounded implementation plan.
+3. `select_change_verification` reconciles impact handoffs with current declared
+   verification and returns a deterministic selection without executing it.
+4. `run_verification` executes one approved verification declaration.
+5. `execute_change_workflow`, when advertised, composes selection, verification,
+   and bounded specialist reviews for one change and returns aggregate evidence.
+
+Python quality support discovered from `pyproject.toml` includes Ruff,
+coverage.py/pytest-cov, Vulture, LibCST, mypy, and Pyright. Treat these as
+repository evidence and verification handoffs: discovery does not install tools,
+and LibCST remains evidence-only unless another current contract says otherwise.
+
+`review_change_with_agent` accepts the fixed review purposes `code-quality`,
+`safety-security`, `architecture`, `performance`, `test-quality`,
+`documentation`, and `api-contracts`. The purpose changes the rubric, not the
+mutation, provider, or nested-agent authority.
+
+The bounded agnix path is `validate_agent_configuration`; it validates local
+agent configuration with pinned read-only arguments and does not expose fix,
+watch, init, telemetry, arbitrary-command, or general MCP passthrough behavior.
+
+Load `references/providers-and-workflows.md` for workflow details and
+`references/tool-selection-and-schemas.md` before constructing unfamiliar
+payloads.
+
+### 7. Use Skills as reusable procedures, not executable plugins
 
 The runtime Skills catalogue lives beneath `C:\Projects\.agents\skills`.
 Repository-local `.agents/skills` is development guidance for that repository
@@ -115,7 +169,7 @@ network access, writes, credentials, or external mutation.
 Load `references/skills-module.md` for list/search/load/read/create/improve
 contracts and catalogue semantics.
 
-### 7. Apply only the three Work hard rules
+### 8. Apply only the three Work hard rules
 
 - **HR-001**: block a proven write outside `C:\Projects`.
 - **HR-002**: block a proven external-network effect through local Work.
@@ -131,7 +185,7 @@ input errors are corrective application outcomes, not HR policy decisions.
 Load `references/concepts-and-errors.md` when interpreting a rejection, status,
 quarantine result, readiness state, or truncation marker.
 
-### 8. Verify the result at the right level
+### 9. Verify the result at the right level
 
 For read/analysis work, confirm the returned evidence answers the task and note
 `truncated`, confidence, unknowns, or readiness limitations when present.
@@ -171,11 +225,18 @@ live project status, provider schemas, or current configuration evidence.
   them through local Work network commands.
 - Quarantine is the supported delete path. Restoration must not overwrite an
   existing original path.
+- Govern authority/drift evaluation is advisory and may exist in repository code
+  before the running gateway composes its public tools. Discover it live before use.
+- Active Slice 7 change `106-reviewable-pr-coordinator` defines a bounded
+  `prepare_reviewable_pull_request` target: exact-commit change execution, exact
+  registered publication, exact open-PR creation/verification, then a mandatory
+  stop before merge, branch deletion, worktree cleanup, or default-branch mutation.
+  Treat it as in progress until the live runtime advertises the tool/workflow;
+  before then, keep those approved steps explicit rather than inventing the call.
 - Multi-file runtime skill creation is not currently provided by the
   single-file `create_skill(skill_id, skill_md)` contract.
-- Ongoing runtime slices may add project/catalogue or workflow operations. Use
-  live capability discovery instead of assuming every documented target is
-  present in an older running instance.
+- A running kis-op/kis-dev instance may lag the checked-out repository. Use live
+  capability discovery and schema evidence before invoking newly merged tools.
 
 ## Completion criteria
 

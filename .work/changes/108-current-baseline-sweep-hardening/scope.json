@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "change_id": "108-current-baseline-sweep-hardening",
+  "status": "active",
+  "branch": "change/108-current-baseline-sweep-hardening",
+  "worktree": ".work/worktrees/108-current-baseline-sweep-hardening",
+  "base": "main",
+  "outcome": "Sweep the complete current implementation baseline, reconcile authority and commissioning, repair all confirmed current-state defects including runtime stability and UI gaps, and deliver one verified reviewable change",
+  "owned_paths": [
+    ".agents/skills/kis-mcp/**",
+    ".work/changes/101-executable-change-workflow/closeout.md",
+    ".work/changes/105-kis-mcp-skill-refresh/**",
+    ".work/changes/107-register-workspace-projects/**",
+    ".work/changes/108-current-baseline-sweep-hardening/**",
+    "src/**",
+    "tests/**",
+    "docs/**",
+    "settings/**",
+    "scripts/**",
+    "contracts/**",
+    "policy/**",
+    "SPEC.md",
+    "README.md",
+    "AGENTS.md",
+    "pyproject.toml",
+    "uv.lock"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

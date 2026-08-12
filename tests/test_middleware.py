@@ -8,7 +8,7 @@ import pytest
 from fastmcp import Client, FastMCP
 
 from kis_mcp.desktop_commander import DesktopCommanderEffectResolver
-from kis_mcp.middleware import ThreeRuleMiddleware
+from kis_mcp.middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from kis_mcp.policy import ThreeRulePolicy
 from kis_mcp.quarantine import QuarantineError
 from kis_mcp.runtime_observability import RuntimeObservability
@@ -263,3 +263,29 @@ def test_middleware_records_redacted_allowed_and_blocked_calls() -> None:
     assert "secret-name" not in rendered
     assert "private-token" not in rendered
     assert "result body" not in rendered
+
+
+def test_boundary_middleware_records_initialize_list_and_call_without_payloads() -> None:
+    server = FastMCP("boundary-observability-test")
+    registry = RuntimeObservability(max_boundary_requests=10)
+
+    @server.tool
+    def echo(secret: str) -> str:
+        return secret
+
+    server.add_middleware(BoundaryObservabilityMiddleware(registry))
+
+    async def run() -> None:
+        async with Client(server) as client:
+            await client.list_tools()
+            await client.call_tool("echo", {"secret": "do-not-retain"})
+
+    asyncio.run(run())
+    records = registry.snapshot().recent_boundary_requests
+    assert any(item.method == "initialize" for item in records)
+    assert any(item.method == "tools/list" for item in records)
+    assert any(
+        item.method == "tools/call" and item.tool_name == "echo"
+        for item in records
+    )
+    assert "do-not-retain" not in str(registry.snapshot().to_dict())

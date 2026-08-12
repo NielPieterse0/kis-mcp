@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": "107-register-workspace-projects",
+  "status": "closed",
+  "branch": "change/107-register-workspace-projects",
+  "worktree": ".work/worktrees/107-register-workspace-projects",
+  "base": "main",
+  "outcome": "Register the requested local projects and verified GitHub bindings in the KIS central project registry",
+  "owned_paths": [
+    "settings/projects.settings.json",
+    "tests/projects/test_project_registry.py",
+    "tests/projects/test_project_registry_platform.py",
+    "tests/projects/test_project_registry_settings.py",
+    "tests/repositories/test_project_registry_settings.py",
+    ".work/changes/107-register-workspace-projects/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

@@ -208,3 +208,30 @@ def test_build_server_mounts_three_discover_operations_additively() -> None:
         },
     ))
     assert context_tool.structured_content is not None
+
+
+def test_build_server_executes_public_commit_change_target() -> None:
+    config = RuntimeConfig(
+        raw_settings=deepcopy(CONFIG.raw_settings),
+        raw_policy=deepcopy(CONFIG.raw_policy),
+    )
+    server = build_server(config, validate_provider=False)
+
+    result = asyncio.run(
+        server.call_tool(
+            "inspect_change",
+            {
+                "path": str(REPOSITORY_ROOT),
+                "source": "commit",
+                "commit_ref": "HEAD",
+            },
+        )
+    )
+
+    assert result.structured_content is not None
+    assert result.structured_content["available"] is True
+    assert result.structured_content["source"] == "commit"
+    assert all(
+        item.get("code") != "CHANGE_TARGET_READER_UNAVAILABLE"
+        for item in result.structured_content["diagnostics"]
+    )
