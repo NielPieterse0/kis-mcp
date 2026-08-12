@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import tomllib
 from dataclasses import dataclass, fields
 from enum import StrEnum
 from typing import Any
@@ -30,11 +31,98 @@ _SCRIPT_CATEGORY = {
     "typecheck": "typecheck",
     "verify": "repository_verification",
 }
+_REQUIREMENT_NAME = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
+_QUALITY_TOOL_SPECS = {
+    "coverage": {
+        "packages": ("pytest-cov", "coverage"),
+        "default_package": "coverage",
+        "config": "coverage",
+        "role": "coverage",
+        "verification_id": "python-coverage-pytest",
+    },
+    "libcst": {
+        "packages": ("libcst",),
+        "default_package": "libcst",
+        "config": "libcst",
+        "role": "concrete_syntax",
+        "verification_id": None,
+    },
+    "mypy": {
+        "packages": ("mypy",),
+        "default_package": "mypy",
+        "config": "mypy",
+        "role": "typecheck",
+        "verification_id": "python-mypy",
+    },
+    "pyright": {
+        "packages": ("pyright",),
+        "default_package": "pyright",
+        "config": "pyright",
+        "role": "typecheck",
+        "verification_id": "python-pyright",
+    },
+    "ruff": {
+        "packages": ("ruff",),
+        "default_package": "ruff",
+        "config": "ruff",
+        "role": "lint",
+        "verification_id": "python-ruff-check",
+    },
+    "vulture": {
+        "packages": ("vulture",),
+        "default_package": "vulture",
+        "config": "vulture",
+        "role": "dead_code",
+        "verification_id": "python-vulture",
+    },
+}
+_QUALITY_VERIFICATION_COMMANDS = {
+    "python-coverage-pytest": (
+        "Run Python coverage with pytest",
+        "test",
+        ("-m", "coverage", "run", "-m", "pytest", "-q"),
+    ),
+    "python-mypy": (
+        "Run mypy type checking",
+        "typecheck",
+        ("-m", "mypy", "."),
+    ),
+    "python-pyright": (
+        "Run Pyright type checking",
+        "typecheck",
+        ("-m", "pyright", "."),
+    ),
+    "python-ruff-check": (
+        "Run Ruff lint checks",
+        "lint",
+        ("-m", "ruff", "check", "."),
+    ),
+    "python-vulture": (
+        "Run Vulture dead-code analysis",
+        "lint",
+        ("-m", "vulture", ".", "--min-confidence", "80"),
+    ),
+}
+
+
+@dataclass(frozen=True, slots=True)
+class QualityToolEvidence:
+    id: str
+    package: str
+    role: str
+    source_path: str
+    declared_via: str
+    confidence: Confidence
+    verification_id: str | None = None
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {field.name: _json_value(getattr(self, field.name)) for field in fields(self)}
 
 
 @dataclass(frozen=True, slots=True)
 class VerificationDiscoveryResult:
     declarations: tuple[VerificationDeclaration, ...]
+    quality_tools: tuple[QualityToolEvidence, ...]
     evidence_sources: tuple[str, ...]
     files_considered: int
     files_skipped: int
@@ -95,8 +183,15 @@ class VerificationDiscoveryService:
                 )
 
         declarations: dict[str, VerificationDeclaration] = {}
+        quality_tools: dict[str, QualityToolEvidence] = {}
         evidence_sources: set[str] = set()
-        self._discover_python(contents, declarations, evidence_sources)
+        self._discover_python(
+            contents,
+            declarations,
+            quality_tools,
+            evidence_sources,
+            diagnostics,
+        )
         self._discover_node(contents, declarations, evidence_sources, diagnostics)
         self._discover_powershell(contents, declarations, evidence_sources)
         self._discover_ci(contents, declarations, evidence_sources)
@@ -123,6 +218,7 @@ class VerificationDiscoveryService:
         diagnostics.sort(key=lambda item: (item.code, (item.path or "").casefold()))
         return VerificationDiscoveryResult(
             declarations=tuple(ordered),
+            quality_tools=tuple(sorted(quality_tools.values(), key=lambda item: item.id)),
             evidence_sources=tuple(sorted(evidence_sources)),
             files_considered=len(contents),
             files_skipped=skipped,
@@ -152,11 +248,46 @@ class VerificationDiscoveryService:
         self,
         contents: dict[str, str],
         declarations: dict[str, VerificationDeclaration],
+        quality_tools: dict[str, QualityToolEvidence],
         evidence_sources: set[str],
+        diagnostics: list[ProjectDiagnostic],
     ) -> None:
         pyproject = contents.get("pyproject.toml")
         if pyproject is not None:
             evidence_sources.add("pyproject")
+            try:
+                parsed_pyproject = tomllib.loads(pyproject)
+            except tomllib.TOMLDecodeError:
+                diagnostics.append(
+                    ProjectDiagnostic(
+                        code="WORKFLOW_PYPROJECT_INVALID",
+                        message="pyproject.toml could not be parsed for workflow discovery.",
+                        severity=Severity.WARNING,
+                        path="pyproject.toml",
+                    )
+                )
+            else:
+                for item in _quality_tool_evidence(parsed_pyproject):
+                    quality_tools[item.id] = item
+                    if item.verification_id is not None:
+                        title, category, arguments = _QUALITY_VERIFICATION_COMMANDS[
+                            item.verification_id
+                        ]
+                        self._add(
+                            declarations,
+                            self._declaration(
+                                id=item.verification_id,
+                                title=title,
+                                category=category,
+                                source_path=item.source_path,
+                                profile="python",
+                                arguments=arguments,
+                                provenance=ProvenanceKind.DECLARED,
+                                confidence=item.confidence,
+                            ),
+                        )
+                if quality_tools:
+                    evidence_sources.add("python_quality_tools")
         if "uv.lock" in contents:
             evidence_sources.add("uv")
             self._add(
@@ -389,6 +520,75 @@ class VerificationDiscoveryService:
         declarations.setdefault(declaration.id, declaration)
 
 
+def _normalize_requirement_name(requirement: str) -> str | None:
+    match = _REQUIREMENT_NAME.match(requirement)
+    if match is None:
+        return None
+    return re.sub(r"[-_.]+", "-", match.group(1)).casefold()
+
+
+def _dependency_sources(pyproject: dict[str, Any]) -> dict[str, str]:
+    sources: dict[str, str] = {}
+
+    def add(requirements: Any, source: str) -> None:
+        if not isinstance(requirements, list):
+            return
+        for requirement in requirements:
+            if not isinstance(requirement, str):
+                continue
+            name = _normalize_requirement_name(requirement)
+            if name:
+                sources.setdefault(name, source)
+
+    project = pyproject.get("project")
+    if isinstance(project, dict):
+        add(project.get("dependencies"), "project_dependency")
+        optional = project.get("optional-dependencies")
+        if isinstance(optional, dict):
+            for group in sorted(optional, key=str.casefold):
+                add(optional[group], f"optional_dependency:{group}")
+
+    groups = pyproject.get("dependency-groups")
+    if isinstance(groups, dict):
+        for group in sorted(groups, key=str.casefold):
+            add(groups[group], f"dependency_group:{group}")
+    return sources
+
+
+def _quality_tool_evidence(pyproject: dict[str, Any]) -> tuple[QualityToolEvidence, ...]:
+    dependencies = _dependency_sources(pyproject)
+    tool_section = pyproject.get("tool")
+    configured = tool_section if isinstance(tool_section, dict) else {}
+    records: list[QualityToolEvidence] = []
+    for tool_id in sorted(_QUALITY_TOOL_SPECS):
+        spec = _QUALITY_TOOL_SPECS[tool_id]
+        package = next(
+            (candidate for candidate in spec["packages"] if candidate in dependencies),
+            None,
+        )
+        if package is not None:
+            declared_via = dependencies[package]
+            confidence = Confidence.HIGH
+        elif spec["config"] in configured:
+            package = str(spec["default_package"])
+            declared_via = f"tool_config:{spec['config']}"
+            confidence = Confidence.MEDIUM
+        else:
+            continue
+        records.append(
+            QualityToolEvidence(
+                id=tool_id,
+                package=package,
+                role=str(spec["role"]),
+                source_path="pyproject.toml",
+                declared_via=declared_via,
+                confidence=confidence,
+                verification_id=spec["verification_id"],
+            )
+        )
+    return tuple(records)
+
+
 def _github_run_blocks(content: str) -> tuple[str, ...]:
     lines = content.splitlines()
     results: list[str] = []
@@ -447,4 +647,8 @@ def _json_value(value: Any) -> Any:
     raise ValueError(f"value is not JSON-compatible: {type(value).__name__}")
 
 
-__all__ = ["VerificationDiscoveryResult", "VerificationDiscoveryService"]
+__all__ = [
+    "QualityToolEvidence",
+    "VerificationDiscoveryResult",
+    "VerificationDiscoveryService",
+]
