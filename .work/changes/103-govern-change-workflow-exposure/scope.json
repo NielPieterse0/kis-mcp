@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "change_id": "103-govern-change-workflow-exposure",
+  "status": "closed",
+  "branch": "change/103-govern-change-workflow-exposure",
+  "worktree": ".work/worktrees/103-govern-change-workflow-exposure",
+  "base": "main",
+  "outcome": "Expose the bounded executable change workflow through Govern capability recommendation without adding execution authority",
+  "owned_paths": [
+    "src/kis_mcp/workflows/platform.py",
+    "tests/workflows/change_execution/test_change_execution_workflow_descriptor.py",
+    ".work/changes/103-govern-change-workflow-exposure/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
