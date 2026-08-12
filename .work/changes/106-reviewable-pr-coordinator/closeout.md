@@ -25,10 +25,12 @@
 
 - Branch: `change/106-reviewable-pr-coordinator`
 - Worktree: `.work/worktrees/106-reviewable-pr-coordinator`
-- Commit: pending exact verified-state commit.
-- Pull request or merge: pending clean GitHub-main-rooted delivery.
-- Cleanup: pending post-merge governed cleanup.
+- Verified local implementation commit: `6a27a836bece6ec2b71f774993567cc196021c40`.
+- Clean remote delivery commit: `7b2eb58a2efb04ad3fe0d957232bcde89adb5d01`, parented directly on then-current GitHub `main`, with the canonically verified delivery tree.
+- Pull request: #127 merged from the exact authorized head; GitHub merge commit `84758f8a6d6515fde7461e3e79c0a799fa5ace06` preserves the verified delivery tree.
+- Remote review branch: deleted with exact-head verification and recovery SHA retained.
+- Cleanup: governed local cleanup follows this closed-status lifecycle reconciliation.
 
 ## Residual items
 
-- Remote delivery and final seven-slice programme reconciliation remain; merge/delete/cleanup remain outside the coordinator itself.
+- Final seven-slice programme reconciliation remains. Merge/delete/cleanup remain outside the coordinator implementation itself.
