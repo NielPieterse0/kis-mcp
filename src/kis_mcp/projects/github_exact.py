@@ -250,6 +250,204 @@ class RegisteredGitHubOperations:
             "publication_semantics": "exact_git_object",
         }
 
+    def reconcile_publish_commit(
+        self,
+        *,
+        project_id: str,
+        commit: str,
+        source_base: str,
+        branch: str,
+        expected_remote_default: str,
+        expected_remote_branch: str | None,
+        approved: bool,
+    ) -> dict[str, object]:
+        self._require_approval(approved)
+        project, repository, remote_url = self._target(project_id)
+        cwd = Path(project.local_root)
+        branch_name = self._validate_branch(branch, cwd)
+
+        source_result = self._run(
+            (
+                "git",
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
+                f"{str(commit).strip()}^{{commit}}",
+            ),
+            cwd,
+        )
+        source_sha = self._require_sha(
+            str(getattr(source_result, "stdout", "")).strip(),
+            "source commit",
+        )
+        base_result = self._run(
+            (
+                "git",
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
+                f"{str(source_base).strip()}^{{commit}}",
+            ),
+            cwd,
+        )
+        source_base_sha = self._require_sha(
+            str(getattr(base_result, "stdout", "")).strip(),
+            "source base",
+        )
+        ancestor = self._run(
+            ("git", "merge-base", "--is-ancestor", source_base_sha, source_sha),
+            cwd,
+            allowed_returncodes=frozenset({0, 1}),
+        )
+        if int(getattr(ancestor, "returncode", -1)) != 0:
+            raise ToolError(
+                "LOCAL_BASE_NOT_ANCESTOR: source_base is not an ancestor of the source commit"
+            )
+
+        local_base_tree_result = self._run(
+            (
+                "git",
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
+                f"{source_base_sha}^{{tree}}",
+            ),
+            cwd,
+        )
+        local_base_tree = self._require_sha(
+            str(getattr(local_base_tree_result, "stdout", "")).strip(),
+            "source base tree",
+        )
+        source_tree_result = self._run(
+            (
+                "git",
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
+                f"{source_sha}^{{tree}}",
+            ),
+            cwd,
+        )
+        source_tree = self._require_sha(
+            str(getattr(source_tree_result, "stdout", "")).strip(),
+            "source tree",
+        )
+        expected_default_sha = self._require_sha(
+            expected_remote_default,
+            "expected_remote_default",
+        )
+        expected_branch_sha = (
+            None
+            if expected_remote_branch is None
+            else self._require_sha(expected_remote_branch, "expected_remote_branch")
+        )
+
+        self._authenticate(cwd)
+        default_branch = self._default_branch(remote_url, cwd)
+        if branch_name.casefold() == default_branch.casefold():
+            raise ToolError(
+                "DEFAULT_BRANCH_PUBLICATION_BLOCKED: reconciliation must publish to a review branch"
+            )
+        default_ref = f"refs/heads/{default_branch}"
+        observed_default = self._remote_branch_sha(remote_url, default_ref, cwd)
+        if observed_default != expected_default_sha:
+            raise ToolError(
+                "REMOTE_DEFAULT_MISMATCH: expected "
+                f"{expected_default_sha}, observed {observed_default or '<absent>'}"
+            )
+
+        target_ref = f"refs/heads/{branch_name}"
+        observed_target = self._remote_branch_sha(remote_url, target_ref, cwd)
+        if observed_target != expected_branch_sha:
+            raise ToolError(
+                "REMOTE_BRANCH_MISMATCH: expected "
+                f"{expected_branch_sha or '<absent>'}, observed {observed_target or '<absent>'}"
+            )
+
+        self._run(
+            (
+                *self._git_network_prefix(),
+                "fetch",
+                "--no-tags",
+                "--no-recurse-submodules",
+                remote_url,
+                default_ref,
+            ),
+            cwd,
+        )
+        observed_after_fetch = self._remote_branch_sha(remote_url, default_ref, cwd)
+        if observed_after_fetch != expected_default_sha:
+            raise ToolError(
+                "REMOTE_DEFAULT_CHANGED: remote default branch changed during reconciliation"
+            )
+        remote_tree_result = self._run(
+            (
+                "git",
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
+                f"{expected_default_sha}^{{tree}}",
+            ),
+            cwd,
+        )
+        remote_default_tree = self._require_sha(
+            str(getattr(remote_tree_result, "stdout", "")).strip(),
+            "remote default tree",
+        )
+        if remote_default_tree != local_base_tree:
+            raise ToolError(
+                "REMOTE_BASE_TREE_MISMATCH: source_base tree does not equal the verified remote default tree"
+            )
+
+        message = f"reconcile registered change from {source_sha}"
+        commit_result = self._run(
+            (
+                "git",
+                "commit-tree",
+                source_tree,
+                "-p",
+                expected_default_sha,
+                "-m",
+                message,
+            ),
+            cwd,
+        )
+        reconciled_sha = self._require_sha(
+            str(getattr(commit_result, "stdout", "")).strip(),
+            "reconciled commit",
+        )
+        lease = f"--force-with-lease={target_ref}:{expected_branch_sha or ''}"
+        self._run(
+            (
+                *self._git_network_prefix(),
+                "push",
+                lease,
+                remote_url,
+                f"{reconciled_sha}:{target_ref}",
+            ),
+            cwd,
+        )
+        published = self._remote_branch_sha(remote_url, target_ref, cwd)
+        if published != reconciled_sha:
+            raise ToolError(
+                "PUBLICATION_NOT_VERIFIED: reconciliation branch does not resolve to the generated commit"
+            )
+        return {
+            "schema_version": 1,
+            "state": "published",
+            "project_id": project.project_id,
+            "repository": repository,
+            "branch": branch_name,
+            "source_commit_sha": source_sha,
+            "source_base_sha": source_base_sha,
+            "remote_default_branch": default_branch,
+            "remote_default_sha": expected_default_sha,
+            "tree_sha": source_tree,
+            "commit_sha": reconciled_sha,
+            "previous_remote_sha": expected_branch_sha,
+            "publication_semantics": "remote-default-rooted-tree-equivalent",
+        }
+
     def _pr_view(self, repository: str, pull_number: int, cwd: Path) -> dict[str, object]:
         result = self._run(
             (
@@ -392,6 +590,30 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
         "required": ["project_id", "commit", "branch", "approved"],
         "additionalProperties": False,
     },
+    "kis_github_reconcile_registered_commit": {
+        "type": "object",
+        "properties": {
+            "project_id": {"type": "string"},
+            "commit": {"type": "string"},
+            "source_base": {"type": "string"},
+            "branch": {"type": "string"},
+            "expected_remote_default": {"type": "string"},
+            "expected_remote_branch": {
+                "anyOf": [{"type": "string"}, {"type": "null"}]
+            },
+            "approved": {"type": "boolean"},
+        },
+        "required": [
+            "project_id",
+            "commit",
+            "source_base",
+            "branch",
+            "expected_remote_default",
+            "expected_remote_branch",
+            "approved",
+        ],
+        "additionalProperties": False,
+    },
     "kis_github_merge_registered_pull_request": {
         "type": "object",
         "properties": {
@@ -453,15 +675,23 @@ def _validated_arguments(
         )
     if values.get("approved") is not True:
         raise ToolError("APPROVAL_REQUIRED: approved must be true")
-    for name in ("project_id", "commit", "branch", "expected_head", "merge_method"):
+    for name in (
+        "project_id",
+        "commit",
+        "source_base",
+        "branch",
+        "expected_remote_default",
+        "expected_head",
+        "merge_method",
+    ):
         if name in values and (not isinstance(values[name], str) or not values[name].strip()):
             raise ToolError(
                 f"INVALID_REGISTERED_GITHUB_ARGUMENTS: {name} must be a non-empty string"
             )
-    if "expected_remote_base" in values and values["expected_remote_base"] is not None:
-        if not isinstance(values["expected_remote_base"], str):
+    for name in ("expected_remote_base", "expected_remote_branch"):
+        if name in values and values[name] is not None and not isinstance(values[name], str):
             raise ToolError(
-                "INVALID_REGISTERED_GITHUB_ARGUMENTS: expected_remote_base must be a string or null"
+                f"INVALID_REGISTERED_GITHUB_ARGUMENTS: {name} must be a string or null"
             )
     if "pull_number" in values and (
         isinstance(values["pull_number"], bool)
@@ -497,6 +727,16 @@ def execute_registered_github_operation(
             commit=values["commit"],
             branch=values["branch"],
             expected_remote_base=values.get("expected_remote_base"),
+            approved=values["approved"],
+        )
+    if operation == "kis_github_reconcile_registered_commit":
+        return service.reconcile_publish_commit(
+            project_id=values["project_id"],
+            commit=values["commit"],
+            source_base=values["source_base"],
+            branch=values["branch"],
+            expected_remote_default=values["expected_remote_default"],
+            expected_remote_branch=values["expected_remote_branch"],
             approved=values["approved"],
         )
     if operation == "kis_github_merge_registered_pull_request":

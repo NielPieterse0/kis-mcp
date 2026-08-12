@@ -257,6 +257,24 @@ def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: P
         assert (target / ".work" / "changes" / "001-alpha" / name).is_file()
 
 
+def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+
+    change_root = target / ".work" / "changes" / "001-alpha"
+    for name in ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md"):
+        content = (change_root / name).read_bytes()
+        assert content.endswith(b"\n")
+        assert b"\r\n" not in content
+
+
 def test_create_change_worktree_rejects_duplicate_active_outcome(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)

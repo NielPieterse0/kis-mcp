@@ -13,6 +13,11 @@ from kis_mcp.projects.github_exact import RegisteredGitHubOperations
 TARGET = "1111111111111111111111111111111111111111"
 BASE = "2222222222222222222222222222222222222222"
 OTHER = "3333333333333333333333333333333333333333"
+REMOTE_DEFAULT = "4444444444444444444444444444444444444444"
+SOURCE_TREE = "5555555555555555555555555555555555555555"
+BASE_TREE = "6666666666666666666666666666666666666666"
+OTHER_TREE = "7777777777777777777777777777777777777777"
+RECONCILED = "8888888888888888888888888888888888888888"
 
 
 @dataclass(frozen=True)
@@ -307,4 +312,129 @@ def test_delete_remote_branch_requires_exact_head_and_verifies_absence() -> None
     delete = runner.calls[4][0]
     assert "--force-with-lease=refs/heads/feature/example:" + TARGET in delete
     assert ":refs/heads/feature/example" in delete
+    assert runner.results == []
+
+
+
+def test_reconcile_publish_requires_explicit_approval() -> None:
+    runner = QueueRunner(())
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="APPROVAL_REQUIRED"):
+        operations.reconcile_publish_commit(
+            project_id="college",
+            commit="f04d30a",
+            source_base="main",
+            branch="feature/example",
+            expected_remote_default=REMOTE_DEFAULT,
+            expected_remote_branch=None,
+            approved=False,
+        )
+
+    assert runner.calls == []
+
+
+def test_reconcile_publish_roots_exact_source_tree_on_verified_remote_default() -> None:
+    remote_default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=f"{TARGET}\n"),
+            Result(stdout=f"{BASE}\n"),
+            Result(),
+            Result(stdout=f"{BASE_TREE}\n"),
+            Result(stdout=f"{SOURCE_TREE}\n"),
+            Result(),
+            Result(stdout=f"ref: {remote_default_ref}\tHEAD\n"),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=""),
+            Result(),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=f"{BASE_TREE}\n"),
+            Result(stdout=f"{RECONCILED}\n"),
+            Result(),
+            Result(stdout=f"{RECONCILED}\t{target_ref}\n"),
+        )
+    )
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.reconcile_publish_commit(
+        project_id="college",
+        commit="f04d30a",
+        source_base="main",
+        branch="feature/example",
+        expected_remote_default=REMOTE_DEFAULT,
+        expected_remote_branch=None,
+        approved=True,
+    )
+
+    assert result["state"] == "published"
+    assert result["source_commit_sha"] == TARGET
+    assert result["source_base_sha"] == BASE
+    assert result["remote_default_branch"] == "main"
+    assert result["remote_default_sha"] == REMOTE_DEFAULT
+    assert result["tree_sha"] == SOURCE_TREE
+    assert result["commit_sha"] == RECONCILED
+    assert result["publication_semantics"] == "remote-default-rooted-tree-equivalent"
+    commands = [call[0] for call in runner.calls]
+    assert commands[3] == ("git", "merge-base", "--is-ancestor", BASE, TARGET)
+    assert commands[10][-5:] == (
+        "fetch",
+        "--no-tags",
+        "--no-recurse-submodules",
+        "https://github.com/nielpieterse0/college.git",
+        remote_default_ref,
+    )
+    assert commands[13] == (
+        "git",
+        "commit-tree",
+        SOURCE_TREE,
+        "-p",
+        REMOTE_DEFAULT,
+        "-m",
+        f"reconcile registered change from {TARGET}",
+    )
+    push = commands[14]
+    assert f"--force-with-lease={target_ref}:" in push
+    assert f"{RECONCILED}:{target_ref}" in push
+    assert "--force" not in push
+    assert runner.results == []
+
+
+def test_reconcile_publish_rejects_remote_tree_mismatch_before_commit_or_push() -> None:
+    remote_default_ref = "refs/heads/main"
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=f"{TARGET}\n"),
+            Result(stdout=f"{BASE}\n"),
+            Result(),
+            Result(stdout=f"{BASE_TREE}\n"),
+            Result(stdout=f"{SOURCE_TREE}\n"),
+            Result(),
+            Result(stdout=f"ref: {remote_default_ref}\tHEAD\n"),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=""),
+            Result(),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=f"{OTHER_TREE}\n"),
+        )
+    )
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="REMOTE_BASE_TREE_MISMATCH"):
+        operations.reconcile_publish_commit(
+            project_id="college",
+            commit="f04d30a",
+            source_base="main",
+            branch="feature/example",
+            expected_remote_default=REMOTE_DEFAULT,
+            expected_remote_branch=None,
+            approved=True,
+        )
+
+    commands = [call[0] for call in runner.calls]
+    assert not any(command[:2] == ("git", "commit-tree") for command in commands)
+    assert not any("push" in command for command in commands)
     assert runner.results == []
