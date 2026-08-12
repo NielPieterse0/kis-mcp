@@ -22,6 +22,7 @@ from ..discover.platform import (
     discover_capability_contributions,
     register_platform_discover,
 )
+from ..line_endings import RepositoryLineEndingNormalizer
 from ..middleware import ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
 from ..provider_lifecycle import prepare_provider_launch
@@ -139,6 +140,9 @@ def compose_gateway(
             resolver=resolver,
             policy=policy,
             quarantine_paths=lambda paths: quarantine_many_payloads(quarantine, paths),
+            text_normalizer=RepositoryLineEndingNormalizer(
+                project_boundary=runtime.project_boundary
+            ),
         )
     )
     _, skill_cards = register_platform_skills(server)

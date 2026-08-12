@@ -1,5 +1,9 @@
 # Operations
 
+## Authority boundary
+
+This document is the canonical operator runbook for installation, configuration, startup, commissioning, verification, troubleshooting, and recovery. Repository workflow and documentation routing belong to [`../AGENTS.md`](../AGENTS.md); current architecture and implementation status belong to [`../SPEC.md`](../SPEC.md); trust semantics belong to [`TRUST-MODEL.md`](TRUST-MODEL.md); target architecture belongs to [`PLATFORM-CONCEPT.md`](PLATFORM-CONCEPT.md). This runbook references those owners rather than redefining their doctrine.
+
 ## Prerequisites
 
 - Windows with PowerShell.
@@ -138,6 +142,8 @@ Edit only the canonical JSON files:
 The policy file must contain exactly HR-001, HR-002, and HR-003. Adding, removing, or weakening a rule requires explicit operator approval.
 
 The normal approved boundary is `C:\Projects`. State and quarantine roots must remain true descendants of it.
+
+Tracked text line endings are governed by the target worktree's effective Git attributes. The repository baseline declares LF for normal text and explicit CRLF exceptions in `.gitattributes`. KIS normalizes newline-bearing `write_file` and `edit_block` arguments to Git's resolved `eol` before Desktop Commander writes them, skips paths Git marks `text=unset`, and leaves unresolved/non-Git paths unchanged. Do not disable `core.safecrlf` or apply blanket LF conversion to explicit CRLF/binary paths to work around staging errors.
 
 `settings.discover` owns all Discover retrieval and persistent-intelligence behavior: enablement, exclusions, allowed text extensions and conventional filenames, encodings, hard-link handling, file/directory/Git/index/evidence/output budgets, plus the project-memory state root, schema version, maximum stored bytes/files/modules/symbols/relationships, fingerprint fields, provider inclusion, corruption handling, and recoverable supersession behavior. The default memory root is `C:\Projects\.kis-mcp\discover`. Change those values in JSON rather than hard-coding new limits or exclusions. Request-side limits may only narrow configured maxima. Persisted generations are derived evidence and never override newer repository, Git, documentation, contract, or registered-project evidence.
 
@@ -410,7 +416,7 @@ Tests cover NVIDIA profiles, explicit review purposes, Codex exact-version/auth 
 
 ## Run the KIS Control Center
 
-The KIS Control Center is a separate read-only MCP App. It is not mounted into the primary gateway and does not participate in Work policy enforcement.
+The KIS Control Center is a read-only MCP App available both through the mounted `controlcenter_*` provider and as a standalone process. Neither form authorizes Work mutations or changes the HR-001 / HR-002 / HR-003 enforcement boundary.
 
 Run it from the source checkout through the locked project interpreter:
 
