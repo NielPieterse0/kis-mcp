@@ -32,7 +32,7 @@ The current platform includes:
 - bounded Discover operations plus persistent registered-project code, symbol, and relationship intelligence;
 - a shared Skills catalogue and normalized Provider, Tool, Discover, Skill, Operation, Readiness, Exposure, Quality, and Workflow contracts;
 - capability search, description, workflow recommendation, and effect-specific long-tail dispatch;
-- registered provider composition with readiness/authentication/commissioning reported separately from registration;
+- registered provider composition with readiness/authentication/commissioning reported separately from registration, including source-aware per-binding DBHub reads and the external Docker Hub registry connector without conflating it with local Docker Engine control;
 - an advisory `review_change_with_agent` workflow using configured NVIDIA NIM or Codex CLI backends;
 - provider-neutral Work Management with repository-owned GitHub Project schema/drift evidence, documentation-aware intake, pre-merge documentation readiness, post-merge reconciliation milestones, preview-first Project reconciliation, and exact registered-GitHub operations;
 - a read-only KIS Control Center available through the mounted `controlcenter_*` provider and as a standalone MCP App.

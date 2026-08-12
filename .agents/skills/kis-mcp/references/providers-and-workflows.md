@@ -2,9 +2,9 @@
 
 ## Load when
 
-Read this reference for provider readiness/authentication, GitHub or Supabase
-operations, Control Center status, advisory review, workflow recommendation, or
-work-management behavior.
+Read this reference for provider readiness/authentication, DBHub, Docker Hub,
+GitHub or Supabase operations, Control Center status, advisory review, workflow
+recommendation, or work-management behavior.
 
 ## Provider status layers
 
@@ -37,6 +37,32 @@ search_capabilities("Supabase schema read")
 
 Then inspect the exact result with `describe_capability` before dispatching a
 long-tail operation.
+
+## DBHub
+
+DBHub is a source-aware database connector. Resolve the stable KIS project and
+binding before execution; do not infer a database from the current directory.
+Public KIS tool names are stable:
+
+```text
+db_<project>_<binding>_search_objects
+db_<project>_<binding>_execute_sql
+```
+
+Local SQLite bindings are read-only and use `execute_read_action`. External
+bindings are also read-only but retain an external effect, so dispatch them with
+`execute_external_action`. Search schema objects before free-form SQL when the
+schema is unknown. KIS starts one isolated DBHub process per registered binding,
+so adding another binding must not rename an existing public operation.
+
+## Docker Hub
+
+Docker Hub is an approved external registry connector, not local Docker Engine
+control. Discover `dockerhub.*` capability metadata and dispatch eligible calls
+with `execute_external_action`. Public mode needs no PAT; PAT mode requires the
+configured runtime secret reference and username. Project namespace routing is
+optional and must come from the central project registry rather than prompt
+assumptions.
 
 ## GitHub
 
@@ -168,24 +194,15 @@ path for divergent local history. Its delivery can lag the checkout; use
 advertises it. It is for a verified non-default review branch and is not a
 force-push or default-branch rewrite primitive.
 
-Active Slice 7 change `106-reviewable-pr-coordinator` defines the in-progress
-`prepare_reviewable_pull_request` coordinator. Its declared boundary is:
-
-1. accept one registered project and immutable full local commit SHA plus exact
-   review-branch/default-branch expectations, PR title/body, bounded verification
-   and review options, and explicit approval;
-2. run existing `execute_change_workflow` against that exact commit and require
-   aggregate status `passed` before any external mutation;
-3. publish that immutable commit through existing registered exact publication;
-4. create and post-verify one open, non-draft PR at the exact head/base;
-5. stop before merge, branch deletion, worktree cleanup, auto-merge, release, or
-   default-branch mutation.
-
-Treat this as planned/in-progress until the live catalogue advertises the tool or
-workflow. Before then, compose the existing verification/review/exact-GitHub
-steps explicitly and retain each step's approval, exact-head, idempotency, and
-recovery preconditions. After it becomes live, use it for *prepare a reviewable
-PR* requests; use the separate safe-closeout workflow for merge and cleanup.
+`prepare_reviewable_pull_request` is implemented as a bounded coordinator when
+the live catalogue advertises it. It accepts an immutable local commit plus
+exact review/default-branch expectations, runs the existing bounded verification
+and specialist-review workflow, reconciles a tree-equivalent review branch, and
+creates/post-verifies one open non-draft PR. It deliberately stops before merge,
+branch deletion, worktree cleanup, auto-merge, release, or default-branch
+mutation. If a running instance lacks it or a required reviewer backend fails,
+compose the existing exact verification/publication/PR operations explicitly and
+retain every exact-head, approval, idempotency, and recovery precondition.
 
 ## Work management
 

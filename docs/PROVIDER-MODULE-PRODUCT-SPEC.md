@@ -8,7 +8,7 @@
 | Module | Provider |
 | Repository | `C:\Projects\kis-mcp` |
 | Status | Current architecture and implemented provider foundation, composition, and runtime status model |
-| Date | 2026-08-05 |
+| Date | 2026-08-12 |
 | Parent authority | [`PLATFORM-CONCEPT.md`](PLATFORM-CONCEPT.md) |
 | Current implementation authority | [`../SPEC.md`](../SPEC.md) |
 
@@ -23,6 +23,8 @@ kis-mcp FastMCP platform
 │   ├── control-center     local read-only MCP App
 │   ├── desktop-commander  local Work backend
 │   ├── context7-mcp       approved external documentation connector
+│   ├── dbhub              source-aware database connector
+│   ├── dockerhub-mcp      approved external Docker Hub connector
 │   ├── github-mcp         approved external connector
 │   ├── nvidia-nim         workflow-only external provider
 │   ├── serena-mcp         local read-only semantic provider
@@ -30,6 +32,8 @@ kis-mcp FastMCP platform
 ├── provider runtime composition
 │   ├── context7_*         mounted when enabled and successfully built
 │   ├── controlcenter_*    mounted when enabled and successfully built
+│   ├── db_*               stable project/binding database operations
+│   ├── dockerhub_*        mounted Docker Hub operations
 │   ├── github_*           mounted when enabled and successfully built
 │   ├── serena_*           mounted when enabled and successfully built
 │   └── supabase_*         mounted when enabled and successfully built
@@ -40,7 +44,7 @@ kis-mcp FastMCP platform
 
 The platform has one provider registry, one provider-neutral catalogue and health model, and one deterministic runtime-composition path. Provider adapters remain independently testable modules beneath the Provider boundary.
 
-Desktop Commander remains the Work backend. Context7 is the bounded external-documentation connector; GitHub and Supabase use approved external connector boundaries; Serena is the bounded local semantic provider with offline-enforced startup; Control Center is the local read-only MCP App. NVIDIA NIM is registered for the advisory code-review workflow and is not mounted as a general provider passthrough. Codex CLI belongs to the Tools module.
+Desktop Commander remains the Work backend. Context7 is the bounded external-documentation connector; GitHub, Docker Hub, and Supabase use approved external connector boundaries; DBHub uses the source-aware connector boundary because local SQLite reads remain local while external database reads carry an external effect; Serena is the bounded local semantic provider with offline-enforced startup; Control Center is the local read-only MCP App. NVIDIA NIM is registered for the advisory code-review workflow and is not mounted as a general provider passthrough. Docker Hub is not a Docker Engine control surface. Codex CLI belongs to the Tools module.
 
 ## 2. Purpose
 
@@ -206,9 +210,9 @@ Mount state does not prove upstream authentication or live provider behavior.
 
 `ProviderService` exposes catalogue access, capability filtering, aggregate health, and explicit construction of one selected provider. It MUST remain provider-neutral.
 
-`build_platform_provider_registry()` explicitly registers Control Center, Desktop Commander, Context7 MCP, GitHub MCP, NVIDIA NIM, Serena MCP, and Supabase. `build_platform_provider_service()` wraps that registry.
+`build_platform_provider_registry()` explicitly registers nine descriptors: Control Center, Desktop Commander, Context7 MCP, DBHub, Docker Hub MCP, GitHub MCP, NVIDIA NIM, Serena MCP, and Supabase. `build_platform_provider_service()` wraps that registry.
 
-`settings/providers/platform-runtime.provider.json` selects the FastMCP adapters that the primary gateway attempts to mount. The current selection mounts Context7 under `context7`, Control Center under `controlcenter`, GitHub MCP under `github`, Serena under `serena`, and Supabase under `supabase`. Desktop Commander is already the Work proxy. NVIDIA is consumed by the advisory workflow.
+`settings/providers/platform-runtime.provider.json` selects the FastMCP adapters that the primary gateway attempts to mount. The current selection mounts seven providers: Context7 under `context7`, Control Center under `controlcenter`, DBHub under `db`, Docker Hub MCP under `dockerhub`, GitHub MCP under `github`, Serena under `serena`, and Supabase under `supabase`. Desktop Commander is already the Work proxy. NVIDIA is consumed by the advisory workflow. DBHub creates one isolated upstream process per registered database binding beneath its KIS mount and preserves stable KIS operation names independent of upstream single/multi-source suffixing.
 
 Runtime composition processes settings in stable provider-ID order and contains unregistered, disabled, builder, invalid-result, and mount failures. One optional provider failure MUST NOT prevent the core Work, Discover, Skills, agent-registration, or gateway surfaces from starting.
 
@@ -227,6 +231,9 @@ Runtime composition processes settings in stable provider-ID order and contains 
 
 Normal onboarding states include:
 
+- **DBHub — installation required:** KIS configuration and registered database bindings may be valid while the exact pinned upstream artifact is absent. The checked-in College local SQLite binding needs no credential; external bindings require only their configured vault reference to be resolved at launch. Live readiness requires exact installation identity, child-process startup, and tool discovery.
+- **Docker Hub — public mode:** no PAT or project namespace is required for the approved public metadata surface; exact installation and live tool discovery remain separate commissioning evidence.
+- **Docker Hub — PAT mode:** checked-in JSON stores only username plus a canonical vault reference; the launcher resolves that reference and the upstream child receives only `HUB_PAT_TOKEN`.
 - **GitHub — Ready, authentication required:** executable, configuration, OAuth mode, and mount prerequisites are ready; supervised sign-in remains.
 - **Supabase — Ready, authentication required:** the unscoped account endpoint, Windows credential storage, and provider configuration are ready; one browser OAuth login remains for the running KIS runtime.
 - **Supabase — Ready, authenticated:** the persistent runtime client is connected and tools are discovered; explicit registered-project live verification may still be pending.
@@ -248,23 +255,31 @@ Desktop Commander is a `local_backend` at the `work_backend` boundary. Its build
 
 Context7 is the pinned external-documentation connector. It is mounted under `context7_*` with its bounded documentation-read surface and remains independent from Discover project memory.
 
-### 10.4 GitHub MCP
+### 10.4 DBHub
+
+DBHub is a source-aware database connector. KIS owns stable project/binding operation names and starts one isolated upstream stdio process per registered database binding. Local SQLite bindings are read-only local effects; external bindings are read-only plus external effects. Generated per-binding TOML is runtime state beneath `C:\Projects\.kis-mcp`, `execute_sql` is forced read-only with a JSON-owned row bound, and external DSN values enter only through process-scoped environment interpolation. KIS does not rename public operations when additional databases are registered.
+
+### 10.5 Docker Hub MCP
+
+Docker Hub MCP is an approved external registry connector pinned to an exact official source revision. It mounts beneath `dockerhub_*` and remains separate from local Docker Engine/process capability. Public mode exposes the bounded public metadata long tail without a credential; PAT mode stores only username and a canonical vault reference in checked-in configuration, and the child receives only `HUB_PAT_TOKEN`. Optional project routing stores a non-secret Docker Hub namespace; no project binding is invented without repository evidence.
+
+### 10.6 GitHub MCP
 
 GitHub MCP is an approved external connector with isolated settings, OAuth behavior, source identity, persistent runtime client lifecycle, readiness, builder, and smoke evidence. Successful mount exposes upstream tools under `github_*`; user-facing readiness names the selected `kis-op` or `kis-dev` runtime rather than assuming one surface.
 
-### 10.5 Serena MCP
+### 10.7 Serena MCP
 
 Serena 1.6.1 is the bounded local semantic provider. It mounts only approved read-only symbol/reference tools under `serena_*`, keeps provider state beneath the central KIS state root, and enforces offline language-server startup. Serena memory remains provider-managed state rather than KIS project memory.
 
-### 10.6 Supabase
+### 10.8 Supabase
 
 Supabase is an approved external connector with an unscoped hosted account-OAuth transport, persistent runtime client lifecycle, central-registry project routing, isolated settings, readiness, builder, and smoke evidence. Successful mount exposes upstream tools under `supabase_*`; explicit `project_id` values must be registered, while targetless calls require upstream read-only annotation.
 
-### 10.7 NVIDIA NIM
+### 10.9 NVIDIA NIM
 
 NVIDIA NIM is an approved external provider used by `review_change_with_agent`. The adapter reads the API key only from the configured environment-variable name, uses the fixed OpenAI-compatible chat-completions endpoint and model settings, and is not mounted for arbitrary provider passthrough.
 
-### 10.8 Codex CLI exclusion
+### 10.10 Codex CLI exclusion
 
 Codex CLI is a local executable Tool adapter behind a fixed PowerShell wrapper. It is not a Provider descriptor and MUST NOT be added to Provider runtime settings merely because the code-review workflow can select it.
 
@@ -312,10 +327,11 @@ The Provider module will not:
 | P0 — Common foundation | Implemented | Contracts, registry, catalogue, health, service, schema, and tests. |
 | P1 — GitHub conformance | Implemented | Descriptor, explicit registration, isolated settings and builder, OAuth and smoke paths. |
 | P2 — Supabase conformance | Implemented | Descriptor, explicit registration, unscoped account OAuth, persistent client lifecycle, registered per-call project routing, and smoke paths. |
-| P3 — Platform composition | Implemented | Explicit seven-provider registry; Context7, Control Center, GitHub, Serena, and Supabase runtime selection; namespaced mount containment; and `kis_provider_status`. |
+| P3 — Platform composition | Implemented | Explicit nine-provider registry; seven runtime selections (Context7, Control Center, DBHub, Docker Hub MCP, GitHub, Serena, Supabase); namespaced mount containment; stable DB binding operations; and `kis_provider_status`. |
 | P4 — Workflow provider | Implemented for NVIDIA NIM | Workflow-only descriptor and client for the advisory code-review agent. |
 | P5 — Local semantic/UI providers | Implemented | Serena 1.6.1 bounded read-only semantic mounting and the mounted/standalone read-only Control Center. |
-| Future adapters | Target | Additional forge, database, testing, or documentation providers added through separate slices. |
+| P6 — Database / registry connectors | Implemented, commissioning pending | DBHub per-binding read-only source-aware kernel and Docker Hub public/PAT connector are implemented with strict JSON identity, local exact-artifact activation, and separate commissioning evidence. |
+| Future adapters | Target | Additional forge, testing, or documentation providers added through separate slices. |
 
 Implementation and tests do not by themselves prove live credentials, authentication, upstream connectivity, or current commissioning. Those states require separate supervised evidence.
 

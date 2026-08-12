@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "provider_id": "dbhub",
+  "authoritative_source": "https://github.com/bytebase/dbhub",
+  "release_tag": "v1.2.0",
+  "source_revision": "1bed0b8bd8e6e3e625c83f571d12f748f2d7a0b0",
+  "transport": "stdio",
+  "node_executable": "node",
+  "entry_point": "C:\\Projects\\.kis-mcp\\providers\\dbhub\\v1.2.0\\dist\\index.js",
+  "runtime_root": "C:\\Projects\\.kis-mcp\\dbhub\\runtime",
+  "max_rows": 500,
+  "enabled_tools": ["search_objects", "execute_sql"]
+}

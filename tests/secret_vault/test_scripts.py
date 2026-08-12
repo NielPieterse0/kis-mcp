@@ -119,10 +119,13 @@ def test_post_rotation_credential_failure_reports_recovery_path() -> None:
     assert "simulated" not in completed.stderr
 
 
-def test_local_launcher_does_not_unlock_or_launch_through_secret_vault() -> None:
+def test_local_launcher_uses_supervised_provider_secret_handoff_without_legacy_secret_launcher() -> None:
     content = _script("start.ps1")
 
     assert "kis_mcp.server" in content
+    assert "provider-secrets.ps1" in content
+    assert "Resolve-KisMcpProviderSecretEnvironment" in content
+    assert "Clear-KisMcpProviderSecretEnvironment" in content
     assert "kis_mcp.secrets.launcher" not in content
     assert "KIS_MCP_SECRET_INPUT_PIPE_HANDLE" not in content
     assert "Start-KisMcpSecretAwareProcess" not in content

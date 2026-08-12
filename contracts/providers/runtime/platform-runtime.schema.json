@@ -10,7 +10,7 @@
     "providers": {
       "type": "array",
       "minItems": 2,
-      "maxItems": 5,
+      "maxItems": 7,
       "uniqueItems": true,
       "items": {
         "type": "object",
@@ -19,7 +19,7 @@
         "properties": {
           "provider_id": {
             "type": "string",
-            "enum": ["context7-mcp", "control-center", "github-mcp", "serena-mcp", "supabase"]
+            "enum": ["context7-mcp", "control-center", "dbhub", "dockerhub-mcp", "github-mcp", "serena-mcp", "supabase"]
           },
           "enabled": {"type": "boolean"},
           "namespace": {
@@ -35,6 +35,14 @@
           {
             "if": {"properties": {"provider_id": {"const": "control-center"}}, "required": ["provider_id"]},
             "then": {"properties": {"namespace": {"const": "controlcenter"}}}
+          },
+          {
+            "if": {"properties": {"provider_id": {"const": "dbhub"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "db"}}}
+          },
+          {
+            "if": {"properties": {"provider_id": {"const": "dockerhub-mcp"}}, "required": ["provider_id"]},
+            "then": {"properties": {"namespace": {"const": "dockerhub"}}}
           },
           {
             "if": {"properties": {"provider_id": {"const": "github-mcp"}}, "required": ["provider_id"]},

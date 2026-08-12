@@ -1,5 +1,8 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'windows-credential.ps1')
+. (Join-Path $PSScriptRoot 'secret-vault.ps1')
+. (Join-Path $PSScriptRoot 'provider-secrets.ps1')
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
@@ -46,6 +49,7 @@ $env:TEMP = $TempRoot
 $env:TMP = $TempRoot
 $env:PYTHONPATH = Join-Path $RepositoryRoot 'src'
 $env:NO_UPDATE_NOTIFIER = '1'
+$ProviderSecretEnvironment = @{}
 
 Push-Location $RepositoryRoot
 try {
@@ -54,6 +58,7 @@ try {
         throw "kis-mcp configuration validation failed with exit code $LASTEXITCODE"
     }
 
+    $ProviderSecretEnvironment = Resolve-KisMcpProviderSecretEnvironment -RepositoryRoot $RepositoryRoot
     $Info = [System.Diagnostics.ProcessStartInfo]::new()
     $Info.FileName = $PythonExecutable
     $Info.WorkingDirectory = $RepositoryRoot
@@ -62,12 +67,19 @@ try {
     $Info.ArgumentList.Add('-m')
     $Info.ArgumentList.Add('kis_mcp.server')
     $Info.Environment['PYTHONPATH'] = Join-Path $RepositoryRoot 'src'
+    foreach ($Name in @($ProviderSecretEnvironment.Keys)) {
+        $Info.Environment[$Name] = [string]$ProviderSecretEnvironment[$Name]
+    }
 
     $Process = [System.Diagnostics.Process]::new()
     $Process.StartInfo = $Info
     if (-not $Process.Start()) {
         throw 'KIS_MCP_RUNTIME_START_FAILED'
     }
+    foreach ($Name in @($ProviderSecretEnvironment.Keys)) {
+        $Info.Environment.Remove($Name)
+    }
+    Clear-KisMcpProviderSecretEnvironment -Environment $ProviderSecretEnvironment
     try {
         $Process.WaitForExit()
         if ($Process.ExitCode -ne 0) {
@@ -79,5 +91,6 @@ try {
     }
 }
 finally {
+    Clear-KisMcpProviderSecretEnvironment -Environment $ProviderSecretEnvironment
     Pop-Location
 }

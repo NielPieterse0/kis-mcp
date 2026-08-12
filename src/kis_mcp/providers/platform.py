@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -14,6 +15,8 @@ from .contracts import ProviderDescriptor, ProviderState
 from .context7 import register_context7_provider
 from .control_center import register_control_center_provider
 from .desktop_commander import register_desktop_commander_provider
+from .dbhub import register_dbhub_provider
+from .dockerhub import register_dockerhub_provider
 from .github import GitHubProviderSettings, register_github_provider
 from .github.project_management import GitHubProjectManagementAdapter
 from .nvidia import (
@@ -74,6 +77,9 @@ def build_platform_provider_registry(
         repository_settings_source=repository_settings_source,
     )
     register_context7_provider(registry, environment=environment)
+    provider_environment = {} if environment is None else environment
+    register_dbhub_provider(registry, environment=provider_environment)
+    register_dockerhub_provider(registry, environment=provider_environment)
     active_serena = serena_adapter or build_serena_adapter(environment=environment)
     register_serena_provider(registry, active_serena)
     register_nvidia_provider(
@@ -305,6 +311,11 @@ def _descriptor_readiness(descriptor: ProviderDescriptor) -> ReadinessSnapshot:
     )
 
 
+def _operation_id_fragment(tool_name: str) -> str:
+    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", tool_name).casefold()
+    return re.sub(r"[^a-z0-9_-]+", "_", snake).strip("_")
+
+
 def provider_capability_contributions(
     service: ProviderService,
     composition: ProviderRuntimeComposition,
@@ -333,7 +344,9 @@ def provider_capability_contributions(
                 effects = normalize_effects(capability.effects)
                 operations.append(
                     OperationDescriptor(
-                        operation_id=f"provider.{descriptor.provider_id}.{tool_name}",
+                        operation_id=(
+                            f"provider.{descriptor.provider_id}.{_operation_id_fragment(tool_name)}"
+                        ),
                         name=exposed_name,
                         description=capability.description,
                         capabilities=(capability.capability_id,),

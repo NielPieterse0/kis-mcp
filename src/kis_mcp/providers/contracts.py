@@ -21,6 +21,7 @@ class ProviderKind(StrEnum):
 class ProviderBoundary(StrEnum):
     WORK_BACKEND = "work_backend"
     APPROVED_EXTERNAL_CONNECTOR = "approved_external_connector"
+    SOURCE_AWARE_CONNECTOR = "source_aware_connector"
     LOCAL_READ_ONLY = "local_read_only"
     PLATFORM_INTERNAL = "platform_internal"
 

@@ -49,6 +49,8 @@ Use the shortest path that already satisfies the request:
 | "Validate AGENTS/agent configuration" | Use the advertised `validate-agent-configuration` workflow / `validate_agent_configuration` operation. |
 | "Review architecture/security/tests/docs/API contracts" | `review_change_with_agent` with the matching fixed `review_type`. |
 | "Turn this verified commit into a reviewable PR" | If live-advertised, use Slice 7 `prepare_reviewable_pull_request`; otherwise keep verification, exact publication, and PR creation as explicit approved steps. |
+| "Query a registered project database" | Resolve the project first, then search `database.<project>...` capability metadata. Local DBHub reads use `execute_read_action`; external database reads carry an external effect and use `execute_external_action`. Public KIS names stay `db_<project>_<binding>_<operation>`. |
+| "Inspect Docker Hub" | Search `dockerhub.*` capability metadata and use `execute_external_action`; public mode needs no PAT. Keep Docker Hub registry operations separate from local Docker Engine/process work. |
 | "Merge or clean up an existing PR/change" | `recommend_workflow` for safe closeout, then follow exact-head approval and cleanup steps from live schemas. |
 | "I do not know the tool name" | `recommend_workflow` -> `search_capabilities` -> `describe_capability`. |
 
@@ -74,7 +76,7 @@ Do not assume the target project is `kis-mcp`.
   from the current working directory.
 
 Load `references/projects-and-context.md` when project identity, GitHub routing,
-Supabase routing, or work-management bindings matter.
+Supabase routing, database bindings, Docker Hub namespaces, or work-management bindings matter.
 
 ### 2. Use direct tools when the correct tool is already obvious
 
