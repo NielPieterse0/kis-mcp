@@ -39,18 +39,20 @@ def test_project_registry_schema_matches_checked_in_contract() -> None:
     assert list(validator.iter_errors(invalid))
 
 
-def test_checked_in_registry_has_college_gpt_os_and_kis_bindings() -> None:
+def test_checked_in_registry_has_commodity_college_gpt_os_and_kis_bindings() -> None:
     registry = load_project_registry_settings(REGISTRY_PATH, boundary="C:\\Projects")
 
     assert registry.default_project_id == "kis-mcp"
     assert tuple(project.project_id for project in registry.projects) == (
         "college",
+        "commodity",
         "gpt-os",
         "kis-mcp",
     )
     kis = registry.project("kis-mcp")
     gpt = registry.project("gpt-os")
     college = registry.project("college")
+    commodity = registry.project("commodity")
     assert kis.local_root == "C:\\Projects\\kis-mcp"
     assert kis.github is not None
     assert kis.github.repository == "nielpieterse0/kis-mcp"
@@ -66,6 +68,11 @@ def test_checked_in_registry_has_college_gpt_os_and_kis_bindings() -> None:
     assert college.github.repository == "nielpieterse0/college"
     assert college.github.projects == ()
     assert college.supabase is None
+    assert commodity.local_root == "C:\\Projects\\commodity"
+    assert commodity.github is not None
+    assert commodity.github.repository == "nielpieterse0/commodity"
+    assert commodity.github.projects == ()
+    assert commodity.supabase is None
 
 
 def test_registry_rejects_unknown_keys_and_boundary_escape(tmp_path: Path) -> None:

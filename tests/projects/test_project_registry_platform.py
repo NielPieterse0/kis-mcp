@@ -26,6 +26,7 @@ def test_project_tools_are_bounded_read_only_catalogue_operations() -> None:
     assert listed["default_project_id"] == "kis-mcp"
     assert [item["project_id"] for item in listed["projects"]] == [
         "college",
+        "commodity",
         "gpt-os",
         "kis-mcp",
     ]

@@ -16,6 +16,7 @@ def test_registry_indexes_declared_provider_resources() -> None:
 
     assert registry.github_repositories == (
         "nielpieterse0/college",
+        "nielpieterse0/commodity",
         "nielpieterse0/gpt-os",
         "nielpieterse0/kis-mcp",
     )
