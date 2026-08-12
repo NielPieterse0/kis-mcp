@@ -92,9 +92,32 @@ class PlanChangeAuthority(_Record):
 
 
 @dataclass(frozen=True, slots=True)
+class PlanChangePattern(_Record):
+    classification: str
+    path: str | None
+    reason: str
+    confidence: Confidence
+
+    def __post_init__(self) -> None:
+        if self.classification not in {"REUSE", "EXTEND", "REPLACE", "NEW"}:
+            raise ValueError("plan change pattern classification is unsupported")
+        if self.path is not None:
+            _required(self.path, "plan change pattern path")
+        _required(self.reason, "plan change pattern reason")
+
+
+@dataclass(frozen=True, slots=True)
 class PlanChangeSummary(_Record):
     source: str
     changed_paths: tuple[str, ...]
+    planned_paths: tuple[str, ...]
+    planned_impact_fingerprint: str
+
+    def __post_init__(self) -> None:
+        if len(self.planned_impact_fingerprint) != 64 or any(
+            char not in "0123456789abcdef" for char in self.planned_impact_fingerprint
+        ):
+            raise ValueError("planned impact fingerprint must be 64 lowercase hexadecimal characters")
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +127,9 @@ class PlanChangeAffected(_Record):
     symbols: tuple[str, ...]
     tests: tuple[str, ...]
     contracts: tuple[str, ...]
+    documentation: tuple[str, ...]
+    configuration: tuple[str, ...]
+    policy: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,6 +168,7 @@ class PlanChangeResponse:
     affected: PlanChangeAffected
     verification: PlanChangeVerification
     implementation_steps: tuple[Mapping[str, Any], ...]
+    patterns: tuple[PlanChangePattern, ...]
     governance: PlanChangeGovernance
     risks: tuple[str, ...]
     unknowns: tuple[PlanChangeUnknown, ...]
@@ -174,6 +201,7 @@ class PlanChangeResponse:
             "affected": self.affected.to_json_dict(),
             "verification": self.verification.to_json_dict(),
             "implementation_steps": _json(self.implementation_steps),
+            "patterns": _json(self.patterns),
             "governance": self.governance.to_json_dict(),
             "risks": list(self.risks),
             "unknowns": [item.to_json_dict() for item in self.unknowns],
@@ -191,6 +219,7 @@ __all__ = [
     "PlanChangeAffected",
     "PlanChangeAuthority",
     "PlanChangeGovernance",
+    "PlanChangePattern",
     "PlanChangeRequest",
     "PlanChangeResponse",
     "PlanChangeSummary",

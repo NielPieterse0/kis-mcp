@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "change_id": "093-change-intelligence-enrichment",
+  "status": "active",
+  "branch": "change/093-change-intelligence-enrichment",
+  "worktree": ".work/worktrees/093-change-intelligence-enrichment",
+  "base": "main",
+  "outcome": "Enrich existing Discover planning/context/change-impact evidence with repository patterns, broader support-surface impact, replacement candidates, and planned-versus-actual reconciliation without adding a new authority or engine.",
+  "owned_paths": [
+    "src/kis_mcp/discover/planning.py",
+    "src/kis_mcp/discover/planning_contracts.py",
+    "src/kis_mcp/discover/change_analysis.py",
+    "src/kis_mcp/discover/impact_contracts.py",
+    "src/kis_mcp/discover/impact_graph.py",
+    "src/kis_mcp/discover/context_broker.py",
+    "src/kis_mcp/discover/tools.py",
+    "contracts/discover/analyze-change-request.schema.json",
+    "contracts/discover/analyze-change-response.schema.json",
+    "contracts/discover/inspect-impact-response.schema.json",
+    "tests/discover/test_plan_change.py",
+    "tests/discover/test_analyze_change_workflow.py",
+    "tests/discover/test_impact_graph.py",
+    "tests/discover/test_context_broker.py",
+    "docs/DISCOVER-MODULE-PRODUCT-SPEC.md",
+    "SPEC.md",
+    ".work/changes/093-change-intelligence-enrichment/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

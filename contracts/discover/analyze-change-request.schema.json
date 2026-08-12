@@ -13,6 +13,8 @@
     "task_terms": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
     "supplied_changes": {"type": "array", "items": {"$ref": "#/$defs/change"}},
     "github_context": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/github"}]},
+    "planned_paths": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "planned_impact_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
     "budget": {"$ref": "#/$defs/budget"}
   },
   "$defs": {

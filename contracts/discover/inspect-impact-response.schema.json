@@ -53,14 +53,14 @@
         "kind": {"enum": ["import", "call", "inheritance"]}, "source": {"type": "string", "minLength": 1},
         "target": {"type": "string", "minLength": 1}, "path": {"type": "string", "minLength": 1},
         "line": {"type": "integer", "minimum": 1}, "confidence": {"enum": ["high", "medium", "low"]},
-        "provenance": {"const": "python_ast"}
+        "provenance": {"enum": ["python_ast", "python_ast_transitive", "javascript_static_import", "javascript_static_import_transitive"]}
       }
     },
     "relationship": {
       "type": "object", "additionalProperties": false,
       "required": ["kind", "source_path", "target_path", "reason", "confidence", "provenance"],
       "properties": {
-        "kind": {"enum": ["contract_reference", "configuration_reference", "semantic_reference", "task_term"]},
+        "kind": {"enum": ["contract_reference", "configuration_reference", "documentation_reference", "policy_reference", "semantic_reference", "task_term"]},
         "source_path": {"type": "string", "minLength": 1},
         "target_path": {"type": "string", "minLength": 1},
         "reason": {"type": "string", "minLength": 1},

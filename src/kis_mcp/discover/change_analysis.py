@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
+from pathlib import Path
 from typing import Any, Protocol
 
 from .change_inspection_contracts import InspectChangeRequest
@@ -97,6 +98,8 @@ class AnalyzeChangeRequest(_Record):
     task_terms: tuple[str, ...] = ()
     supplied_changes: tuple[SuppliedChange, ...] = ()
     github_context: GitHubChangeContext | None = None
+    planned_paths: tuple[str, ...] = ()
+    planned_impact_fingerprint: str | None = None
 
     def __post_init__(self) -> None:
         _required(self.project, "analyze change project")
@@ -109,6 +112,18 @@ class AnalyzeChangeRequest(_Record):
         terms = tuple(dict.fromkeys(term.strip().casefold() for term in self.task_terms if isinstance(term, str) and term.strip()))
         object.__setattr__(self, "task_terms", terms)
         object.__setattr__(self, "supplied_changes", _dedupe_changes(self.supplied_changes))
+        planned_paths = tuple(dict.fromkeys(_path(item) for item in self.planned_paths))
+        object.__setattr__(self, "planned_paths", planned_paths)
+        fingerprint = self.planned_impact_fingerprint
+        if fingerprint is not None:
+            normalized_fingerprint = _required(fingerprint, "planned impact fingerprint").casefold()
+            if len(normalized_fingerprint) != 64 or any(
+                character not in "0123456789abcdef" for character in normalized_fingerprint
+            ):
+                raise ValueError("planned impact fingerprint must be 64 lowercase hexadecimal characters")
+            if not planned_paths:
+                raise ValueError("planned impact fingerprint requires planned_paths")
+            object.__setattr__(self, "planned_impact_fingerprint", normalized_fingerprint)
         if source == "supplied" and not self.supplied_changes and not (self.github_context and self.github_context.changes):
             raise ValueError("supplied source requires supplied_changes or github_context changes")
         if source != "supplied" and self.supplied_changes:
@@ -131,10 +146,38 @@ class NormalizedChange(_Record):
 
 
 @dataclass(frozen=True, slots=True)
+class ReplacementCandidate(_Record):
+    path: str
+    status: str
+    reason: str
+    remaining_references: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        _path(self.path)
+        if self.status not in {"deleted", "renamed"}:
+            raise ValueError("replacement candidate status must be deleted or renamed")
+        _required(self.reason, "replacement candidate reason")
+        if not self.remaining_references:
+            raise ValueError("replacement candidate requires remaining reference evidence")
+
+
+@dataclass(frozen=True, slots=True)
+class ChangeImpactReconciliation(_Record):
+    planned_paths: tuple[str, ...]
+    actual_paths: tuple[str, ...]
+    unplanned_paths: tuple[str, ...]
+    missing_paths: tuple[str, ...]
+    evidence_stale: bool
+    planned_impact_fingerprint: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class AnalyzeChangeResponse:
     normalized_change: NormalizedChange
     change: Any | None
     impact: InspectImpactResponse
+    replacement_candidates: tuple[ReplacementCandidate, ...] = ()
+    reconciliation: ChangeImpactReconciliation | None = None
     schema_version: int = ANALYZE_CHANGE_SCHEMA_VERSION
     tool: str = ANALYZE_CHANGE_TOOL
 
@@ -145,6 +188,8 @@ class AnalyzeChangeResponse:
             "normalized_change": self.normalized_change.to_json_dict(),
             "change": None if self.change is None else self.change.to_json_dict(),
             "impact": self.impact.to_json_dict(),
+            "replacement_candidates": _json(self.replacement_candidates),
+            "reconciliation": None if self.reconciliation is None else self.reconciliation.to_json_dict(),
         }
 
 
@@ -231,7 +276,88 @@ class AnalyzeChangeService:
             ),
             change=change,
             impact=impact,
+            replacement_candidates=_replacement_candidates(
+                change=change,
+                supplied=supplied,
+                impact=impact,
+            ),
+            reconciliation=_reconcile_change(request, changed_paths),
         )
+
+
+def _reconcile_change(
+    request: AnalyzeChangeRequest,
+    actual_paths: tuple[str, ...],
+) -> ChangeImpactReconciliation | None:
+    if not request.planned_paths:
+        return None
+    planned = request.planned_paths
+    planned_set = set(planned)
+    actual_set = set(actual_paths)
+    unplanned = tuple(path for path in actual_paths if path not in planned_set)
+    missing = tuple(path for path in planned if path not in actual_set)
+    return ChangeImpactReconciliation(
+        planned_paths=planned,
+        actual_paths=actual_paths,
+        unplanned_paths=unplanned,
+        missing_paths=missing,
+        evidence_stale=bool(unplanned or missing),
+        planned_impact_fingerprint=request.planned_impact_fingerprint,
+    )
+
+
+def _replacement_candidates(
+    *,
+    change: Any | None,
+    supplied: tuple[SuppliedChange, ...],
+    impact: InspectImpactResponse,
+) -> tuple[ReplacementCandidate, ...]:
+    statuses: dict[str, str] = {}
+    for item in supplied:
+        if item.status == "renamed" and item.previous_path:
+            statuses[item.previous_path] = "renamed"
+        elif item.status == "deleted":
+            statuses[item.path] = "deleted"
+    if change is not None:
+        for item in getattr(change, "changed_files", ()):
+            staged_status = getattr(item, "staged_status", None)
+            worktree_status = getattr(item, "worktree_status", None)
+            if "renamed" in {staged_status, worktree_status}:
+                previous_path = getattr(item, "previous_path", None)
+                if previous_path:
+                    statuses[str(previous_path)] = "renamed"
+            elif "deleted" in {staged_status, worktree_status}:
+                statuses[str(item.path)] = "deleted"
+
+    results: list[ReplacementCandidate] = []
+    for path, status in sorted(statuses.items(), key=lambda item: (item[0].casefold(), item[0])):
+        stem = Path(path).stem.casefold()
+        references: list[str] = []
+        for item in impact.dependants:
+            if item.kind != "import":
+                continue
+            target = item.target.casefold().replace("::", ".").rsplit(".", 1)[-1]
+            if target == stem:
+                references.append(f"{item.kind}:{item.path}:{item.source}->{item.target}")
+        for item in impact.relationship_impacts:
+            if item.target_path == path or item.source_path == path:
+                other = item.source_path if item.target_path == path else item.target_path
+                references.append(f"{item.kind}:{other}")
+        unique = tuple(dict.fromkeys(references))
+        if not unique:
+            continue
+        results.append(
+            ReplacementCandidate(
+                path=path,
+                status=status,
+                reason=(
+                    "Deleted or renamed code retains deterministic dependant/reference evidence; "
+                    "confirm replacement and consumers before treating it as stale."
+                ),
+                remaining_references=unique,
+            )
+        )
+    return tuple(results)
 
 
 def _dedupe_changes(changes: tuple[SuppliedChange, ...]) -> tuple[SuppliedChange, ...]:
@@ -247,7 +373,9 @@ __all__ = [
     "AnalyzeChangeRequest",
     "AnalyzeChangeResponse",
     "AnalyzeChangeService",
+    "ChangeImpactReconciliation",
     "GitHubChangeContext",
     "NormalizedChange",
+    "ReplacementCandidate",
     "SuppliedChange",
 ]

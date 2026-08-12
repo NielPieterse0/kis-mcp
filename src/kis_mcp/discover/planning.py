@@ -22,6 +22,7 @@ from .planning_contracts import (
     PlanChangeAffected,
     PlanChangeAuthority,
     PlanChangeGovernance,
+    PlanChangePattern,
     PlanChangeRequest,
     PlanChangeResponse,
     PlanChangeSummary,
@@ -83,6 +84,43 @@ class PlanChangeService:
             )
         )
         impact = None if analysis is None or not changed_paths else analysis.impact
+        planned_paths = changed_paths or tuple(
+            item.path
+            for item in context.files
+            if item.category in {"source", "contract", "configuration", "documentation", "policy"}
+        )
+        planned_impact_fingerprint = (
+            impact.fingerprint if impact is not None else context.fingerprint
+        )
+        patterns = _repository_patterns(
+            context_files=context.files,
+            analysis=analysis,
+            changed_paths=changed_paths,
+        )
+        affected_contracts = _affected_support_paths(
+            context_files=context.files,
+            impact=impact,
+            changed_paths=changed_paths,
+            category="contract",
+        )
+        affected_documentation = _affected_support_paths(
+            context_files=context.files,
+            impact=impact,
+            changed_paths=changed_paths,
+            category="documentation",
+        )
+        affected_configuration = _affected_support_paths(
+            context_files=context.files,
+            impact=impact,
+            changed_paths=changed_paths,
+            category="configuration",
+        )
+        affected_policy = _affected_support_paths(
+            context_files=context.files,
+            impact=impact,
+            changed_paths=changed_paths,
+            category="policy",
+        )
 
         inventory_instructions = tuple(
             str(item["path"])
@@ -128,7 +166,7 @@ class PlanChangeService:
             request.project,
             current_branch=branch,
         )
-        candidate_paths = changed_paths or tuple(item.path for item in context.files)
+        candidate_paths = planned_paths or tuple(item.path for item in context.files)
         conflicts = _claim_conflicts(claims, candidate_paths)
         unknowns = [
             PlanChangeUnknown(code=item.code, reason=item.reason)
@@ -171,8 +209,16 @@ class PlanChangeService:
             "project": context.project.to_json_dict(),
             "task": request.task,
             "changed_paths": list(changed_paths),
+            "planned_paths": list(planned_paths),
             "context_fingerprint": context.fingerprint,
-            "impact_fingerprint": None if impact is None else impact.fingerprint,
+            "planned_impact_fingerprint": planned_impact_fingerprint,
+            "patterns": [item.to_json_dict() for item in patterns],
+            "affected_support": {
+                "contracts": list(affected_contracts),
+                "documentation": list(affected_documentation),
+                "configuration": list(affected_configuration),
+                "policy": list(affected_policy),
+            },
             "claims": [item.to_json_dict() for item in claims],
             "conflicts": [item.to_json_dict() for item in conflicts],
             "verification_ids": list(verification_ids),
@@ -184,16 +230,25 @@ class PlanChangeService:
                 instructions=instructions,
                 documentation=documentation,
             ),
-            change=PlanChangeSummary(source=request.source, changed_paths=changed_paths),
+            change=PlanChangeSummary(
+                source=request.source,
+                changed_paths=changed_paths,
+                planned_paths=planned_paths,
+                planned_impact_fingerprint=planned_impact_fingerprint,
+            ),
             affected=PlanChangeAffected(
                 context_files=tuple(item.path for item in context.files),
                 modules=tuple(item.name for item in context.modules),
                 symbols=tuple(item.qualified_name for item in context.symbols),
                 tests=affected_tests,
-                contracts=context.contracts,
+                contracts=affected_contracts,
+                documentation=affected_documentation,
+                configuration=affected_configuration,
+                policy=affected_policy,
             ),
             verification=PlanChangeVerification(ids=verification_ids, handoffs=handoffs),
             implementation_steps=implementation_steps,
+            patterns=patterns,
             governance=PlanChangeGovernance(active_claims=claims, conflicts=conflicts),
             risks=risks,
             unknowns=tuple(_dedupe_unknowns(unknowns)),
@@ -293,6 +348,139 @@ class PlanChangeService:
                 )
             )
         return tuple(claims), tuple(unknowns), truncated
+
+
+def _affected_support_paths(
+    *,
+    context_files,
+    impact,
+    changed_paths: tuple[str, ...],
+    category: str,
+) -> tuple[str, ...]:
+    values: list[str] = [
+        item.path for item in context_files if item.category == category
+    ]
+    values.extend(
+        path for path in changed_paths if _plan_path_category(path) == category
+    )
+    if impact is not None:
+        kind = f"{category}_reference"
+        for relationship in impact.relationship_impacts:
+            if relationship.kind != kind:
+                continue
+            for path in (relationship.source_path, relationship.target_path):
+                if _plan_path_category(path) == category:
+                    values.append(path)
+    return tuple(dict.fromkeys(values))
+
+
+def _repository_patterns(
+    *,
+    context_files,
+    analysis,
+    changed_paths: tuple[str, ...],
+) -> tuple[PlanChangePattern, ...]:
+    source_context = tuple(
+        item.path for item in context_files if item.category == "source"
+    )
+    replacement_paths: dict[str, str] = {}
+    renamed_destinations: set[str] = set()
+    added_paths: set[str] = set()
+    if analysis is not None and analysis.change is not None:
+        for item in analysis.change.changed_files:
+            staged_status = item.staged_status
+            worktree_status = item.worktree_status
+            statuses = {staged_status, worktree_status}
+            if "renamed" in statuses and item.previous_path:
+                replacement_paths[item.previous_path] = "renamed"
+                renamed_destinations.add(item.path)
+            elif "deleted" in statuses:
+                replacement_paths[item.path] = "deleted"
+            elif "added" in statuses:
+                added_paths.add(item.path)
+
+    patterns: list[PlanChangePattern] = [
+        PlanChangePattern(
+            classification="REPLACE",
+            path=path,
+            reason="The current change removes or renames an implementation path; reconcile consumers and replacement evidence.",
+            confidence=Confidence.HIGH,
+        )
+        for path in sorted(replacement_paths, key=lambda value: (value.casefold(), value))
+        if _is_likely_source_path(path)
+    ]
+    changed_set = set(changed_paths)
+    replacement_set = set(replacement_paths)
+    for path in changed_paths:
+        if path in replacement_set or path in renamed_destinations:
+            continue
+        if path not in source_context and not _is_likely_source_path(path):
+            continue
+        if path in added_paths:
+            patterns.append(
+                PlanChangePattern(
+                    classification="NEW",
+                    path=path,
+                    reason="The current change adds a new implementation path rather than modifying an existing repository path.",
+                    confidence=Confidence.HIGH,
+                )
+            )
+            continue
+        patterns.append(
+            PlanChangePattern(
+                classification="EXTEND",
+                path=path,
+                reason="The current change modifies an implementation path that already exists in repository evidence.",
+                confidence=Confidence.HIGH,
+            )
+        )
+    for path in source_context:
+        if path in changed_set or path in replacement_set:
+            continue
+        patterns.append(
+            PlanChangePattern(
+                classification="REUSE",
+                path=path,
+                reason="Task-scoped repository evidence already contains a relevant implementation pattern to reuse or extend.",
+                confidence=Confidence.MEDIUM,
+            )
+        )
+    if not patterns:
+        patterns.append(
+            PlanChangePattern(
+                classification="NEW",
+                path=None,
+                reason="No task-relevant implementation path was found in the bounded repository context; new implementation may be required.",
+                confidence=Confidence.LOW,
+            )
+        )
+    return tuple(patterns)
+
+
+def _is_likely_source_path(path: str) -> bool:
+    lowered = path.replace("\\", "/").casefold()
+    name = lowered.rsplit("/", 1)[-1]
+    if lowered.startswith(("tests/", "test/")) or name.startswith("test_"):
+        return False
+    if lowered.startswith(("docs/", "settings/", "config/", "contracts/", "policy/")):
+        return False
+    return lowered.startswith("src/") or name.endswith(
+        (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".rs", ".java", ".kt")
+    )
+
+
+def _plan_path_category(path: str) -> str:
+    lowered = path.replace("\\", "/").casefold()
+    name = lowered.rsplit("/", 1)[-1]
+    if lowered.startswith(("contracts/", "contract/", "schemas/", "schema/")) or name.endswith(".schema.json"):
+        return "contract"
+    if lowered.startswith(("policy/", "policies/")) or name.startswith("policy."):
+        return "policy"
+    if lowered.startswith(("settings/", "config/", "configs/", ".github/")) or name.endswith((".toml", ".yaml", ".yml", ".ini")):
+        return "configuration"
+    if lowered.startswith(("docs/", "doc/")) or name.endswith((".md", ".rst")):
+        return "documentation"
+    return "source" if _is_likely_source_path(path) else "other"
 
 
 def _claim_conflicts(
