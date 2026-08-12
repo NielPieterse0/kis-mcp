@@ -25,6 +25,16 @@ def _settings():
             "secret_ref": "secret://provider/nvidia-nim/api-key",
             "default_profile": "super",
             "timeout_seconds": 45,
+            "benchmark": {
+                "enabled": True,
+                "timeout_seconds": 40,
+                "latency_limit_seconds": 30,
+                "max_tokens": 1024,
+                "models": {
+                    "baseline-super": "nvidia/nemotron-3-super-120b-a12b",
+                    "laguna-xs": "poolside/laguna-xs-2.1",
+                },
+            },
             "profiles": {
                 "nano": {
                     "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
@@ -74,6 +84,13 @@ def test_nvidia_settings_require_exact_three_profiles() -> None:
         "secret_ref": settings.secret_ref,
         "default_profile": settings.default_profile,
         "timeout_seconds": settings.timeout_seconds,
+        "benchmark": {
+            "enabled": settings.benchmark.enabled,
+            "timeout_seconds": settings.benchmark.timeout_seconds,
+            "latency_limit_seconds": settings.benchmark.latency_limit_seconds,
+            "max_tokens": settings.benchmark.max_tokens,
+            "models": dict(settings.benchmark.models),
+        },
         "profiles": {
             alias: {
                 "model": profile.model,
@@ -176,6 +193,9 @@ def test_nvidia_readiness_distinguishes_missing_key_and_ready_with_guidance() ->
     assert "Fast" in ready.details["profiles"]["nano"]["guidance"]
     assert "Default" in ready.details["profiles"]["super"]["guidance"]
     assert "Deepest" in ready.details["profiles"]["ultra"]["guidance"]
+    assert ready.details["benchmark"]["enabled"] is True
+    assert ready.details["benchmark"]["latency_limit_seconds"] == 30
+    assert ready.details["benchmark"]["models"]["laguna-xs"] == "poolside/laguna-xs-2.1"
     assert "secret-value" not in str(ready.to_json_dict())
 
 
@@ -196,3 +216,26 @@ def test_nvidia_provider_registers_as_approved_external_connector() -> None:
     ]
     assert descriptor.capabilities[0].tool_names == ()
     assert registry.get("nvidia-nim") is descriptor
+
+
+def test_nvidia_client_uses_portable_allowlisted_benchmark_payload() -> None:
+    captured: dict[str, object] = {}
+
+    def send(request: Request, timeout: int) -> bytes:
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        captured["timeout"] = timeout
+        return b'{"choices":[{"message":{"content":"benchmark ok"}}]}'
+
+    client = NvidiaNimClient(_settings(), api_key="secret-value", sender=send)
+    result = client.benchmark_model("review the snippet", "laguna-xs")
+
+    assert result == "benchmark ok"
+    assert captured["timeout"] == 40
+    assert captured["payload"] == {
+        "model": "poolside/laguna-xs-2.1",
+        "messages": [{"role": "user", "content": "review the snippet"}],
+        "temperature": 0.2,
+        "top_p": 0.9,
+        "max_tokens": 1024,
+        "stream": False,
+    }

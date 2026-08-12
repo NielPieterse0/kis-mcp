@@ -14,6 +14,20 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
     agent_server = FastMCP("kis-mcp-code-review-agent")
 
     @agent_server.tool
+    def benchmark_nvidia_model(model: str, runs: int = 1) -> dict[str, Any]:
+        """Smoke-test one allowlisted experimental NVIDIA model.
+
+        This benchmark never changes production reviewer profiles. It runs one
+        through three fixed read-only review probes, records end-to-end latency,
+        and requires both correctness and security findings on every run.
+        """
+
+        try:
+            return agent.benchmark_nvidia_model(model=model, runs=runs)
+        except Exception as exc:
+            raise ToolError(f"AGENT_BENCHMARK_FAILED:{type(exc).__name__}") from exc
+
+    @agent_server.tool
     def review_change_with_agent(
         path: str,
         instructions: str = "",

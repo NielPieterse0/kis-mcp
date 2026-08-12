@@ -8,9 +8,11 @@ from typing import Any
 from urllib.parse import urlparse
 
 _ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]*$")
+_BENCHMARK_ALIAS = re.compile(r"^[a-z0-9][a-z0-9.-]{0,39}$")
 _PROFILE_ALIASES = ("nano", "super", "ultra")
 _PROFILE_SET = frozenset(_PROFILE_ALIASES)
 _CANONICAL_SECRET_REF = "secret://provider/nvidia-nim/api-key"
+_CANONICAL_BASE_URL = "https://integrate.api.nvidia.com/v1"
 _NVIDIA_KEYS = frozenset(
     {
         "enabled",
@@ -20,7 +22,11 @@ _NVIDIA_KEYS = frozenset(
         "default_profile",
         "timeout_seconds",
         "profiles",
+        "benchmark",
     }
+)
+_BENCHMARK_KEYS = frozenset(
+    {"enabled", "timeout_seconds", "latency_limit_seconds", "max_tokens", "models"}
 )
 _PROFILE_KEYS = frozenset(
     {
@@ -96,6 +102,22 @@ class NvidiaModelProfile:
 
 
 @dataclass(frozen=True, slots=True)
+class NvidiaBenchmarkSettings:
+    enabled: bool
+    timeout_seconds: int
+    latency_limit_seconds: int
+    max_tokens: int
+    models: Mapping[str, str]
+
+    def model(self, alias: str) -> str:
+        normalized = alias.strip() if isinstance(alias, str) else ""
+        try:
+            return self.models[normalized]
+        except KeyError as exc:
+            raise NvidiaSettingsError("nvidia benchmark model is not allowlisted") from exc
+
+
+@dataclass(frozen=True, slots=True)
 class NvidiaSettings:
     enabled: bool
     base_url: str
@@ -104,6 +126,7 @@ class NvidiaSettings:
     default_profile: str
     timeout_seconds: int
     profiles: Mapping[str, NvidiaModelProfile]
+    benchmark: NvidiaBenchmarkSettings
 
     def profile(self, alias: str) -> NvidiaModelProfile:
         normalized = alias.strip() if isinstance(alias, str) else ""
@@ -140,6 +163,36 @@ def _profile_from_mapping(alias: str, value: Any) -> NvidiaModelProfile:
     )
 
 
+def _benchmark_from_mapping(value: Any) -> NvidiaBenchmarkSettings:
+    document = _mapping(value, "nvidia.benchmark")
+    _exact_keys(document, _BENCHMARK_KEYS, "nvidia.benchmark")
+    models_document = _mapping(document["models"], "nvidia.benchmark.models")
+    if not models_document or len(models_document) > 20:
+        raise NvidiaSettingsError("nvidia.benchmark.models must contain between 1 and 20 entries")
+    models: dict[str, str] = {}
+    for raw_alias, raw_model in models_document.items():
+        alias = str(raw_alias).strip()
+        if _BENCHMARK_ALIAS.fullmatch(alias) is None:
+            raise NvidiaSettingsError("nvidia benchmark aliases must be lower-case bounded identifiers")
+        models[alias] = _text(raw_model, f"nvidia.benchmark.models.{alias}")
+    if len(set(models.values())) != len(models):
+        raise NvidiaSettingsError("nvidia.benchmark.models must not contain duplicate model IDs")
+    return NvidiaBenchmarkSettings(
+        enabled=_bool(document["enabled"], "nvidia.benchmark.enabled"),
+        timeout_seconds=_int(
+            document["timeout_seconds"], "nvidia.benchmark.timeout_seconds", 5, 120
+        ),
+        latency_limit_seconds=_int(
+            document["latency_limit_seconds"],
+            "nvidia.benchmark.latency_limit_seconds",
+            1,
+            120,
+        ),
+        max_tokens=_int(document["max_tokens"], "nvidia.benchmark.max_tokens", 128, 4096),
+        models=MappingProxyType(models),
+    )
+
+
 def nvidia_settings_from_mapping(value: Any) -> NvidiaSettings:
     document = _mapping(value)
     _exact_keys(document, _NVIDIA_KEYS, "nvidia")
@@ -147,6 +200,8 @@ def nvidia_settings_from_mapping(value: Any) -> NvidiaSettings:
     parsed = urlparse(base_url)
     if parsed.scheme != "https" or not parsed.netloc:
         raise NvidiaSettingsError("nvidia.base_url must be an absolute https URL")
+    if base_url != _CANONICAL_BASE_URL:
+        raise NvidiaSettingsError(f"nvidia.base_url must be {_CANONICAL_BASE_URL}")
     api_key_env = _text(document["api_key_env"], "nvidia.api_key_env")
     if _ENV_NAME.fullmatch(api_key_env) is None:
         raise NvidiaSettingsError("nvidia.api_key_env must be an environment variable name")
@@ -178,6 +233,7 @@ def nvidia_settings_from_mapping(value: Any) -> NvidiaSettings:
         default_profile=default_profile,
         timeout_seconds=_int(document["timeout_seconds"], "nvidia.timeout_seconds", 1, 600),
         profiles=MappingProxyType(profiles),
+        benchmark=_benchmark_from_mapping(document["benchmark"]),
     )
 
 
@@ -224,10 +280,18 @@ def disabled_nvidia_settings() -> NvidiaSettings:
         default_profile="super",
         timeout_seconds=90,
         profiles=_default_profiles(),
+        benchmark=NvidiaBenchmarkSettings(
+            enabled=False,
+            timeout_seconds=40,
+            latency_limit_seconds=30,
+            max_tokens=1024,
+            models=MappingProxyType({"baseline-super": "nvidia/nemotron-3-super-120b-a12b"}),
+        ),
     )
 
 
 __all__ = [
+    "NvidiaBenchmarkSettings",
     "NvidiaModelProfile",
     "NvidiaSettings",
     "NvidiaSettingsError",

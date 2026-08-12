@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from kis_mcp.providers.nvidia import nvidia_settings_from_mapping
@@ -40,9 +41,16 @@ class FakeNvidiaBackend(FakeBackend):
     def __init__(self, *, available: bool = True, output: str = "") -> None:
         super().__init__("nvidia-nim", available=available, output=output)
         self.model_calls: list[tuple[Path, str, str]] = []
+        self.benchmark_calls: list[tuple[str, str]] = []
 
     def review_with_model(self, project_path: Path, prompt: str, model_profile: str) -> str:
         self.model_calls.append((project_path, prompt, model_profile))
+        if isinstance(self.output, Exception):
+            raise self.output
+        return self.output
+
+    def benchmark_model(self, prompt: str, model_alias: str) -> str:
+        self.benchmark_calls.append((prompt, model_alias))
         if isinstance(self.output, Exception):
             raise self.output
         return self.output
@@ -57,6 +65,16 @@ def _nvidia_settings():
             "secret_ref": "secret://provider/nvidia-nim/api-key",
             "default_profile": "super",
             "timeout_seconds": 30,
+            "benchmark": {
+                "enabled": True,
+                "timeout_seconds": 40,
+                "latency_limit_seconds": 30,
+                "max_tokens": 1024,
+                "models": {
+                    "baseline-super": "nvidia/nemotron-3-super-120b-a12b",
+                    "laguna-xs": "poolside/laguna-xs-2.1",
+                },
+            },
             "profiles": {
                 "nano": {
                     "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
@@ -127,6 +145,18 @@ def _structured_output() -> str:
                 }
             ],
             "unknowns": ["runtime behavior not exercised"],
+        }
+    )
+
+
+def _benchmark_output() -> str:
+    return json.dumps(
+        {
+            "summary": "two concrete defects",
+            "findings": [
+                {"category": "correctness", "claim": "first call can fail", "evidence": "seen[-2]"},
+                {"category": "security", "claim": "ref can inject shell syntax", "evidence": "shell=True"},
+            ],
         }
     )
 
@@ -342,3 +372,92 @@ def test_agent_returns_bounded_failure_without_exception_text(tmp_path: Path) ->
     assert result["backend"] == "nvidia-nim"
     assert result["diagnostics"] == ["AGENT_BACKEND_FAILED:RuntimeError"]
     assert "secret upstream detail" not in str(result)
+
+
+def test_benchmark_nvidia_model_requires_quality_and_latency_without_collecting(tmp_path: Path) -> None:
+    collector = FakeCollector()
+    nvidia = FakeNvidiaBackend(output=_benchmark_output())
+    agent = CodeReviewAgent(
+        _settings(), collector=collector, backends={"nvidia-nim": nvidia, "codex-cli": FakeBackend("codex-cli")}
+    )
+
+    result = agent.benchmark_nvidia_model("laguna-xs", runs=2)
+
+    assert result["status"] == "completed"
+    assert result["model_alias"] == "laguna-xs"
+    assert result["model"] == "poolside/laguna-xs-2.1"
+    assert result["success_count"] == 2
+    assert result["quality_pass_count"] == 2
+    assert result["latency_pass"] is True
+    assert result["suitable"] is True
+    assert collector.paths == []
+    assert len(nvidia.benchmark_calls) == 2
+    assert "shell=True" in nvidia.benchmark_calls[0][0]
+    assert nvidia.benchmark_calls[0][1] == "laguna-xs"
+
+
+def test_benchmark_nvidia_model_rejects_unknown_alias_and_invalid_runs(tmp_path: Path) -> None:
+    nvidia = FakeNvidiaBackend(output=_benchmark_output())
+    agent = CodeReviewAgent(
+        _settings(), collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": FakeBackend("codex-cli")}
+    )
+
+    unknown = agent.benchmark_nvidia_model("other")
+    invalid_runs = agent.benchmark_nvidia_model("laguna-xs", runs=4)
+
+    assert unknown["status"] == "invalid_request"
+    assert unknown["diagnostics"] == ["AGENT_BENCHMARK_MODEL_UNKNOWN"]
+    assert invalid_runs["status"] == "invalid_request"
+    assert invalid_runs["diagnostics"] == ["AGENT_BENCHMARK_RUNS_INVALID"]
+    assert nvidia.benchmark_calls == []
+
+
+def test_benchmark_nvidia_model_redacts_backend_failure_text(tmp_path: Path) -> None:
+    nvidia = FakeNvidiaBackend(output=RuntimeError("secret upstream detail"))
+    agent = CodeReviewAgent(
+        _settings(), collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": FakeBackend("codex-cli")}
+    )
+    result = agent.benchmark_nvidia_model("laguna-xs")
+    assert result["status"] == "failed"
+    assert result["suitable"] is False
+    assert "secret upstream detail" not in str(result)
+
+
+def test_benchmark_nvidia_model_rejects_unproven_category_labels(tmp_path: Path) -> None:
+    output = json.dumps(
+        {
+            "summary": "labels without evidence",
+            "findings": [
+                {"category": "correctness", "claim": "something is wrong", "evidence": "unknown"},
+                {"category": "security", "claim": "something is risky", "evidence": "unknown"},
+            ],
+        }
+    )
+    nvidia = FakeNvidiaBackend(output=output)
+    agent = CodeReviewAgent(
+        _settings(), collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": FakeBackend("codex-cli")}
+    )
+    result = agent.benchmark_nvidia_model("laguna-xs")
+    assert result["status"] == "completed"
+    assert result["quality_pass_count"] == 0
+    assert result["suitable"] is False
+    assert "AGENT_BENCHMARK_QUALITY_FAILED" in result["diagnostics"]
+
+
+def test_benchmark_nvidia_model_respects_disabled_benchmark(tmp_path: Path) -> None:
+    settings = _settings()
+    settings = replace(
+        settings,
+        nvidia=replace(
+            settings.nvidia,
+            benchmark=replace(settings.nvidia.benchmark, enabled=False),
+        ),
+    )
+    nvidia = FakeNvidiaBackend(output=_benchmark_output())
+    agent = CodeReviewAgent(
+        settings, collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": FakeBackend("codex-cli")}
+    )
+    result = agent.benchmark_nvidia_model("laguna-xs")
+    assert result["status"] == "disabled"
+    assert result["diagnostics"] == ["AGENT_BENCHMARK_DISABLED"]
+    assert nvidia.benchmark_calls == []

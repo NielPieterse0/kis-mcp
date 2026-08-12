@@ -13,6 +13,24 @@
     "secret_ref": "secret://provider/nvidia-nim/api-key",
     "default_profile": "super",
     "timeout_seconds": 90,
+    "benchmark": {
+      "enabled": true,
+      "timeout_seconds": 40,
+      "latency_limit_seconds": 30,
+      "max_tokens": 1024,
+      "models": {
+        "baseline-nano": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        "baseline-super": "nvidia/nemotron-3-super-120b-a12b",
+        "baseline-ultra": "nvidia/nemotron-3-ultra-550b-a55b",
+        "nano-text": "nvidia/nemotron-3-nano-30b-a3b",
+        "laguna-xs": "poolside/laguna-xs-2.1",
+        "deepseek-flash": "deepseek-ai/deepseek-v4-flash",
+        "deepseek-pro": "deepseek-ai/deepseek-v4-pro",
+        "glm-5.2": "z-ai/glm-5.2",
+        "step-3.7-flash": "stepfun-ai/step-3.7-flash",
+        "minimax-m3": "minimaxai/minimax-m3"
+      }
+    },
     "profiles": {
       "nano": {
         "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",

@@ -54,6 +54,29 @@ class NvidiaNimClient:
         del project_path
         return self.complete(prompt, model_profile=model_profile)
 
+    def benchmark_model(self, prompt: str, model_alias: str) -> str:
+        """Run one allowlisted benchmark candidate with a portable minimal payload."""
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise NvidiaNimError("NVIDIA_NIM_PROMPT_INVALID", "Prompt must be a non-empty string")
+        if not self.settings.benchmark.enabled:
+            raise NvidiaNimError("NVIDIA_NIM_BENCHMARK_DISABLED", "NVIDIA NIM benchmark is disabled")
+        try:
+            model = self.settings.benchmark.model(model_alias)
+        except NvidiaSettingsError as exc:
+            raise NvidiaNimError(
+                "NVIDIA_NIM_BENCHMARK_MODEL_INVALID",
+                "NVIDIA NIM benchmark model is invalid",
+            ) from exc
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "max_tokens": self.settings.benchmark.max_tokens,
+            "stream": False,
+        }
+        return self._send_payload(payload, timeout=self.settings.benchmark.timeout_seconds)
+
     def complete(self, prompt: str, model_profile: str | None = None) -> str:
         if not isinstance(prompt, str) or not prompt.strip():
             raise NvidiaNimError("NVIDIA_NIM_PROMPT_INVALID", "Prompt must be a non-empty string")
@@ -75,6 +98,9 @@ class NvidiaNimClient:
             "chat_template_kwargs": {"enable_thinking": profile.enable_thinking},
             "stream": False,
         }
+        return self._send_payload(payload, timeout=self.settings.timeout_seconds)
+
+    def _send_payload(self, payload: dict[str, Any], *, timeout: int) -> str:
         request = Request(
             f"{self.settings.base_url}/chat/completions",
             data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
@@ -86,7 +112,7 @@ class NvidiaNimClient:
             method="POST",
         )
         try:
-            raw = self._sender(request, self.settings.timeout_seconds)
+            raw = self._sender(request, timeout)
         except HTTPError as exc:
             raise NvidiaNimError(
                 "NVIDIA_NIM_HTTP_FAILED",

@@ -51,6 +51,12 @@ def nvidia_provider_descriptor(
             details={
                 "default_profile": settings.default_profile,
                 "profiles": _profile_details(settings),
+                "benchmark": {
+                    "enabled": settings.benchmark.enabled,
+                    "timeout_seconds": settings.benchmark.timeout_seconds,
+                    "latency_limit_seconds": settings.benchmark.latency_limit_seconds,
+                    "models": dict(settings.benchmark.models),
+                },
             },
         )
 

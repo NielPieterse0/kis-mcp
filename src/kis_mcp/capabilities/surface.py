@@ -74,7 +74,7 @@ def _runtime_effects(
         ("write_", "edit_", "create_", "move_", "restore_", "improve_", "set_", "refresh_")
     ):
         return (OperationEffect.LOCAL_CHANGE,)
-    if normalized == "review_change_with_agent":
+    if normalized in {"review_change_with_agent", "benchmark_nvidia_model"}:
         return (OperationEffect.READ_ONLY, OperationEffect.EXTERNAL)
     return (OperationEffect.PROCESS,)
 

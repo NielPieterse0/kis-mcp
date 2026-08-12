@@ -46,6 +46,12 @@ def test_load_agent_settings_reads_strict_checked_in_configuration() -> None:
     assert settings.nvidia.secret_ref == "secret://provider/nvidia-nim/api-key"
     assert settings.nvidia.default_profile == "super"
     assert set(settings.nvidia.profiles) == {"nano", "super", "ultra"}
+    assert settings.nvidia.benchmark.enabled is True
+    assert settings.nvidia.benchmark.timeout_seconds == 40
+    assert settings.nvidia.benchmark.latency_limit_seconds == 30
+    assert settings.nvidia.benchmark.models["laguna-xs"] == "poolside/laguna-xs-2.1"
+    assert "deepseek-flash" in settings.nvidia.benchmark.models
+    assert "step-3.7-flash" in settings.nvidia.benchmark.models
     assert settings.nvidia.profile("nano").model == (
         "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
     )
@@ -107,3 +113,22 @@ def test_safe_loader_disables_optional_agent_when_settings_are_missing(
     assert settings.codex.script_path == (
         tmp_path / "scripts" / "invoke-codex-agent.ps1"
     ).resolve()
+
+
+def test_load_agent_settings_rejects_duplicate_benchmark_model_ids(tmp_path: Path) -> None:
+    document = _checked_in_document()
+    models = document["nvidia"]["benchmark"]["models"]
+    models["duplicate-super"] = models["baseline-super"]
+    _write_settings(tmp_path, document)
+
+    with pytest.raises(AgentSettingsError, match="duplicate model IDs"):
+        load_agent_settings(tmp_path)
+
+
+def test_load_agent_settings_rejects_noncanonical_https_nvidia_url(tmp_path: Path) -> None:
+    document = _checked_in_document()
+    document["nvidia"]["base_url"] = "https://example.invalid/v1"
+    _write_settings(tmp_path, document)
+
+    with pytest.raises(AgentSettingsError, match="integrate.api.nvidia.com"):
+        load_agent_settings(tmp_path)
