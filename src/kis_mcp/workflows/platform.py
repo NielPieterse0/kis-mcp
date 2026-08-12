@@ -16,6 +16,7 @@ from ..work_management import (
     WorkManagementSettings,
     load_work_management_settings,
 )
+from .agent_validation import register_platform_agent_validation
 from .code_review import (
     AgentSettings,
     CodeReviewAgent,
@@ -109,6 +110,17 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             ("metadata is complete", "catalogue refresh succeeds", "change is recoverable"),
             ("create skill", "improve skill", "skill catalogue"),
             (read, change),
+        ),
+        _workflow(
+            "validate-agent-configuration",
+            "Validate agent configuration",
+            "Run pinned agnix against one local project with bounded read-only validation settings.",
+            ("operation.validate_agent_configuration",),
+            ("validate_agent_configuration",),
+            ("validation completes", "findings are bounded", "no fix authority is exposed"),
+            ("validate agent configuration", "agnix", "lint agent config"),
+            (process,),
+            executable_steps=("validate_agent_configuration",),
         ),
         _workflow(
             "develop-isolated-change",
@@ -248,6 +260,7 @@ def register_platform_workflows(
     work_management_settings: WorkManagementSettings | None = None,
     work_management_service: WorkManagementService | None = None,
 ) -> None:
+    register_platform_agent_validation(server, runtime)
     register_agent_tools(
         server,
         _build_code_review_agent(runtime, settings, provider_service),

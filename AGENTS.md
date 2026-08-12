@@ -10,7 +10,7 @@ Remote: `https://github.com/NielPieterse0/kis-mcp.git`
 - Python import package: `kis_mcp`.
 - Runtime settings: `settings/kis-mcp.settings.json`.
 - Enforcement policy: `policy/kis-mcp.policy.json`.
-- Generated state and quarantine root: `C:\Projects\.kis-mcp`.
+- Generated state and quarantine root: `C:\Projects\.kis-mcp`, except the operator-approved agnix runtime compatibility location `C:\Projects\kis-mcp\.temp\tools\agnix`, which remains ignored/untracked and contains no authoritative repository content.
 
 ## Authority order
 

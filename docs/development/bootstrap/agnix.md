@@ -2,30 +2,26 @@
 
 ## Installed boundary
 
-agnix `0.45.0` is installed independently at:
+agnix `0.45.0` is installed independently at the operator-approved ignored repo-local compatibility path:
 
 ```text
-C:\Projects\.kis-mcp\tools\agnix\0.45.0
+C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0
 ```
 
-The verified command is:
+The verified wrapper and native commands are:
 
 ```text
-C:\Projects\.kis-mcp\tools\agnix\0.45.0\node_modules\.bin\agnix.cmd
+C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0\node_modules\.bin\agnix.cmd
+C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0\node_modules\agnix\bin\agnix-binary.exe
 ```
 
-Run it directly, for example:
+The same native executable was blocked by Windows Application Control from the prior `C:\Projects\.kis-mcp\tools\agnix\0.45.0` location and was live-smoked successfully after relocation. The former installation was retained recoverably beneath KIS quarantine.
 
-```powershell
-C:\Projects\.kis-mcp\tools\agnix\0.45.0\node_modules\.bin\agnix.cmd --version
-C:\Projects\.kis-mcp\tools\agnix\0.45.0\node_modules\.bin\agnix.cmd .
-```
-
-The npm package provides the agnix CLI. It does not contain the repository's separate native `agnix-mcp` binary, so the bootstrap records MCP status as `not_in_npm_distribution` rather than claiming an unavailable entrypoint. All configured state paths must remain beneath `C:\Projects` without traversing a junction or other reparse point.
+The npm package provides the agnix CLI. It does not contain the separate native `agnix-mcp` binary, so the bootstrap records MCP status as `not_in_npm_distribution`. All configured state paths remain beneath `C:\Projects` without traversing a junction or other reparse point.
 
 ## kis-mcp exposure
 
-`settings/bootstrap/agnix.install.json` keeps direct kis-mcp exposure disabled. A later Tools adapter may mount the CLI or a separately verified native MCP binary without coupling it to AgentSys.
+Direct provider/MCP exposure remains disabled. KIS exposes only the bounded workflow operation `validate_agent_configuration`, which calls the pinned native binary through Work middleware with fixed `--format json`, target, strict, and bounded max-file arguments. It exposes no fix, watch, init, telemetry, schema, tools, arbitrary-command, or MCP passthrough authority.
 
 ## Upgrade and recovery
 

@@ -3,7 +3,7 @@
   "tool_id": "agnix",
   "package": "agnix",
   "version": "0.45.0",
-  "install_root": "C:\\Projects\\.kis-mcp\\tools\\agnix\\0.45.0",
+  "install_root": "C:\\Projects\\kis-mcp\\.temp\\tools\\agnix\\0.45.0",
   "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache\\agnix",
   "temp_root": "C:\\Projects\\.kis-mcp\\temp\\agnix",
   "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine\\agnix",
@@ -11,5 +11,14 @@
   "kis_mcp_exposure": {
     "enabled": false,
     "namespace": "agnix"
+  },
+  "validation": {
+    "binary_relative_path": "node_modules\\agnix\\bin\\agnix-binary.exe",
+    "targets": ["generic", "claude-code", "cursor", "codex", "kiro"],
+    "timeout_ms": 120000,
+    "default_max_files": 1000,
+    "max_files": 10000,
+    "max_output_chars": 200000,
+    "max_findings": 500
   }
 }

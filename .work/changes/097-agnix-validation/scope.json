@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "change_id": "097-agnix-validation",
+  "status": "active",
+  "branch": "change/097-agnix-validation",
+  "worktree": ".work/worktrees/097-agnix-validation",
+  "base": "main",
+  "outcome": "Expose bounded read-only agnix agent-configuration validation through KIS Work without fix authority",
+  "owned_paths": [
+    "src/kis_mcp/workflows/agent_validation/**",
+    "src/kis_mcp/workflows/platform.py",
+    "settings/bootstrap/agnix.install.json",
+    "tests/workflows/agent_validation/**",
+    "tests/bootstrap/test_agnix_install.py",
+    "tests/discover/test_tool_registration.py",
+    "AGENTS.md",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/development/bootstrap/agnix.md",
+    ".work/changes/097-agnix-validation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
