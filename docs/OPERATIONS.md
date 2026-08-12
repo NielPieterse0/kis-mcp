@@ -394,7 +394,7 @@ pwsh -NoProfile -File .\scripts\auth-codex.ps1
 
 The auth script runs Codex's ChatGPT login flow under the managed `CODEX_HOME`, removes API-key override variables for that process, and verifies `codex login status` reports ChatGPT authentication. KIS readiness also requires the exact configured CLI version and ChatGPT-authenticated managed profile.
 
-`review_change_with_agent` accepts `review_type="code-quality"` (default) or `review_type="safety-security"`. Code-quality review focuses on correctness, regressions, error handling, tests, maintainability, and stated requirements. Safety/security review focuses on secrets, authentication/authorization, trust boundaries, injection/command execution, network/filesystem effects, data handling, race/TOCTOU, dependencies/supply-chain risk, and policy bypass. Both require evidence-backed findings.
+`review_change_with_agent` accepts exactly one `review_type`: `code-quality` (default), `safety-security`, `architecture`, `performance`, `test-quality`, `documentation`, or `api-contracts`. The specialist purposes apply focused rubrics to the same bounded repository evidence and backend contract: architecture covers boundaries/coupling/contracts; performance covers likely cost and measurement gaps without inventing benchmarks; test-quality covers coverage and failure-path quality; documentation covers current claims and authority consistency; API/contracts covers schemas, compatibility, errors, and versioned interfaces. Every purpose requires evidence-backed findings and retains the same no-mutation/no-nested-agent boundary.
 
 To force an independent Codex review with no NVIDIA fallback:
 
