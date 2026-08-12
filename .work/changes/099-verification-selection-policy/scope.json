@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "change_id": "099-verification-selection-policy",
+  "status": "active",
+  "branch": "change/099-verification-selection-policy",
+  "worktree": ".work/worktrees/099-verification-selection-policy",
+  "base": "main",
+  "outcome": "Add deterministic change-aware verification selection between Discover handoffs and Work execution without executing checks or adding policy authority",
+  "owned_paths": [
+    "src/kis_mcp/workflows/verification/selection.py",
+    "src/kis_mcp/workflows/verification/contracts.py",
+    "src/kis_mcp/workflows/verification/execution.py",
+    "src/kis_mcp/workflows/verification/tools.py",
+    "src/kis_mcp/workflows/verification/platform.py",
+    "src/kis_mcp/workflows/verification/__init__.py",
+    "tests/workflows/verification/test_verification_selection.py",
+    "tests/workflows/verification/test_verification_tools.py",
+    "tests/workflows/verification/test_verification_platform.py",
+    "tests/discover/test_tool_registration.py",
+    ".work/changes/099-verification-selection-policy/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

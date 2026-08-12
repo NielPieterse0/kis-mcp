@@ -18,6 +18,7 @@ _SUPPORTED_EXECUTABLES = {
     "npm": "npm",
     "powershell_verify": "pwsh",
 }
+SUPPORTED_VERIFICATION_PROFILES = frozenset(_SUPPORTED_EXECUTABLES)
 
 
 class InspectProjectPort(Protocol):
@@ -299,6 +300,7 @@ def _required(value: str, label: str) -> str:
 __all__ = [
     "InspectProjectPort",
     "Runner",
+    "SUPPORTED_VERIFICATION_PROFILES",
     "VerificationExecutionError",
     "VerificationExecutionService",
 ]
