@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +14,11 @@ from ...discover.git_reader import GitReader
 from ...discover.intelligence import ProjectIntelligenceService
 from ...discover.read_authority import ReadAuthority
 from ...discover.service import InspectProjectService
+from ..change_execution import (
+    ChangeExecutionInvocationError,
+    ChangeExecutionService,
+    register_change_execution_tool,
+)
 from .execution import VerificationExecutionService
 from .selection import VerificationSelectionService
 from .tools import register_verification_selection_tool, register_verification_tool
@@ -58,6 +65,17 @@ def register_platform_verification(
     async def runner(tool_name: str, arguments: dict[str, Any]) -> Any:
         return await _run_with_middleware(server, tool_name, arguments)
 
+    async def structured_invoker(
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        try:
+            result = await _run_with_middleware(server, tool_name, arguments)
+        except ToolError as exc:
+            code, reason = _nested_error(exc)
+            raise ChangeExecutionInvocationError(code, reason) from exc
+        return _structured_payload(result)
+
     register_verification_selection_tool(
         server,
         VerificationSelectionService(analyzer=analyzer, inspector=inspector),
@@ -66,6 +84,36 @@ def register_platform_verification(
         server,
         VerificationExecutionService(inspector=inspector, runner=runner),
     )
+    register_change_execution_tool(
+        server,
+        ChangeExecutionService(structured_invoker),
+    )
+
+
+def _structured_payload(result: Any) -> dict[str, Any]:
+    payload = getattr(result, "structured_content", None)
+    if isinstance(payload, Mapping):
+        return dict(payload)
+    if isinstance(result, Mapping):
+        return dict(result)
+    raise ChangeExecutionInvocationError(
+        "CHANGE_EXECUTION_NESTED_RESULT_INVALID",
+        "Nested workflow operation returned no structured object result.",
+    )
+
+
+def _nested_error(exc: ToolError) -> tuple[str, str]:
+    reason = str(exc)
+    try:
+        payload = json.loads(reason)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, Mapping) and isinstance(payload.get("code"), str):
+        return str(payload["code"]), reason
+    prefix = reason.split(":", 1)[0].strip()
+    if prefix and prefix.replace("_", "").isalnum() and prefix.upper() == prefix:
+        return prefix, reason
+    return "CHANGE_EXECUTION_STEP_FAILED", reason
 
 
 def _result_text(result: Any) -> str:
