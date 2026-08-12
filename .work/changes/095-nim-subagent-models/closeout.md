@@ -12,7 +12,7 @@
 
 - Focused implementation suite: passing after final hardening.
 - Full repository verifier: one complete pass with pytest exit 0 plus configuration, interpreter, dependencies, syntax, line endings, change-governance, and three-rule checks passing.
-- Final frozen-tree repository verifier: required before commit and merge.
+- Final frozen-tree repository verifier: passed before merge; integrated exact-head verification on `e9abc26388660ade117f055e11ccd1aaee34c941` also passed after current `main` was absorbed.
 - Diff scope check: passing; only 095-owned paths changed.
 
 ## Review
@@ -27,11 +27,19 @@
 - Branch: `change/095-nim-subagent-models`
 - Worktree: `.work/worktrees/095-nim-subagent-models`
 - Base: `3eaf50d15282614a90a825e9878254a1e713bb31`
-- Commit: recorded by final commit step.
-- Pull request or merge: recorded by governed exact-head closeout.
-- Cleanup: only after confirmed merge; unrelated 093 worktree remains untouched.
+- Implementation commit: `619d1e67b2110d51cc4c79f9fa9104d1528b9627`; integrated verified head: `e9abc26388660ade117f055e11ccd1aaee34c941`.
+- Pull request: #105, merged by the governed exact-head operation; remote 095 branch deleted at the verified head.
+- Cleanup: permitted after this metadata-only closure lands; unrelated worktrees remain untouched.
+
+## Live benchmark evidence
+
+- `nano-text`: initial 4.471s pass; two-run validation 11.558s pass and 7.836s structured-quality failure. Rejected for inconsistent output contract.
+- `minimax-m3`: 19.993s, 17.815s, and 25.986s; all three runs structured and passed concrete correctness + security checks. Qualified for production-profile consideration.
+- `laguna-xs`, `deepseek-flash`, and `deepseek-pro`: hosted endpoint HTTP failures. Rejected.
+- `glm-5.2`: exceeded transport timeout. Rejected.
+- `step-3.7-flash`: 34.239s with invalid response. Rejected.
+- Baseline evidence: Nano Omni passed at 12.697s; Super exceeded 40s and failed; Ultra passed at 13.984s but remains variance-prone from prior live evidence.
 
 ## Residual items
 
-- Live model benchmarking occurs only after this benchmark seam is commissioned in a runtime that can securely resolve the existing NVIDIA secret.
-- Candidate promotion, if any, is a separate bounded change driven only by live benchmark evidence; 095 itself does not promote experimental models.
+- Only MiniMax M3 met the new-candidate three-sample promotion bar. Production promotion is intentionally a separate bounded change; 095 itself does not alter production reviewer profiles.
