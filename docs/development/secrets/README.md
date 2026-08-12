@@ -1,17 +1,19 @@
 # Application-Managed Secrets
 
-This document describes the development contract for the kis-mcp encrypted local vault and its separation from ordinary startup. It is not the authoritative operator guide; `SPEC.md` and `docs/OPERATIONS.md` are currently owned by active change `078-project-registry-routing` and must be reconciled there or after that claim closes.
+This document describes the development contract for the kis-mcp encrypted local vault and its process-scoped startup handoff. `SPEC.md` and `docs/OPERATIONS.md` remain the authoritative current implementation and operator guides.
 
 ## Boundary
 
 The Secrets module is a shared kernel service under `src/kis_mcp/secrets`. Providers and runtime adapters consume canonical references such as:
 
 ```text
-secret://providers/nvidia/api-key
+secret://provider/nvidia-nim/api-key
+secret://provider/dockerhub/pat
+secret://database/example/connection
 secret://tunnel/operation/authentication-token
 ```
 
-Checked-in JSON stores references only. Plaintext resolution from the encrypted vault is internal and requires an unlocked process-local `SecretsService`. The tunnel runtime uses the canonical tunnel reference to derive a per-user Windows Credential Manager target; ordinary gateway startup does not unlock the encrypted vault.
+Checked-in JSON stores references only. Plaintext resolution from the encrypted vault is internal and requires verified runtime unlock material. The tunnel runtime uses the canonical tunnel reference to derive a per-user Windows Credential Manager target. Ordinary gateway startup unlocks the application vault only when a configured provider reference actually requires resolution; the current local College DBHub binding and Docker Hub public mode require no provider secret. ChatGPT startup already unlocks for NVIDIA NIM and reuses that same verified payload for any configured DBHub/Docker Hub references.
 
 Runtime state is fixed beneath:
 
@@ -34,7 +36,7 @@ The decryption material for explicit vault operations must originate outside the
 - Optional vault-backed automation: canonical base64 32-byte material in `KIS_MCP_VAULT_KEY` for a consumer that explicitly requires vault resolution.
 - Not implemented: a self-unlocking `master.key` file stored beside the vault.
 
-Normal `start.ps1` and `start-chatgpt.ps1` do not unlock the vault. Environment bootstrap remains a weaker option for explicit vault-backed automation because the key exists in the child process environment until consumed and scrubbed.
+`start.ps1` resolves provider references only when strict JSON contains them; otherwise it does not unlock the vault for providers. `start-chatgpt.ps1` reads the verified runtime unlock for NVIDIA NIM and reuses that in-process payload for any configured DBHub/Docker Hub references rather than decrypting twice. Resolved values are injected only into the owned server process under internal KIS environment names, removed from `ProcessStartInfo` after spawn, and cleared from the parent hashtable. Environment bootstrap remains a weaker option for explicit vault-backed automation because the key exists in the child process environment until consumed and scrubbed.
 
 ## Operator commands
 
@@ -48,7 +50,7 @@ Set or replace one canonical reference:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\set-secret.ps1 `
-  -Reference 'secret://providers/nvidia/api-key'
+  -Reference 'secret://provider/nvidia-nim/api-key'
 ```
 
 Rotate the interactive unlock material:
@@ -74,7 +76,7 @@ pwsh -NoProfile -File .\scripts\set-tunnel-credential.ps1 `
 
 ## Sensitive data transport
 
-Operator scripts do not place passphrases or secret values in command-line arguments. Vault maintenance commands transfer a bounded JSON payload over redirected standard input; the optional secrets launcher retains its inherited anonymous-pipe handoff for an explicit future vault-backed runtime consumer. Normal gateway startup does not use that launcher.
+Operator scripts do not place passphrases or secret values in command-line arguments. Vault maintenance commands transfer a bounded JSON payload over redirected standard input. Runtime provider resolution uses the verified current-user unlock credential and internal process-scoped environment handoff only; DBHub external DSNs are translated to child `DBHUB_DSN`, and Docker Hub PAT mode is translated to child `HUB_PAT_TOKEN`. The canonical vault reference and plaintext value are never written into generated provider TOML or checked-in provider/project JSON.
 
 Tunnel credential updates use `Read-Host -AsSecureString` and `CredWriteW`. Startup retrieves the selected Generic Credential with `CredReadW`, copies it only into the owned tunnel-client process environment, and clears the parent-side reference after process creation. PowerShell converts `SecureString` values through a temporary BSTR and calls `ZeroFreeBSTR` on writes.
 

@@ -7,6 +7,16 @@
       "namespace": "context7"
     },
     {
+      "provider_id": "dbhub",
+      "enabled": true,
+      "namespace": "db"
+    },
+    {
+      "provider_id": "dockerhub-mcp",
+      "enabled": true,
+      "namespace": "dockerhub"
+    },
+    {
       "provider_id": "github-mcp",
       "enabled": true,
       "namespace": "github"

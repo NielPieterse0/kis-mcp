@@ -165,15 +165,17 @@ def test_tunnel_state_helper_reads_non_secret_identifiers_and_reference() -> Non
     assert "tunnel_client_path" in content
 
 
-def test_chatgpt_startup_uses_application_vault_only_for_nvidia() -> None:
+def test_startup_uses_application_vault_only_for_declared_runtime_secret_references() -> None:
     chatgpt = _script("start-chatgpt.ps1")
     stdio = _script("start.ps1")
 
     assert "secret-vault.ps1" in chatgpt
+    assert "provider-secrets.ps1" in chatgpt
     assert "Get-KisMcpUnlockPayload" not in chatgpt
     assert "Get-KisMcpRuntimeUnlockCredentialTarget" in chatgpt
     assert "Get-KisMcpWindowsCredential" in chatgpt
     assert "Resolve-KisMcpSecretInternal" in chatgpt
+    assert "Resolve-KisMcpProviderSecretEnvironmentFromPayload" in chatgpt
     assert "$AgentSettings.nvidia.secret_ref" in chatgpt
     assert "$AgentSettings.nvidia.api_key_env" in chatgpt
     assert "$ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey" in chatgpt
@@ -181,9 +183,10 @@ def test_chatgpt_startup_uses_application_vault_only_for_nvidia() -> None:
     assert "Start-KisMcpSecretAwareProcess" not in chatgpt
     assert "kis_mcp.remote_runtime" in chatgpt
 
-    assert "secret-vault.ps1" not in stdio
+    assert "secret-vault.ps1" in stdio
+    assert "provider-secrets.ps1" in stdio
     assert "Get-KisMcpUnlockPayload" not in stdio
-    assert "Resolve-KisMcpSecretInternal" not in stdio
+    assert "Resolve-KisMcpProviderSecretEnvironment" in stdio
     assert "kis_mcp.secrets.launcher" not in stdio
     assert "Start-KisMcpSecretAwareProcess" not in stdio
     assert "kis_mcp.server" in stdio

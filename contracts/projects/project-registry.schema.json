@@ -21,7 +21,7 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["project_id", "display_name", "local_root", "github", "supabase"],
+      "required": ["project_id", "display_name", "local_root", "github", "supabase", "databases", "dockerhub"],
       "properties": {
         "project_id": {"$ref": "#/$defs/id"},
         "display_name": {"type": "string", "minLength": 1},
@@ -36,6 +36,16 @@
           "oneOf": [
             {"type": "null"},
             {"$ref": "#/$defs/supabase"}
+          ]
+        },
+        "databases": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/database"}
+        },
+        "dockerhub": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "#/$defs/dockerhub"}
           ]
         }
       }
@@ -64,6 +74,43 @@
         "owner": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
         "owner_type": {"enum": ["user", "org"]},
         "project_number": {"type": "integer", "minimum": 1}
+      }
+    },
+    "database": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_id", "engine", "boundary", "location", "secret_ref"],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/id"},
+        "engine": {"enum": ["sqlite", "postgres", "mysql", "mariadb", "sqlserver"]},
+        "boundary": {"enum": ["local", "external"]},
+        "location": {"type": ["string", "null"]},
+        "secret_ref": {"type": ["string", "null"]}
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "engine": {"const": "sqlite"},
+            "boundary": {"const": "local"},
+            "location": {"type": "string", "minLength": 1, "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$)).+$"},
+            "secret_ref": {"type": "null"}
+          }
+        },
+        {
+          "properties": {
+            "boundary": {"const": "external"},
+            "location": {"type": "null"},
+            "secret_ref": {"type": "string", "pattern": "^secret://[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]+(?:/[A-Za-z0-9][A-Za-z0-9._-]+)*$"}
+          }
+        }
+      ]
+    },
+    "dockerhub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace"],
+      "properties": {
+        "namespace": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"}
       }
     },
     "supabase": {

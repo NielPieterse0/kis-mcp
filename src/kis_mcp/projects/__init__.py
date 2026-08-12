@@ -1,4 +1,6 @@
 from .contracts import (
+    DatabaseBinding,
+    DockerHubProjectBinding,
     GitHubProjectBinding,
     GitHubProjectResource,
     ProjectDefinition,
@@ -10,6 +12,8 @@ from .registry import ProjectRegistry
 from .settings import load_project_registry_settings
 
 __all__ = [
+    "DatabaseBinding",
+    "DockerHubProjectBinding",
     "GitHubProjectBinding",
     "GitHubProjectResource",
     "ProjectDefinition",

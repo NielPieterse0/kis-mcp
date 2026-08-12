@@ -64,6 +64,8 @@ The `arguments` object must match the original operation's schema.
   process effect and no incompatible external effect.
 - `execute_external_action`: operation must include the external effect.
 
+DBHub local bindings therefore dispatch through `execute_read_action`; DBHub external bindings dispatch through `execute_external_action` even though both are read-only. Docker Hub operations are external-provider operations and dispatch through `execute_external_action`; do not route local Docker Engine/process work through the Docker Hub provider.
+
 Capability-control operations cannot recursively dispatch themselves.
 Operations that still require their original approval workflow are not made
 approval-free by generic dispatch.

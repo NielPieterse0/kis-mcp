@@ -133,7 +133,9 @@ def test_platform_registry_contains_exact_approved_providers_without_probing() -
     assert [item.provider_id for item in registry.list()] == [
         "context7-mcp",
         "control-center",
+        "dbhub",
         "desktop-commander",
+        "dockerhub-mcp",
         "github-mcp",
         "nvidia-nim",
         "serena-mcp",
@@ -142,7 +144,9 @@ def test_platform_registry_contains_exact_approved_providers_without_probing() -
     assert [item.provider_id for item in platform_module.ProviderService(registry).catalogue().entries()] == [
         "context7-mcp",
         "control-center",
+        "dbhub",
         "desktop-commander",
+        "dockerhub-mcp",
         "github-mcp",
         "nvidia-nim",
         "serena-mcp",
@@ -199,6 +203,16 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
     )
     monkeypatch.setattr(
         platform_module,
+        "register_dbhub_provider",
+        registrar("dbhub"),
+    )
+    monkeypatch.setattr(
+        platform_module,
+        "register_dockerhub_provider",
+        registrar("dockerhub-mcp"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_github_provider",
         registrar("github-mcp"),
     )
@@ -224,7 +238,7 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
     )
     entries = platform_module.ProviderService(registry).catalogue().entries()
 
-    assert len(entries) == 7
+    assert len(entries) == 9
     assert builders == 0
     assert probes == 0
 
@@ -277,6 +291,16 @@ def test_platform_health_probes_all_providers_but_builds_none(
     )
     monkeypatch.setattr(
         platform_module,
+        "register_dbhub_provider",
+        registrar("dbhub"),
+    )
+    monkeypatch.setattr(
+        platform_module,
+        "register_dockerhub_provider",
+        registrar("dockerhub-mcp"),
+    )
+    monkeypatch.setattr(
+        platform_module,
         "register_github_provider",
         registrar("github-mcp"),
     )
@@ -306,7 +330,9 @@ def test_platform_health_probes_all_providers_but_builds_none(
     assert probes == [
         "context7-mcp",
         "control-center",
+        "dbhub",
         "desktop-commander",
+        "dockerhub-mcp",
         "github-mcp",
         "nvidia-nim",
         "serena-mcp",

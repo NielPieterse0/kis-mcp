@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "change_id": "109-db-docker-provider-integration",
+  "status": "active",
+  "branch": "change/109-db-docker-provider-integration",
+  "worktree": ".work/worktrees/109-db-docker-provider-integration",
+  "base": "main",
+  "outcome": "Integrate pinned DBHub and Docker Hub MCP providers with project-aware routing, stable database operations, secret isolation, commissioning, and reconciled current authority",
+  "owned_paths": [
+    ".work/changes/109-db-docker-provider-integration/**",
+    "src/kis_mcp/providers/dbhub/**",
+    "src/kis_mcp/providers/dockerhub/**",
+    "src/kis_mcp/providers/contracts.py",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/providers/runtime_settings.py",
+    "src/kis_mcp/projects/contracts.py",
+    "src/kis_mcp/projects/settings.py",
+    "src/kis_mcp/projects/registry.py",
+    "src/kis_mcp/projects/__init__.py",
+    "settings/projects.settings.json",
+    "settings/providers/**",
+    "contracts/projects/project-registry.schema.json",
+    "contracts/providers/**",
+    "tests/projects/**",
+    "tests/providers/**",
+    "tests/secret_vault/**",
+    "tests/test_tunnel_scripts.py",
+    "scripts/**",
+    "docs/development/secrets/**",
+    "docs/development/provider-runtime-composition/**",
+    "SPEC.md",
+    "docs/PROVIDER-MODULE-PRODUCT-SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "README.md",
+    ".agents/skills/kis-mcp/**",
+    "src/kis_mcp/control_center/**",
+    "tests/control_center/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**",
+    "AGENTS.md",
+    "docs/TRUST-MODEL.md"
+  ],
+  "dependencies": [
+    "108-current-baseline-sweep-hardening"
+  ],
+  "integration_owner": null
+}

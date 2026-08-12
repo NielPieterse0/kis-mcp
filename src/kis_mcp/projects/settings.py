@@ -6,6 +6,8 @@ from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from .contracts import (
+    DatabaseBinding,
+    DockerHubProjectBinding,
     GitHubProjectBinding,
     GitHubProjectResource,
     ProjectDefinition,
@@ -15,10 +17,14 @@ from .contracts import (
 from .registry import ProjectRegistry
 
 _ROOT_KEYS = {"schema_version", "default_project_id", "projects"}
-_PROJECT_KEYS = {"project_id", "display_name", "local_root", "github", "supabase"}
+_PROJECT_KEYS = {
+    "project_id", "display_name", "local_root", "github", "supabase", "databases", "dockerhub"
+}
 _GITHUB_KEYS = {"repository", "projects"}
 _GITHUB_PROJECT_KEYS = {"binding_id", "owner", "owner_type", "project_number"}
 _SUPABASE_KEYS = {"project_ref"}
+_DATABASE_KEYS = {"binding_id", "engine", "boundary", "location", "secret_ref"}
+_DOCKERHUB_KEYS = {"namespace"}
 
 
 def _mapping(value: Any, label: str) -> Mapping[str, Any]:
@@ -81,6 +87,33 @@ def _supabase(value: Any, label: str) -> SupabaseProjectBinding | None:
     return SupabaseProjectBinding(project_ref=raw["project_ref"])
 
 
+def _databases(value: Any, label: str) -> tuple[DatabaseBinding, ...]:
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be an array")
+    bindings: list[DatabaseBinding] = []
+    for index, item in enumerate(value):
+        raw = _mapping(item, f"{label}[{index}]")
+        _exact_keys(raw, _DATABASE_KEYS, f"{label}[{index}]")
+        bindings.append(
+            DatabaseBinding(
+                binding_id=raw["binding_id"],
+                engine=raw["engine"],
+                boundary=raw["boundary"],
+                location=raw["location"],
+                secret_ref=raw["secret_ref"],
+            )
+        )
+    return tuple(bindings)
+
+
+def _dockerhub(value: Any, label: str) -> DockerHubProjectBinding | None:
+    if value is None:
+        return None
+    raw = _mapping(value, label)
+    _exact_keys(raw, _DOCKERHUB_KEYS, label)
+    return DockerHubProjectBinding(namespace=raw["namespace"])
+
+
 def load_project_registry_settings(
     path: Path | None = None,
     *,
@@ -114,6 +147,8 @@ def load_project_registry_settings(
                 local_root=local_root,
                 github=_github(raw["github"], f"projects[{index}].github"),
                 supabase=_supabase(raw["supabase"], f"projects[{index}].supabase"),
+                databases=_databases(raw["databases"], f"projects[{index}].databases"),
+                dockerhub=_dockerhub(raw["dockerhub"], f"projects[{index}].dockerhub"),
             )
         )
     return ProjectRegistry(

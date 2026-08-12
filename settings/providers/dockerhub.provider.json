@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "provider_id": "dockerhub-mcp",
+  "authoritative_source": "https://github.com/docker/hub-mcp",
+  "source_revision": "ad806e2cab0489a296aec0f32f3d3eea807d65c2",
+  "transport": "stdio",
+  "node_executable": "node",
+  "entry_point": "C:\\Projects\\.kis-mcp\\providers\\dockerhub\\ad806e2cab0489a296aec0f32f3d3eea807d65c2\\dist\\index.js",
+  "auth": {
+    "mode": "public",
+    "username": null,
+    "secret_ref": null
+  }
+}

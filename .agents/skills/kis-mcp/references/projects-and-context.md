@@ -3,8 +3,8 @@
 ## Load when
 
 Read this reference when the task targets a project/repository other than the
-current checkout, uses GitHub/Supabase/work-management routing, or requires a
-stable project identifier.
+current checkout, uses GitHub/Supabase/database/Docker Hub/work-management
+routing, or requires a stable project identifier.
 
 ## Project-neutral rule
 
@@ -46,6 +46,8 @@ Keep these concepts separate:
 - GitHub Project binding: non-secret Project owner/type/number associated with a
   KIS project.
 - Supabase project identifier/ref: explicit upstream project target.
+- Database binding: stable binding ID plus engine/boundary and either a local project-relative SQLite path or an external canonical vault reference; credential values are not project identity.
+- Docker Hub namespace binding: optional non-secret registry namespace associated with one KIS project; public/PAT authentication remains provider runtime state.
 - Provider authentication: runtime/provider-owned session state, not project
   identity.
 

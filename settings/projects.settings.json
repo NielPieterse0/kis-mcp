@@ -19,7 +19,9 @@
       },
       "supabase": {
         "project_ref": "mmxuicfrdalymczdapjq"
-      }
+      },
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "gpt-os",
@@ -29,7 +31,9 @@
         "repository": "NielPieterse0/gpt-os",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "college",
@@ -39,7 +43,17 @@
         "repository": "NielPieterse0/college",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [
+        {
+          "binding_id": "results",
+          "engine": "sqlite",
+          "boundary": "local",
+          "location": "results\\college.db",
+          "secret_ref": null
+        }
+      ],
+      "dockerhub": null
     },
     {
       "project_id": "commodity",
@@ -49,7 +63,9 @@
         "repository": "NielPieterse0/commodity",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "chatgpt-skill",
@@ -59,14 +75,18 @@
         "repository": "NielPieterse0/chatgpt-skill",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "import-isolate",
       "display_name": "import-isolate",
       "local_root": "C:\\Projects\\import-isolate",
       "github": null,
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "doc-solution",
@@ -76,14 +96,18 @@
         "repository": "NielPieterse0/doc-solution",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "app-builder",
       "display_name": "app-builder",
       "local_root": "C:\\Projects\\app-builder",
       "github": null,
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "app-dev-core",
@@ -93,7 +117,9 @@
         "repository": "NielPieterse0/app-dev-core",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "mi-fi",
@@ -103,7 +129,9 @@
         "repository": "NielPieterse0/mi-fi",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "prose2llm",
@@ -113,7 +141,9 @@
         "repository": "NielPieterse0/Prose2LLM",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     },
     {
       "project_id": "signal",
@@ -123,7 +153,9 @@
         "repository": "NielPieterse0/signal",
         "projects": []
       },
-      "supabase": null
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
     }
   ]
 }

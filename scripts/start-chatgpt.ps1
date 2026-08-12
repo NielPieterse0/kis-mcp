@@ -11,6 +11,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'tunnel-state.ps1')
 . (Join-Path $PSScriptRoot 'windows-credential.ps1')
 . (Join-Path $PSScriptRoot 'secret-vault.ps1')
+. (Join-Path $PSScriptRoot 'provider-secrets.ps1')
 . (Join-Path $PSScriptRoot 'startup-instance-lifecycle.ps1')
 
 function Start-OwnedProcess {
@@ -280,6 +281,7 @@ $RuntimeUnlockCredentialTarget = Get-KisMcpRuntimeUnlockCredentialTarget
 $RuntimeUnlockCredential = $null
 $NvidiaUnlockPayload = @{}
 $NvidiaApiKey = $null
+$ProviderSecretEnvironment = @{}
 try {
     try {
         $RuntimeUnlockCredential = Get-KisMcpWindowsCredential -Target $RuntimeUnlockCredentialTarget
@@ -304,6 +306,12 @@ try {
         throw 'KIS_MCP_NVIDIA_API_KEY_MISSING'
     }
     $ServerEnvironment[$NvidiaApiKeyEnvironment] = $NvidiaApiKey
+    $ProviderSecretEnvironment = Resolve-KisMcpProviderSecretEnvironmentFromPayload `
+        -RepositoryRoot $RepositoryRoot `
+        -SecurePayload $NvidiaUnlockPayload
+    foreach ($Name in @($ProviderSecretEnvironment.Keys)) {
+        $ServerEnvironment[$Name] = [string]$ProviderSecretEnvironment[$Name]
+    }
     $Server = Start-OwnedProcess `
         -Executable $Python `
         -Arguments @(
@@ -320,6 +328,13 @@ try {
     if ($null -ne $Server.StartInfo) {
         $Server.StartInfo.Environment.Remove($NvidiaApiKeyEnvironment)
     }
+    foreach ($Name in @($ProviderSecretEnvironment.Keys)) {
+        $ServerEnvironment.Remove($Name)
+        if ($null -ne $Server.StartInfo) {
+            $Server.StartInfo.Environment.Remove($Name)
+        }
+    }
+    Clear-KisMcpProviderSecretEnvironment -Environment $ProviderSecretEnvironment
     $NvidiaApiKey = $null
     $NvidiaUnlockPayload.Clear()
 
@@ -523,6 +538,7 @@ finally {
     if ($null -ne $NvidiaUnlockPayload) {
         $NvidiaUnlockPayload.Clear()
     }
+    Clear-KisMcpProviderSecretEnvironment -Environment $ProviderSecretEnvironment
     $RuntimeUnlockCredential = $null
     $RuntimeUnlockCredentialTarget = $null
     $NvidiaApiKey = $null

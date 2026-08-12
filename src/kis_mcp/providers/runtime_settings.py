@@ -13,12 +13,14 @@ _APPROVED_PROVIDER_NAMESPACES = MappingProxyType(
     {
         "control-center": "controlcenter",
         "context7-mcp": "context7",
+        "dbhub": "db",
+        "dockerhub-mcp": "dockerhub",
         "github-mcp": "github",
         "serena-mcp": "serena",
         "supabase": "supabase",
     }
 )
-APPROVED_EXTERNAL_PROVIDER_IDS = frozenset({"context7-mcp", "github-mcp", "supabase"})
+APPROVED_EXTERNAL_PROVIDER_IDS = frozenset({"context7-mcp", "dockerhub-mcp", "github-mcp", "supabase"})
 APPROVED_PROVIDER_IDS = frozenset(_APPROVED_PROVIDER_NAMESPACES)
 _REQUIRED_BASELINE_PROVIDER_IDS = frozenset({"github-mcp", "supabase"})
 _SETTINGS_KEYS = frozenset({"schema_version", "providers"})

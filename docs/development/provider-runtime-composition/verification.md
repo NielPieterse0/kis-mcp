@@ -1,5 +1,7 @@
 # Provider Runtime Composition Verification
 
+> Historical note: the detailed evidence below records change 014 at the time it was delivered. Current runtime composition after change 109 is authoritative in `SPEC.md`, `docs/PROVIDER-MODULE-PRODUCT-SPEC.md`, runtime JSON, and current tests. The Provider registry now contains nine descriptors; runtime JSON selects seven mounted providers: Context7, Control Center, DBHub, Docker Hub MCP, GitHub MCP, Serena, and Supabase. DBHub is a source-aware per-binding read-only connector under `db_*`; Docker Hub is an approved external registry connector under `dockerhub_*`. Their installation/live commissioning is tracked separately from registration and configuration.
+
 ## Scope
 
 Change `014-provider-runtime-composition` implements only the shared Provider runtime-composition slice:

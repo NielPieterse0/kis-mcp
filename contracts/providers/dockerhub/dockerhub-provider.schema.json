@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/providers/dockerhub/dockerhub-provider.schema.json",
+  "title": "KIS Docker Hub Provider Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider_id", "authoritative_source", "source_revision", "transport", "node_executable", "entry_point", "auth"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider_id": {"const": "dockerhub-mcp"},
+    "authoritative_source": {"const": "https://github.com/docker/hub-mcp"},
+    "source_revision": {"const": "ad806e2cab0489a296aec0f32f3d3eea807d65c2"},
+    "transport": {"const": "stdio"},
+    "node_executable": {"type": "string", "minLength": 1},
+    "entry_point": {"type": "string", "pattern": "^C:\\\\Projects\\\\"},
+    "auth": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mode", "username", "secret_ref"],
+      "properties": {
+        "mode": {"enum": ["public", "pat"]},
+        "username": {"type": ["string", "null"]},
+        "secret_ref": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

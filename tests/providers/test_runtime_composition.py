@@ -76,6 +76,8 @@ def _canonical_document() -> dict[str, Any]:
         "schema_version": 1,
         "providers": [
             {"provider_id": "context7-mcp", "enabled": True, "namespace": "context7"},
+            {"provider_id": "dbhub", "enabled": True, "namespace": "db"},
+            {"provider_id": "dockerhub-mcp", "enabled": True, "namespace": "dockerhub"},
             {"provider_id": "github-mcp", "enabled": True, "namespace": "github"},
             {"provider_id": "supabase", "enabled": True, "namespace": "supabase"},
             {"provider_id": "control-center", "enabled": True, "namespace": "controlcenter"},
@@ -173,6 +175,8 @@ def test_canonical_runtime_settings_select_exact_approved_providers() -> None:
     assert [item.provider_id for item in settings.providers] == [
         "context7-mcp",
         "control-center",
+        "dbhub",
+        "dockerhub-mcp",
         "github-mcp",
         "serena-mcp",
         "supabase",
@@ -180,6 +184,8 @@ def test_canonical_runtime_settings_select_exact_approved_providers() -> None:
     assert [item.namespace for item in settings.providers] == [
         "context7",
         "controlcenter",
+        "db",
+        "dockerhub",
         "github",
         "serena",
         "supabase",
@@ -201,6 +207,8 @@ def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> N
     assert set(provider_schema["properties"]["provider_id"]["enum"]) == {
         "context7-mcp",
         "control-center",
+        "dbhub",
+        "dockerhub-mcp",
         "github-mcp",
         "serena-mcp",
         "supabase",
