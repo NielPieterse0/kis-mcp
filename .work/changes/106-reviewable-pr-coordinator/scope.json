@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "106-reviewable-pr-coordinator",
-  "status": "active",
+  "status": "closed",
   "branch": "change/106-reviewable-pr-coordinator",
   "worktree": ".work/worktrees/106-reviewable-pr-coordinator",
   "base": "main",

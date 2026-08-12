@@ -12,6 +12,7 @@
 - [x] Attempt bounded specialist review and record exact backend failures.
 - [x] Run canonical `pwsh -NoProfile -File scripts/verify.ps1` on final state.
 - [x] Reconcile closeout evidence; commit exact verified state after the final verifier rerun.
-- [ ] Publish clean remote-main-rooted Slice 7 PR and verify exact file set/head.
-- [ ] Exact-head merge, exact-head remote branch deletion, and governed local cleanup.
-- [ ] Reconcile the full seven-slice programme without modifying concurrent change 105.
+- [x] Publish clean remote-main-rooted Slice 7 PR and verify exact file set/head.
+- [x] Exact-head merge and exact-head remote branch deletion.
+- [ ] Complete governed local cleanup after closed-status lifecycle reconciliation.
+- [ ] Reconcile the full seven-slice programme without modifying concurrent work.
