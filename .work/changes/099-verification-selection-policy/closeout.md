@@ -30,9 +30,9 @@
 
 - Branch: `change/099-verification-selection-policy`.
 - Worktree: `.work/worktrees/099-verification-selection-policy`.
-- Implementation commit: pending.
-- Pull request/merge: pending.
-- Final closeout reconciliation and governed cleanup: pending implementation merge.
+- Implementation commit: `e0e2214a73fb6713f21354214c18772739f23255` locally; clean file-equivalent GitHub delivery head `32dcaf626ab0f423aaa7590c14adf609c4fdafe0`.
+- Pull request/merge: replacement PR #118 merged by exact approved head after closing superseded PR #115.
+- Final closeout reconciliation and governed cleanup: remote branch deleted recoverably; local implementation merged to `main`; worktree and local branch removed non-forced.
 
 ## Residual items
 
