@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "max_authority_documents": 24,
+  "max_file_bytes": 200000,
+  "max_findings": 100,
+  "min_duplicate_paragraph_chars": 140,
+  "enabled_rules": [
+    "authority-order",
+    "documentation-ownership",
+    "owner-reference-integrity",
+    "duplicate-owner",
+    "duplicate-current-fact",
+    "current-implementation-drift"
+  ]
+}
