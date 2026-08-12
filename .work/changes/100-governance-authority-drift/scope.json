@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "change_id": "100-governance-authority-drift",
+  "status": "closed",
+  "branch": "change/100-governance-authority-drift",
+  "worktree": ".work/worktrees/100-governance-authority-drift",
+  "base": "main",
+  "outcome": "Implement bounded deterministic Govern authority and documentation drift evaluation as an advisory read-only module without Work-policy authority",
+  "owned_paths": [
+    "src/kis_mcp/govern/**",
+    "tests/govern/**",
+    "settings/governance.settings.json",
+    "contracts/governance/**",
+    ".work/changes/100-governance-authority-drift/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

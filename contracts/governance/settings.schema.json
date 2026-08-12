@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "kis-mcp governance settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "enabled", "max_authority_documents", "max_file_bytes", "max_findings", "min_duplicate_paragraph_chars", "enabled_rules"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "max_authority_documents": {"type": "integer", "minimum": 1, "maximum": 100},
+    "max_file_bytes": {"type": "integer", "minimum": 1024, "maximum": 1000000},
+    "max_findings": {"type": "integer", "minimum": 1, "maximum": 1000},
+    "min_duplicate_paragraph_chars": {"type": "integer", "minimum": 80, "maximum": 2000},
+    "enabled_rules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"enum": ["authority-order", "documentation-ownership", "owner-reference-integrity", "duplicate-owner", "duplicate-current-fact", "current-implementation-drift"]}
+    }
+  }
+}
