@@ -28,9 +28,11 @@
 - Branch: `change/092-codex-independent-review`
 - Worktree: `.work/worktrees/092-codex-independent-review`
 - Candidate implementation commit: `fcbacb4783466b4eacffd1d8ebb215393e51e920`.
-- Candidate exact-state verification passed before that commit; this closeout metadata update is the only subsequent tracked change.
-- Merge/cleanup: performed after this metadata commit from clean primary `main` through the governed change workflow.
+- Pre-integration closeout commit: `25b9ca7e18eef1a8cb7dd1aa917e252675a506c7`.
+- First integration merge on clean primary `main`: `78ce5a7a189b4fe9bd3bdc5927f1d7ad5eed528b`.
+- Canonical `scripts/verify.ps1` passed again on that exact integrated head with pytest exit `0` and the exact three-rule configuration intact.
+- This closed-scope metadata commit is merged after the first integration; governed cleanup follows only after the branch is fully merged.
 
 ## Residual items
 
-- None required for the approved 092 outcome; integration and cleanup are procedural post-metadata steps and do not change implementation content.
+- None required for the approved 092 outcome. Remaining merge/cleanup/publication steps are procedural and do not change implementation behavior.

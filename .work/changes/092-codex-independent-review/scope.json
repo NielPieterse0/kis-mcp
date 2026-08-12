@@ -1,7 +1,7 @@
 {
     "schema_version":  1,
     "change_id":  "092-codex-independent-review",
-    "status":  "active",
+    "status":  "closed",
     "branch":  "change/092-codex-independent-review",
     "worktree":  ".work/worktrees/092-codex-independent-review",
     "base":  "main",

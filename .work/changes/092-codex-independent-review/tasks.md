@@ -9,4 +9,6 @@
 - [x] Update current specification/operations documentation.
 - [x] Run scope validation, focused tests, review, and full repository verification.
 - [x] Commission managed Codex authentication/reviews and non-interactive startup to the extent allowed by the local supervised environment.
-- [ ] Record closeout, integrate safely, and clean only 092-owned state.
+- [x] Record closeout, integrate safely, and clean only 092-owned state.
+
+Post-branch worktree removal is performed only after this closed-scope metadata commit is merged; it creates no tracked repository content.
