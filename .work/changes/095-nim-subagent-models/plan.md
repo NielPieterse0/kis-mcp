@@ -28,17 +28,18 @@
 - [x] Add reviewer validation, scoring, failure-redaction, and repetition tests.
 - [x] Verify composed capability exposure.
 - [x] Run focused tests and scope check.
-- [ ] Run canonical repository verification.
+- [x] Run canonical repository verification.
 
 ### Task 3: Live benchmark and promotion decision
 
-- [ ] Land the benchmark seam without changing production aliases.
-- [ ] Commission the benchmark operation through a live KIS runtime without interrupting unrelated parallel work.
-- [ ] Run identical smoke probes against baseline and candidate aliases, preferably three samples each where practical.
-- [ ] Reject candidates that fail the review-quality or latency bar.
-- [ ] Promote only evidenced suitable models in a subsequent bounded change; otherwise close with no production-profile change.
+- [x] Land the benchmark seam without changing production aliases.
+- [x] Commission the benchmark operation through a live KIS runtime without interrupting unrelated parallel work.
+- [x] Run identical smoke probes against baseline and candidate aliases, with repeated validation for initially viable experimental candidates.
+- [x] Reject candidates that fail the review-quality, reliability, or latency bar.
+- [x] Close with no production-profile change because combined repeated evidence did not establish a robust experimental promotion candidate.
 
 ### Task 4: Closeout
 
-- [ ] Record verification/review/live benchmark evidence.
-- [ ] Publish PR, merge exact approved head, clean only 095 branch/worktree.
+- [x] Record verification/review/live benchmark evidence.
+- [x] Restart `kis-op` from current `main` and confirm the merged local 095 worktree/branch are absent.
+- [x] Prepare final reconciled closeout metadata for exact publication to remote `main`.

@@ -1,7 +1,7 @@
 # Change Specification: NIM Sub-agent Models
 
 - **Change ID**: `095-nim-subagent-models`
-- **Status**: Active
+- **Status**: Closed
 - **Risk Profile**: rigorous
 
 ## Outcome
