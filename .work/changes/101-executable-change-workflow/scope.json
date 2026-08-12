@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "change_id": "101-executable-change-workflow",
+  "status": "active",
+  "branch": "change/101-executable-change-workflow",
+  "worktree": ".work/worktrees/101-executable-change-workflow",
+  "base": "main",
+  "outcome": "Execute bounded change-aware verification selections and specialist reviews through existing KIS tool contracts without arbitrary command or policy authority",
+  "owned_paths": [
+    "src/kis_mcp/workflows/change_execution/**",
+    "src/kis_mcp/workflows/verification/platform.py",
+    "tests/workflows/change_execution/**",
+    "tests/discover/test_tool_registration.py",
+    ".work/changes/101-executable-change-workflow/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
