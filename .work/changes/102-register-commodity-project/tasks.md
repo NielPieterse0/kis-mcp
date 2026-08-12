@@ -8,4 +8,4 @@
 - [x] Run `pwsh -File scripts/verify.ps1`: canonical verification passed.
 - [x] Record bounded manual review and validation evidence.
 - [x] Commit, publish PR #120, merge the exact approved head, and delete the remote implementation branch recoverably.
-- [ ] Merge this closed-state record and run safe local cleanup from `main`.
+- [x] Merge the closed-state record and run safe local cleanup from `main`.
