@@ -14,10 +14,16 @@ from ...discover.git_reader import GitReader
 from ...discover.intelligence import ProjectIntelligenceService
 from ...discover.read_authority import ReadAuthority
 from ...discover.service import InspectProjectService
+from ...projects.settings import load_project_registry_settings
 from ..change_execution import (
     ChangeExecutionInvocationError,
     ChangeExecutionService,
     register_change_execution_tool,
+)
+from ..completion import (
+    CompletionCoordinator,
+    CompletionInvocationError,
+    register_completion_tool,
 )
 from .execution import VerificationExecutionService
 from .selection import VerificationSelectionService
@@ -45,6 +51,7 @@ def register_platform_verification(
     runtime: RuntimeConfig,
 ) -> None:
     boundary = Path(runtime.project_boundary)
+    projects = load_project_registry_settings(boundary=runtime.project_boundary)
     intelligence = ProjectIntelligenceService(
         boundary=boundary,
         settings=runtime.discover_settings,
@@ -76,6 +83,25 @@ def register_platform_verification(
             raise ChangeExecutionInvocationError(code, reason) from exc
         return _structured_payload(result)
 
+    async def completion_invoker(
+        tool_name: str,
+        arguments: dict[str, Any],
+    ) -> dict[str, Any]:
+        try:
+            result = await _run_with_middleware(server, tool_name, arguments)
+        except ToolError as exc:
+            code, reason = _nested_error(exc)
+            raise CompletionInvocationError(code, reason) from exc
+        payload = getattr(result, "structured_content", None)
+        if isinstance(payload, Mapping):
+            return dict(payload)
+        if isinstance(result, Mapping):
+            return dict(result)
+        raise CompletionInvocationError(
+            "COMPLETION_NESTED_RESULT_INVALID",
+            "Nested completion operation returned no structured object result.",
+        )
+
     register_verification_selection_tool(
         server,
         VerificationSelectionService(analyzer=analyzer, inspector=inspector),
@@ -87,6 +113,13 @@ def register_platform_verification(
     register_change_execution_tool(
         server,
         ChangeExecutionService(structured_invoker),
+    )
+    register_completion_tool(
+        server,
+        CompletionCoordinator(
+            completion_invoker,
+            lambda project_id: projects.project(project_id).local_root,
+        ),
     )
 
 

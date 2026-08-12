@@ -273,6 +273,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "run_verification",
         "select_change_verification",
         "execute_change_workflow",
+        "prepare_reviewable_pull_request",
         "validate_agent_configuration",
         "kis_health",
         "kis_list_projects",

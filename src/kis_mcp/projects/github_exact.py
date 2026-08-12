@@ -1,6 +1,6 @@
-from __future__ import annotations
-
 """Exact GitHub operations for centrally registered repositories."""
+
+from __future__ import annotations
 
 import json
 import os
@@ -448,6 +448,100 @@ class RegisteredGitHubOperations:
             "publication_semantics": "remote-default-rooted-tree-equivalent",
         }
 
+    def create_pull_request(
+        self,
+        *,
+        project_id: str,
+        branch: str,
+        expected_head: str,
+        expected_remote_default: str,
+        title: str,
+        body: str,
+        approved: bool,
+    ) -> dict[str, object]:
+        self._require_approval(approved)
+        project, repository, remote_url = self._target(project_id)
+        cwd = Path(project.local_root)
+        branch_name = self._validate_branch(branch, cwd)
+        head_sha = self._require_sha(expected_head, "expected_head")
+        default_sha = self._require_sha(expected_remote_default, "expected_remote_default")
+        if not isinstance(title, str):
+            raise ToolError("INVALID_PULL_REQUEST_TITLE: title must be a string")
+        title_text = title.strip()
+        if not title_text or len(title_text) > 256:
+            raise ToolError("INVALID_PULL_REQUEST_TITLE: title must contain 1 to 256 characters")
+        if not isinstance(body, str) or len(body) > 20_000:
+            raise ToolError("INVALID_PULL_REQUEST_BODY: body must be a string of at most 20000 characters")
+
+        self._authenticate(cwd)
+        default_branch = self._default_branch(remote_url, cwd)
+        if branch_name.casefold() == default_branch.casefold():
+            raise ToolError("DEFAULT_BRANCH_PULL_REQUEST_BLOCKED: review branch must not be the default branch")
+        default_ref = f"refs/heads/{default_branch}"
+        observed_default = self._remote_branch_sha(remote_url, default_ref, cwd)
+        if observed_default != default_sha:
+            raise ToolError(
+                f"REMOTE_DEFAULT_MISMATCH: expected {default_sha}, observed {observed_default or '<absent>'}"
+            )
+        target_ref = f"refs/heads/{branch_name}"
+        observed_head = self._remote_branch_sha(remote_url, target_ref, cwd)
+        if observed_head != head_sha:
+            raise ToolError(
+                f"REMOTE_HEAD_MISMATCH: expected {head_sha}, observed {observed_head or '<absent>'}"
+            )
+
+        existing_result = self._run(
+            (
+                "gh", "pr", "list", "--repo", repository,
+                "--head", branch_name, "--base", default_branch,
+                "--state", "open", "--json", "number,headRefOid,baseRefName,state,isDraft",
+            ),
+            cwd,
+        )
+        try:
+            existing = json.loads(str(getattr(existing_result, "stdout", "")))
+        except json.JSONDecodeError as exc:
+            raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: gh returned invalid JSON") from exc
+        if not isinstance(existing, list):
+            raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: gh returned a non-array PR list")
+        if existing:
+            raise ToolError("OPEN_PULL_REQUEST_EXISTS: an open pull request already exists for this head/base")
+
+        create_result = self._run(
+            (
+                "gh", "pr", "create", "--repo", repository,
+                "--head", branch_name, "--base", default_branch,
+                "--title", title_text, "--body", body,
+            ),
+            cwd,
+        )
+        created_url = str(getattr(create_result, "stdout", "")).strip()
+        match = re.search(r"/pull/(\d+)(?:\?.*)?$", created_url)
+        if match is None:
+            raise ToolError("PULL_REQUEST_CREATE_UNVERIFIABLE: gh did not return a pull request URL")
+        pull_number = int(match.group(1))
+        after = self._pr_view(repository, pull_number, cwd)
+        after_head = str(after.get("headRefOid", "")).lower()
+        if (
+            after.get("state") != "OPEN"
+            or after.get("isDraft") is True
+            or after_head != head_sha
+            or after.get("baseRefName") != default_branch
+        ):
+            raise ToolError("PULL_REQUEST_CREATE_NOT_VERIFIED: created pull request state/head/base mismatch")
+        return {
+            "schema_version": 1,
+            "state": "open",
+            "project_id": project.project_id,
+            "repository": repository,
+            "pull_number": pull_number,
+            "url": str(after.get("url") or created_url),
+            "branch": branch_name,
+            "head_sha": head_sha,
+            "base_branch": default_branch,
+            "base_sha": default_sha,
+        }
+
     def _pr_view(self, repository: str, pull_number: int, cwd: Path) -> dict[str, object]:
         result = self._run(
             (
@@ -458,7 +552,7 @@ class RegisteredGitHubOperations:
                 "--repo",
                 repository,
                 "--json",
-                "headRefOid,state,isDraft",
+                "number,url,headRefOid,baseRefName,state,isDraft",
             ),
             cwd,
         )
@@ -614,6 +708,28 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
         ],
         "additionalProperties": False,
     },
+    "kis_github_create_registered_pull_request": {
+        "type": "object",
+        "properties": {
+            "project_id": {"type": "string"},
+            "branch": {"type": "string"},
+            "expected_head": {"type": "string"},
+            "expected_remote_default": {"type": "string"},
+            "title": {"type": "string", "minLength": 1, "maxLength": 256},
+            "body": {"type": "string", "maxLength": 20000},
+            "approved": {"type": "boolean"},
+        },
+        "required": [
+            "project_id",
+            "branch",
+            "expected_head",
+            "expected_remote_default",
+            "title",
+            "body",
+            "approved",
+        ],
+        "additionalProperties": False,
+    },
     "kis_github_merge_registered_pull_request": {
         "type": "object",
         "properties": {
@@ -683,6 +799,7 @@ def _validated_arguments(
         "expected_remote_default",
         "expected_head",
         "merge_method",
+        "title",
     ):
         if name in values and (not isinstance(values[name], str) or not values[name].strip()):
             raise ToolError(
@@ -693,6 +810,12 @@ def _validated_arguments(
             raise ToolError(
                 f"INVALID_REGISTERED_GITHUB_ARGUMENTS: {name} must be a string or null"
             )
+    if "title" in values and len(values["title"].strip()) > 256:
+        raise ToolError("INVALID_REGISTERED_GITHUB_ARGUMENTS: title is too long")
+    if "body" in values and (
+        not isinstance(values["body"], str) or len(values["body"]) > 20_000
+    ):
+        raise ToolError("INVALID_REGISTERED_GITHUB_ARGUMENTS: body must be a string of at most 20000 characters")
     if "pull_number" in values and (
         isinstance(values["pull_number"], bool)
         or not isinstance(values["pull_number"], int)
@@ -737,6 +860,16 @@ def execute_registered_github_operation(
             branch=values["branch"],
             expected_remote_default=values["expected_remote_default"],
             expected_remote_branch=values["expected_remote_branch"],
+            approved=values["approved"],
+        )
+    if operation == "kis_github_create_registered_pull_request":
+        return service.create_pull_request(
+            project_id=values["project_id"],
+            branch=values["branch"],
+            expected_head=values["expected_head"],
+            expected_remote_default=values["expected_remote_default"],
+            title=values["title"],
+            body=values["body"],
             approved=values["approved"],
         )
     if operation == "kis_github_merge_registered_pull_request":

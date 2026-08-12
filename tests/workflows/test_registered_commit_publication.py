@@ -438,3 +438,189 @@ def test_reconcile_publish_rejects_remote_tree_mismatch_before_commit_or_push() 
     assert not any(command[:2] == ("git", "commit-tree") for command in commands)
     assert not any("push" in command for command in commands)
     assert runner.results == []
+
+
+def test_create_registered_pull_request_requires_approval_before_commands() -> None:
+    runner = QueueRunner(())
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="APPROVAL_REQUIRED"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="feature/example",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=False,
+        )
+
+    assert runner.calls == []
+
+
+def test_create_registered_pull_request_requires_exact_remote_state() -> None:
+    default_ref = "refs/heads/main"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{OTHER}\t{default_ref}\n"),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+    with pytest.raises(ToolError, match="REMOTE_DEFAULT_MISMATCH"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="feature/example",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
+
+
+def test_create_registered_pull_request_rejects_existing_open_pr() -> None:
+    default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
+        Result(stdout=f"{TARGET}\t{target_ref}\n"),
+        Result(stdout='[{"number":7,"headRefOid":"1111111111111111111111111111111111111111","baseRefName":"main","state":"OPEN","isDraft":false}]\n'),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+    with pytest.raises(ToolError, match="OPEN_PULL_REQUEST_EXISTS"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="feature/example",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
+
+
+def test_create_registered_pull_request_verifies_exact_open_pr() -> None:
+    default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
+        Result(stdout=f"{TARGET}\t{target_ref}\n"),
+        Result(stdout="[]\n"),
+        Result(stdout="https://github.com/nielpieterse0/college/pull/9\n"),
+        Result(stdout='{"number":9,"url":"https://github.com/nielpieterse0/college/pull/9","headRefOid":"1111111111111111111111111111111111111111","baseRefName":"main","state":"OPEN","isDraft":false}\n'),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.create_pull_request(
+        project_id="college",
+        branch="feature/example",
+        expected_head=TARGET,
+        expected_remote_default=REMOTE_DEFAULT,
+        title="Review exact change",
+        body="Ready for review.",
+        approved=True,
+    )
+
+    assert result["state"] == "open"
+    assert result["pull_number"] == 9
+    assert result["head_sha"] == TARGET
+    assert result["base_branch"] == "main"
+    commands = [call[0] for call in runner.calls]
+    create = commands[6]
+    assert create == (
+        "gh", "pr", "create", "--repo", "nielpieterse0/college",
+        "--head", "feature/example", "--base", "main",
+        "--title", "Review exact change", "--body", "Ready for review.",
+    )
+    assert all("merge" not in command for command in commands)
+    assert all("delete" not in command for command in commands)
+    assert runner.results == []
+
+
+def test_create_registered_pull_request_refuses_default_branch() -> None:
+    default_ref = "refs/heads/main"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="DEFAULT_BRANCH_PULL_REQUEST_BLOCKED"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="main",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
+
+
+def test_create_registered_pull_request_rejects_stale_review_head() -> None:
+    default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
+        Result(stdout=f"{OTHER}\t{target_ref}\n"),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="REMOTE_HEAD_MISMATCH"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="feature/example",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
+
+
+def test_create_registered_pull_request_rejects_unverified_created_head() -> None:
+    default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
+        Result(stdout=f"{TARGET}\t{target_ref}\n"),
+        Result(stdout="[]\n"),
+        Result(stdout="https://github.com/nielpieterse0/college/pull/9\n"),
+        Result(stdout='{"number":9,"url":"https://github.com/nielpieterse0/college/pull/9","headRefOid":"3333333333333333333333333333333333333333","baseRefName":"main","state":"OPEN","isDraft":false}\n'),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="PULL_REQUEST_CREATE_NOT_VERIFIED"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="feature/example",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+        )
+
+    assert runner.results == []
