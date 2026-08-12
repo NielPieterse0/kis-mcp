@@ -50,6 +50,80 @@
         "projects": []
       },
       "supabase": null
+    },
+    {
+      "project_id": "chatgpt-skill",
+      "display_name": "ChatGPT-skill",
+      "local_root": "C:\\Projects\\ChatGPT-skill",
+      "github": {
+        "repository": "NielPieterse0/chatgpt-skill",
+        "projects": []
+      },
+      "supabase": null
+    },
+    {
+      "project_id": "import-isolate",
+      "display_name": "import-isolate",
+      "local_root": "C:\\Projects\\import-isolate",
+      "github": null,
+      "supabase": null
+    },
+    {
+      "project_id": "doc-solution",
+      "display_name": "doc-solution",
+      "local_root": "C:\\Projects\\doc-solution",
+      "github": {
+        "repository": "NielPieterse0/doc-solution",
+        "projects": []
+      },
+      "supabase": null
+    },
+    {
+      "project_id": "app-builder",
+      "display_name": "app-builder",
+      "local_root": "C:\\Projects\\app-builder",
+      "github": null,
+      "supabase": null
+    },
+    {
+      "project_id": "app-dev-core",
+      "display_name": "app-dev-core",
+      "local_root": "C:\\Projects\\app-builder\\app-dev-core",
+      "github": {
+        "repository": "NielPieterse0/app-dev-core",
+        "projects": []
+      },
+      "supabase": null
+    },
+    {
+      "project_id": "mi-fi",
+      "display_name": "Mi-Fi",
+      "local_root": "C:\\Projects\\app-builder\\mi-fi",
+      "github": {
+        "repository": "NielPieterse0/mi-fi",
+        "projects": []
+      },
+      "supabase": null
+    },
+    {
+      "project_id": "prose2llm",
+      "display_name": "Prose2LLM",
+      "local_root": "C:\\Projects\\app-builder\\Prose2LLM",
+      "github": {
+        "repository": "NielPieterse0/Prose2LLM",
+        "projects": []
+      },
+      "supabase": null
+    },
+    {
+      "project_id": "signal",
+      "display_name": "Signal",
+      "local_root": "C:\\Projects\\app-builder\\signal",
+      "github": {
+        "repository": "NielPieterse0/signal",
+        "projects": []
+      },
+      "supabase": null
     }
   ]
 }

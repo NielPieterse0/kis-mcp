@@ -111,12 +111,16 @@ nav span {{ padding: 4px 8px; border-radius: 999px; background: var(--kis-surfac
 .action code {{ display: block; margin-top: 4px; overflow-wrap: anywhere; }}
 @media (max-width: 820px) {{
   .card {{ grid-column: 1 / -1; }}
+  .metrics {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
   header {{ display: block; }}
   .timestamp {{ margin-top: 7px; }}
 }}
 @media (max-width: 560px) {{
   main {{ padding: 10px; }}
-  nav {{ position: static; }}
+  nav {{ position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+  nav span {{ text-align: center; overflow-wrap: anywhere; }}
+  .metrics {{ grid-template-columns: 1fr; }}
+  .timestamp {{ white-space: normal; }}
   .row {{ grid-template-columns: 1fr; gap: 3px; }}
 }}
 </style>
@@ -137,13 +141,18 @@ nav span {{ padding: 4px 8px; border-radius: 999px; background: var(--kis-surfac
 def _overview_section(snapshot: ControlCenterSnapshot) -> str:
     process_count = len(snapshot.observability.active_processes)
     search_count = len(snapshot.observability.active_searches)
+    mounted_provider_value: object = (
+        sum(item.mounted for item in snapshot.provider_runtime)
+        if snapshot.provider_runtime
+        else "Unavailable"
+    )
     metrics = (
         _metric("Product", snapshot.runtime.product),
         _metric("Runtime", _label(snapshot.runtime.status)),
         _metric("Project", snapshot.project.path),
         _metric("Git branch", snapshot.project.git.branch or "Unknown"),
         _metric("Pending approvals", len(snapshot.approvals)),
-        _metric("Mounted providers", sum(item.mounted for item in snapshot.provider_runtime)),
+        _metric("Mounted providers", mounted_provider_value),
         _metric("Active processes", process_count),
         _metric("Active searches", search_count),
     )
@@ -189,7 +198,7 @@ def _project_section(snapshot: ControlCenterSnapshot) -> str:
 def _policy_section(snapshot: ControlCenterSnapshot) -> str:
     rules = "".join(
         _entry(
-            f"{rule.rule_id} · {rule.name}",
+            f"{rule.rule_id} &middot; {rule.name}",
             rule.prohibited_outcome,
             badges=((_label(rule.decision), "warn"),),
         )
@@ -197,7 +206,7 @@ def _policy_section(snapshot: ControlCenterSnapshot) -> str:
     ) or _empty("Policy rules were unavailable.")
     approvals = "".join(
         _entry(
-            f"{item.approval_id} · {item.title}",
+            f"{item.approval_id} &middot; {item.title}",
             item.detail,
             badges=((_label(item.status), "warn"),),
         )
@@ -221,7 +230,7 @@ def _policy_section(snapshot: ControlCenterSnapshot) -> str:
 def _providers_section(snapshot: ControlCenterSnapshot) -> str:
     configured = "".join(
         _entry(
-            f"{item.provider_id} · {item.namespace}",
+            f"{item.provider_id} &middot; {item.namespace}",
             item.action,
             badges=(
                 ("Enabled" if item.enabled else "Disabled", "good" if item.enabled else "warn"),
@@ -266,7 +275,7 @@ def _provider_runtime_entry(item: object) -> str:
         if detail_rows:
             detail += f'<div class="entries">{detail_rows}</div>'
     return _entry(
-        f"{provider.provider_id} · {provider.namespace}",
+        f"{provider.provider_id} &middot; {provider.namespace}",
         detail,
         badges=tuple(extra_badges),
         detail_is_html=True,
@@ -276,8 +285,8 @@ def _provider_runtime_entry(item: object) -> str:
 def _runtime_activity_section(snapshot: ControlCenterSnapshot) -> str:
     processes = "".join(
         _entry(
-            f"PID {item.pid} · {item.shell}",
-            f"{item.cwd} · interactions {item.interaction_count} · last seen {item.last_seen_at}",
+            f"PID {item.pid} &middot; {item.shell}",
+            f"{item.cwd} &middot; interactions {item.interaction_count} &middot; last seen {item.last_seen_at}",
             badges=(("Active", "good"),),
         )
         for item in snapshot.observability.active_processes
@@ -285,7 +294,7 @@ def _runtime_activity_section(snapshot: ControlCenterSnapshot) -> str:
     searches = "".join(
         _entry(
             item.search_id,
-            f"{item.tool_name} · last seen {item.last_seen_at}",
+            f"{item.tool_name} &middot; last seen {item.last_seen_at}",
             badges=(("Active", "good"),),
         )
         for item in snapshot.observability.active_searches
@@ -300,6 +309,11 @@ def _runtime_activity_section(snapshot: ControlCenterSnapshot) -> str:
 
 
 def _recent_calls_section(snapshot: ControlCenterSnapshot) -> str:
+    boundary = "".join(
+        _boundary_entry(item) for item in snapshot.observability.recent_boundary_requests
+    )
+    if not boundary:
+        boundary = _empty("No recent MCP boundary requests are recorded in this gateway process.")
     calls = "".join(_call_entry(item) for item in snapshot.observability.recent_calls)
     if not calls:
         calls = _empty("No recent calls are recorded in this gateway process.")
@@ -311,11 +325,23 @@ def _recent_calls_section(snapshot: ControlCenterSnapshot) -> str:
     return _section(
         "Recent Calls",
         (
-            "<p>Only tool names, argument key names, decisions, and outcomes are retained. Argument values and result bodies are excluded.</p>"
+            "<p>Only protocol methods, tool names, argument key names, decisions, outcomes, and bounded correlation IDs are retained. Argument values and result bodies are excluded.</p>"
+            f'<h3>MCP boundary requests</h3><div class="entries">{boundary}</div>'
             f'<h3>Recent tool calls</h3><div class="entries">{calls}</div>'
             f'<h3>Recent policy decisions</h3><div class="entries">{policy}</div>'
         ),
     )
+
+
+def _boundary_entry(item: object) -> str:
+    title = item.method if not item.tool_name else f"{item.method}: {item.tool_name}"
+    badges: list[tuple[object, str]] = [
+        (item.request_id, "neutral"),
+        (_label(item.outcome), "good" if item.outcome == "success" else "warn"),
+    ]
+    if item.error_type:
+        badges.append((item.error_type, "warn"))
+    return _entry(title, item.timestamp, badges=tuple(badges))
 
 
 def _call_entry(item: object) -> str:
@@ -328,7 +354,7 @@ def _call_entry(item: object) -> str:
         badges.append((item.code, "warn"))
     return _entry(
         item.tool_name,
-        f"Arguments: {keys} · {item.timestamp}",
+        f"{item.call_id} | Arguments: {keys} | {item.timestamp}",
         badges=tuple(badges),
     )
 
@@ -344,7 +370,7 @@ def _quarantine_section(snapshot: ControlCenterSnapshot) -> str:
     records = "".join(
         _entry(
             item.operation_id,
-            f"{item.original_path} · {item.item_type}",
+            f"{item.original_path} &middot; {item.item_type}",
             badges=(("Restored" if item.restored else "Recoverable", "good"),),
         )
         for item in snapshot.quarantine_records
@@ -442,7 +468,7 @@ def _label(value: object) -> str:
 def _working_tree_label(snapshot: ControlCenterSnapshot) -> str:
     git = snapshot.project.git
     if git.dirty is True:
-        return f"Dirty · {git.changed_files or 0} changed"
+        return f"Dirty &middot; {git.changed_files or 0} changed"
     if git.dirty is False:
         return "Clean"
     return "Unknown"

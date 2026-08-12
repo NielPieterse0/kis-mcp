@@ -22,6 +22,7 @@ from kis_mcp.control_center.contracts import (
 from kis_mcp.runtime_observability import (
     ActiveProcessRecord,
     ActiveSearchRecord,
+    BoundaryRequestRecord,
     RuntimeObservabilitySnapshot,
     ToolCallRecord,
 )
@@ -138,6 +139,7 @@ def sample_snapshot() -> ControlCenterSnapshot:
         observability=RuntimeObservabilitySnapshot(
             recent_calls=(
                 ToolCallRecord(
+                    call_id="call-000101",
                     timestamp="2026-08-05T02:59:00+00:00",
                     tool_name="read_file",
                     argument_keys=("path",),
@@ -148,12 +150,22 @@ def sample_snapshot() -> ControlCenterSnapshot:
             ),
             recent_policy_decisions=(
                 ToolCallRecord(
+                    call_id="call-000100",
                     timestamp="2026-08-05T02:58:00+00:00",
                     tool_name="execute_command",
                     argument_keys=("command",),
                     decision="block",
                     outcome="rejected",
                     code="HR-002_EXTERNAL_NETWORK",
+                ),
+            ),
+            recent_boundary_requests=(
+                BoundaryRequestRecord(
+                    request_id="request-000102",
+                    timestamp="2026-08-05T02:59:30+00:00",
+                    method="tools/call",
+                    outcome="success",
+                    tool_name="kis_health",
                 ),
             ),
             active_processes=(

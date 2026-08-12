@@ -32,7 +32,7 @@ from .readers import (
 from .settings import ControlCenterSettings
 
 _APPROVAL_HEADING_PATTERN = re.compile(
-    r"^##\s+([A-Za-z0-9-]+)\s+(?:—|-)\s+(.+?)\s*$",
+    r"^##\s+([A-Za-z0-9-]+)\s+(?:\u2014|-)\s+(.+?)\s*$",
     re.MULTILINE,
 )
 
@@ -297,6 +297,9 @@ class ControlCenterSnapshotService:
             recent_calls=snapshot.recent_calls[: self.settings.max_recent_calls],
             recent_policy_decisions=snapshot.recent_policy_decisions[
                 : self.settings.max_policy_decisions
+            ],
+            recent_boundary_requests=snapshot.recent_boundary_requests[
+                : self.settings.max_recent_calls
             ],
             active_processes=snapshot.active_processes[
                 : self.settings.max_active_processes

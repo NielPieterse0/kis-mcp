@@ -48,7 +48,7 @@ The adapter reports only provider arguments that are effective write destination
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-02 — Move source or destination outside the boundary
 
@@ -62,7 +62,7 @@ A move mutates directory entries at both the source and destination. Existing an
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-03 — Effective path through links or junctions
 
@@ -76,7 +76,7 @@ Content writes follow the effective final target. Entry mutations resolve existi
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-04 — Explicit shell output redirection
 
@@ -90,7 +90,7 @@ Recognized unquoted output redirections identify a concrete destination and are 
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-05 — Known write-command destination
 
@@ -104,7 +104,7 @@ Known copy, create, and PowerShell content-write contracts are used only to iden
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR1-06 — Mutating local Git operation outside the boundary
 
@@ -118,7 +118,7 @@ The resolver distinguishes supported read-only and mutating Git forms. For a res
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 
@@ -136,7 +136,7 @@ A known network-client executable is only a resolver hint. The resolver identifi
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-02 — Package operation with an explicit external source
 
@@ -150,7 +150,7 @@ Package-manager names, operation names, package names, lockfile actions, missing
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-03 — Git operation with an external remote
 
@@ -164,7 +164,7 @@ For `fetch`, `pull`, and `push`, named and default remotes are resolved from loc
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-04 — UNC or SCP-style external target
 
@@ -178,7 +178,7 @@ UNC and SCP-style strings are evaluated only when consumed as the actual target 
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR2-05 — Enabling Desktop Commander telemetry
 
@@ -192,7 +192,7 @@ The pinned provider interprets only boolean `false` and string `"false"` as tele
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 
@@ -212,7 +212,7 @@ Exact provider delete targets inside `C:\Projects` are moved intact to quarantin
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-02 — Known delete command with explicit operands
 
@@ -228,7 +228,7 @@ Known delete commands contribute delete effects only when explicit operands are 
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-03 — Destructive `git clean`
 
@@ -244,7 +244,7 @@ Dry-run forms are not blocked. A forced non-dry-run `git clean` proves permanent
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-04 — Delete target outside `C:\Projects`
 
@@ -260,7 +260,7 @@ Deleting an external directory entry is a write outside the approved boundary. E
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-05 — Delete the `C:\Projects` boundary itself
 
@@ -276,7 +276,7 @@ The project boundary cannot be moved beneath a quarantine directory located insi
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ## HR3-06 — Safe quarantine cannot be completed
 
@@ -292,7 +292,7 @@ Permanent deletion is never forwarded as fallback.
 
 **Recommended disposition:** Approve.
 
-**Operator decision:** [ ] Approve  [ ] Revise  [ ] Reject
+**Operator decision:** [x] Approve  [ ] Revise  [ ] Reject
 
 ---
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import asdict
-from typing import Any
 
 from pydantic import TypeAdapter
 
@@ -67,6 +66,12 @@ def test_public_response_json_schemas_are_bounded() -> None:
         "desktop_commander_installed",
         "policy_rules",
         "policy_fingerprint",
+        "runtime_instance",
+        "server_instance_id",
+        "server_started_at",
+        "source_revision",
+        "contract_fingerprint",
+        "transport",
         "implementation_status",
         "schema_version",
     }

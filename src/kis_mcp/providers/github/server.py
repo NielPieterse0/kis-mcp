@@ -103,12 +103,36 @@ def github_provider_health(
     )
 
 
+def _runtime_surface(environ: Mapping[str, str] | None) -> str | None:
+    env = os.environ if environ is None else environ
+    selected = str(env.get("KIS_MCP_RUNTIME_INSTANCE", "")).strip().casefold()
+    return {
+        "operation": "kis-op",
+        "op": "kis-op",
+        "kis-op": "kis-op",
+        "development": "kis-dev",
+        "dev": "kis-dev",
+        "kis-dev": "kis-dev",
+    }.get(selected)
+
+
 def github_provider_readiness(
     settings: GitHubProviderSettings,
     environ: Mapping[str, str] | None = None,
     startup_state: ProviderStartupState | None = None,
 ) -> ProviderReadiness:
     health = github_provider_health(settings, environ, startup_state)
+    runtime_surface = _runtime_surface(environ)
+    current_runtime = (
+        f"the current {runtime_surface} runtime"
+        if runtime_surface is not None
+        else "the current KIS runtime"
+    )
+    startup_runtime = (
+        f"when {runtime_surface} starts"
+        if runtime_surface is not None
+        else "when the KIS runtime starts"
+    )
     if not health.ready:
         state = ProviderState.UNAVAILABLE
         summary = "GitHub MCP is unavailable because the executable is not installed."
@@ -148,11 +172,11 @@ def github_provider_readiness(
         }
     elif health.authenticated == _VERIFIED:
         state = ProviderState.READY
-        summary = "GitHub MCP is authenticated for the current kis-op runtime."
+        summary = f"GitHub MCP is authenticated for {current_runtime}."
         user_status = {
             "state": "ready_authenticated",
             "label": "Ready — authenticated",
-            "required_action": "No authentication action is required for this running kis-op runtime.",
+            "required_action": f"No authentication action is required for {current_runtime}.",
         }
         commissioning = {
             "installed": "ready",
@@ -164,14 +188,12 @@ def github_provider_readiness(
         }
     else:
         state = ProviderState.READY
-        summary = (
-            "GitHub MCP is ready; one OAuth login is required when kis-op starts."
-        )
+        summary = f"GitHub MCP is ready; one OAuth login is required {startup_runtime}."
         user_status = {
             "state": "ready_authentication_required",
             "label": "Ready — authentication required",
             "required_action": (
-                "Sign in once when kis-op starts; GitHub operations then reuse the "
+                f"Sign in once {startup_runtime}; GitHub operations then reuse the "
                 "runtime-scoped connection."
             ),
         }

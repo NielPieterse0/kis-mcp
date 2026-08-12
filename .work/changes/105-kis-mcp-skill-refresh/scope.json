@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "change_id": "105-kis-mcp-skill-refresh",
+  "status": "closed",
+  "branch": "change/105-kis-mcp-skill-refresh",
+  "worktree": ".work/worktrees/105-kis-mcp-skill-refresh",
+  "base": "main",
+  "outcome": "Refresh the kis-mcp operator skill for recent workflow, verification, review, validation, and closeout capabilities while clearly marking Slice 7 completion coordination as in progress",
+  "owned_paths": [
+    ".agents/skills/kis-mcp/**",
+    ".work/changes/105-kis-mcp-skill-refresh/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}

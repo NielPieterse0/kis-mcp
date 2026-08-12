@@ -11,6 +11,10 @@ from .settings import AgnixValidationSettings
 
 Runner = Callable[[str, dict[str, Any]], Awaitable[Any]]
 _EXIT_MARKER = re.compile(r"(?m)^__KIS_AGNIX_EXIT_CODE=(-?\d+)\s*$")
+_FILE_LIMIT_ERROR = re.compile(
+    r"Too many files to validate:\s*(\d+)\s+files found,\s*limit is\s*(\d+)",
+    re.IGNORECASE,
+)
 
 
 class AgentValidationError(ValueError):
@@ -48,6 +52,13 @@ class AgentValidationService:
             raise AgentValidationError("AGNIX_OUTPUT_LIMIT", "agnix output exceeded the configured budget.")
         if exit_code is None:
             raise AgentValidationError("AGNIX_INCOMPLETE", "agnix did not produce a completed process result.")
+        file_limit = _FILE_LIMIT_ERROR.search(payload_text)
+        if file_limit is not None:
+            found, limit_value = (int(value) for value in file_limit.groups())
+            raise AgentValidationError(
+                "AGNIX_FILE_LIMIT_EXCEEDED",
+                f"agnix found {found} files, exceeding the requested limit {limit_value}.",
+            )
         payload = _json_payload(payload_text)
         if payload is None:
             raise AgentValidationError("AGNIX_OUTPUT_INVALID", "agnix did not return valid JSON output.")
@@ -128,20 +139,26 @@ def _nonnegative_int(value: Any, label: str) -> int:
 
 def _result_text(result: Any) -> str:
     parts: list[str] = []
+
     def visit(value: Any, depth: int) -> None:
         if value is None or depth > 4:
             return
         if isinstance(value, str):
-            parts.append(value); return
+            parts.append(value)
+            return
         if isinstance(value, Mapping):
             for key in ("text", "output", "content", "structured_content", "result"):
-                if key in value: visit(value[key], depth + 1)
+                if key in value:
+                    visit(value[key], depth + 1)
             return
         if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-            for item in value: visit(item, depth + 1)
+            for item in value:
+                visit(item, depth + 1)
             return
         for attribute in ("text", "content", "structured_content", "result"):
-            if hasattr(value, attribute): visit(getattr(value, attribute), depth + 1)
+            if hasattr(value, attribute):
+                visit(getattr(value, attribute), depth + 1)
+
     visit(result, 0)
     return "\n".join(part for part in parts if part).strip()
 
@@ -149,21 +166,26 @@ def _result_text(result: Any) -> str:
 def _result_pid(result: Any) -> int | None:
     if isinstance(result, Mapping):
         pid = result.get("pid")
-        if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0: return pid
+        if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0:
+            return pid
         for value in result.values():
             found = _result_pid(value)
-            if found is not None: return found
+            if found is not None:
+                return found
     if isinstance(result, Sequence) and not isinstance(result, (str, bytes, bytearray)):
         for value in result:
             found = _result_pid(value)
-            if found is not None: return found
+            if found is not None:
+                return found
     if hasattr(result, "pid"):
         pid = getattr(result, "pid")
-        if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0: return pid
+        if isinstance(pid, int) and not isinstance(pid, bool) and pid > 0:
+            return pid
     for attribute in ("content", "structured_content", "result"):
         if hasattr(result, attribute):
             found = _result_pid(getattr(result, attribute))
-            if found is not None: return found
+            if found is not None:
+                return found
     return None
 
 

@@ -430,13 +430,13 @@ The sequence remains architectural guidance, but several foundations are already
 | Capability | Status |
 |---|---|
 | Desktop Commander integration, three-rule policy, quarantine, and baseline contracts | Public and implemented. |
-| Repository-wide `inspect_project`, local Git evidence, and working-tree `inspect_change` | Public and implemented. |
-| Staged, commit, range, and branch change readers | Internally implemented; not exposed by the public `inspect_change` signature. |
+| Repository-wide `inspect_project`, local Git evidence, and bounded local-target `inspect_change` | Public and implemented. |
+| Staged, commit, range, and branch change readers | Public through the bounded `inspect_change` target contract. |
 | Context broker, impact graph, contract intelligence, project catalog, and provider-admission evidence | Internally implemented with versioned contracts; public composition remains target work. |
-| Provider registry, runtime-scoped provider client lifecycle, central project registry, registered GitHub/Supabase routing, GitHub, Supabase, and Control Center runtime mounting, and provider status | Public and implemented. |
+| Provider registry, runtime-scoped provider client lifecycle, central project registry, registered GitHub/Supabase routing, Context7/GitHub/Serena/Supabase/Control Center runtime mounting, and provider status | Public and implemented. |
 | Unified capability contributions, instance-scoped readiness, eligibility, explainable scoring, and progressive exposure | Public and implemented. |
 | Skills catalogue, capability-bearing runtime cards, and mutation workflow | Implemented; operations outside the direct profile remain discoverable. |
-| First-class workflow descriptors and recommendations | Implemented for eight current task workflows; general server-executed orchestration remains target work. |
+| First-class workflow descriptors and recommendations | Implemented for the current registered task workflows; broader general-purpose orchestration remains target work. |
 | NVIDIA/Codex advisory code-review workflow | Public and implemented; live backend commissioning is separate evidence. |
 | KIS Control Center | Implemented as a mounted and standalone read-only MCP App. |
 | AgentSys and agnix managed bootstrap | Implemented as supervised, version-pinned host tooling outside gateway composition. |

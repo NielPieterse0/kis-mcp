@@ -39,41 +39,56 @@ def test_project_registry_schema_matches_checked_in_contract() -> None:
     assert list(validator.iter_errors(invalid))
 
 
-def test_checked_in_registry_has_commodity_college_gpt_os_and_kis_bindings() -> None:
+def test_checked_in_registry_has_requested_workspace_bindings() -> None:
     registry = load_project_registry_settings(REGISTRY_PATH, boundary="C:\\Projects")
 
     assert registry.default_project_id == "kis-mcp"
     assert tuple(project.project_id for project in registry.projects) == (
+        "app-builder",
+        "app-dev-core",
+        "chatgpt-skill",
         "college",
         "commodity",
+        "doc-solution",
         "gpt-os",
+        "import-isolate",
         "kis-mcp",
+        "mi-fi",
+        "prose2llm",
+        "signal",
     )
+
     kis = registry.project("kis-mcp")
-    gpt = registry.project("gpt-os")
-    college = registry.project("college")
-    commodity = registry.project("commodity")
     assert kis.local_root == "C:\\Projects\\kis-mcp"
     assert kis.github is not None
     assert kis.github.repository == "nielpieterse0/kis-mcp"
     assert kis.github.projects[0].project_number == 1
     assert kis.supabase is not None
     assert kis.supabase.project_ref == "mmxuicfrdalymczdapjq"
-    assert gpt.local_root == "C:\\Projects\\GPT-OS"
-    assert gpt.github is not None
-    assert gpt.github.repository == "nielpieterse0/gpt-os"
-    assert gpt.supabase is None
-    assert college.local_root == "C:\\Projects\\college"
-    assert college.github is not None
-    assert college.github.repository == "nielpieterse0/college"
-    assert college.github.projects == ()
-    assert college.supabase is None
-    assert commodity.local_root == "C:\\Projects\\commodity"
-    assert commodity.github is not None
-    assert commodity.github.repository == "nielpieterse0/commodity"
-    assert commodity.github.projects == ()
-    assert commodity.supabase is None
 
+    expected = {
+        "app-builder": ("C:\\Projects\\app-builder", None),
+        "app-dev-core": ("C:\\Projects\\app-builder\\app-dev-core", "nielpieterse0/app-dev-core"),
+        "chatgpt-skill": ("C:\\Projects\\ChatGPT-skill", "nielpieterse0/chatgpt-skill"),
+        "college": ("C:\\Projects\\college", "nielpieterse0/college"),
+        "commodity": ("C:\\Projects\\commodity", "nielpieterse0/commodity"),
+        "doc-solution": ("C:\\Projects\\doc-solution", "nielpieterse0/doc-solution"),
+        "gpt-os": ("C:\\Projects\\GPT-OS", "nielpieterse0/gpt-os"),
+        "import-isolate": ("C:\\Projects\\import-isolate", None),
+        "mi-fi": ("C:\\Projects\\app-builder\\mi-fi", "nielpieterse0/mi-fi"),
+        "prose2llm": ("C:\\Projects\\app-builder\\Prose2LLM", "nielpieterse0/prose2llm"),
+        "signal": ("C:\\Projects\\app-builder\\signal", "nielpieterse0/signal"),
+    }
+    for project_id, (local_root, github_repository) in expected.items():
+        project = registry.project(project_id)
+        assert project.local_root == local_root
+        assert project.supabase is None
+        if github_repository is None:
+            assert project.github is None
+        else:
+            assert project.github is not None
+            assert project.github.repository == github_repository
+            assert project.github.projects == ()
 
 def test_registry_rejects_unknown_keys_and_boundary_escape(tmp_path: Path) -> None:
     payload = _checked_in()

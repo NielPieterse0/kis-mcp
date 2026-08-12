@@ -17,22 +17,22 @@ Start the local stdio gateway:
 pwsh -NoProfile -File .\scripts\start.ps1
 ```
 
-Start a ChatGPT-facing instance:
+Start a ChatGPT-facing instance with the canonical external selector:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\start-chatgpt.ps1 -Instance operation
-pwsh -NoProfile -File .\scripts\start-chatgpt.ps1 -Instance development
+pwsh -NoProfile -File .\scripts\start-chatgpt.ps1 kis-op
+pwsh -NoProfile -File .\scripts\start-chatgpt.ps1 kis-dev
 ```
 
-The supervised launcher owns only the selected instance's server/tunnel process
-and should leave the peer instance alone.
+The compatibility selectors `operation`, `op`, `development`, and `dev` resolve
+to the same configured instances. The supervised launcher owns only the selected
+instance's server/tunnel processes and leaves the peer instance alone.
 
-Startup hardening is being changed concurrently. When the checked-in/live
-`start-chatgpt.ps1` includes the 077 hardening, normal startup should not prompt
-for a generic vault unlock: server startup is direct and the tunnel credential
-is retrieved non-interactively from the current Windows user's approved
-credential entry. On an older instance, follow the current checked-in script and
-report the older behavior rather than presenting the pending change as deployed.
+Normal configured startup resolves required application-vault secrets through
+the verified current-user runtime unlock and injects them only into the selected
+child process. Provider OAuth may still require its documented supervised
+browser sign-in. Follow the checked-in launcher/status output when an older
+running revision behaves differently.
 
 ## Tunnel credential and profile
 
@@ -52,11 +52,10 @@ Use `-BackupExistingProfile` when intentionally replacing an existing profile.
 Use `-ValidateLiveEndpoint` only when the selected local MCP endpoint is already
 running and live validation is intended.
 
-Under the 077-hardened startup path, normal startup should not ask the operator
-to unlock the generic application vault. A missing tunnel credential remains a
-bounded startup/configuration problem; do not solve it by writing a secret into
-repository JSON or profile YAML. If 077 is not present in the running revision,
-describe that revision's behavior explicitly instead of silently assuming it.
+Normal startup should not require copying a tunnel secret or vault unlock into a
+prompt, command argument, repository JSON, or profile YAML. A missing tunnel
+credential remains a bounded startup/configuration problem; use the supervised
+credential/configuration scripts and retry the selected instance.
 
 ## Local ChatGPT transport smoke
 
@@ -96,10 +95,10 @@ commissioning when operator-supervised authentication is intended:
 pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
 ```
 
-Supabase onboarding is evolving toward project-neutral account OAuth plus
-explicit project routing. Use the **current checked-in** `auth-supabase-mcp.ps1`
-and `smoke-supabase-mcp.ps1` help/current operations guidance rather than
-persisting an older environment-variable recipe in this skill.
+Supabase onboarding uses account-scoped OAuth plus explicit registered-project
+routing. Use the checked-in `auth-supabase-mcp.ps1` and
+`smoke-supabase-mcp.ps1` helpers for preflight, authentication, and bounded live
+commissioning; do not reintroduce legacy PAT or implicit active-project routing.
 
 Never place PATs, OAuth tokens, refresh tokens, API keys, tunnel credentials, or
 provider-returned secrets in repository files or tool prompts.
@@ -157,6 +156,14 @@ pwsh -NoProfile -File .\scripts\change-workflow.ps1 cleanup <change-id>
 ```
 
 Cleanup refuses dirty or unmerged worktrees and does not force branch deletion.
+
+For change verification/review, prefer the current bounded change workflow when
+it is advertised rather than manually assembling arbitrary process commands.
+For PR preparation, active Slice 7 change `106-reviewable-pr-coordinator` targets
+`prepare_reviewable_pull_request`: exact commit verification, exact registered
+publication, exact PR creation/verification, then stop. Use it only after live
+capability discovery confirms it is deployed. PR merge, branch deletion, and
+worktree cleanup remain the separate safe-closeout path.
 
 ## Troubleshooting order
 

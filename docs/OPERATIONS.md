@@ -261,7 +261,7 @@ Current work-management routing uses the central registry binding for `kis-mcp` 
 
 Request limits are optional and may only narrow values in `settings.discover.limits`. For a root registered in `settings/projects.settings.json`, `inspect_project` creates or reuses the project/worktree generation under the configured Discover state root; `get_code_context`, `inspect_change` impact analysis, and `analyze_change` consume the same normalized intelligence. Generation applicability includes stable `project_id`, canonical/worktree identity, Git/source fingerprint, Discover settings/index fingerprints, and semantic-provider fingerprint. A stale, incompatible, or corrupt generation is never represented as current: it is refreshed on demand, with superseded/corrupt state retained recoverably. The result contains versioned repository, evidence, local Git, verification-discovery, Python-structure, persistent symbol/relationship, confidence, freshness, truncation, and handoff records. Verification declarations are evidence only: Discover does not execute repository code, tests, builds, or discovered commands.
 
-`inspect_change` is exposed through the same transports for bounded inspection of the current working tree:
+`inspect_change` is exposed through the same transports for bounded local working-tree, staged, commit, range, or branch evidence. Working-tree inspection is the default:
 
 ```json
 {
@@ -269,7 +269,17 @@ Request limits are optional and may only narrow values in `settings.discover.lim
 }
 ```
 
-The public result preserves staged, unstaged, untracked, rename, copy, delete, type-change, and conflict path evidence retained by the bounded Git reader. It adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. The public tool currently exposes only working-tree inspection. Internal contracts and services support staged, commit, range, and branch targets, context brokering, impact analysis, dependant evidence, affected tests, and verification handoffs, but those capabilities are not public tool parameters or operations on the current gateway. Pull-request and trusted remote evidence remain unavailable.
+For an exact local commit, supply the bounded target explicitly:
+
+```json
+{
+  "path": "C:\\Projects\\example",
+  "source": "commit",
+  "commit_ref": "HEAD"
+}
+```
+
+Range and branch targets use `source` plus `base_ref` and `head_ref`; staged inspection uses `source: "staged"`. The public result preserves rename, copy, delete, type-change, and conflict path evidence where applicable and adds a deterministic change fingerprint, conventional file classifications, affected top-level scopes, impact counts, diagnostics, explicit unknowns, confidence, and truncation state. All target readers use fixed local Git templates and remain read-only. Pull-request and trusted remote evidence are not fetched by `inspect_change`; supplied GitHub change context is handled only by the bounded `analyze_change` contract.
 
 `DISCOVER_*` errors are structural and corrective. They are not HR policy decisions. Resolve the reported path, unsafe link/reparse condition, unsupported or excessive request limit, unreadable text, Git metadata condition, or configured budget rather than changing `policy/kis-mcp.policy.json`.
 
@@ -436,7 +446,21 @@ The server reads `settings\control-center.settings.json` and exposes:
 - `open_kis_control_center` — a bounded structured local snapshot;
 - `ui://kis-mcp/control-center.html` — a self-contained local MCP App resource.
 
-The snapshot reports runtime identity, configured project and local Git state, the exact three-rule declaration, provider configuration with runtime-check requirements, bounded quarantine counts, verification guidance, and structural diagnostics. It performs no mutation or network access. Provider configuration does not prove provider authentication or commissioning, and verification remains unrecorded until current evidence is run.
+The snapshot reports runtime identity, configured project and local Git state, the exact three-rule declaration, provider configuration with runtime-check requirements, bounded quarantine counts, verification guidance, and structural diagnostics. It performs no mutation or network access. Provider configuration does not prove provider authentication or commissioning, and verification remains unrecorded until current evidence is run. When the standalone app has no owning gateway provider-status source, runtime mount state is reported as unavailable rather than inferred as zero mounted providers.
+
+## Diagnose long-lived ChatGPT tool binding
+
+KIS remote HTTP is stateless; do not add conversation leases or per-repository KIS runtimes to diagnose an old chat that loses tool use. `kis_health` exposes the current runtime identity, process-stable `server_instance_id` and `server_started_at`, source revision, public-contract fingerprint, and transport flags. Control Center **Recent Calls** retains bounded correlation records for `initialize`, `tools/list`, and `tools/call` plus existing tool names, argument key names, decisions, and outcomes. It does not retain prompts, argument values, result bodies, or credentials.
+
+When an old chat appears unable to use `kis-op` or `kis-dev`:
+
+1. Do not restart KIS first.
+2. Call `kis_health` from the old chat if possible and record only the returned fingerprint fields.
+3. Open a new chat against the same app/runtime and call the same `kis_health`.
+4. Open Control Center and compare recent MCP-boundary request IDs/timestamps for the two attempts.
+5. If the old attempt produced no inbound boundary record while the new attempt did, treat the evidence as a ChatGPT/app-binding failure outside the KIS request path. If both attempts reached KIS, diagnose the recorded outcome and exact server/contract fingerprint before restarting anything.
+
+This diagnostic distinguishes request arrival from KIS processing without changing the three-rule Work policy or logging conversation content.
 
 ## Commission Supabase OAuth
 

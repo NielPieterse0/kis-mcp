@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
+from kis_mcp.capabilities.surface import augment_with_runtime_surface
 from kis_mcp.providers import (
     ProviderBoundary,
     ProviderCapability,
@@ -11,7 +13,15 @@ from kis_mcp.providers import (
     ProviderRegistry,
     ProviderState,
 )
-from kis_mcp.providers.platform import provider_runtime_tools
+from kis_mcp.providers.platform import (
+    provider_capability_contributions,
+    provider_runtime_tools,
+)
+from kis_mcp.providers.serena import (
+    SerenaRuntimeAdapter,
+    load_serena_settings,
+    serena_provider_descriptor,
+)
 from kis_mcp.providers.runtime import (
     ProviderMountResult,
     ProviderMountState,
@@ -102,3 +112,52 @@ def test_runtime_tools_are_absent_when_provider_is_not_mounted() -> None:
         _service(upstream),
         _composition(ProviderMountState.DISABLED),
     ) == ()
+
+
+def test_serena_runtime_snapshot_keeps_public_semantic_operations_eligible() -> None:
+    root = Path(__file__).resolve().parents[2]
+    settings = load_serena_settings(root / "settings/providers/serena.provider.json")
+    adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(root))
+    adapter.runtime_tools.publish(
+        tuple(
+            SimpleNamespace(
+                name=name,
+                description=f"Serena {name}",
+                annotations={"readOnlyHint": True},
+                inputSchema={"type": "object", "properties": {}},
+            )
+            for name in ("get_symbols_overview", "find_symbol", "find_referencing_symbols")
+        )
+    )
+    registry = ProviderRegistry()
+    registry.register(serena_provider_descriptor(adapter))
+    service = ProviderService(registry)
+    composition = ProviderRuntimeComposition(
+        results=(
+            ProviderMountResult(
+                provider_id="serena-mcp",
+                namespace="serena",
+                registered=True,
+                enabled=True,
+                build_attempted=True,
+                built=True,
+                mounted=True,
+                state=ProviderMountState.MOUNTED,
+            ),
+        )
+    )
+    contributions = provider_capability_contributions(service, composition)
+    runtime_tools = provider_runtime_tools(service, composition)
+    augmented = augment_with_runtime_surface(
+        contributions,
+        runtime_tools,
+        {"serena-mcp": "serena"},
+    )
+
+    serena = next(item for item in augmented if item.contribution_id == "provider.serena-mcp")
+    assert {item.name for item in serena.operations} == {
+        "serena_get_symbols_overview",
+        "serena_find_symbol",
+        "serena_find_referencing_symbols",
+    }
+    assert all(item.enabled for item in serena.operations)

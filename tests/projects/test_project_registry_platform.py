@@ -25,10 +25,18 @@ def test_project_tools_are_bounded_read_only_catalogue_operations() -> None:
     assert listed is not None
     assert listed["default_project_id"] == "kis-mcp"
     assert [item["project_id"] for item in listed["projects"]] == [
+        "app-builder",
+        "app-dev-core",
+        "chatgpt-skill",
         "college",
         "commodity",
+        "doc-solution",
         "gpt-os",
+        "import-isolate",
         "kis-mcp",
+        "mi-fi",
+        "prose2llm",
+        "signal",
     ]
 
     status = asyncio.run(
