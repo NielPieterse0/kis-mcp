@@ -21,6 +21,7 @@ from kis_mcp.workflows.platform import register_platform_workflows, workflow_des
 EXACT_OPERATIONS = {
     "kis_github_publish_registered_commit",
     "kis_github_reconcile_registered_commit",
+    "kis_github_create_registered_pull_request",
     "kis_github_merge_registered_pull_request",
     "kis_github_delete_registered_branch",
 }

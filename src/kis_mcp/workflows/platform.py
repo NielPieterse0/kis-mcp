@@ -168,6 +168,25 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             (external,),
         ),
         _workflow(
+            "prepare-reviewable-pull-request",
+            "Prepare a verified change for pull-request review",
+            "Verify one exact registered commit, reconcile its exact tree onto the remote default branch parent, and create an exact open pull request for human review.",
+            (
+                "operation.execute_change_workflow",
+                "operation.kis_github_reconcile_registered_commit",
+                "operation.kis_github_create_registered_pull_request",
+            ),
+            ("prepare_reviewable_pull_request",),
+            (
+                "change execution passes for the exact commit",
+                "the exact verified source tree is reconciled onto the verified remote-default parent",
+                "an open non-draft pull request is verified at the exact reconciled head",
+            ),
+            ("prepare reviewable pull request", "verified change to pr", "complete change for review"),
+            (process, external),
+            executable_steps=("prepare_reviewable_pull_request",),
+        ),
+        _workflow(
             "pull-request-safe-closeout",
             "Review and merge pull request safely",
             "Inspect, verify, review, merge only the exact approved head, delete the verified remote branch, and clean the merged worktree.",
