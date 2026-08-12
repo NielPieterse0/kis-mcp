@@ -96,6 +96,44 @@ limits that may only narrow configured maxima.
 Use only the fields required by the selected source. Safe Git refs are
 structural inputs, not arbitrary shell commands.
 
+### Change-aware verification selection
+
+`select_change_verification` is read-only. It reconciles change-impact handoffs
+against current declared verification profiles and does not run commands:
+
+```json
+{
+  "project":"C:\\Projects\\example",
+  "source":"working_tree",
+  "task_terms":["tests","type checking"],
+  "max_verifications":20
+}
+```
+
+For commit/range/branch sources, supply only the corresponding ref fields from
+the live schema. `max_verifications` is bounded by the operation contract.
+
+### Bounded change execution
+
+When advertised, `execute_change_workflow` is the preferred orchestration layer
+for "verify and review this change" requests:
+
+```json
+{
+  "project":"C:\\Projects\\example",
+  "source":"working_tree",
+  "task_terms":[],
+  "max_verifications":20,
+  "verification_timeout_ms":120000,
+  "review_types":["code-quality","test-quality"]
+}
+```
+
+Optional `review_backend` and `review_model` must follow the current reviewer
+contract. Omitting `review_types` defaults the workflow to `code-quality`. The
+workflow composes only its fixed selection, verification, and review operations;
+it is not an arbitrary command/workflow executor.
+
 ### File reads
 
 ```json

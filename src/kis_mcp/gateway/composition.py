@@ -23,7 +23,7 @@ from ..discover.platform import (
     register_platform_discover,
 )
 from ..line_endings import RepositoryLineEndingNormalizer
-from ..middleware import ThreeRuleMiddleware
+from ..middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
 from ..provider_lifecycle import prepare_provider_launch
 from ..provider_readiness import validate_provider_offline_readiness
@@ -135,6 +135,7 @@ def compose_gateway(
         project_boundary=runtime.project_boundary,
         quarantine_root=runtime.quarantine_root,
     )
+    server.add_middleware(BoundaryObservabilityMiddleware())
     server.add_middleware(
         ThreeRuleMiddleware(
             resolver=resolver,

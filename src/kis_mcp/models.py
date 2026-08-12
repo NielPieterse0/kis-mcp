@@ -68,6 +68,12 @@ class HealthResponse:
     desktop_commander_installed: bool
     policy_rules: tuple[PolicyRuleResponse, ...]
     policy_fingerprint: str
+    runtime_instance: str
+    server_instance_id: str
+    server_started_at: str
+    source_revision: str
+    contract_fingerprint: str
+    transport: Mapping[str, str | bool]
     implementation_status: Mapping[str, str]
     schema_version: int = PUBLIC_SCHEMA_VERSION
 

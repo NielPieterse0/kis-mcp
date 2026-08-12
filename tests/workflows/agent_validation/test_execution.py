@@ -109,3 +109,25 @@ def test_invalid_request_fails_before_process_execution(tmp_path: Path) -> None:
         asyncio.run(service.validate(project=str(project), target="other"))
     with pytest.raises(AgentValidationError, match="AGNIX_MAX_FILES_INVALID"):
         asyncio.run(service.validate(project=str(project), max_files=1001))
+
+
+def test_plain_text_agnix_file_limit_is_classified_explicitly(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = tmp_path / "install" / "node_modules" / "agnix" / "bin" / "agnix-binary.exe"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"x")
+
+    async def runner(_name: str, _arguments: dict[str, Any]) -> Any:
+        return {
+            "text": "Error: Too many files to validate: 51 files found, limit is 50\n"
+            "__KIS_AGNIX_EXIT_CODE=1"
+        }
+
+    service = AgentValidationService(boundary=tmp_path, settings=_settings(binary), runner=runner)
+    with pytest.raises(AgentValidationError) as captured:
+        asyncio.run(service.validate(project=str(project), max_files=50))
+
+    assert captured.value.code == "AGNIX_FILE_LIMIT_EXCEEDED"
+    assert "51 files" in captured.value.reason
+    assert "limit 50" in captured.value.reason

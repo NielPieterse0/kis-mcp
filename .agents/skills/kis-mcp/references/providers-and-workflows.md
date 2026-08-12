@@ -87,8 +87,19 @@ stale commissioning metadata; prefer the current provider/user-status evidence.
 change evidence and may use configured NVIDIA NIM or Codex CLI backends. It does
 not grant mutation or nested-agent authority.
 
-A missing optional backend can permit fallback when the workflow contract says
-so. Do not claim a backend is live merely because its adapter is registered.
+The fixed review purposes are:
+
+- `code-quality`;
+- `safety-security`;
+- `architecture`;
+- `performance`;
+- `test-quality`;
+- `documentation`;
+- `api-contracts`.
+
+Changing purpose changes the review rubric only. A missing optional backend can
+permit fallback when the workflow contract says so. Do not claim a backend is
+live merely because its adapter is registered.
 
 ## Workflow recommendation
 
@@ -103,17 +114,78 @@ Before executing a recommendation:
 3. use the exact operation schemas for executable steps;
 4. preserve any explicit approval/idempotency requirements.
 
-## Change planning and verification transition
+## Change analysis, verification, and execution
 
-When advertised by the running catalogue, prefer the bounded workflow bridge:
+Use the change workflow stack progressively rather than jumping to arbitrary
+process commands:
 
-- `plan_change` for read-only authority/change/impact/test/verification planning;
-- `run_verification(project, verification_id)` for executing a previously
-  discovered approved verification declaration.
+- `inspect_change` and `analyze_change` establish bounded change/impact evidence;
+- `plan_change` produces read-only authority, impact, test, and verification planning;
+- `select_change_verification` reconciles impact handoffs against current declared
+  executable profiles without running them;
+- `run_verification(project, verification_id)` executes one approved declaration;
+- `execute_change_workflow`, when present, composes selection, selected
+  verification execution, and bounded specialist reviews for one change.
 
-These operations are designed to avoid arbitrary command text. If they are not
-present in an older instance, use the target repository's existing development
-workflow and direct tools under its authority.
+Python project discovery recognizes Ruff, coverage.py/pytest-cov, Vulture,
+LibCST, mypy, and Pyright declarations. Discovery is evidence only: it does not
+install tooling or turn non-executable declarations into runnable checks.
+
+If `execute_change_workflow` is absent from the running instance, use the
+individual operations above. Do not infer absence from repository source alone;
+check the live catalogue because a running kis-op/kis-dev process may lag the
+checkout.
+
+## Agent configuration validation
+
+Use the discoverable `validate-agent-configuration` workflow or
+`validate_agent_configuration` operation for bounded agnix validation. The
+managed path uses pinned agnix `0.45.0` with fixed JSON-validation arguments.
+It does not expose fix, watch, init, telemetry, arbitrary command execution, or
+a general agnix MCP/provider passthrough.
+
+Treat its findings as validation evidence. Do not interpret the presence of the
+managed binary as authority to invoke other agnix modes through a local shell.
+
+## Govern advisory evidence
+
+The repository contains a deterministic advisory Govern core for authority and
+documentation drift. Its rules evaluate evidence; they do not add Work policy or
+mutation authority. Public composition can lag source implementation, so use
+live capability discovery before invoking Govern operations and do not treat a
+target architecture document as proof that a Govern tool is exposed.
+
+## Safe delivery and closeout
+
+Use exact registered-GitHub operations for repository publication/merge/branch
+cleanup when their current schemas and approval preconditions match the task.
+The established surface includes immutable commit publication, exact-head PR
+merge, and exact-head non-default branch deletion.
+
+Slice 6 also implements a bounded tree-equivalent reconciliation publication
+path for divergent local history. Its delivery can lag the checkout; use
+`kis_github_reconcile_registered_commit` only when the running catalogue
+advertises it. It is for a verified non-default review branch and is not a
+force-push or default-branch rewrite primitive.
+
+Active Slice 7 change `106-reviewable-pr-coordinator` defines the in-progress
+`prepare_reviewable_pull_request` coordinator. Its declared boundary is:
+
+1. accept one registered project and immutable full local commit SHA plus exact
+   review-branch/default-branch expectations, PR title/body, bounded verification
+   and review options, and explicit approval;
+2. run existing `execute_change_workflow` against that exact commit and require
+   aggregate status `passed` before any external mutation;
+3. publish that immutable commit through existing registered exact publication;
+4. create and post-verify one open, non-draft PR at the exact head/base;
+5. stop before merge, branch deletion, worktree cleanup, auto-merge, release, or
+   default-branch mutation.
+
+Treat this as planned/in-progress until the live catalogue advertises the tool or
+workflow. Before then, compose the existing verification/review/exact-GitHub
+steps explicitly and retain each step's approval, exact-head, idempotency, and
+recovery preconditions. After it becomes live, use it for *prepare a reviewable
+PR* requests; use the separate safe-closeout workflow for merge and cleanup.
 
 ## Work management
 

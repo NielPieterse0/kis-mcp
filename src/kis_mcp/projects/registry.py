@@ -62,9 +62,14 @@ class ProjectRegistry:
 
     def project_for_root(self, local_root: str) -> ProjectDefinition:
         target = normalize_windows_root(local_root).casefold()
-        for project in self.projects:
-            if project.local_root.casefold() == target:
-                return project
+        matches = [
+            project
+            for project in self.projects
+            if target == project.local_root.casefold()
+            or target.startswith(project.local_root.casefold().rstrip("\\") + "\\")
+        ]
+        if matches:
+            return max(matches, key=lambda project: len(project.local_root))
         raise KeyError(f"Unregistered project root: {local_root}")
 
     @property

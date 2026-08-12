@@ -17,6 +17,39 @@ from .runtime_observability import RuntimeObservability, get_runtime_observabili
 
 
 QuarantinePaths = Callable[[Sequence[str]], Sequence[Mapping[str, Any]]]
+_BOUNDARY_METHODS = frozenset({"initialize", "tools/list", "tools/call"})
+
+
+class BoundaryObservabilityMiddleware(Middleware):
+    """Record bounded protocol-boundary evidence without payload content."""
+
+    def __init__(self, observability: RuntimeObservability | None = None) -> None:
+        self.observability = observability or get_runtime_observability()
+
+    async def on_message(self, context: MiddlewareContext, call_next: Any) -> Any:
+        method = str(context.method)
+        if method not in _BOUNDARY_METHODS:
+            return await call_next(context)
+        tool_name = None
+        if method == "tools/call":
+            candidate = getattr(context.message, "name", None)
+            tool_name = str(candidate) if candidate else None
+        try:
+            result = await call_next(context)
+        except Exception as exc:
+            self.observability.record_boundary_request(
+                method=method,
+                outcome="error",
+                tool_name=tool_name,
+                error_type=type(exc).__name__,
+            )
+            raise
+        self.observability.record_boundary_request(
+            method=method,
+            outcome="success",
+            tool_name=tool_name,
+        )
+        return result
 
 
 class ThreeRuleMiddleware(Middleware):

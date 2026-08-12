@@ -33,6 +33,10 @@ def test_recent_calls_are_bounded_newest_first_and_store_only_argument_keys() ->
         "execute_command",
     ]
     assert snapshot.recent_calls[1].argument_keys == ("command",)
+    assert [record.call_id for record in snapshot.recent_calls] == [
+        "call-000003",
+        "call-000002",
+    ]
     rendered = str(snapshot.to_dict())
     assert "secret-value" not in rendered
     assert "result body" not in rendered
@@ -95,3 +99,30 @@ def test_process_and_search_lifecycle_tracks_only_active_records() -> None:
     ]
     assert [item.search_id for item in snapshot.active_searches] == ["search-2"]
     assert snapshot.active_processes[0].interaction_count == 1
+
+
+def test_boundary_requests_are_bounded_and_payload_free() -> None:
+    registry = RuntimeObservability(
+        max_recent_calls=2,
+        max_policy_decisions=2,
+        max_boundary_requests=2,
+    )
+    registry.record_boundary_request(method="initialize", outcome="success")
+    registry.record_boundary_request(method="tools/list", outcome="success")
+    registry.record_boundary_request(
+        method="tools/call",
+        tool_name="kis_health",
+        outcome="error",
+        error_type="ToolError",
+    )
+
+    snapshot = registry.snapshot()
+    assert [item.request_id for item in snapshot.recent_boundary_requests] == [
+        "request-000003",
+        "request-000002",
+    ]
+    assert snapshot.recent_boundary_requests[0].tool_name == "kis_health"
+    assert snapshot.recent_boundary_requests[0].error_type == "ToolError"
+    rendered = str(snapshot.to_dict())
+    assert "secret-value" not in rendered
+    assert "result body" not in rendered

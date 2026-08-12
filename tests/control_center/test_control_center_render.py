@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from kis_mcp.control_center.contracts import ControlCenterSnapshot
 from kis_mcp.control_center.render import render_control_center
 
@@ -88,7 +90,29 @@ def test_renderer_exposes_runtime_observability_without_argument_values(
     assert "PID 42" in html
     assert "search-1" in html
     assert "read_file" in html
+    assert "call-000101" in html
     assert "execute_command" in html
     assert "path" in html
     assert "command" in html
     assert "result body" not in html
+
+
+def test_renderer_marks_unknown_mount_state_and_avoids_mojibake(
+    sample_snapshot: ControlCenterSnapshot,
+) -> None:
+    html = render_control_center(replace(sample_snapshot, provider_runtime=()))
+
+    assert "Mounted providers" in html
+    assert "Unavailable" in html
+    assert "Ã" not in html
+    assert "Â" not in html
+
+
+def test_renderer_exposes_boundary_request_correlation(
+    sample_snapshot: ControlCenterSnapshot,
+) -> None:
+    html = render_control_center(sample_snapshot)
+
+    assert "MCP boundary requests" in html
+    assert "request-000102" in html
+    assert "kis_health" in html

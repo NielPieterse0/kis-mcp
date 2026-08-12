@@ -15,8 +15,10 @@ Govern   -> evaluate evidence against declared standards
 Work     -> perform controlled operations
 ```
 
-Current public capability is strongest in Discover and Work. Do not claim a
-target-state Govern capability merely because it appears in architecture docs.
+Discover and Work are broadly composed. A deterministic advisory Govern core is
+also implemented in repository source, but public gateway composition can lag
+that source. Use live capability evidence before claiming a Govern operation is
+available, and never infer target-state Govern capability from architecture docs.
 
 ## The only Work hard rules
 
@@ -82,6 +84,15 @@ problems. Correct the skill package or mutation precondition.
 Authentication required, initialization required, unavailable, build failed,
 mount failed, or operation ineligible. Use `kis_provider_status` and exact
 capability evidence to identify the next action.
+
+### Verification-selection and change-execution errors
+
+`VERIFICATION_SELECTION_*` outcomes mean the requested change target, handoff,
+or selection input could not be reconciled under the bounded selector contract.
+`CHANGE_EXECUTION_*` outcomes mean the composed selection/verification/review
+request failed or was structurally invalid. Correct the reported project,
+source/ref, limit, timeout, or review input; do not bypass the workflow with
+arbitrary command text merely to avoid its validation.
 
 ### Dispatcher errors
 

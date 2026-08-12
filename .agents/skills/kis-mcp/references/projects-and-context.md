@@ -16,12 +16,12 @@ Local Work and Discover operations should receive the actual absolute project
 path. Provider operations should receive the explicit provider identifiers
 required by their schemas.
 
-## Project registry transition
+## Project registry
 
 The project-neutral architecture uses a KIS-owned central registry rather than
 placing KIS configuration files inside each target repository.
 
-When the live runtime advertises them, prefer:
+Prefer:
 
 ```text
 kis_list_projects()
@@ -32,8 +32,9 @@ The first returns configured project identities and non-secret routing bindings.
 The second resolves one stable `project_id` to its current local/provider
 coordinates.
 
-Do not assume these operations exist in an older running instance. Discover
-capabilities first when runtime revision is uncertain.
+A running instance may lag the checked-out repository. If either operation is
+missing from the host surface, use capability discovery before assuming the
+registry itself is unavailable.
 
 ## Stable identity versus mutable runtime state
 
@@ -64,14 +65,14 @@ apply.
 
 ## Supabase routing
 
-Project-neutral runtimes are moving toward account-level OAuth plus explicit
-project targeting. When the live runtime supports that model, project-targeted
-operations carry the registered upstream `project_id`; bounded account discovery
-may be targetless, while targetless mutations are rejected.
+Supabase uses account-scoped OAuth while KIS keeps project routing explicit and
+project-neutral. Project-targeted operations carry a registered upstream
+`project_id`; bounded account discovery may be targetless, while targetless
+mutations are rejected.
 
-If an older runtime reports a different onboarding state through
-`kis_provider_status`, follow the live status rather than forcing target-state
-assumptions.
+If an older running instance reports a different onboarding state through
+`kis_provider_status`, follow that live contract rather than forcing the newer
+checkout's assumptions into the call.
 
 ## Work-management routing
 

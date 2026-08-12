@@ -96,6 +96,9 @@ def test_serena_descriptor_is_local_read_only_and_offline() -> None:
         "get_symbols_overview",
     )
     assert "delete_memory" not in capability.tool_names
+    assert descriptor.runtime_tools_probe is not None
+    adapter.runtime_tools.publish((SimpleNamespace(name="find_symbol"),))
+    assert [item.name for item in descriptor.runtime_tools_probe()] == ["find_symbol"]
     assert descriptor.readiness_probe().details["offline_enforced"] is True
 
 
