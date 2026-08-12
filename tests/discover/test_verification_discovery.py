@@ -117,6 +117,122 @@ steps:
     }
 
 
+def test_discovers_declared_python_quality_tooling_without_execution(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write(
+        project_root,
+        "pyproject.toml",
+        """
+[project]
+name = "quality-example"
+dependencies = ["LibCST>=1", "pyright>=1"]
+
+[project.optional-dependencies]
+quality = ["coverage>=7", "pytest-cov>=6"]
+
+[dependency-groups]
+dev = ["ruff>=0.12", "vulture>=2", "mypy>=1"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.coverage.run]
+branch = true
+""".strip()
+        + "\n",
+    )
+
+    result = _discover(project_root, discover_settings)
+
+    tooling = {item.id: item for item in result.quality_tools}
+    assert list(tooling) == ["coverage", "libcst", "mypy", "pyright", "ruff", "vulture"]
+    assert tooling["coverage"].package == "pytest-cov"
+    assert tooling["coverage"].role == "coverage"
+    assert tooling["coverage"].declared_via == "optional_dependency:quality"
+    assert tooling["coverage"].confidence.value == "high"
+    assert tooling["libcst"].role == "concrete_syntax"
+    assert tooling["libcst"].verification_id is None
+    assert tooling["pyright"].role == "typecheck"
+    assert tooling["pyright"].verification_id == "python-pyright"
+    assert tooling["ruff"].verification_id == "python-ruff-check"
+    assert tooling["vulture"].verification_id == "python-vulture"
+    assert tooling["mypy"].verification_id == "python-mypy"
+
+    by_id = {item.id: item for item in result.declarations}
+    assert by_id["python-ruff-check"].arguments == ("-m", "ruff", "check", ".")
+    assert by_id["python-coverage-pytest"].arguments == (
+        "-m",
+        "coverage",
+        "run",
+        "-m",
+        "pytest",
+        "-q",
+    )
+    assert by_id["python-vulture"].arguments == (
+        "-m",
+        "vulture",
+        ".",
+        "--min-confidence",
+        "80",
+    )
+    assert by_id["python-mypy"].arguments == ("-m", "mypy", ".")
+    assert by_id["python-pyright"].arguments == ("-m", "pyright", ".")
+    assert "python-libcst" not in by_id
+    assert all(item.execution_available is False for item in result.declarations)
+    assert "python_quality_tools" in result.evidence_sources
+
+
+def test_config_only_quality_tooling_is_medium_confidence(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write(
+        project_root,
+        "pyproject.toml",
+        """
+[project]
+name = "config-only-quality"
+
+[tool.ruff]
+line-length = 88
+
+[tool.vulture]
+min_confidence = 90
+""".strip()
+        + "\n",
+    )
+
+    result = _discover(project_root, discover_settings)
+
+    tooling = {item.id: item for item in result.quality_tools}
+    assert list(tooling) == ["ruff", "vulture"]
+    assert tooling["ruff"].declared_via == "tool_config:ruff"
+    assert tooling["ruff"].confidence.value == "medium"
+    assert tooling["vulture"].declared_via == "tool_config:vulture"
+    assert tooling["vulture"].confidence.value == "medium"
+    assert {item.id for item in result.declarations} == {
+        "python-ruff-check",
+        "python-vulture",
+    }
+
+
+def test_malformed_pyproject_returns_diagnostic_and_keeps_other_workflows(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _write(project_root, "pyproject.toml", "[project\nname = 'broken'\n")
+    _write(project_root, "scripts/verify.ps1", "Write-Host verified\n")
+
+    result = _discover(project_root, discover_settings)
+
+    assert result.quality_tools == ()
+    assert [item.id for item in result.declarations] == ["powershell-verify-script"]
+    assert [item.code for item in result.diagnostics] == ["WORKFLOW_PYPROJECT_INVALID"]
+    assert result.diagnostics[0].path == "pyproject.toml"
+
+
 def test_malformed_package_json_returns_diagnostic(
     project_root: Path,
     discover_settings,
