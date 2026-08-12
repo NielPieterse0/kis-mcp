@@ -9,7 +9,7 @@
 
 ## Validation evidence
 
-- Focused checks: 37 targeted tests passed; full `tests/discover` suite passed with one expected skip.
+- Focused checks: 38 targeted tests passed after the review fix; full `tests/discover` suite passed with one expected skip.
 - Schema checks: modified Analyze Change and Impact JSON schemas parse successfully; response/request behavior is covered by existing schema-contract tests.
 - Repository verification: canonical `pwsh -File scripts/verify.ps1` completed on this worktree with exit code 0; full pytest exit 0, line endings/configuration/interpreter/dependencies/Python syntax/change governance all passed.
 - Diff scope check: `scripts/change-workflow.ps1 check` passed and `git diff --check` returned clean.
@@ -17,6 +17,7 @@
 ## Review
 
 - Local independent reviewer attempts are not review evidence: `kis-dev` Codex returned `AGENT_BACKEND_FAILED:CodexCliError`, NVIDIA returned `AGENT_BACKEND_FAILED:NvidiaNimError`, and `kis-op` reported both reviewer backends unavailable. Managed Codex itself reports version `0.147.0` and `Logged in using ChatGPT`, so this is retained as reviewer-runtime/commissioning evidence rather than a 093 implementation defect.
+- In-session code review found one correctness defect: a newly added source path was classified as `EXTEND` rather than `NEW`. A regression was added, the classifier now uses existing added-status evidence, and the focused plus canonical suites pass after the fix. The read-only security pass found no new mutation, credential, network, or authorization sink in the 093 diff.
 - Required independent review will be performed against the immutable pull-request head before merge; blocking findings must be resolved and affected verification rerun.
 
 ## Git and merge

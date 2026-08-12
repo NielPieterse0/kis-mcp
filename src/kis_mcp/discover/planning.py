@@ -385,15 +385,19 @@ def _repository_patterns(
     )
     replacement_paths: dict[str, str] = {}
     renamed_destinations: set[str] = set()
+    added_paths: set[str] = set()
     if analysis is not None and analysis.change is not None:
         for item in analysis.change.changed_files:
             staged_status = item.staged_status
             worktree_status = item.worktree_status
-            if "renamed" in {staged_status, worktree_status} and item.previous_path:
+            statuses = {staged_status, worktree_status}
+            if "renamed" in statuses and item.previous_path:
                 replacement_paths[item.previous_path] = "renamed"
                 renamed_destinations.add(item.path)
-            elif "deleted" in {staged_status, worktree_status}:
+            elif "deleted" in statuses:
                 replacement_paths[item.path] = "deleted"
+            elif "added" in statuses:
+                added_paths.add(item.path)
 
     patterns: list[PlanChangePattern] = [
         PlanChangePattern(
@@ -411,6 +415,16 @@ def _repository_patterns(
         if path in replacement_set or path in renamed_destinations:
             continue
         if path not in source_context and not _is_likely_source_path(path):
+            continue
+        if path in added_paths:
+            patterns.append(
+                PlanChangePattern(
+                    classification="NEW",
+                    path=path,
+                    reason="The current change adds a new implementation path rather than modifying an existing repository path.",
+                    confidence=Confidence.HIGH,
+                )
+            )
             continue
         patterns.append(
             PlanChangePattern(

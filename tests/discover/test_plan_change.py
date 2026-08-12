@@ -249,6 +249,31 @@ def test_plan_change_classifies_absent_implementation_as_new(
     assert result.patterns[0].path is None
 
 
+def test_plan_change_classifies_added_source_as_new(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _fixture(project_root)
+    (project_root / "src" / "event_processor.py").write_text(
+        "def process():\n    return None\n",
+        encoding="utf-8",
+    )
+    _git(project_root, "add", "src/event_processor.py")
+
+    result = PlanChangeService(
+        boundary=project_root.parent,
+        settings=discover_settings,
+    ).plan(
+        PlanChangeRequest(
+            project=str(project_root),
+            task="add event processor",
+        )
+    )
+
+    pattern = next(item for item in result.patterns if item.path == "src/event_processor.py")
+    assert pattern.classification == "NEW"
+
+
 def test_plan_change_preserves_staged_rename_when_destination_is_modified(
     project_root: Path,
     discover_settings,
