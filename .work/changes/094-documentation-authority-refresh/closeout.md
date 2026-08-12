@@ -29,13 +29,13 @@
 - The advisory-backend failures do not change repository verification evidence; they remain a review-tool availability limitation for this bounded documentation-plus-compatibility slice.
 
 ## Git and merge
-
-- Branch: `change/094-documentation-authority-refresh`
-- Worktree: `.work/worktrees/094-documentation-authority-refresh`
-- Candidate implementation commit: pending.
-- Pull request: pending.
-- Merge: pending.
-- Cleanup: pending until the branch is merged into clean primary `main`.
+- Branch: `change/094-documentation-authority-refresh`.
+- Worktree: `.work/worktrees/094-documentation-authority-refresh`.
+- Candidate implementation commit: `91b72bb6a3d3ecd24ebf82f54a985641308a9797`.
+- Pull request: PR #104, `docs: reconcile authority and harden text line endings`.
+- Exact-head merge: PR #104 was merged on 2026-08-12 at candidate head `91b72bb6a3d3ecd24ebf82f54a985641308a9797` as merge commit `894716181585e3fd739e217e8f5a1b876926053a`.
+- Governed cleanup: the 094 worktree is absent; the local `change/094-documentation-authority-refresh` branch is absent; after a pruned fetch, the corresponding `origin/change/094-documentation-authority-refresh` remote-tracking ref is absent.
+- Subsequent independent changes have advanced `main`; the 094 merge remains in `main` history. This closeout records 094 evidence only and does not claim ownership of later merges.
 
 ## Residual items
 

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "change_id": "096-documentation-authority-closeout-reconciliation",
+  "status": "closed",
+  "branch": "change/096-documentation-authority-closeout-reconciliation",
+  "worktree": ".work/worktrees/096-documentation-authority-closeout-reconciliation",
+  "base": "main",
+  "outcome": "Reconcile change 094 post-merge and cleanup evidence",
+  "owned_paths": [
+    ".work/changes/096-documentation-authority-closeout-reconciliation/**"
+  ],
+  "shared_paths": [
+    ".work/changes/094-documentation-authority-refresh/closeout.md"
+  ],
+  "excluded_paths": [
+    "AGENTS.md",
+    "README.md",
+    "SPEC.md",
+    "docs/**",
+    "policy/**",
+    "settings/**",
+    "src/**",
+    "tests/**",
+    "scripts/**"
+  ],
+  "dependencies": [
+    "094-documentation-authority-refresh"
+  ],
+  "integration_owner": null
+}
