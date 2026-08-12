@@ -6,7 +6,11 @@ param(
 
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$ProjectPath
+    [string]$ProjectPath,
+
+    [Parameter(Mandatory = $true)]
+    [ValidateNotNullOrEmpty()]
+    [string]$CodexHome
 )
 
 $ErrorActionPreference = 'Stop'
@@ -63,6 +67,24 @@ $ResolvedProject = (Resolve-Path -LiteralPath $ProjectPath).Path
 if (-not (Test-Path -LiteralPath (Join-Path $ResolvedProject '.git'))) {
     throw "CODEX_CLI_PROJECT_NOT_GIT_REPOSITORY: $ResolvedProject"
 }
+$ResolvedCodexHome = [System.IO.Path]::GetFullPath($CodexHome)
+if (-not $ResolvedCodexHome.StartsWith('C:\Projects\', [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'CODEX_CLI_HOME_OUTSIDE_PROJECTS'
+}
+$Probe = $ResolvedCodexHome
+while (-not [string]::IsNullOrWhiteSpace($Probe)) {
+    if (Test-Path -LiteralPath $Probe) {
+        $Item = Get-Item -LiteralPath $Probe -Force
+        if (($Item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "CODEX_CLI_HOME_REPARSE_POINT: $Probe"
+        }
+    }
+    if ($Probe -eq 'C:\Projects') { break }
+    $Parent = Split-Path -Parent $Probe
+    if ([string]::IsNullOrWhiteSpace($Parent) -or $Parent -eq $Probe) { break }
+    $Probe = $Parent
+}
+[System.IO.Directory]::CreateDirectory($ResolvedCodexHome) | Out-Null
 
 $Prompt = [Console]::In.ReadToEnd()
 if ([string]::IsNullOrWhiteSpace($Prompt)) {
@@ -88,8 +110,24 @@ $BeforeFingerprint = Get-RepositoryStateFingerprint `
     -RepositoryPath $ResolvedProject `
     -GitExecutable $ResolvedGit
 
-$Output = @($Prompt | & $ResolvedCodex @Arguments)
-$CodexExitCode = $LASTEXITCODE
+$PreviousCodexHome = $env:CODEX_HOME
+$PreviousApiKey = $env:OPENAI_API_KEY
+$PreviousBaseUrl = $env:OPENAI_BASE_URL
+$PreviousAccessToken = $env:CODEX_ACCESS_TOKEN
+try {
+    $env:CODEX_HOME = $ResolvedCodexHome
+    Remove-Item Env:OPENAI_API_KEY -ErrorAction SilentlyContinue
+    Remove-Item Env:OPENAI_BASE_URL -ErrorAction SilentlyContinue
+    Remove-Item Env:CODEX_ACCESS_TOKEN -ErrorAction SilentlyContinue
+    $Output = @($Prompt | & $ResolvedCodex @Arguments)
+    $CodexExitCode = $LASTEXITCODE
+}
+finally {
+    $env:CODEX_HOME = $PreviousCodexHome
+    $env:OPENAI_API_KEY = $PreviousApiKey
+    $env:OPENAI_BASE_URL = $PreviousBaseUrl
+    $env:CODEX_ACCESS_TOKEN = $PreviousAccessToken
+}
 
 $AfterFingerprint = Get-RepositoryStateFingerprint `
     -RepositoryPath $ResolvedProject `

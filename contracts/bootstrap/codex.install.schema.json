@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/bootstrap/codex.install.schema.json",
+  "title": "Codex CLI Bootstrap Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "tool_id", "package", "version", "auth_mode", "login_mode",
+    "install_root", "executable", "managed_home", "npm_cache_root", "temp_root", "quarantine_root"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "tool_id": {"const": "codex-cli"},
+    "package": {"const": "@openai/codex"},
+    "version": {"const": "0.147.0"},
+    "auth_mode": {"const": "chatgpt"},
+    "login_mode": {"const": "device-auth"},
+    "install_root": {"const": "C:\\Projects\\.kis-mcp\\tools\\codex\\0.147.0"},
+    "executable": {"const": "C:\\Projects\\.kis-mcp\\tools\\codex\\0.147.0\\node_modules\\.bin\\codex.cmd"},
+    "managed_home": {"const": "C:\\Projects\\.kis-mcp\\agent-hosts\\codex-reviewer"},
+    "npm_cache_root": {"const": "C:\\Projects\\.kis-mcp\\npm-cache\\codex"},
+    "temp_root": {"const": "C:\\Projects\\.kis-mcp\\temp\\codex"},
+    "quarantine_root": {"const": "C:\\Projects\\.kis-mcp\\quarantine\\codex"}
+  }
+}

@@ -56,6 +56,8 @@ class CodexCliAdapter:
             self.settings.executable,
             "-ProjectPath",
             str(project),
+            "-CodexHome",
+            str(self.settings.home_path),
         ]
         try:
             completed = self._runner(

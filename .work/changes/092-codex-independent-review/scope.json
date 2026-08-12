@@ -1,0 +1,48 @@
+{
+    "schema_version":  1,
+    "change_id":  "092-codex-independent-review",
+    "status":  "active",
+    "branch":  "change/092-codex-independent-review",
+    "worktree":  ".work/worktrees/092-codex-independent-review",
+    "base":  "main",
+    "outcome":  "Commission local Codex CLI with ChatGPT subscription as independent code-quality and safety-security reviewer, and make runtime secret resolution non-interactive while retaining operator unlock for vault mutations",
+    "owned_paths":  [
+                        "settings/agents/code-review-agent.settings.json",
+                        "contracts/agents/code-review-agent.settings.schema.json",
+                        "settings/bootstrap/codex.install.json",
+                        "contracts/bootstrap/codex.install.schema.json",
+                        "src/kis_mcp/tools/codex_cli/**",
+                        "src/kis_mcp/workflows/code_review/**",
+                        "scripts/invoke-codex-agent.ps1",
+                        "scripts/install-codex.ps1",
+                        "scripts/auth-codex.ps1",
+                        "scripts/secret-vault.ps1",
+                        "scripts/windows-credential.ps1",
+                        "scripts/initialize-secret-vault.ps1",
+                        "scripts/rotate-secret.ps1",
+                        "scripts/start-chatgpt.ps1",
+                        "tests/tools/codex_cli/**",
+                        "tests/workflows/code_review/**",
+                        "tests/secrets/**",
+                        "tests/test_startup_scripts.py",
+                        "tests/test_tunnel_scripts.py",
+                        "tests/test_llm_agent_registration.py",
+                        "docs/OPERATIONS.md",
+                        "SPEC.md",
+                        ".work/changes/092-codex-independent-review/**",
+                        "settings/secrets.settings.json",
+                        "scripts/configure-secret-runtime-unlock.ps1",
+                        "tests/secret_vault/**",
+                        "tests/bootstrap/test_codex_install.py"
+                    ],
+    "shared_paths":  [
+
+                     ],
+    "excluded_paths":  [
+                           "policy/**"
+                       ],
+    "dependencies":  [
+
+                     ],
+    "integration_owner":  null
+}

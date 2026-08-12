@@ -19,13 +19,16 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
         instructions: str = "",
         backend: str | None = None,
         model: str | None = None,
+        review_type: str = "code-quality",
     ) -> dict[str, Any]:
         """Review one Git working-tree change without modifying it.
 
-        For NVIDIA NIM, model may be nano, super, or ultra: nano is for fast
-        focused iteration, super is the default substantive review, and ultra
-        is for the deepest high-impact analysis. Supplying model selects NVIDIA
+        review_type is code-quality (default) or safety-security. For NVIDIA
+        NIM, model may be nano, super, or ultra: nano is for fast focused
+        iteration, super is the default substantive review, and ultra is for
+        the deepest high-impact analysis. Supplying model selects NVIDIA
         explicitly; NVIDIA model aliases are invalid with the Codex backend.
+        Supplying backend=codex-cli invokes Codex directly without fallback.
         """
 
         try:
@@ -34,6 +37,7 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
                 instructions=instructions,
                 backend=backend,
                 model=model,
+                review_type=review_type,
             )
         except Exception as exc:
             raise ToolError(f"AGENT_REVIEW_FAILED:{type(exc).__name__}") from exc

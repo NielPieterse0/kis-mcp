@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 import shutil
 import subprocess
 from collections.abc import Callable
@@ -54,14 +56,71 @@ def codex_tool_descriptor(
             return ToolReadiness(
                 tool_id="codex-cli",
                 state=ToolState.DEGRADED,
-                summary="Codex CLI is ready for installation or PATH configuration.",
+                summary="The pinned Codex CLI is not installed.",
                 details={"executable": settings.executable},
+            )
+        environment = os.environ.copy()
+        environment["CODEX_HOME"] = str(settings.home_path)
+        for name in ("OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_ACCESS_TOKEN"):
+            environment.pop(name, None)
+        try:
+            version_result = runner(
+                [settings.executable, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+                env=environment,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return ToolReadiness(
+                tool_id="codex-cli",
+                state=ToolState.DEGRADED,
+                summary="The pinned Codex CLI could not be inspected.",
+                details={"executable": settings.executable},
+            )
+        match = re.search(r"(\d+\.\d+\.\d+)", version_result.stdout or "")
+        reported_version = match.group(1) if match else "unknown"
+        if version_result.returncode != 0 or reported_version != settings.expected_version:
+            return ToolReadiness(
+                tool_id="codex-cli",
+                state=ToolState.DEGRADED,
+                summary="The installed Codex CLI version does not match the configured pin.",
+                details={
+                    "expected_version": settings.expected_version,
+                    "reported_version": reported_version,
+                },
+            )
+        try:
+            auth_result = runner(
+                [settings.executable, "login", "status"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+                env=environment,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            auth_result = subprocess.CompletedProcess([], 1, stdout="", stderr="")
+        auth_status = "\n".join(
+            part for part in (auth_result.stdout, auth_result.stderr) if part
+        ).casefold()
+        authenticated = (
+            auth_result.returncode == 0
+            and "logged in using chatgpt" in auth_status
+        )
+        if not authenticated:
+            return ToolReadiness(
+                tool_id="codex-cli",
+                state=ToolState.DEGRADED,
+                summary="Codex CLI is installed but ChatGPT authentication is not verified.",
+                details={"version": reported_version, "authentication": "not-chatgpt"},
             )
         return ToolReadiness(
             tool_id="codex-cli",
             state=ToolState.READY,
-            summary="Codex CLI executable and read-only wrapper are available.",
-            details={"authentication": "unverified"},
+            summary="Pinned Codex CLI and ChatGPT authentication are ready.",
+            details={"version": reported_version, "authentication": "chatgpt"},
         )
 
     def build() -> CodexCliAdapter:

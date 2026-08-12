@@ -46,7 +46,9 @@
   "codex": {
     "enabled": true,
     "script_path": "scripts/invoke-codex-agent.ps1",
-    "executable": "codex",
+    "executable": "C:\\Projects\\.kis-mcp\\tools\\codex\\0.147.0\\node_modules\\.bin\\codex.cmd",
+    "home_path": "C:\\Projects\\.kis-mcp\\agent-hosts\\codex-reviewer",
+    "expected_version": "0.147.0",
     "timeout_seconds": 180,
     "max_output_chars": 30000
   }

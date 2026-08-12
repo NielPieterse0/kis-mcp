@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "tool_id": "codex-cli",
+  "package": "@openai/codex",
+  "version": "0.147.0",
+  "auth_mode": "chatgpt",
+  "login_mode": "device-auth",
+  "install_root": "C:\\Projects\\.kis-mcp\\tools\\codex\\0.147.0",
+  "executable": "C:\\Projects\\.kis-mcp\\tools\\codex\\0.147.0\\node_modules\\.bin\\codex.cmd",
+  "managed_home": "C:\\Projects\\.kis-mcp\\agent-hosts\\codex-reviewer",
+  "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache\\codex",
+  "temp_root": "C:\\Projects\\.kis-mcp\\temp\\codex",
+  "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine\\codex"
+}

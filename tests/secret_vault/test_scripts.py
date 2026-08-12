@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -21,6 +23,8 @@ def test_secret_settings_define_only_metadata_and_approved_modes() -> None:
     assert settings["bootstrap_environment"] == "KIS_MCP_VAULT_KEY"
     assert settings["interactive_unlock"] is True
     assert settings["self_unlocking_key_file"] is False
+    assert settings["runtime_unlock"]["mode"] == "windows-credential"
+    assert settings["runtime_unlock"]["target"] == "kis-mcp/secrets/runtime-unlock"
     assert settings["cipher"] == "AES-256-GCM"
     assert settings["kdf"] == "argon2id"
     serialized = json.dumps(settings).casefold()
@@ -38,7 +42,7 @@ def test_common_script_transfers_sensitive_payload_only_over_standard_input() ->
     assert "AnonymousPipeServerStream" in content
     assert "ConvertTo-Json" in content
     assert "ZeroFreeBSTR" in content
-    assert "KIS_MCP_VAULT_KEY" in content
+    assert "bootstrap_environment" in content
     assert "KIS_MCP_SECRET_INPUT_PIPE_HANDLE" in content
     assert "ArgumentList" in content
     assert "$Process.Kill()" in content
@@ -57,13 +61,62 @@ def test_operator_scripts_use_common_secure_boundary() -> None:
         content = _script(name)
         assert "secret-vault.ps1" in content
         assert "Invoke-KisMcpSecretCommand" in content
+
+    for name in ("set-secret.ps1", "unlock-secrets.ps1"):
+        content = _script(name)
         assert "windows-credential.ps1" not in content
         assert "Set-KisMcpWindowsCredential" not in content
         assert "Get-KisMcpWindowsCredential" not in content
 
+    for name in ("initialize-secret-vault.ps1", "rotate-secret.ps1"):
+        content = _script(name)
+        assert "windows-credential.ps1" in content
+        assert "Set-KisMcpWindowsCredential" in content
+
     assert "-AsSecureString" in _script("set-secret.ps1")
     assert "-AsSecureString" in _script("rotate-secret.ps1")
     assert "resolve-internal" not in _script("unlock-secrets.ps1")
+
+
+def test_runtime_unlock_migration_verifies_before_windows_credential_write() -> None:
+    content = _script("configure-secret-runtime-unlock.ps1")
+
+    verify = content.index("@('verify-unlock')")
+    credential_write = content.index("Set-KisMcpWindowsCredential")
+    assert "Get-KisMcpUnlockPayload" in content
+    assert "Get-KisMcpRuntimeUnlockCredentialTarget" in content
+    assert verify < credential_write
+
+
+def test_vault_rotation_updates_runtime_unlock_only_after_success() -> None:
+    content = _script("rotate-secret.ps1")
+
+    rotation = content.index("@('rotate')")
+    credential_write = content.index("Set-KisMcpWindowsCredential")
+    assert rotation < credential_write
+    assert "-Secret $NewUnlock" in content
+
+
+def test_post_rotation_credential_failure_reports_recovery_path() -> None:
+    pwsh = shutil.which("pwsh")
+    if pwsh is None:
+        return
+    command = (
+        f". '{SCRIPTS / 'secret-vault.ps1'}'; "
+        "Invoke-KisMcpPostRotationRuntimeCredentialUpdate -Action { throw 'simulated' }"
+    )
+
+    completed = subprocess.run(
+        [pwsh, "-NoProfile", "-Command", command],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert completed.returncode != 0
+    assert "KIS_MCP_ROTATION_RUNTIME_CREDENTIAL_UPDATE_FAILED" in completed.stderr
+    assert "configure-secret-runtime-unlock.ps1" in completed.stderr
+    assert "simulated" not in completed.stderr
 
 
 def test_local_launcher_does_not_unlock_or_launch_through_secret_vault() -> None:

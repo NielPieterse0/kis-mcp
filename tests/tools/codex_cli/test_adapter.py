@@ -24,7 +24,9 @@ def _settings() -> CodexSettings:
     return CodexSettings(
         enabled=True,
         script_path=REPOSITORY_ROOT / "scripts" / "invoke-codex-agent.ps1",
-        executable="codex",
+        executable=r"C:\Projects\.kis-mcp\tools\codex\0.147.0\node_modules\.bin\codex.cmd",
+        home_path=Path(r"C:\Projects\.kis-mcp\agent-hosts\codex-reviewer"),
+        expected_version="0.147.0",
         timeout_seconds=60,
         max_output_chars=30000,
     )
@@ -59,9 +61,11 @@ def test_codex_adapter_invokes_fixed_script_and_extracts_agent_message(tmp_path:
         "-File",
         str(_settings().script_path),
         "-CodexExecutable",
-        "codex",
+        _settings().executable,
         "-ProjectPath",
         str(tmp_path.resolve()),
+        "-CodexHome",
+        str(_settings().home_path),
     ]
     assert call["input"] == "inspect the change"
     assert call["timeout"] == 60
@@ -138,14 +142,21 @@ def test_codex_script_enforces_ephemeral_read_only_json_execution() -> None:
     assert "danger-full-access" not in script
     assert "workspace-write" not in script
     assert "Get-RepositoryStateFingerprint" in script
+    assert "$env:CODEX_HOME = $ResolvedCodexHome" in script
+    assert "CODEX_CLI_HOME_REPARSE_POINT" in script
     assert "CODEX_CLI_MUTATION_DETECTED" in script
     assert "exit 86" in script
 
 
 def test_codex_tool_descriptor_uses_generic_tools_registry() -> None:
+    def ready_run(args, **kwargs):
+        stdout = "codex-cli 0.147.0\n" if args[-1] == "--version" else "Logged in using ChatGPT\n"
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
     descriptor = codex_tool_descriptor(
         _settings(),
         which=lambda name: f"C:/Tools/{name}.exe",
+        runner=ready_run,
     )
 
     assert descriptor.tool_id == "codex-cli"
@@ -161,8 +172,52 @@ def test_codex_tool_descriptor_uses_generic_tools_registry() -> None:
         registry,
         settings=_settings(),
         which=lambda name: f"C:/Tools/{name}.exe",
+        runner=ready_run,
     )
     assert registry.get("codex-cli") is registered
+
+
+def test_codex_tool_readiness_verifies_exact_version_and_chatgpt_auth() -> None:
+    calls: list[list[str]] = []
+
+    def run(args, **kwargs):
+        calls.append(list(args))
+        if args[-1] == "--version":
+            return subprocess.CompletedProcess(args, 0, stdout="codex-cli 0.147.0\n", stderr="")
+        return subprocess.CompletedProcess(args, 0, stdout="Logged in using ChatGPT\n", stderr="")
+
+    descriptor = codex_tool_descriptor(
+        _settings(),
+        which=lambda name: name,
+        runner=run,
+    )
+
+    readiness = descriptor.readiness_probe()
+
+    assert readiness.state is ToolState.READY
+    assert readiness.details == {"version": "0.147.0", "authentication": "chatgpt"}
+    assert calls == [
+        [_settings().executable, "--version"],
+        [_settings().executable, "login", "status"],
+    ]
+
+
+def test_codex_tool_readiness_accepts_chatgpt_status_from_stderr() -> None:
+    def run(args, **kwargs):
+        if args[-1] == "--version":
+            return subprocess.CompletedProcess(args, 0, stdout="codex-cli 0.147.0\n", stderr="")
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="Logged in using ChatGPT\n")
+
+    descriptor = codex_tool_descriptor(
+        _settings(),
+        which=lambda name: name,
+        runner=run,
+    )
+
+    readiness = descriptor.readiness_probe()
+
+    assert readiness.state is ToolState.READY
+    assert readiness.details == {"version": "0.147.0", "authentication": "chatgpt"}
 
 
 def test_codex_tool_readiness_reports_missing_executable_without_building() -> None:
@@ -174,7 +229,7 @@ def test_codex_tool_readiness_reports_missing_executable_without_building() -> N
     readiness = descriptor.readiness_probe()
 
     assert readiness.state is ToolState.DEGRADED
-    assert readiness.details == {"executable": "codex"}
+    assert readiness.details == {"executable": _settings().executable}
 
 
 def _initialize_git_repository(root: Path) -> None:
@@ -215,6 +270,8 @@ def test_codex_wrapper_executes_fake_cli_and_preserves_repository(tmp_path: Path
             str(fake_codex),
             "-ProjectPath",
             str(tmp_path),
+            "-CodexHome",
+            str(tmp_path / "codex-home"),
         ],
         input="review prompt",
         text=True,
@@ -248,6 +305,8 @@ def test_codex_wrapper_detects_fake_cli_repository_mutation(tmp_path: Path) -> N
             str(fake_codex),
             "-ProjectPath",
             str(tmp_path),
+            "-CodexHome",
+            str(tmp_path / "codex-home"),
         ],
         input="review prompt",
         text=True,

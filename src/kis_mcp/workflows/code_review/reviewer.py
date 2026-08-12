@@ -7,6 +7,8 @@ from typing import Any
 from .contracts import EvidenceCollector, ReviewBackend
 from .settings import AgentSettings
 
+_REVIEW_TYPES = frozenset({"code-quality", "safety-security"})
+
 
 class UnavailableReviewBackend:
     def __init__(self, name: str) -> None:
@@ -74,14 +76,25 @@ class CodeReviewAgent:
         self._collector = collector
         self._backends = dict(backends)
 
-    def _prompt(self, evidence: str, instructions: str) -> str:
+    def _prompt(self, evidence: str, instructions: str, review_type: str) -> str:
         extra = instructions.strip() if isinstance(instructions, str) else ""
+        purpose = (
+            "Code-quality review purpose: assess correctness, regressions, error handling, "
+            "tests, maintainability, and stated requirements. Report only evidence-backed findings."
+            if review_type == "code-quality"
+            else
+            "Safety/security review purpose: assess secrets, authentication and authorization, "
+            "trust boundaries, injection and command execution, network and filesystem effects, "
+            "data handling, race/TOCTOU risks, dependency and supply-chain risk, and policy bypass. "
+            "Report only evidence-backed findings."
+        )
         return (
             "You are the kis-mcp code-reviewer agent. Review only the supplied current "
             "working-tree evidence. Do not modify files, run mutating commands, commit, "
             "merge, or spawn another agent. Return one JSON object with keys summary, "
             "findings, and unknowns. Each finding must contain severity, path, line, "
             "claim, evidence, recommendation, and confidence.\n\n"
+            f"{purpose}\n\n"
             f"Additional operator instructions:\n{extra or '[none]'}\n\n"
             f"Repository evidence:\n{evidence}"
         )
@@ -91,6 +104,7 @@ class CodeReviewAgent:
         backend: str,
         output: str,
         *,
+        review_type: str,
         model_profile: str | None = None,
     ) -> dict[str, Any]:
         diagnostics: list[str] = []
@@ -107,6 +121,7 @@ class CodeReviewAgent:
                 "agent_id": self.settings.agent_id,
                 "status": "completed_unstructured",
                 "backend": backend,
+                "review_type": review_type,
                 **provenance,
                 "summary": bounded.strip(),
                 "findings": [],
@@ -129,6 +144,7 @@ class CodeReviewAgent:
             "agent_id": self.settings.agent_id,
             "status": "completed",
             "backend": backend,
+            "review_type": review_type,
             **provenance,
             "summary": summary.strip() if isinstance(summary, str) else "",
             "findings": findings,
@@ -137,13 +153,19 @@ class CodeReviewAgent:
         }
 
     def _invalid_request(
-        self, backend: str | None, model: str | None, diagnostic: str, summary: str
+        self,
+        backend: str | None,
+        model: str | None,
+        diagnostic: str,
+        summary: str,
+        review_type: str | None = None,
     ) -> dict[str, Any]:
         return {
             "schema_version": 1,
             "agent_id": self.settings.agent_id,
             "status": "invalid_request",
             "backend": backend,
+            "review_type": review_type,
             "model_profile": model,
             "summary": summary,
             "findings": [],
@@ -157,6 +179,7 @@ class CodeReviewAgent:
         instructions: str = "",
         backend: str | None = None,
         model: str | None = None,
+        review_type: str = "code-quality",
     ) -> dict[str, Any]:
         project = Path(path).resolve()
         if not self.settings.enabled:
@@ -165,17 +188,27 @@ class CodeReviewAgent:
                 "agent_id": self.settings.agent_id,
                 "status": "disabled",
                 "backend": backend,
+                "review_type": review_type,
                 "summary": "Code-review agent is disabled.",
                 "findings": [],
                 "unknowns": [],
                 "diagnostics": ["AGENT_DISABLED"],
             }
+        if not isinstance(review_type, str) or review_type not in _REVIEW_TYPES:
+            return self._invalid_request(
+                backend,
+                model,
+                "AGENT_REVIEW_TYPE_UNKNOWN",
+                "Requested review type is not configured.",
+                review_type if isinstance(review_type, str) else None,
+            )
         if backend is not None and backend not in self._backends:
             return self._invalid_request(
                 backend,
                 model,
                 "AGENT_BACKEND_UNKNOWN",
                 "Requested backend is not configured.",
+                review_type,
             )
         if model is not None:
             if not isinstance(model, str) or model not in self.settings.nvidia.profiles:
@@ -194,7 +227,7 @@ class CodeReviewAgent:
                 )
 
         evidence = self._collector.collect(project)
-        prompt = self._prompt(evidence, instructions)
+        prompt = self._prompt(evidence, instructions, review_type)
         order = (
             ["nvidia-nim"]
             if model is not None
@@ -241,6 +274,7 @@ class CodeReviewAgent:
             return self._normalize(
                 backend_name,
                 output,
+                review_type=review_type,
                 model_profile=selected_model,
             )
         if first_failure is not None:
@@ -250,6 +284,7 @@ class CodeReviewAgent:
                 "agent_id": self.settings.agent_id,
                 "status": "failed",
                 "backend": failed_backend,
+                "review_type": review_type,
                 "summary": "The configured review backend failed.",
                 "findings": [],
                 "unknowns": [],
@@ -261,6 +296,7 @@ class CodeReviewAgent:
             "agent_id": self.settings.agent_id,
             "status": "unavailable",
             "backend": unavailable_backend,
+            "review_type": review_type,
             "summary": "The requested review backend is unavailable.",
             "findings": [],
             "unknowns": [],

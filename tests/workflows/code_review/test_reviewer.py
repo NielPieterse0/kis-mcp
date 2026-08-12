@@ -102,7 +102,9 @@ def _settings() -> AgentSettings:
         codex=CodexSettings(
             enabled=True,
             script_path=Path("script.ps1"),
-            executable="codex",
+            executable=r"C:\Projects\.kis-mcp\tools\codex\0.147.0\node_modules\.bin\codex.cmd",
+            home_path=Path(r"C:\Projects\.kis-mcp\agent-hosts\codex-reviewer"),
+            expected_version="0.147.0",
             timeout_seconds=30,
             max_output_chars=30000,
         ),
@@ -127,6 +129,64 @@ def _structured_output() -> str:
             "unknowns": ["runtime behavior not exercised"],
         }
     )
+
+
+def test_agent_rejects_unknown_review_type_before_collecting_evidence(tmp_path: Path) -> None:
+    collector = FakeCollector()
+    nvidia = FakeNvidiaBackend(output="unused")
+    codex = FakeBackend("codex-cli", output="unused")
+    agent = CodeReviewAgent(
+        _settings(), collector=collector, backends={"nvidia-nim": nvidia, "codex-cli": codex}
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli", review_type="other")
+
+    assert result["status"] == "invalid_request"
+    assert result["diagnostics"] == ["AGENT_REVIEW_TYPE_UNKNOWN"]
+    assert collector.paths == []
+    assert nvidia.calls == []
+    assert codex.calls == []
+
+
+def test_codex_code_quality_review_is_direct_and_purpose_specific(tmp_path: Path) -> None:
+    nvidia = FakeNvidiaBackend(output="unused")
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(), collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": codex}
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli", review_type="code-quality")
+
+    assert result["review_type"] == "code-quality"
+    assert result["backend"] == "codex-cli"
+    assert nvidia.model_calls == []
+    assert len(codex.calls) == 1
+    prompt = codex.calls[0][1]
+    assert "Code-quality review purpose" in prompt
+    assert "correctness" in prompt
+    assert "regressions" in prompt
+    assert "tests" in prompt
+
+
+def test_codex_safety_security_review_is_direct_and_purpose_specific(tmp_path: Path) -> None:
+    nvidia = FakeNvidiaBackend(output="unused")
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(), collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": codex}
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli", review_type="safety-security")
+
+    assert result["review_type"] == "safety-security"
+    assert result["backend"] == "codex-cli"
+    assert nvidia.model_calls == []
+    assert len(codex.calls) == 1
+    prompt = codex.calls[0][1]
+    assert "Safety/security review purpose" in prompt
+    assert "secrets" in prompt
+    assert "trust boundaries" in prompt
+    assert "command execution" in prompt
+    assert "policy bypass" in prompt
 
 
 def test_agent_uses_default_super_model_and_returns_provenance(tmp_path: Path) -> None:
