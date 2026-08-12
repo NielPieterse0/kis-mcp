@@ -10,4 +10,4 @@
 - [x] Run focused tests and scope check.
 - [x] Rerun full verification after final review correction.
 - [x] Record final review/commissioning evidence.
-- [ ] Commit, publish, create/merge PR, delete remote branch, and clean worktree.
+- [x] Commit, publish, create/merge PR, delete remote branch, and clean worktree.

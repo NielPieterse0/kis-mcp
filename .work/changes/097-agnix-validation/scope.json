@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "097-agnix-validation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/097-agnix-validation",
   "worktree": ".work/worktrees/097-agnix-validation",
   "base": "main",

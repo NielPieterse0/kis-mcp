@@ -30,3 +30,10 @@ Implemented bounded `validate_agent_configuration` using pinned agnix 0.45.0 wit
 - Revert this change to remove the workflow and restore prior settings/docs.
 - The old runtime remains recoverable in quarantine; no permanent deletion was used.
 - General agnix MCP/provider exposure and mutation/fix modes remain intentionally out of scope.
+
+## Delivery
+
+- Implementation commit: `80a242d65473ae61147f4489b3f5cc93ec2a1da6`.
+- PR #110 merged that exact head into GitHub `main` on 2026-08-12.
+- Remote feature branch deletion verified at the exact implementation head.
+- This final change-record commit marks the slice closed so governed local worktree cleanup can complete.
