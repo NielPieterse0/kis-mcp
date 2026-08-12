@@ -23,7 +23,7 @@ A standalone wheel installation is not a supported deployment model. Starting th
 
 ## Generated state
 
-All generated state remains inside the approved write boundary and outside the repository:
+Generated state remains inside the approved write boundary. The normal state root is outside the repository; the operator-approved agnix native runtime is the one compatibility exception and lives in the ignored repo-local `.temp` tree:
 
 ```text
 C:\Projects\.kis-mcp\
@@ -35,8 +35,7 @@ C:\Projects\.kis-mcp\
 │   └── projects\<project-id>\<worktree-fingerprint>\
 ├── commissioning\
 ├── tools\
-│   ├── agentsys\6.0.1\
-│   └── agnix\0.45.0\
+│   └── agentsys\6.0.1\
 ├── agent-hosts\
 │   └── agentsys\
 ├── python-env\
@@ -54,7 +53,13 @@ C:\Projects\.kis-mcp\
 └── logs\
 ```
 
-Do not commit this state. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
+Agnix runtime compatibility state is separate and ignored:
+
+```text
+C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0\
+```
+
+Do not commit generated state, including the repo-local agnix runtime. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
 
 ## Install Python dependencies
 
@@ -119,7 +124,7 @@ pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform opencode
 pwsh -NoProfile -File .\scripts\start-agentsys-host.ps1 -Platform codex
 ```
 
-agnix `0.45.0` provides the verified `agnix` CLI. Its npm distribution does not include the separate native `agnix-mcp` binary, so MCP mounting remains deferred and must not be inferred from the CLI installation.
+agnix `0.45.0` is installed at `C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0` because the same native executable was blocked by Windows Application Control from the prior central tools path but executes successfully from this operator-approved ignored repo-local compatibility path. KIS exposes only `validate_agent_configuration(project, target, strict, max_files)`, which invokes the pinned native binary with fixed JSON-validation arguments through normal Work middleware. It exposes no `--fix`, watch, init, telemetry, schema, tools, arbitrary-command, or MCP passthrough authority. The npm distribution still does not include the separate native `agnix-mcp` binary, so general MCP mounting remains deferred.
 
 See [`development/bootstrap/agentsys.md`](development/bootstrap/agentsys.md) and [`development/bootstrap/agnix.md`](development/bootstrap/agnix.md) for exact managed paths, catalogue counts, launch prerequisites, and recovery.
 

@@ -14,9 +14,12 @@ def test_agnix_settings_are_independent_and_disabled_by_default() -> None:
 
     assert data["package"] == "agnix"
     assert data["version"] == "0.45.0"
-    assert data["install_root"] == r"C:\Projects\.kis-mcp\tools\agnix\0.45.0"
+    assert data["install_root"] == r"C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0"
     assert data["expected_commands"] == ["agnix"]
     assert data["kis_mcp_exposure"] == {"enabled": False, "namespace": "agnix"}
+    assert data["validation"]["binary_relative_path"] == r"node_modules\agnix\bin\agnix-binary.exe"
+    assert data["validation"]["targets"] == ["generic", "claude-code", "cursor", "codex", "kiro"]
+    assert data["validation"]["max_files"] == 10000
 
 
 def test_agnix_installer_is_pinned_recoverable_and_truthful() -> None:

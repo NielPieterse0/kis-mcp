@@ -43,7 +43,7 @@ The current gateway implements Work, bounded Discover with persistent registered
 | Discoverable long tail | Remaining registered Desktop Commander, Skills, internal Discover, quarantine, and namespaced provider operations. They retain original schemas and middleware, are searchable by capability, and may be invoked through effect-specific dispatch when eligible. |
 | Status-only | Disabled, unavailable, authentication-gated, build-failed, or mount-failed operations remain visible through provider and capability status but are not normally exposed or recommended. |
 | Standalone | KIS Control Center read-only MCP App and UI resource. |
-| Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through supervised bootstrap scripts beneath `C:\Projects`; neither is mounted into the gateway. |
+| Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` are installed through supervised bootstrap scripts beneath `C:\Projects`. Agnix uses the operator-approved ignored repo-local runtime path `C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0` for Windows application-control compatibility and is exposed only through bounded `validate_agent_configuration`; neither tool is mounted as a general provider. |
 | Target | Govern operations, broader semantic and trusted remote evidence, and additional executable workflow orchestration. |
 
 The future platform model does not alter the closed Work enforcement decision set. Profiles, catalogues, governance findings, evidence requirements, readiness, or workflow selection must not become additional reasons to block an otherwise permitted invocation.
@@ -58,7 +58,7 @@ The future platform model does not alter the closed Work enforcement decision se
 | Skills module | Resolves the approved shared catalogue, overlays reviewed category and capability metadata, contributes Skills to the normalized catalogue, and routes create/improve mutations back through Work middleware. |
 | Provider runtime | Registers Desktop Commander, Context7 MCP, GitHub MCP, NVIDIA NIM, Serena MCP, Supabase, and Control Center descriptors; mounts enabled connectors under unique namespaces; keeps Context7 independent from project memory; exposes Serena only through a read-only semantic surface with offline-enforced startup; owns runtime-scoped provider clients; contains failures; and reports readiness and commissioning separately. |
 | Capability composition | Normalizes Provider, Tool, Discover, Skill, and Workflow contributions; evaluates readiness and eligibility; scores explainable recommendations; and plans direct, discoverable, or status-only exposure. |
-| Tools and workflows | Registers local executable adapters such as Codex CLI, contributes normalized operations, describes complete user workflows, and exposes one bounded advisory code-review workflow with NVIDIA/Codex backend selection plus strict code-quality and safety/security purposes. |
+| Tools and workflows | Registers local executable adapters such as Codex CLI, contributes normalized operations, describes complete user workflows, exposes bounded advisory code review with NVIDIA/Codex backend selection, and exposes pinned agnix validation through fixed read-only arguments with no fix authority. |
 | Managed bootstrap tooling | Installs pinned Codex CLI, AgentSys, and agnix distributions beneath `C:\Projects`, creates isolated managed profiles, validates staged state, and preserves replaced state through quarantine without expanding Work authority. |
 | Control Center | Provides a read-only MCP App and UI resource through the mounted `controlcenter_*` provider and through the standalone process; it does not authorize Work mutations. |
 | Effect resolver | Extracts explicit content-write paths, directory-entry mutations, network intent, and delete intent from provider arguments and command text. |
@@ -321,7 +321,7 @@ The current implementation includes:
 - `review_change_with_agent`, which collects bounded local evidence, permits one fallback only when backend selection is implicit, supports strict `code-quality` and `safety-security` purposes, and grants no mutation or nested-agent authority;
 - provider-neutral P0-P5 work management with typed records, exact implementation traceability, atomic review evidence persistence, deterministic reconciliation, attributable portfolio status, fixed-shape CLI/CI, and five task-level platform workflows;
 - a bounded GitHub Project adapter that reads configured Projects, adds existing issues or pull requests, updates explicit fields, preflights revisions, deduplicates source records, and exposes no delete or unrestricted GraphQL operation;
-- pinned AgentSys `6.0.1` and agnix `0.45.0` supervised bootstrap installers with isolated managed paths, staged validation, and recoverable replacement; neither component is mounted into the gateway;
+- pinned AgentSys `6.0.1` and agnix `0.45.0` supervised bootstrap installers with isolated managed paths, staged validation, and recoverable replacement; agnix is additionally available through bounded `validate_agent_configuration` using its ignored repo-local native runtime, while neither component is mounted as a general provider;
 - the read-only KIS Control Center MCP App through the mounted `controlcenter_*` provider and the standalone process.
 
 ### Discover status
