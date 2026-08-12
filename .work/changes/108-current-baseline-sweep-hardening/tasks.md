@@ -10,4 +10,4 @@
 - [x] Reconcile stale current documentation.
 - [x] Run seven-slice and P5 live/focused regression sweep.
 - [x] Run scope/diff checks, specialist review attempts/manual review, and canonical verification.
-- [ ] Publish exact reviewable PR, merge exact approved head, and clean up safely.
+- [x] Publish exact reviewable PR, merge exact approved head, and clean up safely.

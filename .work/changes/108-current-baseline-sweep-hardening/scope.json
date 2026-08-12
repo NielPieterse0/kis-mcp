@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "108-current-baseline-sweep-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/108-current-baseline-sweep-hardening",
   "worktree": ".work/worktrees/108-current-baseline-sweep-hardening",
   "base": "main",

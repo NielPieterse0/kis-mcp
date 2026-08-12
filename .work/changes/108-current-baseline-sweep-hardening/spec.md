@@ -1,7 +1,7 @@
 # Change Specification: Current Baseline Sweep Hardening
 
 - **Change ID**: `108-current-baseline-sweep-hardening`
-- **Status**: Ready for delivery
+- **Status**: Closed
 - **Risk Profile**: rigorous
 
 ## Outcome
