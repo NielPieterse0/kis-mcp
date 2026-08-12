@@ -26,7 +26,8 @@
 
 - Branch: `change/101-executable-change-workflow`
 - Worktree: `.work/worktrees/101-executable-change-workflow`
-- Commit: pending final commit.
+- Implementation commit: `c473ff4574179088cd6daf858796d6a76b868823`.
+- Lifecycle-closeout commit: pending this reconciliation commit.
 - Pull request or merge: pending exact-head delivery.
 - Cleanup: pending post-merge governed cleanup.
 

@@ -7,4 +7,5 @@
 - [x] Run focused tests, scope check, and `git diff --check`.
 - [x] Run and record specialist review attempts.
 - [x] Run canonical `pwsh -File scripts/verify.ps1`.
-- [ ] Reconcile closeout, commit, publish, PR/merge, and cleanup.
+- [x] Reconcile implementation closeout and mark the lifecycle record closed.
+- [ ] Publish exact head, PR/merge, remote-branch cleanup, and governed local cleanup.

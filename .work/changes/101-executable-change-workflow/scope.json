@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "101-executable-change-workflow",
-  "status": "active",
+  "status": "closed",
   "branch": "change/101-executable-change-workflow",
   "worktree": ".work/worktrees/101-executable-change-workflow",
   "base": "main",
