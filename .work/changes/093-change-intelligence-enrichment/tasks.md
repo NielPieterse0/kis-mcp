@@ -10,6 +10,6 @@
 - [x] Run focused regression/schema tests.
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check` and `git diff --check`.
 - [x] Run canonical `pwsh -File scripts/verify.ps1`.
-- [ ] Complete independent exact-head PR review; local Codex/NVIDIA reviewer execution is currently unavailable/failing.
+- [x] Independent exact-head PR review explicitly waived by operator on 2026-08-12; no independent reviewer pass is claimed.
 - [ ] Commit, publish, create and validate exact-head PR, merge, and reconcile closeout.
 - [ ] Clean only 093 worktree/branch from refreshed clean primary `main`.

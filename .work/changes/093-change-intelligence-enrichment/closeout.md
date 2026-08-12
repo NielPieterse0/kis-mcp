@@ -16,9 +16,10 @@
 
 ## Review
 
-- Local independent reviewer attempts are not review evidence: `kis-dev` Codex returned `AGENT_BACKEND_FAILED:CodexCliError`, NVIDIA returned `AGENT_BACKEND_FAILED:NvidiaNimError`, and `kis-op` reported both reviewer backends unavailable. Managed Codex itself reports version `0.147.0` and `Logged in using ChatGPT`, so this is retained as reviewer-runtime/commissioning evidence rather than a 093 implementation defect.
+- Local independent reviewer attempts before closeout are retained only as runtime evidence: earlier KIS reviewer calls failed or timed out before a trustworthy result was available.
+- One direct Codex attempt later returned no P0-P2 findings but also cited a non-existent source path in a P3 finding; that result is explicitly not counted as valid independent review evidence.
 - In-session code review found one correctness defect: a newly added source path was classified as `EXTEND` rather than `NEW`. A regression was added, the classifier now uses existing added-status evidence, and the focused plus canonical suites pass after the fix. The read-only security pass found no new mutation, credential, network, or authorization sink in the 093 diff.
-- Required independent review will be performed against the immutable pull-request head before merge; blocking findings must be resolved and affected verification rerun.
+- On 2026-08-12 the operator explicitly instructed `skip review - record`. The independent exact-head reviewer gate is therefore waived by operator authority for this slice. Closeout must not claim an independent reviewer pass; merge proceeds on the recorded waiver plus the required exact-head verification and scope gates.
 
 ## Git and merge
 
