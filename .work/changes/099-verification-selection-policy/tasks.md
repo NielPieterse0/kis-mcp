@@ -7,4 +7,4 @@
 - [x] Run focused verification workflow and gateway registration regressions.
 - [x] Run `change-workflow.ps1 check`, `git diff --check`, and canonical `scripts/verify.ps1`.
 - [x] Run/record bounded independent review attempts and manual requirements review.
-- [ ] Commit, publish, exact-head PR/merge, mark closed, and governed cleanup.
+- [x] Commit, publish, exact-head PR/merge, mark closed, and governed cleanup.
