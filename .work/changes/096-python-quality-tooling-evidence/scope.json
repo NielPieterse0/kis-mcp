@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "096-python-quality-tooling-evidence",
-  "status": "active",
+  "status": "closed",
   "branch": "change/096-python-quality-tooling-evidence",
   "worktree": ".work/worktrees/096-python-quality-tooling-evidence",
   "base": "main",
