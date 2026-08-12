@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "104-commissioning-closeout-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/104-commissioning-closeout-hardening",
   "worktree": ".work/worktrees/104-commissioning-closeout-hardening",
   "base": "main",
