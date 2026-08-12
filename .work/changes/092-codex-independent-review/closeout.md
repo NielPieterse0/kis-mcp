@@ -27,9 +27,10 @@
 
 - Branch: `change/092-codex-independent-review`
 - Worktree: `.work/worktrees/092-codex-independent-review`
-- Commit: pending final commit.
-- Merge/cleanup: pending final integration.
+- Candidate implementation commit: `fcbacb4783466b4eacffd1d8ebb215393e51e920`.
+- Candidate exact-state verification passed before that commit; this closeout metadata update is the only subsequent tracked change.
+- Merge/cleanup: performed after this metadata commit from clean primary `main` through the governed change workflow.
 
 ## Residual items
 
-- None required for the approved 092 outcome; final commit/integration/cleanup remain procedural closeout steps.
+- None required for the approved 092 outcome; integration and cleanup are procedural post-metadata steps and do not change implementation content.
