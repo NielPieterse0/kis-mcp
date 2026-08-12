@@ -40,6 +40,16 @@
         "projects": []
       },
       "supabase": null
+    },
+    {
+      "project_id": "commodity",
+      "display_name": "commodity",
+      "local_root": "C:\\Projects\\commodity",
+      "github": {
+        "repository": "NielPieterse0/commodity",
+        "projects": []
+      },
+      "supabase": null
     }
   ]
 }

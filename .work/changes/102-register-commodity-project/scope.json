@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "change_id": "102-register-commodity-project",
+  "status": "active",
+  "branch": "change/102-register-commodity-project",
+  "worktree": ".work/worktrees/102-register-commodity-project",
+  "base": "main",
+  "outcome": "Register commodity as a KIS managed project with its local root and GitHub repository binding",
+  "owned_paths": [
+    "settings/projects.settings.json",
+    "tests/projects/test_project_registry.py",
+    "tests/projects/test_project_registry_platform.py",
+    "tests/projects/test_project_registry_settings.py",
+    "tests/repositories/test_project_registry_settings.py",
+    ".work/changes/102-register-commodity-project/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null
+}
