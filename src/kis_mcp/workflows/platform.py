@@ -123,6 +123,21 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             executable_steps=("validate_agent_configuration",),
         ),
         _workflow(
+            "execute-current-change",
+            "Execute current change verification",
+            "Execute the existing bounded change workflow to select and run verification and aggregate specialist review results.",
+            ("operation.execute_change_workflow",),
+            ("execute_change_workflow",),
+            (
+                "selected verification is executed",
+                "specialist review outcomes are retained",
+                "no new execution authority is introduced",
+            ),
+            ("execute change workflow", "verify and review current change", "run change checks"),
+            (process,),
+            executable_steps=("execute_change_workflow",),
+        ),
+        _workflow(
             "develop-isolated-change",
             "Develop an isolated repository change",
             "Create a claimed worktree, implement with tests, verify, and prepare reviewable commits.",
