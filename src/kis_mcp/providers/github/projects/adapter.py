@@ -161,6 +161,7 @@ def _field_kind(value: Any) -> ProjectFieldKind:
         "single_select": ProjectFieldKind.SINGLE_SELECT,
         "singleselect": ProjectFieldKind.SINGLE_SELECT,
         "iteration": ProjectFieldKind.ITERATION,
+        "repository": ProjectFieldKind.REPOSITORY,
     }.get(normalized, ProjectFieldKind.UNKNOWN)
 
 

@@ -16,6 +16,11 @@ from .reconciliation import (
     run_reconciliation,
 )
 from .reviews import ReviewArtifactKind, ReviewEvidenceManifest
+from .schema import (
+    ProjectSchemaStatus,
+    compare_project_schema,
+    load_project_schema_manifest,
+)
 from .settings import (
     BackendBindingSettings,
     EvidenceSettings,
@@ -156,6 +161,32 @@ class WorkManagementService:
             self._project_binding(project, binding),
             field_names=field_names,
             item_limit=item_limit,
+        )
+
+    async def schema_status(
+        self,
+        project_id: str,
+        *,
+        manifest_path: Path | None = None,
+    ) -> ProjectSchemaStatus:
+        project, binding = self._project_and_binding(project_id)
+        backend = self._backend(project, binding)
+        reader = getattr(backend, "read_schema_fields", None)
+        if reader is None:
+            raise WorkManagementUnavailable(
+                project.project_id,
+                binding.provider,
+                "configured provider does not expose bounded Project field inventory",
+                error_code="project_schema_unavailable",
+            )
+        manifest = load_project_schema_manifest(manifest_path)
+        if manifest.project_id != project.project_id:
+            raise ValueError("project schema manifest does not match selected project")
+        observed_fields = await reader(self._project_binding(project, binding))
+        return compare_project_schema(
+            manifest,
+            tuple(observed_fields),
+            views_observed=None,
         )
 
     async def reconcile(

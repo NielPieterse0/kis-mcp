@@ -57,6 +57,13 @@ jobs:
           --settings settings/work-management/github-projects.settings.json
           --revision $env:GITHUB_SHA
 
+      - name: Validate work-management Project schema manifest
+        shell: pwsh
+        run: >-
+          uv run --frozen --no-sync python scripts/project_workflow.py schema-manifest
+          --manifest settings/work-management/github-project-schema.json
+          --revision $env:GITHUB_SHA
+
       - name: Validate governance claims
         shell: pwsh
         run: pwsh -NoProfile -File scripts/change-workflow.ps1 validate --claims-only

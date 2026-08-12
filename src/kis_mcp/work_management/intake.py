@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 
-from .contracts import PUBLIC_SCHEMA_VERSION, LifecycleState, Priority, RecordType
+from .contracts import (
+    PUBLIC_SCHEMA_VERSION,
+    DocumentationImpact,
+    LifecycleState,
+    Priority,
+    RecordType,
+)
 
 _PROJECT_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 
@@ -46,6 +52,7 @@ class CaptureWorkItem:
     priority: Priority = Priority.MEDIUM
     module: str | None = None
     state: LifecycleState = LifecycleState.INBOX
+    documentation_impact: DocumentationImpact = DocumentationImpact.NOT_ASSESSED
     schema_version: int = PUBLIC_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
@@ -62,6 +69,15 @@ class CaptureWorkItem:
             raise ValueError("priority must be a Priority value")
         if not isinstance(self.state, LifecycleState):
             raise ValueError("state must be a LifecycleState value")
+        if not isinstance(self.documentation_impact, DocumentationImpact):
+            raise ValueError("documentation_impact must be a DocumentationImpact value")
+        if (
+            self.record_type in {RecordType.TASK, RecordType.SPECIFICATION_SLICE}
+            and self.documentation_impact is DocumentationImpact.NOT_ASSESSED
+        ):
+            raise ValueError(
+                "documentation_impact must be classified for actionable or specification intake"
+            )
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
@@ -74,6 +90,7 @@ class CaptureWorkItem:
             "priority": self.priority.value,
             "module": self.module,
             "state": self.state.value,
+            "documentation_impact": self.documentation_impact.value,
         }
 
 
@@ -128,6 +145,7 @@ async def capture_work_item(
     priority: Priority = Priority.MEDIUM,
     module: str | None = None,
     state: LifecycleState = LifecycleState.INBOX,
+    documentation_impact: DocumentationImpact = DocumentationImpact.NOT_ASSESSED,
 ) -> MutationResult:
     if not isinstance(backend, IntakeBackend):
         raise ValueError("backend must implement IntakeBackend")
@@ -140,6 +158,7 @@ async def capture_work_item(
         priority=priority,
         module=module,
         state=state,
+        documentation_impact=documentation_impact,
     )
     result = await backend.capture(command)
     if not isinstance(result, MutationResult):

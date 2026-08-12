@@ -14,6 +14,7 @@ from kis_mcp.providers.github.project_management import (
 )
 from kis_mcp.work_management import (
     ProjectBinding,
+    ProjectFieldKind,
     ProjectOwnerType,
     ReconciliationAction,
     ReconciliationDecision,
@@ -380,3 +381,53 @@ def test_missing_capability_is_bounded_and_no_raw_provider_error_leaks() -> None
 def test_adapter_exposes_no_delete_operation() -> None:
     assert not hasattr(GitHubProjectManagementAdapter, "delete")
     assert not hasattr(GitHubProjectManagementAdapter, "delete_project_item")
+
+
+def test_read_schema_fields_uses_bounded_project_field_inventory() -> None:
+    caller = Caller(
+        {
+            "fields": [
+                {
+                    "id": 101,
+                    "node_id": "FIELD_STATUS",
+                    "name": "Status",
+                    "data_type": "single_select",
+                    "options": [
+                        {"id": "todo", "name": {"raw": "Todo"}},
+                        {"id": "done", "name": {"raw": "Done"}},
+                    ],
+                },
+                {
+                    "id": 102,
+                    "node_id": "FIELD_CHANGE",
+                    "name": "Change ID",
+                    "data_type": "text",
+                },
+            ],
+            "pageInfo": {"hasNextPage": False},
+        }
+    )
+    adapter = GitHubProjectManagementAdapter(
+        caller,
+        {"alpha-project": binding()},
+        available_tools=("projects_get", "projects_list", "projects_write"),
+    )
+
+    fields = asyncio.run(adapter.read_schema_fields(binding()))
+
+    assert [item.name for item in fields] == ["Change ID", "Status"]
+    assert fields[0].kind is ProjectFieldKind.TEXT
+    assert fields[1].kind is ProjectFieldKind.SINGLE_SELECT
+    assert [option.name for option in fields[1].options] == ["Done", "Todo"]
+    assert caller.calls == [
+        (
+            "projects_list",
+            {
+                "method": "list_project_fields",
+                "owner": "ExampleOwner",
+                "owner_type": "user",
+                "project_number": 12,
+                "per_page": 50,
+            },
+        )
+    ]

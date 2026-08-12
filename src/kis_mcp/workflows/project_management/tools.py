@@ -7,9 +7,14 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from ...work_management import (
+    DocumentationMilestoneState,
     ReviewArtifactKind,
     WorkManagementService,
+    apply_documentation_reconciliation_event,
+    complete_documentation_reconciliation,
+    create_documentation_reconciliation_due,
     create_review_evidence_manifest,
+    evaluate_merge_readiness,
     evaluate_traceability,
 )
 from .parsing import (
@@ -96,6 +101,84 @@ def register_project_management_tools(
             }
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_RECONCILE_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_schema_status(
+        project_id: str,
+    ) -> dict[str, Any]:
+        """Compare one configured GitHub Project against the approved schema manifest."""
+
+        try:
+            status = await service.schema_status(project_id)
+            return status.to_json_dict()
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_SCHEMA_STATUS_FAILED", exc) from exc
+
+    @tool_server.tool
+    def project_management_merge_readiness(
+        record: dict[str, Any],
+        trace: dict[str, Any],
+        pull_request_number: int,
+    ) -> dict[str, Any]:
+        """Evaluate exact-head traceability and pre-merge documentation readiness."""
+
+        try:
+            readiness = evaluate_merge_readiness(
+                work_record_from_json(record),
+                implementation_trace_from_json(trace),
+                pull_request_number,
+            )
+            return readiness.to_json_dict()
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_MERGE_READINESS_FAILED", exc) from exc
+
+    @tool_server.tool
+    def project_management_documentation_reconcile(
+        record: dict[str, Any],
+        trace: dict[str, Any],
+        pull_request_number: int,
+        documentation_task_id: str,
+        required_updates: list[str],
+        completion_revision: str | None = None,
+    ) -> dict[str, Any]:
+        """Create or complete the post-merge documentation reconciliation milestone."""
+
+        try:
+            work_record = work_record_from_json(record)
+            implementation_trace = implementation_trace_from_json(trace)
+            if completion_revision is None:
+                event = create_documentation_reconciliation_due(
+                    implementation_trace,
+                    pull_request_number,
+                    documentation_task_id,
+                    tuple(required_updates),
+                )
+                phase = "documentation_reconciliation_due"
+            else:
+                matches = tuple(
+                    event
+                    for event in implementation_trace.documentation_events
+                    if event.pull_request_number == pull_request_number
+                    and event.state
+                    is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+                )
+                if len(matches) != 1:
+                    raise ValueError(
+                        "exactly one due documentation reconciliation event is required"
+                    )
+                event = complete_documentation_reconciliation(
+                    matches[0],
+                    completion_revision,
+                )
+                phase = "post_merge_complete"
+            updated = apply_documentation_reconciliation_event(work_record, event)
+            return {
+                "phase": phase,
+                "event": event.to_json_dict(),
+                "record": updated.to_json_dict(),
+            }
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_DOCUMENTATION_RECONCILE_FAILED", exc) from exc
 
     @tool_server.tool
     def project_management_portfolio_status(

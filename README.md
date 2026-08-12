@@ -34,7 +34,7 @@ The current platform includes:
 - capability search, description, workflow recommendation, and effect-specific long-tail dispatch;
 - registered provider composition with readiness/authentication/commissioning reported separately from registration;
 - an advisory `review_change_with_agent` workflow using configured NVIDIA NIM or Codex CLI backends;
-- provider-neutral work-management workflows and exact registered-GitHub operations;
+- provider-neutral Work Management with repository-owned GitHub Project schema/drift evidence, documentation-aware intake, pre-merge documentation readiness, post-merge reconciliation milestones, preview-first Project reconciliation, and exact registered-GitHub operations;
 - a read-only KIS Control Center available through the mounted `controlcenter_*` provider and as a standalone MCP App.
 
 Implementation does not prove live commissioning. Provider authentication, external tunnel connectivity, and other live checks are operational evidence; follow [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for the current procedures.
