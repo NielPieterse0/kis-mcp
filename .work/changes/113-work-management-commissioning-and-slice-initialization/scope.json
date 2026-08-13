@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
   "change_id": "113-work-management-commissioning-and-slice-initialization",
-  "status": "ready",
+  "status": "closed",
   "branch": "change/113-work-management-commissioning-and-slice-initialization",
   "worktree": ".work/worktrees/113-work-management-commissioning-and-slice-initialization",
   "base": "main",
