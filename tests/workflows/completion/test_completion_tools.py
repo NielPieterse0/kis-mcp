@@ -45,11 +45,14 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
         "body",
         "approved",
         "task_terms",
+        "risk_profile",
         "max_verifications",
         "verification_timeout_ms",
         "review_types",
         "review_backend",
         "review_model",
+        "documentation_impact",
+        "residual_state",
     }
     for forbidden in (
         "command", "tool_name", "operation", "repository", "remote_url",
@@ -70,6 +73,7 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
 
     assert result.structured_content["contract"] == "completion-result-v1"
     assert result.structured_content["status"] == "reviewable"
-    assert service.calls[0]["review_types"] == ("code-quality",)
+    assert service.calls[0]["review_types"] is None
+    assert service.calls[0]["risk_profile"] == "standard"
     assert tool.annotations.readOnlyHint is False
     assert tool.annotations.destructiveHint is False

@@ -190,8 +190,10 @@ def test_safe_closeout_uses_runtime_verification_capability() -> None:
         item for item in workflow_descriptors() if item.workflow_id == "pull-request-safe-closeout"
     )
 
-    assert "verification.execute" in descriptor.capabilities
-    assert "validation.execute" not in descriptor.capabilities
+    assert "github.pull-request.read" in descriptor.capabilities
+    assert "github.actions.read" in descriptor.capabilities
+    assert "verification.execute" not in descriptor.capabilities
+    assert "run_verification" not in descriptor.required_steps
 
 
 def test_workflow_recommendation_excludes_ineligible_candidates() -> None:

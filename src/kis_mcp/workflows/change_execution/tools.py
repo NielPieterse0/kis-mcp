@@ -27,9 +27,10 @@ class ChangeExecutionServicePort(Protocol):
         base_ref: str | None = None,
         head_ref: str | None = None,
         task_terms: tuple[str, ...] = (),
-        max_verifications: int = 20,
+        risk_profile: str = "standard",
+        max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
-        review_types: tuple[str, ...] = ("code-quality",),
+        review_types: tuple[str, ...] | None = None,
         review_backend: str | None = None,
         review_model: str | None = None,
     ) -> ChangeExecutionResult: ...
@@ -47,7 +48,8 @@ def register_change_execution_tool(
         base_ref: str | None = None,
         head_ref: str | None = None,
         task_terms: list[str] | None = None,
-        max_verifications: int = 20,
+        risk_profile: str = "standard",
+        max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
         review_types: list[str] | None = None,
         review_backend: str | None = None,
@@ -62,13 +64,10 @@ def register_change_execution_tool(
                 base_ref=base_ref,
                 head_ref=head_ref,
                 task_terms=tuple(task_terms or ()),
+                risk_profile=risk_profile,
                 max_verifications=max_verifications,
                 verification_timeout_ms=verification_timeout_ms,
-                review_types=(
-                    tuple(review_types)
-                    if review_types is not None
-                    else ("code-quality",)
-                ),
+                review_types=(tuple(review_types) if review_types is not None else None),
                 review_backend=review_backend,
                 review_model=review_model,
             )

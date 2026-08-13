@@ -98,6 +98,36 @@ def test_execution_retains_verification_failure_and_review_error() -> None:
     assert result.reviews[1].error_code == "AGENT_REVIEW_FAILED"
 
 
+@pytest.mark.parametrize(
+    ("risk_profile", "expected_max", "expected_reviews"),
+    [
+        ("lean", 6, []),
+        ("standard", 20, ["code-quality"]),
+        ("rigorous", 20, ["code-quality", "safety-security", "architecture"]),
+    ],
+)
+def test_execution_risk_profile_sets_default_weight(
+    risk_profile: str,
+    expected_max: int,
+    expected_reviews: list[str],
+) -> None:
+    invoker = _Invoker()
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            risk_profile=risk_profile,
+        )
+    )
+
+    assert result.risk_profile == risk_profile
+    assert invoker.calls[0][1]["max_verifications"] == expected_max
+    assert [
+        arguments["review_type"]
+        for name, arguments in invoker.calls
+        if name == "review_change_with_agent"
+    ] == expected_reviews
+
+
 def test_execution_rejects_unknown_review_type_before_any_nested_call() -> None:
     invoker = _Invoker()
     with pytest.raises(ValueError, match="review_type"):
@@ -105,6 +135,18 @@ def test_execution_rejects_unknown_review_type_before_any_nested_call() -> None:
             ChangeExecutionService(invoker).execute(
                 project=r"C:\Projects\fixture",
                 review_types=("made-up-review",),
+            )
+        )
+    assert invoker.calls == []
+
+
+def test_execution_rejects_unknown_risk_profile_before_any_nested_call() -> None:
+    invoker = _Invoker()
+    with pytest.raises(ValueError, match="risk_profile"):
+        asyncio.run(
+            ChangeExecutionService(invoker).execute(
+                project=r"C:\Projects\fixture",
+                risk_profile="heroic",
             )
         )
     assert invoker.calls == []

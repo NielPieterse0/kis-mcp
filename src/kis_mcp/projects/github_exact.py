@@ -19,7 +19,7 @@ from .settings import load_project_registry_settings
 
 _SHA = re.compile(r"^[0-9a-fA-F]{40}$")
 CommandRunner = Callable[[Sequence[str], Path, Mapping[str, str]], Any]
-MergeMethod = Literal["merge", "squash", "rebase"]
+MergeMethod = Literal["merge"]
 
 
 def _default_runner(
@@ -542,6 +542,57 @@ class RegisteredGitHubOperations:
             "base_sha": default_sha,
         }
 
+    def configure_repository_landing_policy(
+        self,
+        *,
+        project_id: str,
+        approved: bool,
+    ) -> dict[str, object]:
+        self._require_approval(approved)
+        project, repository, _ = self._target(project_id)
+        cwd = Path(project.local_root)
+        self._authenticate(cwd)
+        self._run(
+            (
+                "gh",
+                "api",
+                "--method",
+                "PATCH",
+                f"repos/{repository}",
+                "-F",
+                "allow_merge_commit=true",
+                "-F",
+                "allow_squash_merge=false",
+                "-F",
+                "allow_rebase_merge=false",
+                "-F",
+                "delete_branch_on_merge=false",
+            ),
+            cwd,
+        )
+        observed = self._run(("gh", "api", f"repos/{repository}"), cwd)
+        try:
+            payload = json.loads(str(getattr(observed, "stdout", "")))
+        except json.JSONDecodeError as exc:
+            raise ToolError("REPOSITORY_POLICY_UNVERIFIABLE: gh returned invalid JSON") from exc
+        if not isinstance(payload, Mapping):
+            raise ToolError("REPOSITORY_POLICY_UNVERIFIABLE: gh returned a non-object")
+        expected = {
+            "allow_merge_commit": True,
+            "allow_squash_merge": False,
+            "allow_rebase_merge": False,
+            "delete_branch_on_merge": False,
+        }
+        if any(payload.get(key) is not value for key, value in expected.items()):
+            raise ToolError("REPOSITORY_POLICY_NOT_VERIFIED: landing settings do not match KIS policy")
+        return {
+            "schema_version": 1,
+            "state": "configured",
+            "project_id": project.project_id,
+            "repository": repository,
+            **expected,
+        }
+
     def _pr_view(self, repository: str, pull_number: int, cwd: Path) -> dict[str, object]:
         result = self._run(
             (
@@ -577,8 +628,8 @@ class RegisteredGitHubOperations:
         project, repository, _ = self._target(project_id)
         if isinstance(pull_number, bool) or not isinstance(pull_number, int) or pull_number <= 0:
             raise ToolError("INVALID_PULL_REQUEST: pull_number must be a positive integer")
-        if merge_method not in {"merge", "squash", "rebase"}:
-            raise ToolError("INVALID_MERGE_METHOD: use merge, squash, or rebase")
+        if merge_method != "merge":
+            raise ToolError("INVALID_MERGE_METHOD: repository policy requires merge commits")
         authorized_head = self._require_sha(expected_head, "expected_head")
         cwd = Path(project.local_root)
         self._authenticate(cwd)
@@ -730,6 +781,15 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
         ],
         "additionalProperties": False,
     },
+    "kis_github_configure_registered_repository": {
+        "type": "object",
+        "properties": {
+            "project_id": {"type": "string"},
+            "approved": {"type": "boolean"},
+        },
+        "required": ["project_id", "approved"],
+        "additionalProperties": False,
+    },
     "kis_github_merge_registered_pull_request": {
         "type": "object",
         "properties": {
@@ -738,7 +798,7 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
             "expected_head": {"type": "string"},
             "merge_method": {
                 "type": "string",
-                "enum": ["merge", "squash", "rebase"],
+                "enum": ["merge"],
             },
             "approved": {"type": "boolean"},
         },
@@ -870,6 +930,11 @@ def execute_registered_github_operation(
             expected_remote_default=values["expected_remote_default"],
             title=values["title"],
             body=values["body"],
+            approved=values["approved"],
+        )
+    if operation == "kis_github_configure_registered_repository":
+        return service.configure_repository_landing_policy(
+            project_id=values["project_id"],
             approved=values["approved"],
         )
     if operation == "kis_github_merge_registered_pull_request":

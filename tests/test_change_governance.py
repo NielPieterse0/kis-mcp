@@ -220,7 +220,7 @@ def initialize_repository(tmp_path: Path) -> Path:
     template = repository / ".work" / "changes" / "_template"
     template.mkdir(parents=True)
     (template / "scope.json").write_text("{}\n", encoding="utf-8")
-    for name in ("spec.md", "plan.md", "tasks.md", "closeout.md"):
+    for name in ("spec.md", "plan.md", "tasks.md", "closeout.md", "change.md"):
         (template / name).write_text(f"# {name}\n", encoding="utf-8")
     (repository / "README.md").write_text("# Test repository\n", encoding="utf-8")
     run_git(repository, "add", ".")
@@ -283,20 +283,52 @@ def test_primary_claim_overrides_stale_copies_in_other_worktrees(tmp_path: Path)
     assert matches[0].status == "closed"
 
 
-def test_create_change_worktree_requires_work_management_initialization(tmp_path: Path) -> None:
+def test_create_change_worktree_allows_local_first_initialization(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
-    with pytest.raises(module.ClaimError, match="WORK_MANAGEMENT_INITIALIZATION_REQUIRED"):
-        module.create_change_worktree(
-            repository,
-            change_id="001-alpha",
-            outcome="Implement alpha",
-            owned_paths=["src/**"],
-        )
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+    scope = json.loads(
+        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(encoding="utf-8")
+    )
+    assert scope["schema_version"] == 3
+    assert scope["risk_profile"] == "standard"
+    assert scope["base_evidence"]["relation"] == "unavailable"
+    assert scope["base_evidence"]["evidence_source"] == "unavailable"
+    assert "work_management" not in scope
 
 
-def test_create_change_worktree_emits_schema_v2_work_management_evidence(tmp_path: Path) -> None:
+def test_create_change_worktree_classifies_tree_equivalent_upstream_base(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    tree = run_git(repository, "rev-parse", "main^{tree}").stdout.strip()
+    upstream = run_git(repository, "commit-tree", tree, "-m", "equivalent upstream").stdout.strip()
+
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+        upstream_sha=upstream,
+        upstream_tree=tree,
+        upstream_ref="refs/remotes/origin/main",
+    )
+    scope = json.loads(
+        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(encoding="utf-8")
+    )
+
+    assert scope["base_evidence"]["relation"] == "tree_equivalent"
+    assert scope["base_evidence"]["upstream_sha"] == upstream
+    assert scope["base_evidence"]["upstream_tree"] == tree
+    assert scope["base_evidence"]["evidence_source"] == "provided"
+
+
+def test_create_change_worktree_emits_schema_v3_work_management_evidence(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -314,7 +346,8 @@ def test_create_change_worktree_emits_schema_v2_work_management_evidence(tmp_pat
             encoding="utf-8"
         )
     )
-    assert scope["schema_version"] == 2
+    assert scope["schema_version"] == 3
+    assert scope["risk_profile"] == "standard"
     assert scope["work_management"] == work_management_evidence()
 
 
@@ -342,6 +375,26 @@ def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: P
     assert scope["owned_paths"] == ["src/**", ".work/changes/001-alpha/**"]
     for name in ("spec.md", "plan.md", "tasks.md", "closeout.md"):
         assert (target / ".work" / "changes" / "001-alpha" / name).is_file()
+
+
+def test_create_change_worktree_lean_profile_uses_compact_record(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+
+    target = module.create_change_worktree(
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+        risk_profile="lean",
+    )
+    change_root = target / ".work" / "changes" / "001-alpha"
+    assert (change_root / "scope.json").is_file()
+    assert (change_root / "change.md").is_file()
+    assert not (change_root / "spec.md").exists()
+    assert not (change_root / "plan.md").exists()
+    assert not (change_root / "tasks.md").exists()
+    assert not (change_root / "closeout.md").exists()
 
 
 def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(tmp_path: Path) -> None:
@@ -464,7 +517,7 @@ def test_cleanup_refuses_dirty_worktree(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("status", ["active", "ready"])
-def test_cleanup_refuses_merged_claim_until_status_is_closed(
+def test_schema_v3_cleanup_derives_closed_state_after_verified_merge(
     tmp_path: Path,
     status: str,
 ) -> None:
@@ -482,11 +535,39 @@ def test_cleanup_refuses_merged_claim_until_status_is_closed(
     run_git(target, "commit", "-m", f"docs: register {status} alpha change")
     run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
 
+    module.cleanup_change_worktree(repository, "001-alpha")
+
+    assert not target.exists()
+    assert not run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
+    claims = module.load_worktree_claims(repository)
+    current = next(item for item in claims if item.change_id == "001-alpha")
+    assert current.status == "closed"
+
+
+def test_legacy_schema_v2_cleanup_still_requires_explicit_closed_status(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = create_registered_change(
+        module,
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+    scope_path = target / ".work" / "changes" / "001-alpha" / "scope.json"
+    scope = json.loads(scope_path.read_text(encoding="utf-8"))
+    scope["schema_version"] = 2
+    scope.pop("risk_profile")
+    scope.pop("base_evidence")
+    scope_path.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
+    run_git(target, "add", ".work/changes/001-alpha")
+    run_git(target, "commit", "-m", "docs: register legacy alpha change")
+    run_git(repository, "merge", "--no-ff", "change/001-alpha", "-m", "merge alpha")
+
     with pytest.raises(module.ClaimError, match="CHANGE_STATUS_NOT_CLOSED"):
         module.cleanup_change_worktree(repository, "001-alpha")
 
     assert target.exists()
-    assert run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
 
 
 def test_cleanup_removes_clean_merged_worktree_and_branch(tmp_path: Path) -> None:

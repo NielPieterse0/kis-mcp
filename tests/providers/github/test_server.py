@@ -210,6 +210,7 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
         "github.actions.trigger",
         "github.pull-request.create",
         "github.pull-request.merge",
+        "github.pull-request.read",
         "github.review",
         "project_management.read",
         "project_management.write",
@@ -330,6 +331,7 @@ def test_project_capabilities_contribute_namespaced_operations(
         "github_actions_run_trigger",
         "github_create_pull_request",
         "github_merge_pull_request",
+        "github_pull_request_read",
         "github_projects_get",
         "github_projects_list",
         "github_projects_write",
@@ -337,6 +339,13 @@ def test_project_capabilities_contribute_namespaced_operations(
     }
     assert operations["github_merge_pull_request"].capabilities == (
         "github.pull-request.merge",
+    )
+    assert operations["github_pull_request_read"].capabilities == (
+        "github.pull-request.read",
+    )
+    assert operations["github_pull_request_read"].effects == (
+        OperationEffect.EXTERNAL,
+        OperationEffect.READ_ONLY,
     )
     assert operations["github_pull_request_review_write"].capabilities == (
         "github.review",

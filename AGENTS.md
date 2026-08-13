@@ -163,16 +163,16 @@ Parallel agent count is not limited. Coordination is enforced through explicit c
 Before implementation begins:
 
 1. Start from a clean primary `main` worktree and choose one unused stable change ID in the form `NNN-kebab-case`.
-2. Initialize the slice in the configured Work Management backend before creating its branch or worktree. Create or identify one durable source issue/PR, preview and explicitly apply its Project projection, and classify documentation impact.
-3. Run `pwsh -File scripts/change-workflow.ps1 new <change-id> --outcome <text> --owned <path> --work-project-id <project-id> --work-record-id <record-id> --work-source-repository <owner/repository> --work-source-number <number> --work-source-kind <issue|pull_request> --documentation-impact <classification>` with additional `--owned`, `--shared`, `--exclude`, `--depends-on`, or `--integration-owner` arguments as required.
-4. Work only in `.work/worktrees/<change-id>` on branch `change/<change-id>` and keep the Work Management projection current as the lifecycle advances.
-5. Keep `scope.json`, `spec.md`, `plan.md`, `tasks.md`, and `closeout.md` under `.work/changes/<change-id>/` current with the implementation.
+2. Create the authoritative local change first with `pwsh -File scripts/change-workflow.ps1 new <change-id> --outcome <text> --owned <path> --risk-profile <lean|standard|rigorous>`, adding scope/dependency arguments as required. GitHub Issue/Project linkage is optional projection metadata and may be supplied at intake or reconciled later.
+3. Record base evidence before implementation. `new` always records the local base commit/tree and classifies any supplied or locally available remote-tracking evidence as `same_sha`, `tree_equivalent`, `content_divergence`, or `unavailable`; governance does not fetch the network.
+4. Work only in `.work/worktrees/<change-id>` on branch `change/<change-id>`. Keep any Work Management projection synchronized when one exists, but do not treat it as change authority.
+5. Keep lifecycle artifacts scaled to the recorded risk profile: `lean` uses `scope.json` plus `change.md`; `standard` and `rigorous` use `scope.json`, `spec.md`, `plan.md`, `tasks.md`, and `closeout.md`. Risk changes must be recorded rather than compensated for with duplicate evidence files.
 
-Newly created scopes use schema version 2 and retain the Work Management initialization evidence supplied to `new`. Historical schema-version-1 scopes remain valid and do not require retroactive mutation. Local change governance validates recorded evidence only; it performs no GitHub or other network call.
+Newly created scopes use schema version 3. Historical schema-version-1/2 scopes remain valid and retain their original compatibility rules; schema-version-2 records continue to require their recorded Work Management initialization evidence. Local change governance performs no GitHub or other network call.
 
 Path claims are repository-relative exact paths or recursive paths ending in `/**`. `owned_paths` are exclusive. An overlap is permitted only when every overlapping claim uses `shared_paths` and coordination is explicit through a dependency or integration owner. Duplicate outcomes, branches, worktree paths, change IDs, and uncoordinated overlaps must fail before worktree creation.
 
-Before completion, run `pwsh -File scripts/change-workflow.ps1 check` from the change worktree and then run the normal repository verification. After the branch is merged into its declared base, run `pwsh -File scripts/change-workflow.ps1 cleanup <change-id>` from the clean primary worktree. Cleanup must refuse dirty or unmerged worktrees and must never force branch deletion.
+Before publication, run `pwsh -File scripts/change-workflow.ps1 check` from the change worktree plus focused/affected verification selected for the current change. Pull requests to `main` run the canonical repository verification once on the exact GitHub head; do not repeat that full pass locally or in a metadata-only closeout transaction. Merge readiness requires provider-native GitHub Actions evidence for that exact head. After the branch is merged into its declared base, run `pwsh -File scripts/change-workflow.ps1 cleanup <change-id>` from the clean primary worktree. Cleanup must refuse dirty or unmerged worktrees and must never force branch deletion. For schema-version-3 changes, verified merge and branch/worktree cleanup establish historical closed state without a second repository commit solely to rewrite lifecycle status.
 
 Manual worktree creation is an emergency exception only. Register the same change artifacts before the first implementation edit and run `change-workflow.ps1 validate` immediately.
 
@@ -190,7 +190,7 @@ Manual worktree creation is an emergency exception only. Register the same chang
 
 ## Verification
 
-Before completion, run the repository verification entry point in `scripts/verify.ps1`. At minimum, verify:
+`scripts/verify.ps1` remains the canonical repository verification entry point. During development, run focused/affected checks only as needed; the normal pull-request workflow runs the canonical verifier once on the exact GitHub head after one locked environment synchronization. At minimum, the canonical pass verifies:
 
 - JSON configuration parses;
 - the policy contains exactly HR-001, HR-002, and HR-003;

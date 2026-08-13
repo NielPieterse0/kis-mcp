@@ -78,6 +78,9 @@ def test_completion_coordinates_verification_publish_and_pr_in_fixed_order() -> 
     assert execution["project"] == r"C:\Projects\college"
     assert execution["source"] == "commit"
     assert execution["commit_ref"] == COMMIT
+    assert execution["risk_profile"] == "standard"
+    assert "max_verifications" not in execution
+    assert "review_types" not in execution
     publish = invoker.calls[1][1]
     assert publish["operation"] == "kis_github_reconcile_registered_commit"
     assert publish["arguments"]["source_base"] == SOURCE_BASE
@@ -92,15 +95,21 @@ def test_completion_creates_pr_only_for_published_exact_head() -> None:
 
     create = invoker.calls[2][1]
     assert create["operation"] == "kis_github_create_registered_pull_request"
-    assert create["arguments"] == {
-        "project_id": "college",
-        "branch": "feature/example",
-        "expected_head": PUBLISHED,
-        "expected_remote_default": DEFAULT,
-        "title": "Review exact change",
-        "body": "Ready for review.",
-        "approved": True,
-    }
+    arguments = create["arguments"]
+    assert arguments["project_id"] == "college"
+    assert arguments["branch"] == "feature/example"
+    assert arguments["expected_head"] == PUBLISHED
+    assert arguments["expected_remote_default"] == DEFAULT
+    assert arguments["title"] == "Review exact change"
+    assert arguments["approved"] is True
+    body = arguments["body"]
+    assert "## Outcome\nReview exact change" in body
+    assert "Ready for review." in body
+    assert f"Source commit: `{COMMIT}`" in body
+    assert f"Published head: `{PUBLISHED}`" in body
+    assert "Risk profile: `standard`" in body
+    assert "Documentation impact: `not_assessed`" in body
+    assert "Residual state: none declared" in body
 
 
 @pytest.mark.parametrize("status", ["failed", "incomplete"])

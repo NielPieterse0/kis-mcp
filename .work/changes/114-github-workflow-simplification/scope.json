@@ -1,0 +1,71 @@
+{
+    "schema_version":  3,
+    "change_id":  "114-github-workflow-simplification",
+    "status":  "ready",
+    "branch":  "change/114-github-workflow-simplification",
+    "worktree":  ".work/worktrees/114-github-workflow-simplification",
+    "base":  "main",
+    "outcome":  "Preserve exact-head safety and recovery while simplifying GitHub delivery, lifecycle evidence, verification, and Work Management authority.",
+    "owned_paths":  [
+                        "scripts/change-governance.py",
+                        "scripts/verify.ps1",
+                        "tests/test_change_governance.py",
+                        ".github/**",
+                        "settings/providers/github-mcp.provider.json",
+                        "src/kis_mcp/providers/github/**",
+                        "src/kis_mcp/projects/**",
+                        "src/kis_mcp/workflows/completion/**",
+                        "src/kis_mcp/workflows/change_execution/**",
+                        "src/kis_mcp/workflows/verification/**",
+                        "src/kis_mcp/workflows/project_management/**",
+                        "src/kis_mcp/work_management/**",
+                        "tests/providers/github/**",
+                        "tests/providers/test_github_project_management.py",
+                        "tests/providers/test_dbhub_dockerhub_integration.py",
+                        "tests/projects/**",
+                        "tests/workflows/completion/**",
+                        "tests/workflows/change_execution/**",
+                        "tests/workflows/verification/**",
+                        "tests/workflows/project_management/**",
+                        "tests/work_management/**",
+                        "tests/capabilities/**",
+                        "AGENTS.md",
+                        "SPEC.md",
+                        "docs/OPERATIONS.md",
+                        ".agents/skills/kis-mcp/**",
+                        ".work/changes/_template/**",
+                        ".work/changes/114-github-workflow-simplification/**",
+                        "src/kis_mcp/capabilities/surface.py",
+                        "tests/workflows/test_registered_commit_publication.py",
+                        "scripts/verify.py",
+                        "src/kis_mcp/workflows/platform.py"
+                    ],
+    "shared_paths":  [
+
+                     ],
+    "excluded_paths":  [
+
+                       ],
+    "dependencies":  [
+
+                     ],
+    "integration_owner":  null,
+    "work_management":  {
+                            "project_id":  "kis-mcp",
+                            "record_id":  "SPEC-114",
+                            "source_repository":  "NielPieterse0/kis-mcp",
+                            "source_number":  141,
+                            "source_kind":  "issue",
+                            "documentation_impact":  "planned"
+                        },
+    "risk_profile":  "rigorous",
+    "base_evidence":  {
+                          "local_sha":  "677d7f9c8351e046e2e1c557b8b48364a8a3e342",
+                          "local_tree":  "6e52a9a1b02f9206f9ebc5c0f3dd7d5de9024a4a",
+                          "upstream_sha":  "f459cbb460f793bfef055bea1af35e3039dacc9c",
+                          "upstream_tree":  "6e52a9a1b02f9206f9ebc5c0f3dd7d5de9024a4a",
+                          "upstream_ref":  "refs/remotes/origin/main",
+                          "evidence_source":  "verified_bootstrap_baseline",
+                          "relation":  "tree_equivalent"
+                      }
+}

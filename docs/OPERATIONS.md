@@ -207,15 +207,15 @@ Use:
 
 Dispatch normally re-enters the original FastMCP tool with `run_middleware=True`; original schemas remain authoritative and a generic parameters object does not weaken validation. The external dispatcher refuses ordinary approval-gated operations. The only virtual exception is the KIS-owned `registered-github` family, whose strict schemas require `approved=true` and whose implementation independently enforces registered targets plus exact remote-state preconditions and verification. Unavailable, disabled, authentication-gated, build-failed, and mount-failed operations remain visible in status and catalogue results but are not dispatched.
 
-For registered repositories, `kis_github_publish_registered_commit` publishes one existing immutable local commit to a named branch only when the observed remote ref exactly matches `expected_remote_base` (or is absent when that value is null), then verifies the remote ref equals the exact local commit SHA. When local merge history is not an ancestor of current GitHub history but the declared local source-base tree is exactly identical to the expected remote-default tree, `kis_github_reconcile_registered_commit` can instead create a non-default review-branch commit that preserves the exact source tree and uses the verified remote-default SHA as its sole parent. It rechecks the remote default after fetch, requires the target branch to match its declared SHA/absence, and publishes with an exact ref lease; any tree mismatch fails closed rather than rebasing or copying files heuristically. `kis_github_create_registered_pull_request` refuses the default branch, requires the expected remote-default SHA and review-branch head to match exactly, rejects an existing open PR for that head/base, creates one non-draft PR through the registered repository, and post-verifies its exact head, base branch, and open state. `kis_github_merge_registered_pull_request` merges only the explicitly approved pull-request head with `--match-head-commit`, and `kis_github_delete_registered_branch` refuses the default branch and deletes only an exact expected head with a ref lease. These operations do not expose arbitrary `gh`, shell, commit messages, force-rewrite, admin-bypass, or token access.
+For registered repositories, `kis_github_publish_registered_commit` publishes one existing immutable local commit to a named branch only when the observed remote ref exactly matches `expected_remote_base` (or is absent when that value is null), then verifies the remote ref equals the exact local commit SHA. When local merge history is not an ancestor of current GitHub history but the declared local source-base tree is exactly identical to the expected remote-default tree, `kis_github_reconcile_registered_commit` can instead create a non-default review-branch commit that preserves the exact source tree and uses the verified remote-default SHA as its sole parent. `kis_github_create_registered_pull_request` verifies exact head/base state before and after creation. `kis_github_configure_registered_repository` configures one registered repository for merge commits only, disables squash/rebase landing, keeps GitHub automatic branch deletion disabled, and verifies those settings after mutation. `kis_github_merge_registered_pull_request` accepts only `merge` and merges only the explicitly approved pull-request head with `--match-head-commit`; `kis_github_delete_registered_branch` refuses the default branch and deletes only an exact expected head with a ref lease. These operations do not expose arbitrary `gh`, shell, commit messages, force-rewrite, admin-bypass, or token access.
 
-`prepare_reviewable_pull_request` is the bounded completion coordinator for the pre-review phase. Supply a registered `project_id`, exact local `commit` and `source_base` SHAs, a non-default review branch with its exact expected remote SHA/absence, the exact expected remote-default SHA, PR title/body, explicit approval, and optional bounded verification/review selections. KIS first runs `execute_change_workflow` against that exact source commit. Only a `passed` result permits external mutation; failed or incomplete execution causes no reconciliation or PR creation. KIS then calls the registered tree-equivalent reconciliation operation, creates the PR only at the returned reconciled head, and returns both the verified source-commit SHA and generated PR-head SHA. It deliberately stops with an open reviewable PR: merge, remote-branch deletion, and governed worktree cleanup remain separate `pull-request-safe-closeout` actions after review and approval.
+`prepare_reviewable_pull_request` is the bounded completion coordinator for the pre-review phase. Supply a registered `project_id`, exact local `commit` and `source_base` SHAs, a non-default review branch with its exact expected remote SHA/absence, the exact expected remote-default SHA, PR outcome/summary, explicit approval, the `lean|standard|rigorous` risk profile, documentation impact, residual state, and optional verification/review overrides. KIS runs `execute_change_workflow` against that exact source commit using the risk-scaled defaults unless overrides are supplied. Only a `passed` result permits external mutation. KIS then reconciles the exact tree, generates deterministic PR metadata containing risk/scope/source+published heads/verification/review/documentation/residual state, creates the PR only at the returned reconciled head, and returns both source and published SHAs. It deliberately stops with an open reviewable PR; provider-native GitHub Actions evidence for that PR head is the final merge-verification gate.
 
 Tool quality and suitability scores are recommendation evidence only. They never authorize a call, override HR-001, HR-002, or HR-003, or replace provider authentication and commissioning.
 
 ## Configure work management
 
-Work management uses `settings/work-management/github-projects.settings.json` for behavior and `settings/projects.settings.json` for managed-project identity and GitHub Project routing coordinates. The checked-in `kis-mcp` binding is enabled. Before changing or adding a managed project:
+Work management uses `settings/work-management/github-projects.settings.json` for behavior and `settings/projects.settings.json` for managed-project identity and GitHub Project routing coordinates. It projects governed local changes and Git/GitHub lifecycle facts; it is not required to establish local change authority. The checked-in `kis-mcp` binding is enabled. Before changing or adding a managed project:
 
 1. register its stable ID, local root, GitHub repository, and intended GitHub Project coordinate in the central project registry;
 2. keep the existing work-management backend-binding ID stable unless a separate compatibility migration is approved;
@@ -249,11 +249,11 @@ When enabled, platform composition adds eight bounded task-level operations:
 - `project_management_persist_review`;
 - `project_management_verify_traceability`.
 
-Use `project_management_schema_status` before schema-dependent reconciliation. It reads the live field surface and compares it with `settings/work-management/github-project-schema.json`. The current approved GitHub MCP surface cannot create generic custom fields, alter Status option schemas, create saved views, or configure native Project workflows, so those live provisioning gaps are reported rather than bypassed through direct GraphQL. Do not create the supported iteration field until an iteration cadence is explicitly configured.
+Use `project_management_schema_status` before schema-dependent reconciliation. It reads the live field surface and compares it with `settings/work-management/github-project-schema.json`, whose target remains **18 core fields and 12 named views**. Provider middleware permits Project/field/item/status-update reads and bounded `update_project_items` batches, while Project/item deletion, Project creation, status-update creation, iteration-field creation, generic custom-field creation, saved-view creation, and unrestricted GraphQL remain outside the approved mutation surface. Report those provisioning gaps rather than bypassing the boundary.
 
-For managed implementation/specification work, classify documentation impact at intake. Use the `complete-work-managed-pull-request` workflow for closeout: `project_management_merge_readiness` combines the Work record with exact PR/head verification evidence and returns a failed gate result when required documentation is not `pre_merge_complete` or an evidenced reviewed `none`; that workflow must stop before the exact-head registered merge on an unready result. After confirmed merge evidence, invoke `project_management_documentation_reconcile` to create and apply `documentation_reconciliation_due`, moving required work from `Verification` to `Documentation`; a later invocation records `post_merge_complete` at an exact revision. Transition to `Done` remains governed by the existing lifecycle rule.
+For managed implementation/specification work, classify documentation impact when the Work projection is created or reconciled. `project_management_merge_readiness` combines the projection with exact PR/head evidence and requires a passing provider-native GitHub Actions result with a concrete reference for the exact head; a local verifier result alone is not a landing gate. Required documentation must also be `pre_merge_complete` or an evidenced reviewed `none`. After confirmed merge evidence, invoke `project_management_documentation_reconcile` when documentation reconciliation is required. Work Management can then project `Documentation`/`Done`, but immutable Git/GitHub landing facts remain authoritative.
 
-Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, Project schema manifest, governance claims, focused Work Management tests, and optionally the canonical verifier.
+Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. `.github/workflows/work-management.yml` is now the canonical exact-head verification workflow: pull requests to `main` trigger it automatically, Actions are pinned by immutable SHA, the locked environment is synchronized once, and `scripts/verify.ps1 -SkipDependencySync` runs the single canonical repository verification pass, including governance validation. Do not add a second focused/full pass that repeats the same tests before or after it.
 
 Current routing uses the central registry binding for `kis-mcp` user Project #1 while retaining `github-default` for compatibility. Live evidence from 2026-08-13 confirms the Project is reachable but still has only GitHub built-ins plus `Status = Todo / In Progress / Done`; the remaining rich-field/12-view provisioning gap is recorded in the commissioning guide. Change 113 also backfilled recent slice and residual records into the live Project through preview-first reconciliation. All custom/native automation remains disabled. Runtime-scoped GitHub OAuth remains a separate supervised connection state.
 
@@ -638,23 +638,18 @@ A complete external commissioning record requires:
 
 Create implementation worktrees only from a clean primary `main` checkout. The workflow supports any number of parallel agents; it rejects duplicate outcomes and conflicting scope claims rather than imposing a concurrency limit.
 
-Initialize Work Management before creating a change. Create or identify the durable source record, preview and explicitly apply its Project projection, and classify documentation impact. Then run:
+Create the local governed change first. Work Management linkage is optional projection metadata and may be added at creation or reconciled later. Choose the executable risk profile explicitly when it differs from standard:
 
 ```powershell
 pwsh -File .\scripts\change-workflow.ps1 new 002-example-change `
     --outcome "Implement one bounded result" `
+    --risk-profile lean `
     --owned "src/example/**" `
     --owned "tests/test_example.py" `
-    --exclude "policy/**" `
-    --work-project-id "example-project" `
-    --work-record-id "SPEC-002" `
-    --work-source-repository "owner/repository" `
-    --work-source-number 123 `
-    --work-source-kind issue `
-    --documentation-impact planned
+    --exclude "policy/**"
 ```
 
-The command validates the supplied initialization evidence without contacting the provider, creates branch `change/002-example-change`, worktree `.work/worktrees/002-example-change`, and the five required artifacts beneath `.work/changes/<change-id>/`, and records the evidence in schema-version-2 `scope.json`. Historical schema-version-1 scopes remain valid. Generated tracked artifacts use explicit LF bytes on every host so Windows newline translation cannot create a `core.safecrlf` staging failure.
+Schema-version-3 `new` records the local base commit/tree and classifies supplied or locally available remote-tracking evidence as `same_sha`, `tree_equivalent`, `content_divergence`, or `unavailable` without contacting the provider. `lean` creates `scope.json` plus `change.md`; `standard` and `rigorous` create the full five-file lifecycle record. Historical schema-version-1/2 scopes remain valid under their original compatibility rules. Generated tracked artifacts use explicit LF bytes on every host so Windows newline translation cannot create a `core.safecrlf` staging failure.
 
 List or validate active claims:
 
@@ -677,17 +672,17 @@ After the branch is merged into its declared base, return to the clean primary c
 pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change
 ```
 
-Cleanup refuses a dirty worktree or an unmerged branch. It performs only normal `git worktree remove`, `git branch -d`, and `git worktree prune` operations; it never forces deletion.
+Cleanup refuses a dirty worktree or an unmerged branch. It performs only normal `git worktree remove`, `git branch -d`, and `git worktree prune` operations; it never forces deletion. For schema-version-3 changes, successful merged cleanup establishes historical closed state without a second repository commit solely to rewrite lifecycle metadata.
 
 ## Verify
 
-Run:
+During development, run focused and affected checks. The normal pull request to `main` owns the single canonical full verification pass on the exact GitHub head. For an explicit local canonical run outside that PR path:
 
 ```powershell
 pwsh -File .\scripts\verify.ps1
 ```
 
-Verification requires `uv.lock`, synchronizes the external Python environment offline with `--frozen`, and invokes `scripts\verify.py` through that environment's exact Python executable. The Python verifier confirms the interpreter location, FastMCP 3.4.4, pytest `>=8.4,<9`, Python syntax, configuration, and the full test suite.
+Verification requires `uv.lock`, synchronizes the external Python environment offline with `--frozen`, and invokes `scripts\verify.py` through that environment's exact Python executable. In GitHub Actions, the workflow synchronizes the locked environment once and invokes `scripts\verify.ps1 -SkipDependencySync` so dependency preparation is not repeated. The Python verifier confirms the interpreter location, FastMCP 3.4.4, pytest `>=8.4,<9`, Python syntax, configuration, and the full test suite.
 
 The repository checks also confirm:
 

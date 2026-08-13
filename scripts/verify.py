@@ -197,7 +197,7 @@ def verify_change_governance() -> int:
     required_paths = [
         governance_path,
         ROOT / "scripts" / "change-workflow.ps1",
-        *(template_root / name for name in ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md")),
+        *(template_root / name for name in ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md", "change.md")),
     ]
     missing = [str(path.relative_to(ROOT)) for path in required_paths if not path.is_file()]
     gitignore_lines = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()

@@ -22,6 +22,7 @@ EXACT_OPERATIONS = {
     "kis_github_publish_registered_commit",
     "kis_github_reconcile_registered_commit",
     "kis_github_create_registered_pull_request",
+    "kis_github_configure_registered_repository",
     "kis_github_merge_registered_pull_request",
     "kis_github_delete_registered_branch",
 }
@@ -87,6 +88,13 @@ def test_workflow_descriptors_route_publish_and_closeout_to_virtual_operations()
     assert publish.required_steps == ("kis_github_publish_registered_commit",)
 
     closeout = descriptors["pull-request-safe-closeout"]
+    assert closeout.required_steps[:4] == (
+        "inspect_change",
+        "github_pull_request_read",
+        "github_actions_list",
+        "github_actions_get",
+    )
+    assert "run_verification" not in closeout.required_steps
     assert "kis_github_merge_registered_pull_request" in closeout.required_steps
     assert "kis_github_delete_registered_branch" in closeout.required_steps
     assert "github_merge_pull_request" not in closeout.required_steps

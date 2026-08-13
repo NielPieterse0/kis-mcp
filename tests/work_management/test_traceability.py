@@ -153,6 +153,8 @@ def verification(
     pull_request_number: int = 63,
     tested_revision: str | None = None,
     status: VerificationStatus = VerificationStatus.PASSED,
+    source: str = "local",
+    reference: str | None = None,
 ) -> VerificationEvidence:
     return VerificationEvidence(
         evidence_id=evidence_id,
@@ -160,6 +162,8 @@ def verification(
         revision=tested_revision or revision("a"),
         status=status,
         command="pwsh -NoProfile -File scripts/verify.ps1",
+        source=source,
+        reference=reference,
     )
 
 
@@ -301,6 +305,8 @@ def merge_ready_trace(
             verification(
                 tested_revision=tested_revision or pr.head_revision,
                 status=status,
+                source="github_actions",
+                reference="run:1001",
             ),
         ),
     )
@@ -324,6 +330,19 @@ def test_merge_readiness_requires_exact_revision_and_matching_identity() -> None
     assert stale.ready is False
     assert "traceability:verification_revision_stale" in stale.blocking_reasons
     assert "record_project_mismatch" in mismatched.blocking_reasons
+
+
+def test_merge_readiness_requires_provider_native_github_actions_evidence() -> None:
+    pr = pull_request()
+    local_only = trace(
+        prs=(pr,),
+        verifications=(verification(tested_revision=pr.head_revision),),
+    )
+
+    readiness = evaluate_merge_readiness(record(), local_only, pr.number)
+
+    assert readiness.ready is False
+    assert "github_actions_exact_head_required" in readiness.blocking_reasons
 
 
 def test_required_documentation_must_be_pre_merge_complete_or_reviewed_none() -> None:
@@ -486,6 +505,8 @@ def test_historical_verification_does_not_block_current_exact_pass() -> None:
             verification(
                 evidence_id="verify-current",
                 tested_revision=pr.head_revision,
+                source="github_actions",
+                reference="run:current",
             ),
         ),
     )
