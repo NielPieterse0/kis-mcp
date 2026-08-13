@@ -15,7 +15,7 @@ The Project coordinate is registered once because the central registry requires 
 
 ## Desired schema
 
-`settings/work-management/github-project-schema.json` is the current repository-owned desired projection. It contains the 18 approved core fields and 12 approved saved views from the Work Management programme.
+`settings/work-management/github-project-schema.json` is the current repository-owned desired projection. It contains 20 approved core fields and 12 approved saved views. Change 117 adds `Complexity` and `Risk Triggers` so Work Management projects the same two-axis classification as the authoritative local change record.
 
 The desired `Status` options are:
 
@@ -25,7 +25,7 @@ The desired `Status` options are:
 
 ## Live state checked 2026-08-13
 
-Project #1 is reachable. Its live field inventory contains GitHub built-ins plus `Status`; the live `Status` options remain `Todo`, `In Progress`, and `Done`. The current schema check reports 16 custom fields not yet provisioned and 12 views not yet verified.
+Project #1 is reachable. Its live field inventory contains GitHub built-ins plus `Status`; the live `Status` options remain `Todo`, `In Progress`, and `Done`. The pre-117 runtime schema check reported 16 custom fields not yet provisioned and 12 views not yet verified. After the 20-field manifest is active, `Complexity` and `Risk Triggers` add two further desired fields to that drift.
 
 The approved GitHub MCP Project write surface can add/update Project items and create an iteration field. It does **not** expose bounded operations for generic custom-field creation, single-select option-schema changes, saved-view creation, or native Project-workflow configuration.
 
@@ -56,6 +56,10 @@ Because the rich fields are not yet provisioned, record type/change ID/authority
 ## Change 115 multi-repository onboarding
 
 On 2026-08-13, change 115 extended the shared `github-default` Work Management backend to `chatgpt-skill`, `commodity`, and `college` while retaining `kis-mcp`. The central Project coordinate remains registered once under `kis-mcp`; duplicating that coordinate across registry entries is intentionally invalid. No new Project, backend binding, automation, or schema variant was introduced.
+
+## Change 117 classification projection
+
+Change 117 expands the repository-owned target from 18 to 20 fields by adding `Complexity` and `Risk Triggers`. `SPEC-117` / issue #157 is captured in Project #1 and remains `In Progress` under the operator hold. The approved connector can update that existing `Status` field but still cannot provision the two new generic custom fields, so the classification remains authoritative in the local change record until the Project schema is commissioned through a supported bounded surface or supervised UI.
 
 ## Close the remaining external gap
 

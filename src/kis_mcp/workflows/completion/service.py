@@ -36,7 +36,8 @@ class CompletionCoordinator:
         body: str,
         approved: bool,
         task_terms: tuple[str, ...] = (),
-        risk_profile: str = "standard",
+        complexity: str = "medium",
+        risk_triggers: tuple[str, ...] = (),
         max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
         review_types: tuple[str, ...] | None = None,
@@ -58,8 +59,6 @@ class CompletionCoordinator:
             raise ValueError("title must contain at most 256 characters")
         if not isinstance(body, str) or len(body) > 10_000:
             raise ValueError("body must be a string of at most 10000 characters")
-        if risk_profile not in {"lean", "standard", "rigorous"}:
-            raise ValueError("risk_profile must be lean, standard, or rigorous")
         documentation_impact = _required(documentation_impact, "documentation_impact")
         if documentation_impact not in {
             "not_assessed", "none", "planned", "in_progress", "pre_merge_complete", "post_merge_complete"
@@ -81,7 +80,8 @@ class CompletionCoordinator:
             "source": "commit",
             "commit_ref": commit_sha,
             "task_terms": list(task_terms),
-            "risk_profile": risk_profile,
+            "complexity": complexity,
+            "risk_triggers": list(risk_triggers),
             "verification_timeout_ms": verification_timeout_ms,
         }
         if max_verifications is not None:
@@ -93,7 +93,7 @@ class CompletionCoordinator:
         if review_model is not None:
             execution_args["review_model"] = review_model
         execution = await self._invoker("execute_change_workflow", execution_args)
-        if execution.get("contract") != "change-execution-result-v1":
+        if execution.get("contract") != "change-execution-result-v2":
             raise CompletionInvocationError(
                 "COMPLETION_EXECUTION_INVALID",
                 "change execution returned an unexpected contract",
@@ -133,7 +133,8 @@ class CompletionCoordinator:
             summary=body,
             branch=branch_name,
             task_terms=task_terms,
-            risk_profile=risk_profile,
+            complexity=complexity,
+            risk_triggers=risk_triggers,
             source_commit=commit_sha,
             published_head=published_head,
             execution=execution,
@@ -185,7 +186,8 @@ def _render_pull_request_body(
     summary: str,
     branch: str,
     task_terms: tuple[str, ...],
-    risk_profile: str,
+    complexity: str,
+    risk_triggers: tuple[str, ...],
     source_commit: str,
     published_head: str,
     execution: dict[str, Any],
@@ -209,7 +211,8 @@ def _render_pull_request_body(
         f"## Outcome\n{outcome}\n\n"
         f"## Summary\n{detail}\n\n"
         "## Change metadata\n"
-        f"- Risk profile: `{risk_profile}`\n"
+        f"- Complexity: `{complexity}`\n"
+        f"- Risk triggers: `{', '.join(risk_triggers) or 'none'}`\n"
         f"- Branch: `{branch}`\n"
         f"- Scope: {scope}\n"
         f"- Source commit: `{source_commit}`\n"

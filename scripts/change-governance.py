@@ -21,10 +21,26 @@ DOCUMENTATION_IMPACTS = frozenset(
     {"not_assessed", "none", "planned", "in_progress", "pre_merge_complete", "post_merge_complete"}
 )
 WORK_SOURCE_KINDS = frozenset({"issue", "pull_request"})
-RISK_PROFILES = frozenset({"lean", "standard", "rigorous"})
+LEGACY_RISK_PROFILES = frozenset({"lean", "standard", "rigorous"})
+COMPLEXITIES = frozenset({"small", "medium", "large"})
+RISK_TRIGGERS = frozenset(
+    {
+        "security",
+        "secrets",
+        "sensitive_data",
+        "money",
+        "persistent_state",
+        "migration",
+        "external_action",
+        "deployment",
+        "destructive",
+        "public_contract",
+        "architecture_boundary",
+    }
+)
 BASE_RELATIONS = frozenset({"same_sha", "tree_equivalent", "content_divergence", "unavailable"})
 FULL_CHANGE_FILES = ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md")
-LEAN_CHANGE_FILES = ("scope.json", "change.md")
+COMPACT_CHANGE_FILES = ("scope.json", "change.md")
 TEMPLATE_CHANGE_FILES = FULL_CHANGE_FILES + ("change.md",)
 REQUIRED_FIELDS = frozenset(
     {
@@ -205,7 +221,9 @@ class ChangeClaim:
     excluded_paths: tuple[PathClaim, ...]
     dependencies: tuple[str, ...]
     integration_owner: str | None
-    risk_profile: str
+    risk_profile: str | None
+    complexity: str | None
+    risk_triggers: tuple[str, ...]
     base_evidence: BaseEvidence | None
     work_management: WorkManagementClaim | None
     source: Path
@@ -216,8 +234,8 @@ class ChangeClaim:
         if missing:
             raise ClaimError(f"CHANGE_FIELDS_MISSING: {', '.join(missing)}")
         schema_version = data["schema_version"]
-        if schema_version not in {1, 2, 3}:
-            raise ClaimError("CHANGE_SCHEMA_VERSION_INVALID: expected 1, 2, or 3")
+        if schema_version not in {1, 2, 3, 4}:
+            raise ClaimError("CHANGE_SCHEMA_VERSION_INVALID: expected 1, 2, 3, or 4")
         required_fields = set(REQUIRED_FIELDS)
         allowed_fields = set(REQUIRED_FIELDS)
         if schema_version == 2:
@@ -226,6 +244,9 @@ class ChangeClaim:
         elif schema_version == 3:
             required_fields.update({"risk_profile", "base_evidence"})
             allowed_fields.update({"risk_profile", "base_evidence", "work_management"})
+        elif schema_version == 4:
+            required_fields.update({"complexity", "risk_triggers", "base_evidence"})
+            allowed_fields.update({"complexity", "risk_triggers", "base_evidence", "work_management"})
         missing = sorted(required_fields.difference(data))
         unknown = sorted(set(data).difference(allowed_fields))
         if missing:
@@ -237,9 +258,20 @@ class ChangeClaim:
             work_management = WorkManagementClaim.from_mapping(
                 _require_mapping(data["work_management"], "work_management")
             )
-        risk_profile = "standard" if schema_version < 3 else _require_string(data["risk_profile"], "risk_profile")
-        if risk_profile not in RISK_PROFILES:
-            raise ClaimError(f"CHANGE_RISK_PROFILE_INVALID: {risk_profile}")
+        risk_profile = None
+        complexity = None
+        risk_triggers: tuple[str, ...] = ()
+        if schema_version < 3:
+            risk_profile = "standard"
+        elif schema_version == 3:
+            risk_profile = _require_string(data["risk_profile"], "risk_profile")
+            if risk_profile not in LEGACY_RISK_PROFILES:
+                raise ClaimError(f"CHANGE_RISK_PROFILE_INVALID: {risk_profile}")
+        else:
+            complexity = _require_string(data["complexity"], "complexity")
+            if complexity not in COMPLEXITIES:
+                raise ClaimError(f"CHANGE_COMPLEXITY_INVALID: {complexity}")
+            risk_triggers = _require_risk_triggers(data["risk_triggers"])
         base_evidence = None
         if schema_version >= 3:
             base_evidence = BaseEvidence.from_mapping(
@@ -317,6 +349,8 @@ class ChangeClaim:
             dependencies=dependencies,
             integration_owner=integration_owner,
             risk_profile=risk_profile,
+            complexity=complexity,
+            risk_triggers=risk_triggers,
             base_evidence=base_evidence,
             work_management=work_management,
             source=source,
@@ -341,8 +375,12 @@ class ChangeClaim:
             "dependencies": list(self.dependencies),
             "integration_owner": self.integration_owner,
         }
-        if self.schema_version >= 3:
+        if self.schema_version == 3:
             mapping["risk_profile"] = self.risk_profile
+            mapping["base_evidence"] = self.base_evidence.to_mapping() if self.base_evidence else None
+        elif self.schema_version >= 4:
+            mapping["complexity"] = self.complexity
+            mapping["risk_triggers"] = list(self.risk_triggers)
             mapping["base_evidence"] = self.base_evidence.to_mapping() if self.base_evidence else None
         if self.work_management is not None:
             mapping["work_management"] = self.work_management.to_mapping()
@@ -370,6 +408,39 @@ class CleanupResult:
             "recovered": self.recovered,
             "backup_path": str(self.backup_path) if self.backup_path is not None else None,
         }
+
+
+def project_pull_request_claims(
+    claims: Sequence[ChangeClaim],
+    *,
+    current_branch: str | None,
+) -> list[ChangeClaim]:
+    """Release landed schema-v3+ claims while preserving the current PR claim.
+
+    Schema v3 established merge/cleanup as the repository-ownership release point
+    without requiring a metadata-only status commit.  In a pull-request checkout,
+    merged historical scope files therefore still contain ``active``/``ready`` even
+    though their branches are no longer the change being verified.  The current
+    GitHub head branch remains active; schema v1/v2 records retain their explicit
+    historical status semantics.
+    """
+    branch = (current_branch or "").strip()
+    prefix = "refs/heads/"
+    if branch.startswith(prefix):
+        branch = branch[len(prefix) :]
+    if not branch:
+        return list(claims)
+
+    return [
+        replace(claim, status="closed")
+        if (
+            claim.schema_version >= 3
+            and claim.status in ACTIVE_STATUSES
+            and claim.branch != branch
+        )
+        else claim
+        for claim in claims
+    ]
 
 
 def find_claim_conflicts(claims: Sequence[ChangeClaim]) -> list[str]:
@@ -546,16 +617,18 @@ def create_change_worktree(
     dependencies: Sequence[str] = (),
     integration_owner: str | None = None,
     work_management: Mapping[str, Any] | WorkManagementClaim | None = None,
-    risk_profile: str = "standard",
+    complexity: str = "medium",
+    risk_triggers: Sequence[str] = (),
     upstream_sha: str | None = None,
     upstream_tree: str | None = None,
     upstream_ref: str | None = None,
     base: str = "main",
 ) -> Path:
     root = repository_root(repository)
-    normalized_risk = _require_string(risk_profile, "risk_profile")
-    if normalized_risk not in RISK_PROFILES:
-        raise ClaimError(f"CHANGE_RISK_PROFILE_INVALID: {normalized_risk}")
+    normalized_complexity = _require_string(complexity, "complexity")
+    if normalized_complexity not in COMPLEXITIES:
+        raise ClaimError(f"CHANGE_COMPLEXITY_INVALID: {normalized_complexity}")
+    normalized_triggers = _require_risk_triggers(sorted(set(risk_triggers)))
     work_management_claim = None
     if work_management is not None:
         work_management_claim = (
@@ -580,7 +653,7 @@ def create_change_worktree(
     if workspace_claim not in normalized_owned:
         normalized_owned.append(workspace_claim)
     claim_data = {
-        "schema_version": 3,
+        "schema_version": 4,
         "change_id": change_id,
         "status": "active",
         "branch": f"change/{change_id}",
@@ -592,7 +665,8 @@ def create_change_worktree(
         "excluded_paths": list(excluded_paths),
         "dependencies": list(dependencies),
         "integration_owner": integration_owner,
-        "risk_profile": normalized_risk,
+        "complexity": normalized_complexity,
+        "risk_triggers": list(normalized_triggers),
         "base_evidence": base_evidence.to_mapping(),
     }
     if work_management_claim is not None:
@@ -860,8 +934,10 @@ def _require_worktree_directory_ignored(root: Path) -> None:
 
 
 def _required_change_files(claim: ChangeClaim) -> tuple[str, ...]:
-    if claim.schema_version >= 3 and claim.risk_profile == "lean":
-        return LEAN_CHANGE_FILES
+    if claim.schema_version == 3 and claim.risk_profile == "lean":
+        return COMPACT_CHANGE_FILES
+    if claim.schema_version >= 4 and claim.complexity == "small":
+        return COMPACT_CHANGE_FILES
     return FULL_CHANGE_FILES
 
 
@@ -935,6 +1011,18 @@ def _require_change_ids(value: Any, field: str) -> tuple[str, ...]:
     if len(set(normalized)) != len(normalized):
         raise ClaimError(f"CHANGE_ID_DUPLICATE: {field}")
     return normalized
+
+
+def _require_risk_triggers(value: Any) -> tuple[str, ...]:
+    values = _require_string_list(value, "risk_triggers")
+    if len(set(values)) != len(values):
+        raise ClaimError("CHANGE_RISK_TRIGGER_DUPLICATE: risk_triggers")
+    unknown = sorted(set(values).difference(RISK_TRIGGERS))
+    if unknown:
+        raise ClaimError(f"CHANGE_RISK_TRIGGER_INVALID: {', '.join(unknown)}")
+    if tuple(values) != tuple(sorted(values)):
+        raise ClaimError("CHANGE_RISK_TRIGGER_ORDER_INVALID: risk_triggers must be sorted")
+    return tuple(values)
 
 
 def _require_string_list(value: Any, field: str) -> tuple[str, ...]:
@@ -1031,7 +1119,8 @@ def _build_parser() -> argparse.ArgumentParser:
     new.add_argument("--exclude", action="append", default=[])
     new.add_argument("--depends-on", action="append", default=[])
     new.add_argument("--integration-owner")
-    new.add_argument("--risk-profile", default="standard", choices=sorted(RISK_PROFILES))
+    new.add_argument("--complexity", default="medium", choices=sorted(COMPLEXITIES))
+    new.add_argument("--risk-trigger", action="append", default=[], choices=sorted(RISK_TRIGGERS))
     new.add_argument("--upstream-sha")
     new.add_argument("--upstream-tree")
     new.add_argument("--upstream-ref")
@@ -1082,7 +1171,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "documentation_impact": args.documentation_impact,
                     }
                 ),
-                risk_profile=args.risk_profile,
+                complexity=args.complexity,
+                risk_triggers=args.risk_trigger,
                 upstream_sha=args.upstream_sha,
                 upstream_tree=args.upstream_tree,
                 upstream_ref=args.upstream_ref,

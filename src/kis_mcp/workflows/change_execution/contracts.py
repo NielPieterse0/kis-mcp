@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-CHANGE_EXECUTION_SCHEMA_VERSION = 1
-CHANGE_EXECUTION_CONTRACT = "change-execution-result-v1"
+CHANGE_EXECUTION_SCHEMA_VERSION = 2
+CHANGE_EXECUTION_CONTRACT = "change-execution-result-v2"
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +41,8 @@ class ChangeExecutionStepResult:
 class ChangeExecutionResult:
     project: str
     source_fingerprint: str
-    risk_profile: str
+    complexity: str
+    risk_triggers: tuple[str, ...]
     selection: Mapping[str, Any]
     verifications: tuple[ChangeExecutionStepResult, ...]
     reviews: tuple[ChangeExecutionStepResult, ...]
@@ -55,13 +56,15 @@ class ChangeExecutionResult:
 
     def __post_init__(self) -> None:
         if self.schema_version != CHANGE_EXECUTION_SCHEMA_VERSION:
-            raise ValueError("change execution schema_version must be 1")
+            raise ValueError("change execution schema_version must be 2")
         if self.contract != CHANGE_EXECUTION_CONTRACT or self.tool != "execute_change_workflow":
             raise ValueError("change execution result identity is fixed")
         if not self.project.strip():
             raise ValueError("change execution project must not be empty")
-        if self.risk_profile not in {"lean", "standard", "rigorous"}:
-            raise ValueError("change execution risk_profile is unsupported")
+        if self.complexity not in {"small", "medium", "large"}:
+            raise ValueError("change execution complexity is unsupported")
+        if tuple(sorted(set(self.risk_triggers))) != self.risk_triggers:
+            raise ValueError("change execution risk_triggers must be unique and sorted")
         if len(self.source_fingerprint) != 64 or any(
             character not in "0123456789abcdef" for character in self.source_fingerprint
         ):
@@ -83,7 +86,8 @@ class ChangeExecutionResult:
             "tool": self.tool,
             "project": self.project,
             "source_fingerprint": self.source_fingerprint,
-            "risk_profile": self.risk_profile,
+            "complexity": self.complexity,
+            "risk_triggers": list(self.risk_triggers),
             "selection": dict(self.selection),
             "verifications": [item.to_json_dict() for item in self.verifications],
             "reviews": [item.to_json_dict() for item in self.reviews],

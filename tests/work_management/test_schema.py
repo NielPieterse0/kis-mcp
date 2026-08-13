@@ -31,10 +31,12 @@ def test_manifest_matches_approved_programme_shape() -> None:
     manifest = load_project_schema_manifest(SCHEMA_PATH)
 
     assert manifest.project_id == "kis-mcp"
-    assert len(manifest.fields) == 18
+    assert len(manifest.fields) == 20
     assert len(manifest.views) == 12
     assert manifest.field("Status").kind is ProjectFieldKind.SINGLE_SELECT
     assert "Documentation" in manifest.field("Status").options
+    assert manifest.field("Complexity").options == ("Small", "Medium", "Large")
+    assert manifest.field("Risk Triggers").kind is ProjectFieldKind.TEXT
     assert manifest.views[0].name == "01 Inbox"
     assert manifest.views[-1].name == "12 Completed"
 

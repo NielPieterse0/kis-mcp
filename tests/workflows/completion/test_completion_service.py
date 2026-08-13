@@ -27,7 +27,7 @@ class Invoker:
         self.calls.append((tool_name, arguments))
         if tool_name == "execute_change_workflow":
             return {
-                "contract": "change-execution-result-v1",
+                "contract": "change-execution-result-v2",
                 "status": self.execution_status,
                 "source_fingerprint": "c" * 64,
             }
@@ -84,7 +84,8 @@ def test_completion_coordinates_verification_publish_and_pr_in_fixed_order() -> 
     assert execution["project"] == r"C:\Projects\college"
     assert execution["source"] == "commit"
     assert execution["commit_ref"] == COMMIT
-    assert execution["risk_profile"] == "standard"
+    assert execution["complexity"] == "medium"
+    assert execution["risk_triggers"] == []
     assert "max_verifications" not in execution
     assert "review_types" not in execution
     publish = invoker.calls[1][1]
@@ -113,7 +114,8 @@ def test_completion_creates_pr_only_for_published_exact_head() -> None:
     assert "Ready for review." in body
     assert f"Source commit: `{COMMIT}`" in body
     assert f"Published head: `{PUBLISHED}`" in body
-    assert "Risk profile: `standard`" in body
+    assert "Complexity: `medium`" in body
+    assert "Risk triggers: `none`" in body
     assert "Documentation impact: `not_assessed`" in body
     assert "Reconciliation base: `diverged`" in body
     assert "Residual state: none declared" in body

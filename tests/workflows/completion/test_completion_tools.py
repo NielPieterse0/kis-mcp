@@ -20,7 +20,7 @@ class Service:
             source_commit_sha=kwargs["commit"],
             published_head_sha="d" * 40,
             branch=kwargs["branch"],
-            execution={"contract": "change-execution-result-v1", "status": "passed"},
+            execution={"contract": "change-execution-result-v2", "status": "passed"},
             publication={"state": "published", "source_commit_sha": kwargs["commit"], "commit_sha": "d" * 40},
             pull_request={"state": "open", "pull_number": 9, "head_sha": "d" * 40},
         )
@@ -45,7 +45,8 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
         "body",
         "approved",
         "task_terms",
-        "risk_profile",
+        "complexity",
+        "risk_triggers",
         "max_verifications",
         "verification_timeout_ms",
         "review_types",
@@ -74,6 +75,7 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
     assert result.structured_content["contract"] == "completion-result-v1"
     assert result.structured_content["status"] == "reviewable"
     assert service.calls[0]["review_types"] is None
-    assert service.calls[0]["risk_profile"] == "standard"
+    assert service.calls[0]["complexity"] == "medium"
+    assert service.calls[0]["risk_triggers"] == ()
     assert tool.annotations.readOnlyHint is False
     assert tool.annotations.destructiveHint is False

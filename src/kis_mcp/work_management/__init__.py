@@ -13,6 +13,7 @@ from .backend import (
 )
 from .contracts import (
     PUBLIC_SCHEMA_VERSION,
+    ChangeComplexity,
     DocumentationImpact,
     DocumentationMilestoneState,
     DocumentationMode,
@@ -20,6 +21,7 @@ from .contracts import (
     ManagedProject,
     Priority,
     RecordType,
+    RiskTrigger,
     WorkRecord,
 )
 from .evidence import (
@@ -140,6 +142,7 @@ __all__ = [
     "AssumptionDetails",
     "BackendBindingSettings",
     "CandidateEvaluation",
+    "ChangeComplexity",
     "CaptureWorkItem",
     "CloseoutEvidence",
     "DecisionDetails",
@@ -213,6 +216,7 @@ __all__ = [
     "ReviewTarget",
     "ReviewType",
     "RiskDetails",
+    "RiskTrigger",
     "TraceabilityIssue",
     "TraceabilityIssueKind",
     "TraceabilityReport",

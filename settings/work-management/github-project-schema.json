@@ -5,6 +5,8 @@
     {"name": "Status", "type": "single_select", "options": ["Inbox", "Triage", "Proposed", "Approved", "Active", "Review", "Verification", "Documentation", "Done", "Blocked", "On Hold", "Deferred", "Rejected", "Superseded"]},
     {"name": "Record Type", "type": "single_select", "options": ["Idea", "Task", "Specification Slice", "Review Run", "Finding", "Decision", "Assumption", "Risk", "Approval", "Hold", "Research", "Defect", "Security Finding"]},
     {"name": "Priority", "type": "single_select", "options": ["Critical", "High", "Medium", "Low"]},
+    {"name": "Complexity", "type": "single_select", "options": ["Small", "Medium", "Large"]},
+    {"name": "Risk Triggers", "type": "text", "options": []},
     {"name": "Project ID", "type": "text", "options": []},
     {"name": "Repository", "type": "repository", "options": []},
     {"name": "Module", "type": "single_select", "options": []},

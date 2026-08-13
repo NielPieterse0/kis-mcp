@@ -182,7 +182,11 @@ def test_schema_manifest_command_validates_repository_contract(tmp_path: Path, c
 
     assert exit_code == 0
     assert payload["ok"] is True
-    assert len(payload["schema"]["fields"]) == 18
+    assert len(payload["schema"]["fields"]) == 20
+    assert [field["name"] for field in payload["schema"]["fields"]][3:5] == [
+        "Complexity",
+        "Risk Triggers",
+    ]
     assert len(payload["schema"]["views"]) == 12
 
 
