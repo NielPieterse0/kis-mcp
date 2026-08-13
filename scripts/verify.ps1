@@ -16,6 +16,21 @@ $LockPath = Join-Path $RepositoryRoot 'uv.lock'
 $CanonicalStateRoot = 'C:\Projects\.kis-mcp'
 $CanonicalSkillsRoot = 'C:\Projects\.agents\skills'
 $CanonicalSkillsStagingRoot = 'C:\Projects\.kis-mcp\temp\skills'
+$CanonicalRequiredSkill = 'kis-mcp'
+$CanonicalRequiredSkillPath = Join-Path $CanonicalSkillsRoot "$CanonicalRequiredSkill\SKILL.md"
+if ($env:GITHUB_ACTIONS -eq 'true' -and -not (Test-Path -LiteralPath $CanonicalRequiredSkillPath -PathType Leaf)) {
+    $CanonicalRequiredSkillRoot = Split-Path -Parent $CanonicalRequiredSkillPath
+    New-Item -ItemType Directory -Force -Path $CanonicalRequiredSkillRoot | Out-Null
+    @"
+---
+name: kis-mcp
+description: CI canonical Skills fixture for the mandatory kis-mcp runtime procedure.
+---
+# kis-mcp
+
+CI canonical Skills fixture. Production loads the operator-managed canonical skill instead.
+"@ | Set-Content -LiteralPath $CanonicalRequiredSkillPath -Encoding utf8NoBOM
+}
 $CanonicalPaths = [ordered]@{
     state_root = $CanonicalStateRoot
     python_environment_root = Join-Path $CanonicalStateRoot 'python-env'
@@ -48,12 +63,18 @@ if (-not (Test-Path -LiteralPath $SkillsSettingsPath -PathType Leaf)) {
     throw 'SKILLS_SETTINGS_INVALID: settings\skills.settings.json is required.'
 }
 $SkillsSettings = Get-Content -LiteralPath $SkillsSettingsPath -Raw | ConvertFrom-Json
+$RequiredSkills = @($SkillsSettings.required_skills)
 if (
     [int]$SkillsSettings.schema_version -ne 1 -or
     [string]$SkillsSettings.root -ne $CanonicalSkillsRoot -or
-    [string]$SkillsSettings.staging_root -ne $CanonicalSkillsStagingRoot
+    [string]$SkillsSettings.staging_root -ne $CanonicalSkillsStagingRoot -or
+    $RequiredSkills.Count -ne 1 -or
+    [string]$RequiredSkills[0] -ne $CanonicalRequiredSkill
 ) {
-    throw 'SKILLS_SETTINGS_INVALID: Skills settings must use schema version 1 and the approved shared roots.'
+    throw 'SKILLS_SETTINGS_INVALID: Skills settings must use schema version 1, the approved shared roots, and require canonical kis-mcp.'
+}
+if (-not (Test-Path -LiteralPath $CanonicalRequiredSkillPath -PathType Leaf)) {
+    throw "SKILLS_REQUIRED_MISSING: required canonical Skill is missing: $CanonicalRequiredSkill"
 }
 $RuntimeSkillsRoot = Join-Path $RepositoryRoot 'src\kis_mcp\skills'
 if (-not (Test-Path -LiteralPath $RuntimeSkillsRoot -PathType Container)) {
