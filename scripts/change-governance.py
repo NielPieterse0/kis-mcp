@@ -12,8 +12,15 @@ from typing import Any, Iterable, Mapping, Sequence
 
 
 CHANGE_ID_PATTERN = re.compile(r"^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$")
+PROJECT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
+WORK_RECORD_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+$")
+SOURCE_REPOSITORY_PATTERN = re.compile(r"^[^/\s]+/[^/\s]+$")
 ACTIVE_STATUSES = frozenset({"active", "ready"})
 ALL_STATUSES = ACTIVE_STATUSES | {"closed"}
+DOCUMENTATION_IMPACTS = frozenset(
+    {"not_assessed", "none", "planned", "in_progress", "pre_merge_complete", "post_merge_complete"}
+)
+WORK_SOURCE_KINDS = frozenset({"issue", "pull_request"})
 REQUIRED_CHANGE_FILES = ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md")
 REQUIRED_FIELDS = frozenset(
     {
@@ -62,6 +69,77 @@ class PathClaim:
 
 
 @dataclass(frozen=True, slots=True)
+class WorkManagementClaim:
+    project_id: str
+    record_id: str
+    source_repository: str
+    source_number: int
+    source_kind: str
+    documentation_impact: str
+
+    @classmethod
+    def from_mapping(cls, data: Mapping[str, Any]) -> "WorkManagementClaim":
+        required = {
+            "project_id",
+            "record_id",
+            "source_repository",
+            "source_number",
+            "source_kind",
+            "documentation_impact",
+        }
+        missing = sorted(required.difference(data))
+        unknown = sorted(set(data).difference(required))
+        if missing:
+            raise ClaimError(f"WORK_MANAGEMENT_FIELDS_MISSING: {', '.join(missing)}")
+        if unknown:
+            raise ClaimError(f"WORK_MANAGEMENT_FIELDS_UNKNOWN: {', '.join(unknown)}")
+        project_id = _require_string(data["project_id"], "work_management.project_id")
+        if PROJECT_ID_PATTERN.fullmatch(project_id) is None:
+            raise ClaimError(f"WORK_MANAGEMENT_PROJECT_ID_INVALID: {project_id}")
+        record_id = _require_string(data["record_id"], "work_management.record_id")
+        if WORK_RECORD_ID_PATTERN.fullmatch(record_id) is None:
+            raise ClaimError(f"WORK_MANAGEMENT_RECORD_ID_INVALID: {record_id}")
+        source_repository = _require_string(
+            data["source_repository"], "work_management.source_repository"
+        )
+        if SOURCE_REPOSITORY_PATTERN.fullmatch(source_repository) is None:
+            raise ClaimError(
+                f"WORK_MANAGEMENT_SOURCE_REPOSITORY_INVALID: {source_repository}"
+            )
+        source_number = data["source_number"]
+        if isinstance(source_number, bool) or not isinstance(source_number, int) or source_number <= 0:
+            raise ClaimError("WORK_MANAGEMENT_SOURCE_NUMBER_INVALID: expected positive integer")
+        source_kind = _require_string(data["source_kind"], "work_management.source_kind")
+        if source_kind not in WORK_SOURCE_KINDS:
+            raise ClaimError(f"WORK_MANAGEMENT_SOURCE_KIND_INVALID: {source_kind}")
+        documentation_impact = _require_string(
+            data["documentation_impact"], "work_management.documentation_impact"
+        )
+        if documentation_impact not in DOCUMENTATION_IMPACTS:
+            raise ClaimError(
+                f"WORK_MANAGEMENT_DOCUMENTATION_IMPACT_INVALID: {documentation_impact}"
+            )
+        return cls(
+            project_id=project_id,
+            record_id=record_id,
+            source_repository=source_repository,
+            source_number=source_number,
+            source_kind=source_kind,
+            documentation_impact=documentation_impact,
+        )
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "record_id": self.record_id,
+            "source_repository": self.source_repository,
+            "source_number": self.source_number,
+            "source_kind": self.source_kind,
+            "documentation_impact": self.documentation_impact,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class ChangeClaim:
     schema_version: int
     change_id: str
@@ -75,18 +153,29 @@ class ChangeClaim:
     excluded_paths: tuple[PathClaim, ...]
     dependencies: tuple[str, ...]
     integration_owner: str | None
+    work_management: WorkManagementClaim | None
     source: Path
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any], *, source: Path) -> "ChangeClaim":
         missing = sorted(REQUIRED_FIELDS.difference(data))
-        unknown = sorted(set(data).difference(REQUIRED_FIELDS))
+        if missing:
+            raise ClaimError(f"CHANGE_FIELDS_MISSING: {', '.join(missing)}")
+        schema_version = data["schema_version"]
+        if schema_version not in {1, 2}:
+            raise ClaimError("CHANGE_SCHEMA_VERSION_INVALID: expected 1 or 2")
+        required_fields = REQUIRED_FIELDS | ({"work_management"} if schema_version == 2 else set())
+        missing = sorted(required_fields.difference(data))
+        unknown = sorted(set(data).difference(required_fields))
         if missing:
             raise ClaimError(f"CHANGE_FIELDS_MISSING: {', '.join(missing)}")
         if unknown:
             raise ClaimError(f"CHANGE_FIELDS_UNKNOWN: {', '.join(unknown)}")
-        if data["schema_version"] != 1:
-            raise ClaimError("CHANGE_SCHEMA_VERSION_INVALID: expected 1")
+        work_management = (
+            None
+            if schema_version == 1
+            else WorkManagementClaim.from_mapping(_require_mapping(data["work_management"], "work_management"))
+        )
 
         change_id = _require_change_id(data["change_id"], "change_id")
         status = _require_string(data["status"], "status")
@@ -146,7 +235,7 @@ class ChangeClaim:
                 )
 
         return cls(
-            schema_version=1,
+            schema_version=schema_version,
             change_id=change_id,
             status=status,
             branch=branch,
@@ -158,6 +247,7 @@ class ChangeClaim:
             excluded_paths=excluded_paths,
             dependencies=dependencies,
             integration_owner=integration_owner,
+            work_management=work_management,
             source=source,
         )
 
@@ -166,7 +256,7 @@ class ChangeClaim:
         return " ".join(self.outcome.casefold().split())
 
     def to_mapping(self) -> dict[str, Any]:
-        return {
+        mapping = {
             "schema_version": self.schema_version,
             "change_id": self.change_id,
             "status": self.status,
@@ -180,6 +270,9 @@ class ChangeClaim:
             "dependencies": list(self.dependencies),
             "integration_owner": self.integration_owner,
         }
+        if self.work_management is not None:
+            mapping["work_management"] = self.work_management.to_mapping()
+        return mapping
 
 
 @dataclass(frozen=True, slots=True)
@@ -320,9 +413,17 @@ def create_change_worktree(
     excluded_paths: Sequence[str] = (),
     dependencies: Sequence[str] = (),
     integration_owner: str | None = None,
+    work_management: Mapping[str, Any] | WorkManagementClaim | None = None,
     base: str = "main",
 ) -> Path:
     root = repository_root(repository)
+    if work_management is None:
+        raise ClaimError("WORK_MANAGEMENT_INITIALIZATION_REQUIRED: initialize the Work Management record before creating the change")
+    work_management_claim = (
+        work_management
+        if isinstance(work_management, WorkManagementClaim)
+        else WorkManagementClaim.from_mapping(_require_mapping(work_management, "work_management"))
+    )
     _require_primary_clean_worktree(root, base)
     _require_worktree_directory_ignored(root)
     _require_template(root)
@@ -333,7 +434,7 @@ def create_change_worktree(
     if workspace_claim not in normalized_owned:
         normalized_owned.append(workspace_claim)
     claim_data = {
-        "schema_version": 1,
+        "schema_version": 2,
         "change_id": change_id,
         "status": "active",
         "branch": f"change/{change_id}",
@@ -345,6 +446,7 @@ def create_change_worktree(
         "excluded_paths": list(excluded_paths),
         "dependencies": list(dependencies),
         "integration_owner": integration_owner,
+        "work_management": work_management_claim.to_mapping(),
     }
     claim = ChangeClaim.from_mapping(claim_data, source=Path("<new-change>"))
     conflicts = find_claim_conflicts([*existing_claims, claim])
@@ -686,6 +788,12 @@ def _require_string_list(value: Any, field: str) -> tuple[str, ...]:
     return tuple(value)
 
 
+def _require_mapping(value: Any, field: str) -> Mapping[str, Any]:
+    if not isinstance(value, Mapping):
+        raise ClaimError(f"CHANGE_FIELD_TYPE_INVALID: {field} must be an object")
+    return value
+
+
 def _require_change_id(value: Any, field: str) -> str:
     text = _require_string(value, field)
     if not CHANGE_ID_PATTERN.fullmatch(text):
@@ -739,6 +847,12 @@ def _build_parser() -> argparse.ArgumentParser:
     new.add_argument("--exclude", action="append", default=[])
     new.add_argument("--depends-on", action="append", default=[])
     new.add_argument("--integration-owner")
+    new.add_argument("--work-project-id", required=True)
+    new.add_argument("--work-record-id", required=True)
+    new.add_argument("--work-source-repository", required=True)
+    new.add_argument("--work-source-number", required=True, type=int)
+    new.add_argument("--work-source-kind", required=True, choices=sorted(WORK_SOURCE_KINDS))
+    new.add_argument("--documentation-impact", required=True, choices=sorted(DOCUMENTATION_IMPACTS))
     new.add_argument("--base", default="main")
 
     validate = subparsers.add_parser("validate", help="Validate active change claims and worktrees.")
@@ -768,6 +882,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 excluded_paths=args.exclude,
                 dependencies=args.depends_on,
                 integration_owner=args.integration_owner,
+                work_management={
+                    "project_id": args.work_project_id,
+                    "record_id": args.work_record_id,
+                    "source_repository": args.work_source_repository,
+                    "source_number": args.work_source_number,
+                    "source_kind": args.work_source_kind,
+                    "documentation_impact": args.documentation_impact,
+                },
                 base=args.base,
             )
             print(json.dumps({"change_id": args.change_id, "worktree": str(target)}))

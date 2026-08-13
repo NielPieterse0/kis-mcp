@@ -708,6 +708,7 @@ The initial bootstrap SHOULD:
 - **PM-REQ-054**: Every specification and implementation slice MUST classify documentation impact at creation.
 - **PM-REQ-055**: Merge readiness MUST include pre-merge documentation completion or an explicit no-impact decision.
 - **PM-REQ-056**: A merged change MUST remain open for post-merge documentation reconciliation and closeout until the configured documentation milestone is satisfied.
+- **PM-REQ-057**: Every newly governed specification or implementation slice MUST initialize a durable Work Management record before its branch/worktree is created, and the change scope MUST retain stable evidence of that initialized record without requiring provider access during local governance validation.
 
 ## 22. Acceptance scenarios
 
@@ -723,6 +724,8 @@ The initial bootstrap SHOULD:
 10. **Given** a completed and merged change, **when** closeout finishes, **then** its issue, Project item, PR, verification, merge commit, and closeout record remain traceable.
 11. **Given** two configured repositories, **when** portfolio status is requested, **then** records remain attributable to their stable project identities and can be filtered per project.
 12. **Given** a merged pull request with documentation impact, **when** merge completes, **then** the work item enters `Documentation` and cannot become `Done` until post-merge reconciliation is recorded.
+13. **Given** a new governed slice, **when** its worktree is requested, **then** creation fails unless the operator or governing workflow already initialized its durable Work Management record and supplies that stable identity to change governance.
+
 ## 23. Delivery sequence
 
 | Phase | Outcome | Dependency |
