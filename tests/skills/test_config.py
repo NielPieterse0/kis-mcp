@@ -25,6 +25,7 @@ def _valid_payload() -> dict[str, object]:
         "schema_version": 1,
         "root": APPROVED_SKILLS_ROOT,
         "staging_root": APPROVED_SKILLS_STAGING_ROOT,
+        "required_skills": ["kis-mcp"],
         "limits": {
             "max_file_bytes": 2_000_000,
             "max_skill_bytes": 3_000_000,
@@ -70,6 +71,7 @@ def test_load_skills_config_accepts_exact_approved_roots(tmp_path: Path) -> None
 
     assert str(config.root) == APPROVED_SKILLS_ROOT
     assert str(config.staging_root) == APPROVED_SKILLS_STAGING_ROOT
+    assert config.required_skills == ("kis-mcp",)
     assert config.limits.max_file_bytes == 2_000_000
     assert config.limits.max_skill_bytes == 3_000_000
     assert config.limits.search_max_limit == 50
@@ -78,6 +80,21 @@ def test_load_skills_config_accepts_exact_approved_roots(tmp_path: Path) -> None
     assert ".js" in config.validation.allowed_suffixes
     assert config.validation.allowed_filenames == ("LICENSE",)
     assert config.validation.skill_id_pattern.fullmatch("modularity-assessment")
+
+
+@pytest.mark.parametrize(
+    "required_skills",
+    [[], ["kis-mcp", "kis-mcp"], ["KIS MCP"]],
+)
+def test_load_skills_config_rejects_invalid_required_skills(
+    tmp_path: Path, required_skills: list[str]
+) -> None:
+    payload = _valid_payload()
+    payload["required_skills"] = required_skills
+    _write_settings(tmp_path, payload)
+
+    with pytest.raises(RuntimeError, match="required_skills"):
+        load_skills_config(tmp_path)
 
 
 @pytest.mark.parametrize(
