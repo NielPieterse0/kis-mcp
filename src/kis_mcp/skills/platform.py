@@ -16,18 +16,19 @@ from .service import SkillsService
 from .tools import register_skills_tools
 
 
-
 def skill_capability_contributions(
     cards: tuple[SkillCard, ...],
     settings: CapabilitySettings,
 ) -> tuple[CapabilityContribution, ...]:
     contributions: list[CapabilityContribution] = []
     for raw_card in sorted(cards, key=lambda item: item.id):
+        metadata = settings.skill_metadata.get(raw_card.id)
+        if metadata is None:
+            continue
         card = enrich_skill_card(raw_card, settings)
-        metadata = settings.skill_metadata.get(card.id)
         if card.category == "uncategorized" or not card.capabilities:
             raise ValueError(f"skill capability metadata is incomplete: {card.id}")
-        effects = normalize_effects(metadata.effects if metadata is not None else ("read_only",))
+        effects = normalize_effects(metadata.effects)
         contribution_id = f"skill.{card.id}"
         state = ReadinessState.READY if card.status == "active" else ReadinessState.DISABLED
         contributions.append(

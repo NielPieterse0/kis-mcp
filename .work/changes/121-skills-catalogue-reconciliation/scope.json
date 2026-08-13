@@ -1,0 +1,45 @@
+{
+  "schema_version": 4,
+  "change_id": "121-skills-catalogue-reconciliation",
+  "status": "active",
+  "branch": "change/121-skills-catalogue-reconciliation",
+  "worktree": ".work/worktrees/121-skills-catalogue-reconciliation",
+  "base": "main",
+  "outcome": "Make the canonical shared Skills catalogue dynamic and startup-safe, require canonical kis-mcp presence, and remove the duplicate repository-local kis-mcp skill.",
+  "owned_paths": [
+    "src/kis_mcp/skills/**",
+    "settings/skills.settings.json",
+    "contracts/skills/settings.schema.json",
+    "scripts/verify.ps1",
+    "tests/test_repository_scope.py",
+    "tests/skills/**",
+    "tests/capabilities/test_domain_platforms.py",
+    "tests/capabilities/test_capability_settings.py",
+    "tests/capabilities/test_gateway_composition.py",
+    ".agents/skills/kis-mcp/**",
+    ".work/changes/121-skills-catalogue-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": ["AGENTS.md", "SPEC.md", "docs/OPERATIONS.md"],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": ["public_contract"],
+  "base_evidence": {
+    "local_sha": "73156f3bfa70936f1b4d3b79fbe73548a1dba9d1",
+    "local_tree": "55ee8709393dac94accdef5d78e45246d1c1e563",
+    "upstream_sha": "73156f3bfa70936f1b4d3b79fbe73548a1dba9d1",
+    "upstream_tree": "55ee8709393dac94accdef5d78e45246d1c1e563",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-121",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 168,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}

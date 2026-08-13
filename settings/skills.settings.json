@@ -2,6 +2,7 @@
   "schema_version": 1,
   "root": "C:\\Projects\\.agents\\skills",
   "staging_root": "C:\\Projects\\.kis-mcp\\temp\\skills",
+  "required_skills": ["kis-mcp"],
   "limits": {
     "max_file_bytes": 2000000,
     "max_skill_bytes": 3000000,
@@ -14,26 +15,8 @@
   },
   "validation": {
     "skill_id_pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-    "allowed_suffixes": [
-      ".md",
-      ".json",
-      ".yaml",
-      ".yml",
-      ".py",
-      ".ps1",
-      ".sh",
-      ".txt",
-      ".toml",
-      ".png",
-      ".svg",
-      ".css",
-      ".html",
-      ".js",
-      ".ttl"
-    ],
-    "allowed_filenames": [
-      "LICENSE"
-    ],
+    "allowed_suffixes": [".md", ".json", ".yaml", ".yml", ".py", ".ps1", ".sh", ".txt", ".toml", ".png", ".svg", ".css", ".html", ".js", ".ttl"],
+    "allowed_filenames": ["LICENSE"],
     "reject_links": true,
     "reject_reparse_points": true,
     "reject_hard_links": true,
