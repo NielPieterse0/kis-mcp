@@ -98,6 +98,17 @@ class SkillCatalogue:
                 accepted.append(entry)
             except SkillsError as exc:
                 problems.append(f"{path.name}: {exc}")
+
+        present_ids = {entry.id for entry in accepted}
+        missing_required = tuple(
+            skill_id for skill_id in self.config.required_skills if skill_id not in present_ids
+        )
+        if missing_required:
+            raise SkillsError(
+                "SKILLS_REQUIRED_MISSING",
+                "Required canonical Skills are missing or invalid: "
+                + ", ".join(missing_required),
+            )
         if problems:
             raise SkillsError("SKILLS_REFRESH_REJECTED", "; ".join(problems))
 
