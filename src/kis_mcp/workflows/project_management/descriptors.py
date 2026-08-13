@@ -99,18 +99,24 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         _workflow(
             "complete-work-managed-pull-request",
             "Complete a work-managed pull request",
-            "Require a ready Work Management gate, merge only the exact approved pull-request head, then record the post-merge documentation milestone before Done.",
+            "Observe the exact pull-request head and provider-native GitHub Actions evidence, require a ready Work Management projection, merge only that approved head, then record the post-merge documentation milestone before Done.",
             (
+                "github.pull-request.read",
+                "github.actions.read",
                 "work.traceability.verify",
                 "operation.kis_github_merge_registered_pull_request",
                 "work.reconcile",
             ),
             (
+                "github_pull_request_read",
+                "github_actions_list",
+                "github_actions_get",
                 "project_management_merge_readiness",
                 "kis_github_merge_registered_pull_request",
                 "project_management_documentation_reconcile",
             ),
             (
+                "provider-native GitHub Actions evidence matches the exact pull-request head",
                 "an unready merge gate stops this workflow before merge",
                 "only the exact approved head is merged",
                 "documentation_reconciliation_due is evidence-linked after merge",

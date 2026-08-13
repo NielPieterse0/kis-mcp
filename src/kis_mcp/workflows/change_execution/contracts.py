@@ -41,6 +41,7 @@ class ChangeExecutionStepResult:
 class ChangeExecutionResult:
     project: str
     source_fingerprint: str
+    risk_profile: str
     selection: Mapping[str, Any]
     verifications: tuple[ChangeExecutionStepResult, ...]
     reviews: tuple[ChangeExecutionStepResult, ...]
@@ -59,6 +60,8 @@ class ChangeExecutionResult:
             raise ValueError("change execution result identity is fixed")
         if not self.project.strip():
             raise ValueError("change execution project must not be empty")
+        if self.risk_profile not in {"lean", "standard", "rigorous"}:
+            raise ValueError("change execution risk_profile is unsupported")
         if len(self.source_fingerprint) != 64 or any(
             character not in "0123456789abcdef" for character in self.source_fingerprint
         ):
@@ -80,6 +83,7 @@ class ChangeExecutionResult:
             "tool": self.tool,
             "project": self.project,
             "source_fingerprint": self.source_fingerprint,
+            "risk_profile": self.risk_profile,
             "selection": dict(self.selection),
             "verifications": [item.to_json_dict() for item in self.verifications],
             "reviews": [item.to_json_dict() for item in self.reviews],

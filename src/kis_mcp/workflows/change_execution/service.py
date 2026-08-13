@@ -18,6 +18,12 @@ _REVIEW_TYPES = frozenset({
 })
 _REVIEW_BACKENDS = frozenset({"nvidia-nim", "codex-cli"})
 _REVIEW_MODELS = frozenset({"nano", "super", "ultra"})
+_RISK_PROFILES = frozenset({"lean", "standard", "rigorous"})
+_RISK_DEFAULTS = {
+    "lean": (6, ()),
+    "standard": (20, ("code-quality",)),
+    "rigorous": (20, ("code-quality", "safety-security", "architecture")),
+}
 _MAX_TIMEOUT_MS = 300_000
 
 
@@ -40,14 +46,26 @@ class ChangeExecutionService:
         base_ref: str | None = None,
         head_ref: str | None = None,
         task_terms: tuple[str, ...] = (),
-        max_verifications: int = 20,
+        risk_profile: str = "standard",
+        max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
-        review_types: tuple[str, ...] = ("code-quality",),
+        review_types: tuple[str, ...] | None = None,
         review_backend: str | None = None,
         review_model: str | None = None,
     ) -> ChangeExecutionResult:
         project = _required(project, "project")
-        reviews = _validate_reviews(review_types, review_backend, review_model)
+        risk_profile = _validate_risk_profile(risk_profile)
+        default_max_verifications, default_reviews = _RISK_DEFAULTS[risk_profile]
+        verification_limit = (
+            default_max_verifications
+            if max_verifications is None
+            else _validate_max_verifications(max_verifications)
+        )
+        reviews = _validate_reviews(
+            default_reviews if review_types is None else review_types,
+            review_backend,
+            review_model,
+        )
         timeout_ms = _validate_timeout(verification_timeout_ms)
         selection = await self._invoker(
             "select_change_verification",
@@ -58,7 +76,7 @@ class ChangeExecutionService:
                 "base_ref": base_ref,
                 "head_ref": head_ref,
                 "task_terms": list(task_terms),
-                "max_verifications": max_verifications,
+                "max_verifications": verification_limit,
             },
         )
         source_fingerprint, verification_ids = _selection_identity(selection)
@@ -126,6 +144,7 @@ class ChangeExecutionService:
         return ChangeExecutionResult(
             project=project,
             source_fingerprint=source_fingerprint,
+            risk_profile=risk_profile,
             selection=selection,
             verifications=tuple(verification_results),
             reviews=tuple(review_results),
@@ -199,8 +218,8 @@ def _validate_reviews(
     review_backend: str | None,
     review_model: str | None,
 ) -> tuple[str, ...]:
-    if not review_types or len(review_types) > len(_REVIEW_TYPES):
-        raise ValueError("review_types must contain between one and seven review_type values")
+    if len(review_types) > len(_REVIEW_TYPES):
+        raise ValueError("review_types must contain at most seven review_type values")
     if len(set(review_types)) != len(review_types):
         raise ValueError("review_types must not contain duplicate review_type values")
     for review_type in review_types:
@@ -213,6 +232,20 @@ def _validate_reviews(
     if review_backend == "codex-cli" and review_model is not None:
         raise ValueError("review_model is invalid with review_backend='codex-cli'")
     return review_types
+
+
+def _validate_risk_profile(risk_profile: str) -> str:
+    if risk_profile not in _RISK_PROFILES:
+        raise ValueError(f"unsupported risk_profile {risk_profile!r}")
+    return risk_profile
+
+
+def _validate_max_verifications(max_verifications: int) -> int:
+    if isinstance(max_verifications, bool) or not isinstance(max_verifications, int):
+        raise ValueError("max_verifications must be an integer")
+    if max_verifications < 1 or max_verifications > 20:
+        raise ValueError("max_verifications must be between 1 and 20")
+    return max_verifications
 
 
 def _validate_timeout(timeout_ms: int) -> int:

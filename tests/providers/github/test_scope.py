@@ -159,6 +159,26 @@ def test_allows_only_verified_project_read_methods_for_approved_owner() -> None:
             "field_names": ["Status"],
         },
     )
+    scope.authorize(
+        "projects_get",
+        {
+            "method": "get_project_field",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 12,
+            "field_id": 99,
+        },
+    )
+    scope.authorize(
+        "projects_get",
+        {
+            "method": "get_project_status_update",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 12,
+            "status_update_id": "PVTSU_example",
+        },
+    )
 
 
 def test_rejects_project_reads_for_unapproved_owner_or_method() -> None:
@@ -221,8 +241,22 @@ def test_allows_only_bounded_project_item_mutations() -> None:
             "updated_field": {"name": "Status", "value": "Active"},
         },
     )
+    scope.authorize(
+        "projects_write",
+        {
+            "method": "update_project_items",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 12,
+            "items": [
+                {"node_id": "PVTI_one"},
+                {"item_owner": "NielPieterse0", "item_repo": "kis-mcp", "issue_number": 7},
+            ],
+            "updated_field": {"name": "Status", "value": "Active"},
+        },
+    )
 
-    for method in ("delete_project_item", "create_project"):
+    for method in ("delete_project_item", "create_project", "create_iteration_field", "create_project_status_update"):
         with pytest.raises(GitHubRepositoryScopeError, match="not approved"):
             scope.authorize(
                 "projects_write",

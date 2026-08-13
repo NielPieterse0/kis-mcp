@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -201,6 +202,30 @@ def test_publish_rejects_stale_remote_base_without_push() -> None:
     assert not any("push" in call[0] for call in runner.calls)
 
 
+def test_repository_landing_policy_disables_squash_rebase_and_auto_cleanup() -> None:
+    policy = {
+        "allow_merge_commit": True,
+        "allow_squash_merge": False,
+        "allow_rebase_merge": False,
+        "delete_branch_on_merge": False,
+    }
+    runner = QueueRunner((Result(), Result(stdout="{}\n"), Result(stdout=json.dumps(policy) + "\n")))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.configure_repository_landing_policy(
+        project_id="college",
+        approved=True,
+    )
+
+    assert result["state"] == "configured"
+    patch = runner.calls[1][0]
+    assert patch[:5] == ("gh", "api", "--method", "PATCH", "repos/nielpieterse0/college")
+    assert "allow_merge_commit=true" in patch
+    assert "allow_squash_merge=false" in patch
+    assert "allow_rebase_merge=false" in patch
+    assert "delete_branch_on_merge=false" in patch
+
+
 def test_merge_is_approval_gated_exact_head_and_never_admin() -> None:
     runner = QueueRunner(
         (
@@ -216,7 +241,7 @@ def test_merge_is_approval_gated_exact_head_and_never_admin() -> None:
         project_id="college",
         pull_number=7,
         expected_head=TARGET,
-        merge_method="squash",
+        merge_method="merge",
         approved=True,
     )
 
@@ -232,9 +257,24 @@ def test_merge_is_approval_gated_exact_head_and_never_admin() -> None:
         "nielpieterse0/college",
         "--match-head-commit",
         TARGET,
-        "--squash",
+        "--merge",
     )
     assert "--admin" not in merge
+
+
+def test_merge_rejects_squash_and_rebase_methods_before_mutation() -> None:
+    for method in ("squash", "rebase"):
+        runner = QueueRunner(())
+        operations = RegisteredGitHubOperations(registry(), runner=runner)
+        with pytest.raises(ToolError, match="INVALID_MERGE_METHOD"):
+            operations.merge_pull_request(
+                project_id="college",
+                pull_number=7,
+                expected_head=TARGET,
+                merge_method=method,
+                approved=True,
+            )
+        assert runner.calls == []
 
 
 def test_merge_rejects_stale_head_before_mutation() -> None:

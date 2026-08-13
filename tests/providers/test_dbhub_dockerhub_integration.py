@@ -6,7 +6,12 @@ from pathlib import Path
 import pytest
 from jsonschema import Draft202012Validator
 
-from kis_mcp.projects import DatabaseBinding, load_project_registry_settings
+from kis_mcp.projects import (
+    DatabaseBinding,
+    ProjectDefinition,
+    ProjectRegistry,
+    load_project_registry_settings,
+)
 from kis_mcp.providers import ProviderBoundary, ProviderState
 from kis_mcp.providers.dbhub import (
     DBHubSettings,
@@ -203,10 +208,26 @@ def test_dbhub_names_remain_stable_when_a_second_binding_is_added() -> None:
     assert operation_name("college", "results", "execute_sql") == first
 
 
-def test_dbhub_readiness_is_ready_when_installation_and_local_binding_are_ready(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dbhub_readiness_is_ready_when_installation_and_local_binding_are_ready(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
     monkeypatch.setattr(dbhub_provider_module, "validate_installation", lambda settings: None)
-    descriptor = dbhub_provider_descriptor(repository_root=ROOT, environment={})
-    readiness = descriptor.readiness_probe()
+    database = tmp_path / "results" / "college.db"
+    database.parent.mkdir()
+    database.touch()
+    projects = ProjectRegistry(
+        default_project_id="college",
+        projects=(
+            ProjectDefinition(
+                project_id="college",
+                display_name="College",
+                local_root=str(tmp_path),
+                databases=(DatabaseBinding("results", "sqlite", "local", r"results\college.db", None),),
+            ),
+        ),
+    )
+    readiness = dbhub_provider_module.dbhub_readiness(_dbhub_settings(), projects, {})
     assert readiness.state is ProviderState.READY
     assert readiness.details["commissioning"]["authenticated"] == "not_required"
 

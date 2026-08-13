@@ -189,9 +189,9 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         _workflow(
             "pull-request-safe-closeout",
             "Review and merge pull request safely",
-            "Inspect, verify, review, merge only the exact approved head, delete the verified remote branch, and clean the merged worktree.",
-            ("git.change.inspect", "verification.execute", "github.review", "operation.kis_github_merge_registered_pull_request", "operation.kis_github_delete_registered_branch", "git.worktree.cleanup"),
-            ("inspect_change", "run_verification", "github_review_pull_request", "kis_github_merge_registered_pull_request", "kis_github_delete_registered_branch", "cleanup_change_worktree"),
+            "Inspect the change, observe provider-native GitHub pull-request and Actions evidence for the exact head, review findings, merge only that approved head, delete the verified remote branch, and clean the merged worktree.",
+            ("git.change.inspect", "github.pull-request.read", "github.actions.read", "github.review", "operation.kis_github_merge_registered_pull_request", "operation.kis_github_delete_registered_branch", "git.worktree.cleanup"),
+            ("inspect_change", "github_pull_request_read", "github_actions_list", "github_actions_get", "github_review_pull_request", "kis_github_merge_registered_pull_request", "kis_github_delete_registered_branch", "cleanup_change_worktree"),
             ("checks pass", "review findings are resolved", "approved head is merged", "remote branch cleanup is verified", "worktree is cleaned"),
             ("review and merge pull request", "merge pr safely", "pr completion", "clean worktree"),
             (read, change, external, process),

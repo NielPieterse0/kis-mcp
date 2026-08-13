@@ -1,3 +1,7 @@
+param(
+    [switch]$SkipDependencySync
+)
+
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
@@ -158,9 +162,11 @@ $env:UV_OFFLINE = '1'
 
 Push-Location $RepositoryRoot
 try {
-    & uv sync --offline --dev --frozen
-    if ($LASTEXITCODE -ne 0) {
-        throw "Offline dependency synchronization failed with exit code $LASTEXITCODE"
+    if (-not $SkipDependencySync) {
+        & uv sync --offline --dev --frozen
+        if ($LASTEXITCODE -ne 0) {
+            throw "Offline dependency synchronization failed with exit code $LASTEXITCODE"
+        }
     }
 
     & uv run --offline --no-sync python scripts\verify.py

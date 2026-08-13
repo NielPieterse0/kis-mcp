@@ -310,6 +310,12 @@ def register_github_provider(
                 tool_names=("actions_run_trigger",),
             ),
             ProviderCapability(
+                capability_id="github.pull-request.read",
+                description="Read pull-request details and exact-head check runs through the official GitHub MCP provider.",
+                effects=("external_network", "repository_read"),
+                tool_names=("pull_request_read",),
+            ),
+            ProviderCapability(
                 capability_id="github.pull-request.create",
                 description="Create a pull request through the official GitHub MCP provider.",
                 effects=("external_network", "repository_write"),

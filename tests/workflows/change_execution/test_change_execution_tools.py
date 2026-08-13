@@ -18,6 +18,7 @@ class _Service:
         return ChangeExecutionResult(
             project=kwargs["project"],
             source_fingerprint="a" * 64,
+            risk_profile=kwargs.get("risk_profile", "standard"),
             selection={"contract": "verification-selection-v1"},
             verifications=(),
             reviews=(),
@@ -43,6 +44,7 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
         "base_ref",
         "head_ref",
         "task_terms",
+        "risk_profile",
         "max_verifications",
         "verification_timeout_ms",
         "review_types",

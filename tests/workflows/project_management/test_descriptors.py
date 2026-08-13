@@ -30,6 +30,9 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
         OperationEffect.READ_ONLY,
     )
     assert by_id["complete-work-managed-pull-request"].required_steps == (
+        "github_pull_request_read",
+        "github_actions_list",
+        "github_actions_get",
         "project_management_merge_readiness",
         "kis_github_merge_registered_pull_request",
         "project_management_documentation_reconcile",

@@ -122,12 +122,7 @@ For kis-mcp itself, the canonical verification gate is:
 pwsh -NoProfile -File .\scripts\verify.ps1
 ```
 
-It uses the locked external Python environment, performs offline/frozen
-dependency synchronization, and runs configuration, syntax, governance, policy,
-architecture, and full pytest verification.
-
-Do not substitute a partial smoke test for this repository gate when preparing a
-kis-mcp implementation change for completion.
+During development, run focused and affected checks. The normal pull request to `main` runs this canonical verifier once on the exact GitHub head after one locked environment synchronization; the workflow calls `verify.ps1 -SkipDependencySync` so dependency preparation is not repeated. Do not add a second local/full or metadata-only verification pass merely to duplicate that evidence.
 
 ## Governed change worktrees
 
@@ -137,13 +132,13 @@ List active claims:
 pwsh -NoProfile -File .\scripts\change-workflow.ps1 list
 ```
 
-Create a change only after its Work Management record exists, its Project projection is applied, documentation impact is classified, and the path claim is non-overlapping:
+Create the local governed change first; Work Management is optional projection metadata. Keep path claims non-overlapping and select the risk profile:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\change-workflow.ps1 new <change-id> --outcome <text> --owned <path> --work-project-id <project-id> --work-record-id <record-id> --work-source-repository <owner/repository> --work-source-number <number> --work-source-kind issue --documentation-impact <classification>
+pwsh -NoProfile -File .\scripts\change-workflow.ps1 new <change-id> --outcome <text> --owned <path> --risk-profile <lean|standard|rigorous>
 ```
 
-The command records schema-version-2 initialization evidence and performs no provider call. Historical schema-version-1 scopes remain valid.
+Schema-version-3 records capture local base evidence and risk-scaled lifecycle artifacts without a provider call. Historical schema-version-1/2 scopes remain valid under their original compatibility rules.
 
 From the change worktree, validate scope before review:
 
@@ -159,13 +154,7 @@ pwsh -NoProfile -File .\scripts\change-workflow.ps1 cleanup <change-id>
 
 Cleanup refuses dirty or unmerged worktrees and does not force branch deletion.
 
-For change verification/review, prefer the current bounded change workflow when
-it is advertised rather than manually assembling arbitrary process commands.
-For PR preparation, active Slice 7 change `106-reviewable-pr-coordinator` targets
-`prepare_reviewable_pull_request`: exact commit verification, exact registered
-publication, exact PR creation/verification, then stop. Use it only after live
-capability discovery confirms it is deployed. PR merge, branch deletion, and
-worktree cleanup remain the separate safe-closeout path.
+For change verification/review, prefer the current bounded change workflow rather than manually assembling arbitrary process commands. Its `lean|standard|rigorous` risk profile controls default verification/review weight. `prepare_reviewable_pull_request` performs exact commit execution, exact registered reconciliation, deterministic PR metadata, and exact PR creation, then stops. GitHub Actions supplies the single final canonical exact-head verification result; merge, branch deletion, and worktree cleanup remain the separate safe-closeout path.
 
 ## Troubleshooting order
 

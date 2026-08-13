@@ -36,11 +36,14 @@ class CompletionCoordinator:
         body: str,
         approved: bool,
         task_terms: tuple[str, ...] = (),
-        max_verifications: int = 20,
+        risk_profile: str = "standard",
+        max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
-        review_types: tuple[str, ...] = ("code-quality",),
+        review_types: tuple[str, ...] | None = None,
         review_backend: str | None = None,
         review_model: str | None = None,
+        documentation_impact: str = "not_assessed",
+        residual_state: str = "none declared",
     ) -> CompletionResult:
         project_key = _required(project_id, "project_id")
         commit_sha = _sha(commit, "commit")
@@ -53,8 +56,16 @@ class CompletionCoordinator:
         title_text = _required(title, "title")
         if len(title_text) > 256:
             raise ValueError("title must contain at most 256 characters")
-        if not isinstance(body, str) or len(body) > 20_000:
-            raise ValueError("body must be a string of at most 20000 characters")
+        if not isinstance(body, str) or len(body) > 10_000:
+            raise ValueError("body must be a string of at most 10000 characters")
+        if risk_profile not in {"lean", "standard", "rigorous"}:
+            raise ValueError("risk_profile must be lean, standard, or rigorous")
+        documentation_impact = _required(documentation_impact, "documentation_impact")
+        if documentation_impact not in {
+            "not_assessed", "none", "planned", "in_progress", "pre_merge_complete", "post_merge_complete"
+        }:
+            raise ValueError("documentation_impact is unsupported")
+        residual_state = _required(residual_state, "residual_state")
         if approved is not True:
             raise ValueError("approved must be true")
         try:
@@ -70,10 +81,13 @@ class CompletionCoordinator:
             "source": "commit",
             "commit_ref": commit_sha,
             "task_terms": list(task_terms),
-            "max_verifications": max_verifications,
+            "risk_profile": risk_profile,
             "verification_timeout_ms": verification_timeout_ms,
-            "review_types": list(review_types),
         }
+        if max_verifications is not None:
+            execution_args["max_verifications"] = max_verifications
+        if review_types is not None:
+            execution_args["review_types"] = list(review_types)
         if review_backend is not None:
             execution_args["review_backend"] = review_backend
         if review_model is not None:
@@ -114,6 +128,21 @@ class CompletionCoordinator:
                 "registered reconciliation did not preserve the exact source commit/tree and review branch",
             )
 
+        pull_request_body = _render_pull_request_body(
+            outcome=title_text,
+            summary=body,
+            branch=branch_name,
+            task_terms=task_terms,
+            risk_profile=risk_profile,
+            source_commit=commit_sha,
+            published_head=published_head,
+            execution=execution,
+            documentation_impact=documentation_impact,
+            residual_state=residual_state,
+        )
+        if len(pull_request_body) > 20_000:
+            raise ValueError("generated pull request body exceeds 20000 characters")
+
         pull_request = await self._invoker(
             "execute_external_action",
             {
@@ -124,7 +153,7 @@ class CompletionCoordinator:
                     "expected_head": published_head,
                     "expected_remote_default": default_sha,
                     "title": title_text,
-                    "body": body,
+                    "body": pull_request_body,
                     "approved": True,
                 },
             },
@@ -147,6 +176,47 @@ class CompletionCoordinator:
             publication=publication,
             pull_request=pull_request,
         )
+
+
+def _render_pull_request_body(
+    *,
+    outcome: str,
+    summary: str,
+    branch: str,
+    task_terms: tuple[str, ...],
+    risk_profile: str,
+    source_commit: str,
+    published_head: str,
+    execution: dict[str, Any],
+    documentation_impact: str,
+    residual_state: str,
+) -> str:
+    verification = ", ".join(
+        f"{item.get('step_id', 'unknown')}:{item.get('status', 'unknown')}"
+        for item in execution.get("verifications", ())
+        if isinstance(item, dict)
+    ) or "none selected"
+    reviews = ", ".join(
+        f"{item.get('step_id', 'unknown')}:{item.get('status', 'unknown')}"
+        for item in execution.get("reviews", ())
+        if isinstance(item, dict)
+    ) or "none"
+    scope = ", ".join(task_terms) if task_terms else "exact source commit"
+    detail = summary.strip() or "No additional summary supplied."
+    return (
+        f"## Outcome\n{outcome}\n\n"
+        f"## Summary\n{detail}\n\n"
+        "## Change metadata\n"
+        f"- Risk profile: `{risk_profile}`\n"
+        f"- Branch: `{branch}`\n"
+        f"- Scope: {scope}\n"
+        f"- Source commit: `{source_commit}`\n"
+        f"- Published head: `{published_head}`\n"
+        f"- Verification: {verification}\n"
+        f"- Review: {reviews}\n"
+        f"- Documentation impact: `{documentation_impact}`\n"
+        f"- Residual state: {residual_state}\n"
+    )
 
 
 def _required(value: str, label: str) -> str:

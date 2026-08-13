@@ -11,14 +11,17 @@ WRAPPER = ROOT / "scripts" / "project-workflow.ps1"
 def test_work_management_workflow_is_reusable_and_exact_revision_aware() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
+    assert "pull_request:" in text
     assert "workflow_call:" in text
     assert "workflow_dispatch:" in text
     assert "permissions:\n  contents: read" in text
-    assert "--revision $env:GITHUB_SHA" in text
-    assert "schema-manifest" in text
-    assert "settings/work-management/github-project-schema.json" in text
-    assert "scripts/change-workflow.ps1 validate --claims-only" in text
-    assert "scripts/verify.ps1" in text
+    assert "KIS_EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}" in text
+    assert "ref: ${{ env.KIS_EXACT_SHA }}" in text
+    assert "EXACT_HEAD_MISMATCH" in text
+    assert "uv sync --locked --all-groups" in text
+    assert "scripts/verify.ps1 -SkipDependencySync" in text
+    assert text.count("uv sync --locked --all-groups") == 1
+    assert text.count("scripts/verify.ps1 -SkipDependencySync") == 1
     assert "UV_CACHE_DIR: C:\\Projects\\.kis-mcp\\uv-cache" in text
     assert "Copy-Item -Destination C:\\Projects\\kis-mcp -Recurse -Force" in text
     assert "C:\\Projects\\.agents\\skills" in text
@@ -26,10 +29,11 @@ def test_work_management_workflow_is_reusable_and_exact_revision_aware() -> None
     assert "persist-credentials: false" in text
 
 
-def test_workflow_uses_pinned_or_versioned_official_actions() -> None:
+def test_workflow_uses_immutable_official_action_revisions() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
-    assert "actions/checkout@v7.0.1" in text
+    assert "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" in text
+    assert "# v7.0.1" in text
     assert (
         "astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b"
         in text

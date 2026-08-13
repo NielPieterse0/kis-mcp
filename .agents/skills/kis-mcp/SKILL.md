@@ -48,7 +48,7 @@ Use the shortest path that already satisfies the request:
 | "Verify and review this change" | Prefer the advertised `execute-current-change` / `execute_change_workflow`; otherwise use selected `run_verification` calls plus `review_change_with_agent`. |
 | "Validate AGENTS/agent configuration" | Use the advertised `validate-agent-configuration` workflow / `validate_agent_configuration` operation. |
 | "Review architecture/security/tests/docs/API contracts" | `review_change_with_agent` with the matching fixed `review_type`. |
-| "Turn this verified commit into a reviewable PR" | If live-advertised, use Slice 7 `prepare_reviewable_pull_request`; otherwise keep verification, exact publication, and PR creation as explicit approved steps. |
+| "Turn this verified commit into a reviewable PR" | Use live `prepare_reviewable_pull_request` when available; supply the change risk profile, documentation impact, and residual state so KIS can apply risk-scaled execution and deterministic PR metadata. |
 | "Query a registered project database" | Resolve the project first, then search `database.<project>...` capability metadata. Local DBHub reads use `execute_read_action`; external database reads carry an external effect and use `execute_external_action`. Public KIS names stay `db_<project>_<binding>_<operation>`. |
 | "Inspect Docker Hub" | Search `dockerhub.*` capability metadata and use `execute_external_action`; public mode needs no PAT. Keep Docker Hub registry operations separate from local Docker Engine/process work. |
 | "Merge or clean up an existing PR/change" | `recommend_workflow` for safe closeout, then follow exact-head approval and cleanup steps from live schemas. |
@@ -229,12 +229,9 @@ live project status, provider schemas, or current configuration evidence.
   existing original path.
 - Govern authority/drift evaluation is advisory and may exist in repository code
   before the running gateway composes its public tools. Discover it live before use.
-- Active Slice 7 change `106-reviewable-pr-coordinator` defines a bounded
-  `prepare_reviewable_pull_request` target: exact-commit change execution, exact
-  registered publication, exact open-PR creation/verification, then a mandatory
-  stop before merge, branch deletion, worktree cleanup, or default-branch mutation.
-  Treat it as in progress until the live runtime advertises the tool/workflow;
-  before then, keep those approved steps explicit rather than inventing the call.
+- `prepare_reviewable_pull_request` stops at an exact open PR. The final landing
+  gate is provider-native GitHub Actions evidence for that exact head; merge is
+  merge-commit only, and exact remote-branch/local-worktree cleanup remains separate.
 - Multi-file runtime skill creation is not currently provided by the
   single-file `create_skill(skill_id, skill_md)` contract.
 - A running kis-op/kis-dev instance may lag the checked-out repository. Use live

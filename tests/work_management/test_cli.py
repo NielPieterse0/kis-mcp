@@ -207,6 +207,7 @@ def test_merge_readiness_cli_blocks_unfinished_documentation(tmp_path: Path, cap
         "verifications": [{
             "evidence_id": "verify-110", "pull_request_number": 140,
             "revision": head, "status": "passed", "command": "verify",
+            "source": "github_actions", "reference": "run-110",
         }],
         "merges": [], "closeout": None, "documentation_events": [],
     })

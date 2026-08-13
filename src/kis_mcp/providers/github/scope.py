@@ -24,9 +24,11 @@ _REPOSITORY_FIELDS = {
 }
 _SCOPE_QUALIFIERS = frozenset({"repo", "org", "user", "owner"})
 _PROJECT_METHODS = {
-    "projects_get": frozenset({"get_project", "get_project_item"}),
+    "projects_get": frozenset(
+        {"get_project", "get_project_field", "get_project_item", "get_project_status_update"}
+    ),
     "projects_list": frozenset({"list_project_fields", "list_project_items"}),
-    "projects_write": frozenset({"add_project_item", "update_project_item"}),
+    "projects_write": frozenset({"add_project_item", "update_project_item", "update_project_items"}),
 }
 _PROJECT_OWNER_TYPES = frozenset({"user", "org"})
 
@@ -316,14 +318,8 @@ class GitHubRepositoryScope:
                     "repository_scope_violation",
                     f"Project {number_key} must be a positive integer.",
                 )
-        elif method == "update_project_item":
-            item_id = arguments.get("item_id")
+        elif method in {"update_project_item", "update_project_items"}:
             updated_field = arguments.get("updated_field")
-            if not isinstance(item_id, str) or not item_id.strip():
-                raise GitHubRepositoryScopeError(
-                    "repository_scope_violation",
-                    "Project item_id is required for update.",
-                )
             if not isinstance(updated_field, Mapping):
                 raise GitHubRepositoryScopeError(
                     "repository_scope_violation",
@@ -335,6 +331,58 @@ class GitHubRepositoryScope:
                     "repository_scope_violation",
                     "Project updated_field requires exactly one identity and a value.",
                 )
+            if method == "update_project_item":
+                item_id = arguments.get("item_id")
+                if isinstance(item_id, bool) or not isinstance(item_id, (str, int)) or not str(item_id).strip():
+                    raise GitHubRepositoryScopeError(
+                        "repository_scope_violation",
+                        "Project item_id is required for update.",
+                    )
+            else:
+                items = arguments.get("items")
+                if (
+                    not isinstance(items, Sequence)
+                    or isinstance(items, (str, bytes, bytearray))
+                    or not 1 <= len(items) <= 50
+                ):
+                    raise GitHubRepositoryScopeError(
+                        "repository_scope_violation",
+                        "Project items must contain between 1 and 50 bounded item references.",
+                    )
+                for item in items:
+                    if not isinstance(item, Mapping):
+                        raise GitHubRepositoryScopeError(
+                            "repository_scope_violation",
+                            "Each Project batch item must be an object.",
+                        )
+                    keys = set(item)
+                    if keys == {"node_id"} and isinstance(item.get("node_id"), str) and item["node_id"].strip():
+                        continue
+                    if keys == {"item_id"}:
+                        item_id = item.get("item_id")
+                        if not isinstance(item_id, bool) and isinstance(item_id, int) and item_id > 0:
+                            continue
+                    if keys == {"item_owner", "item_repo", "issue_number"}:
+                        item_owner = item.get("item_owner")
+                        item_repo = item.get("item_repo")
+                        issue_number = item.get("issue_number")
+                        if (
+                            isinstance(item_owner, str)
+                            and isinstance(item_repo, str)
+                            and not isinstance(issue_number, bool)
+                            and isinstance(issue_number, int)
+                            and issue_number > 0
+                        ):
+                            try:
+                                repository = normalize_repository(f"{item_owner}/{item_repo}")
+                            except ValueError:
+                                repository = ""
+                            if repository in self.approved_repositories:
+                                continue
+                    raise GitHubRepositoryScopeError(
+                        "repository_scope_violation",
+                        "Project batch item reference is invalid or outside an approved repository.",
+                    )
 
     def _authorize_search(self, arguments: Mapping[str, Any]) -> None:
         queries = _collect_queries(arguments)

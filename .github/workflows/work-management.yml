@@ -1,41 +1,36 @@
-name: Work Management
+name: Canonical Verification
 
 on:
+  pull_request:
+    branches:
+      - main
   workflow_call:
-    inputs:
-      run_full_verification:
-        description: Run the canonical repository verifier after focused P5 checks.
-        required: false
-        default: true
-        type: boolean
   workflow_dispatch:
-    inputs:
-      run_full_verification:
-        description: Run the canonical repository verifier after focused P5 checks.
-        required: false
-        default: true
-        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: work-management-${{ github.workflow }}-${{ github.ref }}
+  group: canonical-verification-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Validate P5 at exact revision
+  verify:
+    name: Verify exact head
     runs-on: windows-latest
     timeout-minutes: 30
     env:
       PYTHONUTF8: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       UV_NO_PROGRESS: "1"
+      UV_PROJECT_ENVIRONMENT: C:\Projects\.kis-mcp\python-env
+      UV_CACHE_DIR: C:\Projects\.kis-mcp\uv-cache
+      KIS_EXACT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Check out exact revision
-        uses: actions/checkout@v7.0.1
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.KIS_EXACT_SHA }}
           persist-credentials: false
 
       - name: Install uv
@@ -44,52 +39,24 @@ jobs:
           python-version: "3.13"
           enable-cache: true
 
-      - name: Synchronize locked environment
-        shell: pwsh
-        env:
-          UV_CACHE_DIR: C:\Projects\.kis-mcp\uv-cache
-        run: uv sync --locked --all-groups
-
-      - name: Validate work-management settings
-        shell: pwsh
-        run: >-
-          uv run --frozen --no-sync python scripts/project_workflow.py settings
-          --settings settings/work-management/github-projects.settings.json
-          --revision $env:GITHUB_SHA
-
-      - name: Validate work-management Project schema manifest
-        shell: pwsh
-        run: >-
-          uv run --frozen --no-sync python scripts/project_workflow.py schema-manifest
-          --manifest settings/work-management/github-project-schema.json
-          --revision $env:GITHUB_SHA
-
-      - name: Validate governance claims
-        shell: pwsh
-        run: pwsh -NoProfile -File scripts/change-workflow.ps1 validate --claims-only
-
-      - name: Run focused P5 tests
-        shell: pwsh
-        run: >-
-          uv run --frozen --no-sync pytest
-          tests/work_management
-          tests/providers/test_github_project_management.py
-          tests/providers/github/test_scope.py
-          tests/providers/github/test_server.py
-          tests/workflows/project_management
-          tests/capabilities/test_domain_platforms.py
-
-      - name: Prepare canonical verification fixture
-        if: ${{ inputs.run_full_verification != false }}
+      - name: Prepare canonical repository path
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path C:\Projects\kis-mcp | Out-Null
           Get-ChildItem -Force | Where-Object Name -ne '.venv' | Copy-Item -Destination C:\Projects\kis-mcp -Recurse -Force
           New-Item -ItemType Directory -Force -Path C:\Projects\.agents\skills | Out-Null
           Get-ChildItem -Force C:\Projects\kis-mcp\.agents\skills | Copy-Item -Destination C:\Projects\.agents\skills -Recurse -Force
+          $Actual = (git -C C:\Projects\kis-mcp rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($Actual -ne $env:KIS_EXACT_SHA.ToLowerInvariant()) {
+            throw "EXACT_HEAD_MISMATCH: expected $env:KIS_EXACT_SHA, checked out $Actual"
+          }
 
-      - name: Run canonical repository verification
-        if: ${{ inputs.run_full_verification != false }}
+      - name: Synchronize locked environment once
         shell: pwsh
         working-directory: C:\Projects\kis-mcp
-        run: pwsh -NoProfile -File scripts/verify.ps1
+        run: uv sync --locked --all-groups
+
+      - name: Run canonical repository verification
+        shell: pwsh
+        working-directory: C:\Projects\kis-mcp
+        run: pwsh -NoProfile -File scripts/verify.ps1 -SkipDependencySync
