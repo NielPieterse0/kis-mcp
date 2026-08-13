@@ -1,0 +1,48 @@
+{
+    "schema_version":  4,
+    "change_id":  "122-stale-merged-claim-reconciliation",
+    "status":  "active",
+    "branch":  "change/122-stale-merged-claim-reconciliation",
+    "worktree":  ".work/worktrees/122-stale-merged-claim-reconciliation",
+    "base":  "main",
+    "outcome":  "Close stale lifecycle claims for already-merged changes 115-119 so canonical verification reflects repository truth without changing source issues or operator holds.",
+    "owned_paths":  [
+                        ".work/changes/115-work-management-project-onboarding/scope.json",
+                        ".work/changes/116-workflow-provider-hardening/scope.json",
+                        ".work/changes/117-two-axis-change-governance/scope.json",
+                        ".work/changes/118-registered-default-branch-refresh/scope.json",
+                        ".work/changes/119-commissioning-runtime-fixes/scope.json",
+                        ".work/changes/122-stale-merged-claim-reconciliation/**"
+                    ],
+    "shared_paths":  [
+
+                     ],
+    "excluded_paths":  [
+
+                       ],
+    "dependencies":  [
+
+                     ],
+    "integration_owner":  null,
+    "complexity":  "small",
+    "risk_triggers":  [
+
+                      ],
+    "base_evidence":  {
+                          "local_sha":  "73156f3bfa70936f1b4d3b79fbe73548a1dba9d1",
+                          "local_tree":  "55ee8709393dac94accdef5d78e45246d1c1e563",
+                          "upstream_sha":  "73156f3bfa70936f1b4d3b79fbe73548a1dba9d1",
+                          "upstream_tree":  "55ee8709393dac94accdef5d78e45246d1c1e563",
+                          "upstream_ref":  "refs/remotes/origin/main",
+                          "evidence_source":  "local_remote_tracking_ref",
+                          "relation":  "same_sha"
+                      },
+    "work_management":  {
+                            "project_id":  "kis-mcp",
+                            "record_id":  "SPEC-122",
+                            "source_repository":  "NielPieterse0/kis-mcp",
+                            "source_number":  169,
+                            "source_kind":  "issue",
+                            "documentation_impact":  "none"
+                        }
+}

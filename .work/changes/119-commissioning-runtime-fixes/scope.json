@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "change_id": "119-commissioning-runtime-fixes",
-  "status": "active",
+  "status": "closed",
   "branch": "change/119-commissioning-runtime-fixes",
   "worktree": ".work/worktrees/119-commissioning-runtime-fixes",
   "base": "main",

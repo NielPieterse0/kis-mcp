@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "change_id": "115-work-management-project-onboarding",
-  "status": "active",
+  "status": "closed",
   "branch": "change/115-work-management-project-onboarding",
   "worktree": ".work/worktrees/115-work-management-project-onboarding",
   "base": "main",
