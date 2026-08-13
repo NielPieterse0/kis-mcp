@@ -4,24 +4,21 @@
   "title": "kis-mcp Skills settings",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "root", "staging_root", "limits", "validation"],
+  "required": ["schema_version", "root", "staging_root", "required_skills", "limits", "validation"],
   "properties": {
     "schema_version": {"const": 1},
     "root": {"const": "C:\\Projects\\.agents\\skills"},
     "staging_root": {"const": "C:\\Projects\\.kis-mcp\\temp\\skills"},
+    "required_skills": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"}
+    },
     "limits": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "max_file_bytes",
-        "max_skill_bytes",
-        "list_default_limit",
-        "list_max_limit",
-        "search_default_limit",
-        "search_max_limit",
-        "file_search_default_limit",
-        "file_search_max_limit"
-      ],
+      "required": ["max_file_bytes", "max_skill_bytes", "list_default_limit", "list_max_limit", "search_default_limit", "search_max_limit", "file_search_default_limit", "file_search_max_limit"],
       "properties": {
         "max_file_bytes": {"type": "integer", "minimum": 1},
         "max_skill_bytes": {"type": "integer", "minimum": 1},
@@ -36,15 +33,7 @@
     "validation": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "skill_id_pattern",
-        "allowed_suffixes",
-        "allowed_filenames",
-        "reject_links",
-        "reject_reparse_points",
-        "reject_hard_links",
-        "reject_backslashes"
-      ],
+      "required": ["skill_id_pattern", "allowed_suffixes", "allowed_filenames", "reject_links", "reject_reparse_points", "reject_hard_links", "reject_backslashes"],
       "properties": {
         "skill_id_pattern": {"type": "string", "minLength": 1},
         "allowed_suffixes": {
