@@ -6,6 +6,7 @@ from dataclasses import replace
 from typing import Any
 
 from ..projects.github_exact import REGISTERED_GITHUB_OPERATION_SCHEMAS
+from ..projects.github_tracking import REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS
 from .contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -184,6 +185,19 @@ def capability_control_contribution() -> CapabilityContribution:
             approval_required=True,
             tags=("registered-github", "virtual"),
             input_schema=REGISTERED_GITHUB_OPERATION_SCHEMAS["kis_github_merge_registered_pull_request"],
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.kis-github-refresh-registered-default-branch",
+            name="kis_github_refresh_registered_default_branch",
+            description="Refresh the registered default-branch tracking ref from verified GitHub truth.",
+            capabilities=("operation.kis_github_refresh_registered_default_branch",),
+            effects=(OperationEffect.EXTERNAL, OperationEffect.LOCAL_CHANGE),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=92),
+            quality=default_quality(context_cost=15, reversibility=95, reliability=95, workflow_integration=100),
+            approval_required=True,
+            tags=("registered-github", "virtual"),
+            input_schema=REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS["kis_github_refresh_registered_default_branch"],
         ),
         OperationDescriptor(
             operation_id="capability-control.kis-github-delete-registered-branch",

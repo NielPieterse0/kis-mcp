@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,23 @@ def _workflow(
         exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=90),
         executable_steps=executable_steps,
     )
+
+
+_REGISTERED_MERGE_STEP = "kis_github_merge_registered_pull_request"
+_REGISTERED_REFRESH_STEP = "kis_github_refresh_registered_default_branch"
+_REGISTERED_REFRESH_CAPABILITY = "operation.kis_github_refresh_registered_default_branch"
+
+
+def _ensure_post_merge_tracking_refresh(workflow: WorkflowDescriptor) -> WorkflowDescriptor:
+    if _REGISTERED_MERGE_STEP not in workflow.required_steps:
+        return workflow
+    if _REGISTERED_REFRESH_STEP in workflow.required_steps:
+        return workflow
+    merge_index = workflow.required_steps.index(_REGISTERED_MERGE_STEP)
+    steps = (*workflow.required_steps[: merge_index + 1], _REGISTERED_REFRESH_STEP, *workflow.required_steps[merge_index + 1 :])
+    capabilities = workflow.capabilities if _REGISTERED_REFRESH_CAPABILITY in workflow.capabilities else (*workflow.capabilities, _REGISTERED_REFRESH_CAPABILITY)
+    criteria = (*workflow.completion_criteria, "registered default-branch tracking equals exact GitHub truth")
+    return replace(workflow, capabilities=capabilities, required_steps=steps, completion_criteria=criteria)
 
 
 def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
@@ -140,12 +158,12 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         _workflow(
             "develop-isolated-change",
             "Develop an isolated repository change",
-            "Create a claimed worktree, implement with tests, verify, and prepare reviewable commits.",
-            ("code.change.plan", "code.change.implement", "git.worktree.create", "verification.execute"),
-            ("inspect_project", "create_change_worktree", "run_tests", "commit_change"),
-            ("scope check passes", "required verification passes", "commits are reviewable"),
+            "Refresh registered GitHub default-branch tracking before creating a claimed worktree, then implement with tests, verify, and prepare reviewable commits.",
+            ("code.change.plan", "code.change.implement", "operation.kis_github_refresh_registered_default_branch", "git.worktree.create", "verification.execute"),
+            ("inspect_project", "kis_github_refresh_registered_default_branch", "create_change_worktree", "run_tests", "commit_change"),
+            ("registered default-branch tracking equals exact GitHub truth", "scope check passes", "required verification passes", "commits are reviewable"),
             ("develop isolated change", "new worktree", "implementation slice"),
-            (read, change, process),
+            (read, change, external, process),
         ),
         _workflow(
             "diagnose-provider-startup",
@@ -189,10 +207,10 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         _workflow(
             "pull-request-safe-closeout",
             "Review and merge pull request safely",
-            "Inspect the change, observe provider-native GitHub pull-request and Actions evidence for the exact head, review findings, merge only that approved head, delete the verified remote branch, and clean the merged worktree.",
-            ("git.change.inspect", "github.pull-request.read", "github.actions.read", "github.review", "operation.kis_github_merge_registered_pull_request", "operation.kis_github_delete_registered_branch", "git.worktree.cleanup"),
-            ("inspect_change", "github_pull_request_read", "github_actions_list", "github_actions_get", "github_review_pull_request", "kis_github_merge_registered_pull_request", "kis_github_delete_registered_branch", "cleanup_change_worktree"),
-            ("checks pass", "review findings are resolved", "approved head is merged", "remote branch cleanup is verified", "worktree is cleaned"),
+            "Inspect the change, observe provider-native GitHub pull-request and Actions evidence for the exact head, review findings, merge only that approved head, refresh the verified default-branch tracking ref, delete the verified remote branch, and clean the merged worktree.",
+            ("git.change.inspect", "github.pull-request.read", "github.actions.read", "github.review", "operation.kis_github_merge_registered_pull_request", "operation.kis_github_refresh_registered_default_branch", "operation.kis_github_delete_registered_branch", "git.worktree.cleanup"),
+            ("inspect_change", "github_pull_request_read", "github_actions_list", "github_actions_get", "github_review_pull_request", "kis_github_merge_registered_pull_request", "kis_github_refresh_registered_default_branch", "kis_github_delete_registered_branch", "cleanup_change_worktree"),
+            ("checks pass", "review findings are resolved", "approved head is merged", "registered default-branch tracking equals exact GitHub truth", "remote branch cleanup is verified", "worktree is cleaned"),
             ("review and merge pull request", "merge pr safely", "pr completion", "clean worktree"),
             (read, change, external, process),
         ),
@@ -221,7 +239,8 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         )
         for item in verification_workflow_descriptors()
     )
-    return (*core, *project_management_workflow_descriptors(), *verification)
+    combined = (*core, *project_management_workflow_descriptors(), *verification)
+    return tuple(_ensure_post_merge_tracking_refresh(item) for item in combined)
 
 
 def _build_code_review_agent(
