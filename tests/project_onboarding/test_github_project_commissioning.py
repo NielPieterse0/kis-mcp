@@ -11,30 +11,37 @@ REGISTRY = ROOT / "settings" / "projects.settings.json"
 WORK_SETTINGS = ROOT / "settings" / "work-management" / "github-projects.settings.json"
 
 
-def test_kis_mcp_github_project_is_commissioned_for_supervised_reconciliation() -> None:
+def test_shared_github_project_is_commissioned_for_managed_repositories() -> None:
     registry = load_project_registry_settings(REGISTRY, boundary="C:\\Projects")
-    settings = load_work_management_settings(WORK_SETTINGS)
+    settings = load_work_management_settings(WORK_SETTINGS, project_registry=registry)
+    expected_repositories = {
+        "chatgpt-skill": "nielpieterse0/chatgpt-skill",
+        "college": "nielpieterse0/college",
+        "commodity": "nielpieterse0/commodity",
+        "kis-mcp": "nielpieterse0/kis-mcp",
+    }
 
-    registered = registry.project("kis-mcp")
-    assert registered.github is not None
-    assert registered.github.repository == "nielpieterse0/kis-mcp"
-    assert len(registered.github.projects) == 1
-    project = registered.github.projects[0]
+    for project_id, repository in expected_repositories.items():
+        registered = registry.project(project_id)
+        assert registered.github is not None
+        assert registered.github.repository == repository
+        managed = settings.project(project_id)
+        assert managed.backend_binding == "github-default"
+        assert managed.repository.casefold() == repository
+
+    project = registry.project("kis-mcp").github.projects[0]
     assert (project.binding_id, project.owner, project.owner_type, project.project_number) == (
-        "work-management",
-        "NielPieterse0",
-        "user",
-        1,
+        "work-management", "NielPieterse0", "user", 1
+    )
+    assert all(
+        not registry.project(project_id).github.projects
+        for project_id in ("chatgpt-skill", "college", "commodity")
     )
 
-    managed = settings.project("kis-mcp")
-    binding = settings.binding(managed.backend_binding)
-    assert managed.backend_binding == "github-default"
+    binding = settings.binding("github-default")
     assert binding.provider == "github-mcp"
     assert (binding.owner, binding.owner_type.value, binding.project_number) == (
-        "NielPieterse0",
-        "user",
-        1,
+        "NielPieterse0", "user", 1
     )
 
     assert settings.feature_mode("intake") is FeatureMode.READ_ONLY

@@ -4,6 +4,27 @@
   "portfolio_id": "default",
   "managed_projects": [
     {
+      "project_id": "chatgpt-skill",
+      "local_root": "C:\\Projects\\ChatGPT-skill",
+      "repository": "NielPieterse0/chatgpt-skill",
+      "backend_binding": "github-default",
+      "display_name": "ChatGPT-skill"
+    },
+    {
+      "project_id": "college",
+      "local_root": "C:\\Projects\\college",
+      "repository": "NielPieterse0/college",
+      "backend_binding": "github-default",
+      "display_name": "college"
+    },
+    {
+      "project_id": "commodity",
+      "local_root": "C:\\Projects\\commodity",
+      "repository": "NielPieterse0/commodity",
+      "backend_binding": "github-default",
+      "display_name": "commodity"
+    },
+    {
       "project_id": "kis-mcp",
       "local_root": "C:\\Projects\\kis-mcp",
       "repository": "NielPieterse0/kis-mcp",
