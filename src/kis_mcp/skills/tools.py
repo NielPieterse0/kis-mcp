@@ -108,6 +108,8 @@ def _build_service(
             FastMcpWorkBackend(server),
         )
     except SkillsError as exc:
+        if exc.code == "SKILLS_REQUIRED_MISSING":
+            raise
         failure = exc
     except (FileNotFoundError, OSError, RuntimeError) as exc:
         failure = SkillsError(
