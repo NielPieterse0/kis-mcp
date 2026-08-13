@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "change_id": "118-registered-default-branch-refresh",
-  "status": "active",
+  "status": "closed",
   "branch": "change/118-registered-default-branch-refresh",
   "worktree": ".work/worktrees/118-registered-default-branch-refresh",
   "base": "main",

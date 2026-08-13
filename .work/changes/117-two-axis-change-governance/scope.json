@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "change_id": "117-two-axis-change-governance",
-  "status": "active",
+  "status": "closed",
   "branch": "change/117-two-axis-change-governance",
   "worktree": ".work/worktrees/117-two-axis-change-governance",
   "base": "main",

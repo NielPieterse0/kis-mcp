@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "change_id": "116-workflow-provider-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/116-workflow-provider-hardening",
   "worktree": ".work/worktrees/116-workflow-provider-hardening",
   "base": "main",
