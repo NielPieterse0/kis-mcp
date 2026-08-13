@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "change_id": "111-db-docker-commissioning-hardening",
+  "status": "active",
+  "branch": "change/111-db-docker-commissioning-hardening",
+  "worktree": ".work/worktrees/111-db-docker-commissioning-hardening",
+  "base": "main",
+  "outcome": "Finish DBHub and Docker Hub commissioning by excluding the currently schema-drifted Docker Hub search tool, correcting false commissioning stderr failures, and reconciling current operational truth.",
+  "owned_paths": [
+    "src/kis_mcp/providers/dockerhub/settings.py",
+    "scripts/commission-db-docker-providers.ps1",
+    "tests/providers/test_dbhub_dockerhub_integration.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/111-db-docker-commissioning-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}

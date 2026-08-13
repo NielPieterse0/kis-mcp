@@ -307,8 +307,8 @@ Call `kis_provider_status` to inspect the current Provider catalogue and runtime
 
 Interpret the normal onboarding states as follows:
 
-- **DBHub: `Unavailable — DBHub pinned installation required`** means the KIS DBHub settings and registered bindings can be valid while the exact upstream artifact is absent. The checked-in College `results` SQLite binding is local/read-only and requires no credential; do not substitute `latest` or an unverified release.
-- **Docker Hub: `Unavailable — Docker Hub pinned installation required`** means the exact approved Docker Hub source tree has not been activated beneath `C:\Projects\.kis-mcp\providers`. Checked-in mode is public, so no PAT is required and no project namespace binding is assumed.
+- **DBHub: `Unavailable — DBHub pinned installation required`** means the KIS DBHub settings and registered bindings can be valid while the exact upstream artifact is absent. The checked-in College `results` SQLite binding is local/read-only and requires no credential; do not substitute `latest` or an unverified release. Current commissioned state uses exact `v1.2.0` / `1bed0b8bd8e6e3e625c83f571d12f748f2d7a0b0` and has live-verified the College binding.
+- **Docker Hub: `Unavailable — Docker Hub pinned installation required`** means the exact approved Docker Hub source tree has not been activated beneath `C:\Projects\.kis-mcp\providers`. Checked-in mode is public, so no PAT is required and no project namespace binding is assumed. Current commissioned state uses exact `ad806e2cab0489a296aec0f32f3d3eea807d65c2` in public mode.
 - **Docker Hub PAT mode** is optional. JSON stores only username plus a canonical `secret://...` reference; startup resolves the referenced value through the existing supervised vault boundary and forwards only `HUB_PAT_TOKEN` to the Docker Hub child.
 - **GitHub: `Ready — authentication required`** means the pinned executable, OAuth mode, provider configuration, and runtime-scoped client path are ready but the shared provider lifespan has not yet proved the current OAuth identity. Start `kis-op` and complete one supervised OAuth sign-in for that runtime.
 - **GitHub: `Ready — authenticated`** means the current running provider lifespan completed `get_me` and initial upstream tool discovery successfully. Subsequent GitHub operations and long-tail discovery reuse that same provider process until `kis-op` stops. This is runtime evidence, not persistent authentication across restarts and not a claim that every GitHub operation was live-verified.
@@ -319,15 +319,17 @@ A mounted provider is not automatically authenticated, upstream-connected, tool-
 
 ### Activate and commission DBHub / Docker Hub
 
-KIS does not fetch these providers during startup or commissioning. First provision an **exact local source checkout beneath `C:\Projects`** at the configured revision, then activate it with the supervised script. Existing provider state is moved to quarantine before replacement; nothing is permanently deleted.
+KIS does not fetch these providers during startup or commissioning. First provision an **exact local source checkout beneath `C:\Projects`** at the configured revision and build or stage the provider during a separately supervised bootstrap step. Existing provider state is moved to quarantine before replacement; nothing is permanently deleted.
+
+Prefer a lean deployment subdirectory inside the exact checkout when dependency-manager links or workspace layout would make a recursive copy expand substantially. The deployment root must still resolve the approved parent Git revision with `git -C <deployment-root> rev-parse HEAD` and must contain `dist\index.js`. For DBHub `v1.2.0`, the official MCPB release bundle is a valid source of the runtime files after its bundled `server` directory is staged as `dist`; verify the entry-point bytes against the exact source build before activation.
 
 ```powershell
 pwsh -NoProfile -File .\scripts\activate-db-docker-providers.ps1 `
-  -DBHubSourceRoot C:\Projects\<exact-dbhub-checkout> `
-  -DockerHubSourceRoot C:\Projects\<exact-dockerhub-checkout>
+  -DBHubSourceRoot C:\Projects\<exact-dbhub-checkout>\<deployment-subdir> `
+  -DockerHubSourceRoot C:\Projects\<exact-dockerhub-checkout>\<deployment-subdir>
 ```
 
-The script verifies `git rev-parse HEAD`, requires `dist\index.js`, copies only the exact local source tree into the JSON-governed provider location, and records SHA-256 installation identity. It refuses `latest`, an unpinned revision, a source outside `C:\Projects`, or a missing built entry point.
+The script verifies `git rev-parse HEAD`, requires `dist\index.js`, copies only the supplied exact-revision tree into the JSON-governed provider location, and records SHA-256 installation identity. It refuses `latest`, an unpinned revision, a source outside `C:\Projects`, or a missing built entry point. Do not pass a workspace root whose pnpm/npm links cause recursive-copy expansion; stage a lean runtime subtree instead.
 
 Then run:
 
@@ -335,7 +337,9 @@ Then run:
 pwsh -NoProfile -File .\scripts\commission-db-docker-providers.ps1
 ```
 
-The commissioning command reports installation, configuration, authentication, upstream connection, tool discovery, and live verification separately. DBHub generates one runtime TOML and starts one isolated child per registered binding. College currently exposes only `db_college_results_search_objects` and `db_college_results_execute_sql`; the latter is forced read-only with the JSON-owned row bound. Docker Hub is currently public mode with no project binding; switching to PAT mode requires an explicit username and canonical vault reference, not a checked-in token. Recovery uses the quarantined prior provider tree plus a KIS restart.
+The commissioning command reports installation, configuration, authentication, upstream connection, tool discovery, and live verification separately. DBHub generates one runtime TOML and starts one isolated child per registered binding. College currently exposes only `db_college_results_search_objects` and `db_college_results_execute_sql`; the latter is forced read-only with the JSON-owned row bound. Current live evidence includes a successful `SELECT 1 AS commissioned` against the College SQLite binding.
+
+Docker Hub is commissioned in public mode with no project binding. The current KIS surface exposes `checkRepository`, `checkRepositoryTag`, `getRepositoryInfo`, `getRepositoryTag`, `listRepositoriesByNamespace`, and `listRepositoryTags`. Do not expose upstream `search` with the current pinned revision: as verified on 2026-08-13, Docker Hub returns a top-level `search_after` field that violates that provider revision's declared closed output schema, causing MCP result validation to fail after a successful upstream response. Re-enable it only after an approved provider update or compatibility fix is separately verified. Switching to PAT mode requires an explicit username and canonical vault reference, not a checked-in token. Recovery uses the quarantined prior provider tree plus a KIS restart.
 
 For bounded Context7/Serena commissioning, run from the source checkout through the locked environment:
 
