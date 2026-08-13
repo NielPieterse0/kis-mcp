@@ -14,8 +14,13 @@ PUBLISHED = "d" * 40
 
 
 class Invoker:
-    def __init__(self, execution_status: str = "passed") -> None:
+    def __init__(
+        self,
+        execution_status: str = "passed",
+        base_relation: str = "diverged",
+    ) -> None:
         self.execution_status = execution_status
+        self.base_relation = base_relation
         self.calls: list[tuple[str, dict[str, Any]]] = []
 
     async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -33,6 +38,7 @@ class Invoker:
                 "branch": arguments["arguments"]["branch"],
                 "source_commit_sha": COMMIT,
                 "commit_sha": PUBLISHED,
+                "base_relation": self.base_relation,
             }
         if operation == "kis_github_create_registered_pull_request":
             return {
@@ -109,6 +115,7 @@ def test_completion_creates_pr_only_for_published_exact_head() -> None:
     assert f"Published head: `{PUBLISHED}`" in body
     assert "Risk profile: `standard`" in body
     assert "Documentation impact: `not_assessed`" in body
+    assert "Reconciliation base: `diverged`" in body
     assert "Residual state: none declared" in body
 
 

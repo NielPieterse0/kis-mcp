@@ -19,6 +19,7 @@ SOURCE_TREE = "5555555555555555555555555555555555555555"
 BASE_TREE = "6666666666666666666666666666666666666666"
 OTHER_TREE = "7777777777777777777777777777777777777777"
 RECONCILED = "8888888888888888888888888888888888888888"
+MERGED_TREE = "9999999999999999999999999999999999999999"
 
 
 @dataclass(frozen=True)
@@ -442,7 +443,72 @@ def test_reconcile_publish_roots_exact_source_tree_on_verified_remote_default() 
     assert runner.results == []
 
 
-def test_reconcile_publish_rejects_remote_tree_mismatch_before_commit_or_push() -> None:
+def test_reconcile_publish_three_way_merges_diverged_remote_base() -> None:
+    remote_default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=f"{TARGET}\n"),
+            Result(stdout=f"{BASE}\n"),
+            Result(),
+            Result(stdout=f"{BASE_TREE}\n"),
+            Result(stdout=f"{SOURCE_TREE}\n"),
+            Result(),
+            Result(stdout=f"ref: {remote_default_ref}\tHEAD\n"),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=""),
+            Result(),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=f"{OTHER_TREE}\n"),
+            Result(stdout=f"{MERGED_TREE}\n"),
+            Result(stdout=f"{RECONCILED}\n"),
+            Result(),
+            Result(stdout=f"{RECONCILED}\t{target_ref}\n"),
+        )
+    )
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.reconcile_publish_commit(
+        project_id="college",
+        commit="f04d30a",
+        source_base="main",
+        branch="feature/example",
+        expected_remote_default=REMOTE_DEFAULT,
+        expected_remote_branch=None,
+        approved=True,
+    )
+
+    assert result["state"] == "published"
+    assert result["source_tree_sha"] == SOURCE_TREE
+    assert result["tree_sha"] == MERGED_TREE
+    assert result["commit_sha"] == RECONCILED
+    assert result["base_relation"] == "diverged"
+    assert result["publication_semantics"] == "remote-default-rooted-three-way-merge"
+    commands = [call[0] for call in runner.calls]
+    assert (
+        "git",
+        "merge-tree",
+        "--write-tree",
+        "--merge-base",
+        BASE,
+        REMOTE_DEFAULT,
+        TARGET,
+    ) in commands
+    assert (
+        "git",
+        "commit-tree",
+        MERGED_TREE,
+        "-p",
+        REMOTE_DEFAULT,
+        "-m",
+        f"reconcile registered change from {TARGET}",
+    ) in commands
+    assert any("push" in command for command in commands)
+    assert runner.results == []
+
+
+def test_reconcile_publish_fails_closed_when_diverged_merge_conflicts() -> None:
     remote_default_ref = "refs/heads/main"
     runner = QueueRunner(
         (
@@ -459,11 +525,12 @@ def test_reconcile_publish_rejects_remote_tree_mismatch_before_commit_or_push() 
             Result(),
             Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
             Result(stdout=f"{OTHER_TREE}\n"),
+            Result(returncode=1, stderr="CONFLICT (content): merge conflict"),
         )
     )
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
-    with pytest.raises(ToolError, match="REMOTE_BASE_TREE_MISMATCH"):
+    with pytest.raises(ToolError, match="REMOTE_BASE_RECONCILIATION_CONFLICT"):
         operations.reconcile_publish_commit(
             project_id="college",
             commit="f04d30a",

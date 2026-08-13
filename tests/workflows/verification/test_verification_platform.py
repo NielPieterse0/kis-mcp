@@ -6,7 +6,9 @@ from typing import Any
 import pytest
 from fastmcp.exceptions import ToolError
 
-from kis_mcp.workflows.verification.platform import _run_with_middleware
+from kis_mcp.config import load_runtime_config
+from kis_mcp.discover.git_change_reader import GitChangeReader
+from kis_mcp.workflows.verification.platform import _build_change_analyzer, _run_with_middleware
 
 
 class _Server:
@@ -60,3 +62,11 @@ def test_nested_policy_error_is_propagated_unchanged() -> None:
         asyncio.run(
             _run_with_middleware(server, "start_process", {"command": "curl example.com"})  # type: ignore[arg-type]
         )
+
+
+def test_platform_change_analyzer_supports_exact_commit_targets() -> None:
+    runtime = load_runtime_config()
+    analyzer = _build_change_analyzer(runtime)
+
+    assert isinstance(analyzer._reader, GitChangeReader)  # noqa: SLF001
+    assert callable(getattr(analyzer._reader, "inspect_change_target", None))  # noqa: SLF001

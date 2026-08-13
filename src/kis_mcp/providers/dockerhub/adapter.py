@@ -6,9 +6,9 @@ from fastmcp import FastMCP
 from fastmcp.client.transports import StdioTransport
 from fastmcp.server import create_proxy
 from fastmcp.server.providers.proxy import ProxyClient
-from fastmcp.tools.tool_transform import ToolTransformConfig
+from fastmcp.server.transforms.visibility import Visibility
 
-from .settings import ALL_TOOLS, PUBLIC_TOOLS, DockerHubSettings
+from .settings import PUBLIC_TOOLS, DockerHubSettings
 
 INTERNAL_PAT_ENV = "KIS_MCP_DOCKERHUB_PAT"
 
@@ -44,8 +44,8 @@ class DockerHubAdapter:
             self.child_environment(),
         )
         if self.settings.auth_mode == "public":
-            for tool in sorted(set(ALL_TOOLS) - set(PUBLIC_TOOLS)):
-                server.add_tool_transformation(tool, ToolTransformConfig(enabled=False))
+            server.add_transform(Visibility(False, match_all=True))
+            server.add_transform(Visibility(True, names=set(PUBLIC_TOOLS)))
         return server
 
 

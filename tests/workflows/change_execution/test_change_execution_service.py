@@ -75,6 +75,9 @@ def test_execution_uses_only_selected_verifications_and_allowlisted_reviews() ->
         "review_change_with_agent",
     ]
     assert all("command" not in arguments for _, arguments in invoker.calls)
+    assert invoker.calls[0][1]["project"] == r"C:\Projects\fixture"
+    assert invoker.calls[1][1]["project"] == r"C:\Projects\fixture"
+    assert invoker.calls[3][1]["path"] == r"C:\Projects\fixture"
     assert invoker.calls[1][1]["verification_id"] == "repo-verify"
     assert invoker.calls[2][1]["verification_id"] == "python-pytest"
     assert invoker.calls[3][1]["backend"] == "codex-cli"
@@ -126,6 +129,20 @@ def test_execution_risk_profile_sets_default_weight(
         for name, arguments in invoker.calls
         if name == "review_change_with_agent"
     ] == expected_reviews
+
+
+def test_execution_explicit_empty_reviews_disable_risk_default_reviews() -> None:
+    invoker = _Invoker()
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            risk_profile="standard",
+            review_types=(),
+        )
+    )
+
+    assert result.status == "passed"
+    assert all(name != "review_change_with_agent" for name, _ in invoker.calls)
 
 
 def test_execution_rejects_unknown_review_type_before_any_nested_call() -> None:

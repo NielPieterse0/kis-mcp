@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from fastmcp.server.transforms.visibility import Visibility
 from jsonschema import Draft202012Validator
 
 from kis_mcp.projects import (
@@ -19,9 +22,11 @@ from kis_mcp.providers.dbhub import (
     operation_name,
     render_binding_toml,
 )
+from kis_mcp.providers.dbhub.adapter import write_binding_runtime_config
 from kis_mcp.providers.dbhub import provider as dbhub_provider_module
 from kis_mcp.providers.dbhub.provider import dbhub_provider_descriptor
 from kis_mcp.providers.dockerhub import DockerHubSettings
+from kis_mcp.providers.dockerhub import adapter as dockerhub_adapter_module
 from kis_mcp.providers.dockerhub import provider as dockerhub_provider_module
 from kis_mcp.providers.dockerhub.adapter import DockerHubAdapter, INTERNAL_PAT_ENV
 from kis_mcp.providers.dockerhub.provider import dockerhub_provider_descriptor
@@ -105,6 +110,18 @@ def test_dbhub_generated_local_toml_is_read_only_bounded_and_credential_free() -
     assert "secret://" not in rendered
 
 
+def test_dbhub_identical_runtime_config_is_not_rewritten(tmp_path: Path) -> None:
+    project = load_project_registry_settings(ROOT / "settings" / "projects.settings.json").project("college")
+    settings = replace(_dbhub_settings(), runtime_root=tmp_path / "runtime")
+    path = write_binding_runtime_config(settings, project, project.databases[0])
+    os.utime(path, ns=(1_000_000_000, 1_000_000_000))
+
+    same_path = write_binding_runtime_config(settings, project, project.databases[0])
+
+    assert same_path == path
+    assert path.stat().st_mtime_ns == 1_000_000_000
+
+
 def test_dbhub_external_toml_uses_only_runtime_environment_interpolation() -> None:
     external = DatabaseBinding("prod", "postgres", "external", None, "secret://database/prod")
     project = load_project_registry_settings(ROOT / "settings" / "projects.settings.json").project("college")
@@ -145,6 +162,27 @@ def _dockerhub_settings(mode: str = "public") -> DockerHubSettings:
         username=None if mode == "public" else "niel",
         secret_ref=None if mode == "public" else "secret://provider/dockerhub/pat",
     )
+
+
+def test_dockerhub_public_server_adds_fail_closed_visibility(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeServer:
+        def __init__(self) -> None:
+            self.transforms: list[Visibility] = []
+
+        def add_transform(self, transform: Visibility) -> None:
+            self.transforms.append(transform)
+
+    server = FakeServer()
+    monkeypatch.setattr(dockerhub_adapter_module, "_proxy", lambda *args: server)
+
+    result = DockerHubAdapter(_dockerhub_settings(), environment={}).build_server()
+
+    assert result is server
+    assert len(server.transforms) == 2
+    hidden, allowed = server.transforms
+    assert hidden.match_all is True and hidden._enabled is False  # noqa: SLF001
+    assert allowed.names == set(dockerhub_adapter_module.PUBLIC_TOOLS)
+    assert allowed._enabled is True  # noqa: SLF001
 
 
 def test_dockerhub_child_environment_is_minimal_for_public_and_pat_modes() -> None:
