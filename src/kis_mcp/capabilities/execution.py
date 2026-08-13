@@ -8,6 +8,10 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from ..projects.github_exact import execute_registered_github_operation
+from ..projects.github_tracking import (
+    REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS,
+    execute_registered_github_tracking_operation,
+)
 from .contracts import OperationDescriptor, OperationEffect
 from .eligibility import evaluate_eligibility
 from .runtime import CapabilityRuntimeState
@@ -221,10 +225,16 @@ class CapabilityExecutionRouter:
                 raise ToolError(
                     f"VIRTUAL_OPERATION_UNSUPPORTED: {operation.name}"
                 )
-            result = execute_registered_github_operation(
-                operation.name,
-                dict(arguments),
-            )
+            if operation.name in REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS:
+                result = execute_registered_github_tracking_operation(
+                    operation.name,
+                    dict(arguments),
+                )
+            else:
+                result = execute_registered_github_operation(
+                    operation.name,
+                    dict(arguments),
+                )
             return _budget_result(
                 operation.name,
                 result,
