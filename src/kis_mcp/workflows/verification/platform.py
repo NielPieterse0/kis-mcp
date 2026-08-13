@@ -10,7 +10,7 @@ from fastmcp.exceptions import ToolError
 
 from ...config import RuntimeConfig
 from ...discover.change_service import InspectChangeService
-from ...discover.git_reader import GitReader
+from ...discover.git_change_reader import GitChangeReader
 from ...discover.intelligence import ProjectIntelligenceService
 from ...discover.read_authority import ReadAuthority
 from ...discover.service import InspectProjectService
@@ -46,6 +46,25 @@ async def _run_with_middleware(
     return result
 
 
+def _build_change_analyzer(
+    runtime: RuntimeConfig,
+    *,
+    intelligence: ProjectIntelligenceService | None = None,
+) -> InspectChangeService:
+    boundary = Path(runtime.project_boundary)
+    intelligence = intelligence or ProjectIntelligenceService(
+        boundary=boundary,
+        settings=runtime.discover_settings,
+    )
+    return InspectChangeService(
+        GitChangeReader(
+            authority=ReadAuthority(boundary, runtime.discover_settings),
+            settings=runtime.discover_settings,
+        ),
+        intelligence_service=intelligence,
+    )
+
+
 def register_platform_verification(
     server: FastMCP,
     runtime: RuntimeConfig,
@@ -61,13 +80,7 @@ def register_platform_verification(
         settings=runtime.discover_settings,
         intelligence_service=intelligence,
     )
-    analyzer = InspectChangeService(
-        GitReader(
-            authority=ReadAuthority(boundary, runtime.discover_settings),
-            settings=runtime.discover_settings,
-        ),
-        intelligence_service=intelligence,
-    )
+    analyzer = _build_change_analyzer(runtime, intelligence=intelligence)
 
     async def runner(tool_name: str, arguments: dict[str, Any]) -> Any:
         return await _run_with_middleware(server, tool_name, arguments)

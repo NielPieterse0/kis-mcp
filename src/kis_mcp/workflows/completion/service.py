@@ -125,7 +125,7 @@ class CompletionCoordinator:
         ):
             raise CompletionInvocationError(
                 "COMPLETION_PUBLICATION_INVALID",
-                "registered reconciliation did not preserve the exact source commit/tree and review branch",
+                "registered reconciliation did not preserve the exact source commit identity and review branch",
             )
 
         pull_request_body = _render_pull_request_body(
@@ -138,6 +138,7 @@ class CompletionCoordinator:
             published_head=published_head,
             execution=execution,
             documentation_impact=documentation_impact,
+            reconciliation_base=str(publication.get("base_relation") or "not_reported"),
             residual_state=residual_state,
         )
         if len(pull_request_body) > 20_000:
@@ -189,6 +190,7 @@ def _render_pull_request_body(
     published_head: str,
     execution: dict[str, Any],
     documentation_impact: str,
+    reconciliation_base: str,
     residual_state: str,
 ) -> str:
     verification = ", ".join(
@@ -215,6 +217,7 @@ def _render_pull_request_body(
         f"- Verification: {verification}\n"
         f"- Review: {reviews}\n"
         f"- Documentation impact: `{documentation_impact}`\n"
+        f"- Reconciliation base: `{reconciliation_base}`\n"
         f"- Residual state: {residual_state}\n"
     )
 

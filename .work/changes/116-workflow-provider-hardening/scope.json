@@ -1,0 +1,48 @@
+{
+  "schema_version": 3,
+  "change_id": "116-workflow-provider-hardening",
+  "status": "active",
+  "branch": "change/116-workflow-provider-hardening",
+  "worktree": ".work/worktrees/116-workflow-provider-hardening",
+  "base": "main",
+  "outcome": "Harden exact-commit workflow execution and provider runtime stability without weakening exact-head safety or duplicating verification.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/verification/**",
+    "src/kis_mcp/workflows/change_execution/**",
+    "src/kis_mcp/workflows/completion/**",
+    "src/kis_mcp/providers/dbhub/**",
+    "src/kis_mcp/providers/dockerhub/**",
+    "src/kis_mcp/providers/serena/**",
+    "tests/workflows/verification/**",
+    "tests/workflows/change_execution/**",
+    "tests/workflows/completion/**",
+    "tests/providers/test_dbhub_dockerhub_integration.py",
+    "tests/providers/test_context7_serena_providers.py",
+    "tests/providers/test_serena_memory_safety.py",
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    ".work/changes/116-workflow-provider-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "risk_profile": "standard",
+  "base_evidence": {
+    "local_sha": "5f9c60c1bdf363207cddd4a5fa24cc4d006b3e6f",
+    "local_tree": "48582444880f96e74f01f9838f0aeb61f3d7bf61",
+    "upstream_sha": "4c0e508c70f69ebdebc52500cc078eca063f5ef0",
+    "upstream_tree": "48582444880f96e74f01f9838f0aeb61f3d7bf61",
+    "upstream_ref": null,
+    "evidence_source": "provided",
+    "relation": "tree_equivalent"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-116",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 156,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

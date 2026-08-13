@@ -179,6 +179,11 @@ def _process_command(
     tokens = " ".join(_ps_quote(item) for item in (executable, *arguments))
     return (
         f"Set-Location -LiteralPath {_ps_quote(project)}; "
+        f"$kisSource = Join-Path -Path {_ps_quote(project)} -ChildPath 'src'; "
+        "if (Test-Path -LiteralPath $kisSource -PathType Container) { "
+        "$env:PYTHONPATH = if ($env:PYTHONPATH) { "
+        "$kisSource + [IO.Path]::PathSeparator + $env:PYTHONPATH "
+        "} else { $kisSource }; }; "
         f"& {tokens}; "
         "$kisCode = $LASTEXITCODE; "
         'Write-Output "__KIS_VERIFICATION_EXIT_CODE=$kisCode"; '

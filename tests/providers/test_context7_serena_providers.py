@@ -18,7 +18,11 @@ from kis_mcp.providers.serena import (
     load_serena_settings,
     serena_provider_descriptor,
 )
-from kis_mcp.providers.serena.adapter import _SharedProviderClient
+from kis_mcp.providers.serena.adapter import (
+    _SharedProviderClient,
+    _provider_environment,
+    _repair_empty_project_languages,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -179,3 +183,47 @@ def test_serena_normalizes_symbols_and_references_without_schema_leakage() -> No
     assert evidence.symbols[0].path == "src/demo.py"
     assert evidence.relationships[0].kind == "reference"
     assert not hasattr(evidence.symbols[0], "name_path")
+
+
+def test_serena_child_environment_forces_utf8_text_streams() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    environment = _provider_environment(settings, {"PATH": "python-path"})
+
+    assert environment["PYTHONUTF8"] == "1"
+    assert environment["PYTHONIOENCODING"] == "utf-8"
+
+
+def test_serena_repairs_persisted_empty_language_state(tmp_path: Path) -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    install_root = tmp_path / "serena"
+    settings = replace(
+        settings,
+        install_root=install_root,
+        project_data_root=install_root / "projects",
+    )
+    project = tmp_path / "commodity"
+    project.mkdir()
+    project_data = settings.ensure_project_data_path(str(project))
+    config = project_data / "project.yml"
+    config.write_text(
+        'project_name: "commodity"\nlanguages: []\nencoding: "utf-8"\n',
+        encoding="utf-8",
+    )
+    repaired = _repair_empty_project_languages(
+        settings,
+        str(project),
+        ("src/feed.py", "web/app.ts"),
+    )
+    assert repaired == ("python", "typescript")
+    content = config.read_text(encoding="utf-8")
+    assert "languages:\n- python\n- typescript\n" in content
+    config.write_text(
+        'project_name: "commodity"\nlanguages:\n- python\n',
+        encoding="utf-8",
+    )
+    assert _repair_empty_project_languages(
+        settings,
+        str(project),
+        ("web/app.ts",),
+    ) == ()
+    assert config.read_text(encoding="utf-8").endswith("languages:\n- python\n")

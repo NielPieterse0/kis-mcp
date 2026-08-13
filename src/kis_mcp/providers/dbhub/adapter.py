@@ -81,6 +81,12 @@ def write_binding_runtime_config(
     path = runtime_config_path(settings, project.project_id, binding.binding_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     content = render_binding_toml(project, binding, settings)
+    if path.is_file():
+        try:
+            if path.read_text(encoding="utf-8") == content:
+                return path
+        except (OSError, UnicodeError):
+            pass
     path.write_text(content, encoding="utf-8", newline="\n")
     return path
 

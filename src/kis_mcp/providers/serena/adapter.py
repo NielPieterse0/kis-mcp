@@ -65,6 +65,8 @@ def _provider_environment(
             "TMP": str(settings.temp_root),
             "SERENA_USAGE_REPORTING": "false",
             "UV_OFFLINE": "1",
+            "PYTHONUTF8": "1",
+            "PYTHONIOENCODING": "utf-8",
         }
     )
     return environment
@@ -73,6 +75,46 @@ def _provider_environment(
 _PROJECT_STATE_SETTING = re.compile(
     r"(?m)^project_serena_folder_location:\s*.*$"
 )
+_EMPTY_LANGUAGES_SETTING = re.compile(r"(?m)^languages:\s*\[\]\s*$")
+_LANGUAGE_BY_SUFFIX = {
+    ".py": "python",
+    ".js": "typescript",
+    ".jsx": "typescript",
+    ".ts": "typescript",
+    ".tsx": "typescript",
+}
+
+
+def _repair_empty_project_languages(
+    settings: SerenaSettings,
+    project_root: str,
+    source_paths: tuple[str, ...],
+) -> tuple[str, ...]:
+    languages = tuple(
+        dict.fromkeys(
+            language
+            for path in source_paths
+            if (language := _LANGUAGE_BY_SUFFIX.get(Path(path).suffix.casefold()))
+        )
+    )
+    if not languages:
+        return ()
+    config_path = settings.project_data_path(project_root) / "project.yml"
+    if not config_path.is_file():
+        return ()
+    try:
+        content = config_path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return ()
+    if len(tuple(_EMPTY_LANGUAGES_SETTING.finditer(content))) != 1:
+        return ()
+    replacement = "languages:\n" + "\n".join(f"- {language}" for language in languages)
+    config_path.write_text(
+        _EMPTY_LANGUAGES_SETTING.sub(replacement, content, count=1),
+        encoding="utf-8",
+        newline="\n",
+    )
+    return languages
 
 
 def _prepare_serena_project_state(
@@ -248,6 +290,7 @@ class SerenaRuntimeAdapter:
         source_paths: tuple[str, ...] = (),
     ) -> SemanticEvidence:
         self.settings.ensure_project_data_path(project_path)
+        _repair_empty_project_languages(self.settings, project_path, source_paths)
         self._call_sync("activate_project", {"project": project_path})
         symbols: list[SemanticSymbol] = []
         relationships: list[SemanticRelationship] = []

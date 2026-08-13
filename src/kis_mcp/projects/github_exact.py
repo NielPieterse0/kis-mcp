@@ -170,6 +170,60 @@ class RegisteredGitHubOperations:
                     return ref[len(prefix) :]
         raise ToolError("DEFAULT_BRANCH_UNVERIFIABLE: remote HEAD did not identify a branch")
 
+    def _merge_reconciled_tree(
+        self,
+        *,
+        source_base_sha: str,
+        remote_default_sha: str,
+        source_sha: str,
+        cwd: Path,
+    ) -> str:
+        result = self._run(
+            (
+                "git",
+                "merge-tree",
+                "--write-tree",
+                "--merge-base",
+                source_base_sha,
+                remote_default_sha,
+                source_sha,
+            ),
+            cwd,
+            allowed_returncodes=frozenset({0, 1}),
+        )
+        if int(getattr(result, "returncode", -1)) != 0:
+            raise ToolError(
+                "REMOTE_BASE_RECONCILIATION_CONFLICT: source change conflicts with "
+                "the verified remote default branch"
+            )
+        lines = str(getattr(result, "stdout", "")).splitlines()
+        if not lines:
+            raise ToolError(
+                "REMOTE_BASE_RECONCILIATION_UNVERIFIABLE: merge-tree returned no tree"
+            )
+        return self._require_sha(lines[0].strip(), "reconciled tree")
+
+    def _select_reconciled_tree(
+        self,
+        *,
+        source_tree: str,
+        local_base_tree: str,
+        remote_default_tree: str,
+        source_base_sha: str,
+        remote_default_sha: str,
+        source_sha: str,
+        cwd: Path,
+    ) -> tuple[str, str, str]:
+        if remote_default_tree == local_base_tree:
+            return source_tree, "tree_equivalent", "remote-default-rooted-tree-equivalent"
+        merged_tree = self._merge_reconciled_tree(
+            source_base_sha=source_base_sha,
+            remote_default_sha=remote_default_sha,
+            source_sha=source_sha,
+            cwd=cwd,
+        )
+        return merged_tree, "diverged", "remote-default-rooted-three-way-merge"
+
     def publish_commit(
         self,
         *,
@@ -394,17 +448,28 @@ class RegisteredGitHubOperations:
             str(getattr(remote_tree_result, "stdout", "")).strip(),
             "remote default tree",
         )
-        if remote_default_tree != local_base_tree:
-            raise ToolError(
-                "REMOTE_BASE_TREE_MISMATCH: source_base tree does not equal the verified remote default tree"
-            )
+        base_relation = (
+            "tree_equivalent"
+            if remote_default_tree == local_base_tree
+            else "diverged"
+        )
+
+        published_tree, base_relation, publication_semantics = self._select_reconciled_tree(
+            source_tree=source_tree,
+            local_base_tree=local_base_tree,
+            remote_default_tree=remote_default_tree,
+            source_base_sha=source_base_sha,
+            remote_default_sha=expected_default_sha,
+            source_sha=source_sha,
+            cwd=cwd,
+        )
 
         message = f"reconcile registered change from {source_sha}"
         commit_result = self._run(
             (
                 "git",
                 "commit-tree",
-                source_tree,
+                published_tree,
                 "-p",
                 expected_default_sha,
                 "-m",
@@ -442,10 +507,12 @@ class RegisteredGitHubOperations:
             "source_base_sha": source_base_sha,
             "remote_default_branch": default_branch,
             "remote_default_sha": expected_default_sha,
-            "tree_sha": source_tree,
+            "source_tree_sha": source_tree,
+            "tree_sha": published_tree,
             "commit_sha": reconciled_sha,
             "previous_remote_sha": expected_branch_sha,
-            "publication_semantics": "remote-default-rooted-tree-equivalent",
+            "base_relation": base_relation,
+            "publication_semantics": publication_semantics,
         }
 
     def create_pull_request(
