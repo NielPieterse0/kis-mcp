@@ -142,6 +142,34 @@ def test_shared_serena_client_survives_nested_proxy_context_exit() -> None:
     asyncio.run(scenario())
 
 
+def test_shared_serena_client_delegates_fastmcp_proxy_tool_calls() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))
+
+    class ProxyClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict[str, object], object]] = []
+
+        async def call_tool_mcp(
+            self,
+            name: str,
+            arguments: dict[str, object],
+            *,
+            meta: object = None,
+        ):
+            self.calls.append((name, arguments, meta))
+            return _result("proxy-ok")
+
+    inner = ProxyClient()
+    shared = _SharedProviderClient(inner, adapter)
+    result = asyncio.run(shared.call_tool_mcp("find_symbol", {"name_path_pattern": "Demo"}, meta={"request": "current"}))
+
+    assert result == _result("proxy-ok")
+    assert inner.calls == [
+        ("find_symbol", {"name_path_pattern": "Demo"}, {"request": "current"})
+    ]
+
+
 def test_serena_normalizes_symbols_and_references_without_schema_leakage() -> None:
     settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
     adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))

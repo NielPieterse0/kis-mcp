@@ -35,6 +35,14 @@ class GitChangeReader:
         self._settings = settings
         self._git = GitReader(authority=authority, settings=settings)
 
+    @property
+    def authority(self) -> ReadAuthority:
+        return self._authority
+
+    @property
+    def settings(self) -> DiscoverSettings:
+        return self._settings
+
     def inspect_local_changes(self, project_path: str):
         return self._git.inspect_local_changes(project_path)
 
