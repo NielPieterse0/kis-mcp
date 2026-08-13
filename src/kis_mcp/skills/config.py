@@ -40,9 +40,17 @@ class SkillsConfig:
     staging_root: Path
     limits: SkillsLimits
     validation: SkillsValidation
+    required_skills: tuple[str, ...] = ()
 
 
-_ROOT_KEYS = {"schema_version", "root", "staging_root", "limits", "validation"}
+_ROOT_KEYS = {
+    "schema_version",
+    "root",
+    "staging_root",
+    "required_skills",
+    "limits",
+    "validation",
+}
 _LIMIT_KEYS = {
     "max_file_bytes",
     "max_skill_bytes",
@@ -147,6 +155,19 @@ def load_skills_config(repository_root: Path | None = None) -> SkillsConfig:
     except re.error as exc:
         raise RuntimeError("Skills validation skill_id_pattern is invalid") from exc
 
+    required_skills_value = raw["required_skills"]
+    if (
+        not isinstance(required_skills_value, list)
+        or not required_skills_value
+        or not all(
+            isinstance(item, str) and pattern.fullmatch(item) is not None
+            for item in required_skills_value
+        )
+        or len(set(required_skills_value)) != len(required_skills_value)
+    ):
+        raise RuntimeError("Skills required_skills must be a unique non-empty skill ID list")
+    required_skills = tuple(required_skills_value)
+
     suffixes_value = validation_raw["allowed_suffixes"]
     if (
         not isinstance(suffixes_value, list)
@@ -193,4 +214,5 @@ def load_skills_config(repository_root: Path | None = None) -> SkillsConfig:
         staging_root=Path(staging_root),
         limits=limits,
         validation=validation,
+        required_skills=required_skills,
     )
