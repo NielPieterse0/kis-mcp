@@ -1,0 +1,41 @@
+{
+  "schema_version": 3,
+  "change_id": "115-work-management-project-onboarding",
+  "status": "active",
+  "branch": "change/115-work-management-project-onboarding",
+  "worktree": ".work/worktrees/115-work-management-project-onboarding",
+  "base": "main",
+  "outcome": "Onboard chatgpt-skill, commodity, and college into the existing shared Work Management portfolio and project change 115 itself into Work Management.",
+  "owned_paths": [
+    "settings/projects.settings.json",
+    "settings/work-management/github-projects.settings.json",
+    "tests/project_onboarding/test_github_project_commissioning.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/development/github-project-onboarding/commissioning.md",
+    ".work/changes/114-github-workflow-simplification/scope.json",
+    ".work/changes/115-work-management-project-onboarding/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "risk_profile": "lean",
+  "base_evidence": {
+    "local_sha": "60ea2c33de56bdebd1ea948bcd0ec31a71131dee",
+    "local_tree": "2b69d2c1851f5496afaaf818d56690a5774cdd2d",
+    "upstream_sha": "d2c2da40d6e6b8823e389e8fff3c6a87df997a75",
+    "upstream_tree": "bb8d95bfdfb71893c55279b151fce535beccb781",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "content_divergence"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-115",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 154,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}

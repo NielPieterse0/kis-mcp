@@ -1,7 +1,7 @@
 {
     "schema_version":  3,
     "change_id":  "114-github-workflow-simplification",
-    "status":  "ready",
+    "status":  "closed",
     "branch":  "change/114-github-workflow-simplification",
     "worktree":  ".work/worktrees/114-github-workflow-simplification",
     "base":  "main",
@@ -56,7 +56,7 @@
                             "source_repository":  "NielPieterse0/kis-mcp",
                             "source_number":  141,
                             "source_kind":  "issue",
-                            "documentation_impact":  "planned"
+                            "documentation_impact":  "post_merge_complete"
                         },
     "risk_profile":  "rigorous",
     "base_evidence":  {

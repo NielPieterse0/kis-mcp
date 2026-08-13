@@ -2,15 +2,16 @@
 
 ## Registered target
 
-`kis-mcp` uses GitHub user Project `NielPieterse0/#1`, titled `KIS Work Management`.
+The shared Work Management portfolio uses GitHub user Project `NielPieterse0/#1`, titled `KIS Work Management`.
 
-- project ID: `kis-mcp`
-- repository: `NielPieterse0/kis-mcp`
+- managed project IDs: `kis-mcp`, `chatgpt-skill`, `commodity`, `college`
+- repositories: `NielPieterse0/kis-mcp`, `NielPieterse0/chatgpt-skill`, `NielPieterse0/commodity`, `NielPieterse0/college`
 - Work Management binding: `github-default`
+- Project coordinate owner: `kis-mcp` registry entry with binding ID `work-management`
 - Project owner type: `user`
 - Project number: `1`
 
-Repository engineering artifacts remain authoritative. Project #1 is the operational projection; KIS performs bounded reconciliation.
+The Project coordinate is registered once because the central registry requires GitHub Project coordinates to be unique. Each managed repository retains its own repository identity and maps to the shared backend through Work Management settings. Repository engineering artifacts remain authoritative; Project #1 is the operational projection and KIS performs bounded reconciliation.
 
 ## Desired schema
 
@@ -51,6 +52,10 @@ That evidence proves bounded item mutation compatibility only. It does not prove
 On 2026-08-13, bounded reconciliation added the recent governed slices and residual work to Project #1: change 113 issue #138 (`In Progress`), change 110 issue #139 (`Done`), change 111 issue #140 (`Done`), and existing audit change 112 issue #141 (`In Progress`). Separate `Todo` records track rich Project commissioning (#142), provider commissioning-status persistence (#143), Docker Hub search compatibility (#144), and the pinned dependency advisory risk (#145). A fresh bounded inventory returned all eight records.
 
 Because the rich fields are not yet provisioned, record type/change ID/authority metadata is carried by the source records and repository change artifacts rather than falsely represented as live Project fields.
+
+## Change 115 multi-repository onboarding
+
+On 2026-08-13, change 115 extended the shared `github-default` Work Management backend to `chatgpt-skill`, `commodity`, and `college` while retaining `kis-mcp`. The central Project coordinate remains registered once under `kis-mcp`; duplicating that coordinate across registry entries is intentionally invalid. No new Project, backend binding, automation, or schema variant was introduced.
 
 ## Close the remaining external gap
 
