@@ -68,6 +68,26 @@ class Priority(StrEnum):
     LOW = "low"
 
 
+class ChangeComplexity(StrEnum):
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+
+
+class RiskTrigger(StrEnum):
+    SECURITY = "security"
+    SECRETS = "secrets"
+    SENSITIVE_DATA = "sensitive_data"
+    MONEY = "money"
+    PERSISTENT_STATE = "persistent_state"
+    MIGRATION = "migration"
+    EXTERNAL_ACTION = "external_action"
+    DEPLOYMENT = "deployment"
+    DESTRUCTIVE = "destructive"
+    PUBLIC_CONTRACT = "public_contract"
+    ARCHITECTURE_BOUNDARY = "architecture_boundary"
+
+
 class DocumentationMode(StrEnum):
     OFF = "off"
     ADVISORY = "advisory"
@@ -174,6 +194,8 @@ class WorkRecord:
     record_type: RecordType
     state: LifecycleState = LifecycleState.INBOX
     priority: Priority = Priority.MEDIUM
+    complexity: ChangeComplexity | None = None
+    risk_triggers: tuple[RiskTrigger, ...] = ()
     dependency_ids: tuple[str, ...] = ()
     approval_required: bool = False
     approval_complete: bool = False
@@ -202,6 +224,15 @@ class WorkRecord:
             raise ValueError("record_id prefix must match record_type")
         _enum(self.state, LifecycleState, "state")
         _enum(self.priority, Priority, "priority")
+        if self.complexity is not None:
+            _enum(self.complexity, ChangeComplexity, "complexity")
+        triggers = tuple(self.risk_triggers)
+        if any(not isinstance(item, RiskTrigger) for item in triggers):
+            raise ValueError("risk_triggers must contain RiskTrigger values")
+        if len(set(triggers)) != len(triggers):
+            raise ValueError("risk_triggers must be unique")
+        ordered_triggers = tuple(sorted(triggers, key=lambda item: item.value))
+        object.__setattr__(self, "risk_triggers", ordered_triggers)
         _enum(self.documentation_mode, DocumentationMode, "documentation_mode")
         _enum(
             self.documentation_impact,
@@ -274,6 +305,8 @@ class WorkRecord:
             "record_type": self.record_type.value,
             "state": self.state.value,
             "priority": self.priority.value,
+            "complexity": self.complexity.value if self.complexity is not None else None,
+            "risk_triggers": [item.value for item in self.risk_triggers],
             "dependency_ids": list(self.dependency_ids),
             "approval_required": self.approval_required,
             "approval_complete": self.approval_complete,

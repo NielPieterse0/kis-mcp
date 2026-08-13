@@ -221,6 +221,10 @@ def verify_change_governance() -> int:
             if scope_path.parent.name.startswith("_"):
                 continue
             claims.append(module.load_claim(scope_path))
+        claims = module.project_pull_request_claims(
+            claims,
+            current_branch=os.environ.get("GITHUB_HEAD_REF"),
+        )
         conflicts = module.find_claim_conflicts(claims)
         if conflicts:
             _emit("change-governance", False, conflicts=conflicts)

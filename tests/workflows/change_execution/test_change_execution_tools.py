@@ -18,7 +18,8 @@ class _Service:
         return ChangeExecutionResult(
             project=kwargs["project"],
             source_fingerprint="a" * 64,
-            risk_profile=kwargs.get("risk_profile", "standard"),
+            complexity=kwargs.get("complexity", "medium"),
+            risk_triggers=tuple(sorted(kwargs.get("risk_triggers", ()))),
             selection={"contract": "verification-selection-v1"},
             verifications=(),
             reviews=(),
@@ -44,7 +45,8 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
         "base_ref",
         "head_ref",
         "task_terms",
-        "risk_profile",
+        "complexity",
+        "risk_triggers",
         "max_verifications",
         "verification_timeout_ms",
         "review_types",
@@ -65,5 +67,7 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
             }
         )
     )
-    assert result.structured_content["contract"] == "change-execution-result-v1"
+    assert result.structured_content["contract"] == "change-execution-result-v2"
+    assert result.structured_content["complexity"] == "medium"
+    assert result.structured_content["risk_triggers"] == []
     assert service.calls[0]["review_types"] == ("architecture", "test-quality")

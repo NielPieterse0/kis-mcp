@@ -4,7 +4,14 @@ import asyncio
 
 import pytest
 
-from kis_mcp.work_management import DocumentationImpact, LifecycleState, Priority, RecordType
+from kis_mcp.work_management import (
+    ChangeComplexity,
+    DocumentationImpact,
+    LifecycleState,
+    Priority,
+    RecordType,
+    RiskTrigger,
+)
 from kis_mcp.work_management.intake import (
     CaptureWorkItem,
     IntakeBackend,
@@ -70,6 +77,8 @@ def test_capture_accepts_explicit_type_state_and_metadata() -> None:
             note="P2 internal contract slice",
             record_type=RecordType.TASK,
             priority=Priority.HIGH,
+            complexity=ChangeComplexity.MEDIUM,
+            risk_triggers=(RiskTrigger.PUBLIC_CONTRACT, RiskTrigger.EXTERNAL_ACTION),
             module="work-management",
             state=LifecycleState.TRIAGE,
             documentation_impact=DocumentationImpact.PLANNED,
@@ -80,6 +89,7 @@ def test_capture_accepts_explicit_type_state_and_metadata() -> None:
     assert command.record_type is RecordType.TASK
     assert command.state is LifecycleState.TRIAGE
     assert command.module == "work-management"
+    assert command.complexity is ChangeComplexity.MEDIUM
     assert command.documentation_impact is DocumentationImpact.PLANNED
 
 

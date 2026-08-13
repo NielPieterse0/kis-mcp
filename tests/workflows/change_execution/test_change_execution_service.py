@@ -102,15 +102,15 @@ def test_execution_retains_verification_failure_and_review_error() -> None:
 
 
 @pytest.mark.parametrize(
-    ("risk_profile", "expected_max", "expected_reviews"),
+    ("complexity", "expected_max", "expected_reviews"),
     [
-        ("lean", 6, []),
-        ("standard", 20, ["code-quality"]),
-        ("rigorous", 20, ["code-quality", "safety-security", "architecture"]),
+        ("small", 6, []),
+        ("medium", 20, ["code-quality"]),
+        ("large", 20, ["code-quality"]),
     ],
 )
-def test_execution_risk_profile_sets_default_weight(
-    risk_profile: str,
+def test_execution_complexity_sets_base_workflow(
+    complexity: str,
     expected_max: int,
     expected_reviews: list[str],
 ) -> None:
@@ -118,31 +118,45 @@ def test_execution_risk_profile_sets_default_weight(
     result = asyncio.run(
         ChangeExecutionService(invoker).execute(
             project=r"C:\Projects\fixture",
-            risk_profile=risk_profile,
+            complexity=complexity,
         )
     )
 
-    assert result.risk_profile == risk_profile
+    assert result.complexity == complexity
+    assert result.risk_triggers == ()
     assert invoker.calls[0][1]["max_verifications"] == expected_max
-    assert [
-        arguments["review_type"]
-        for name, arguments in invoker.calls
-        if name == "review_change_with_agent"
-    ] == expected_reviews
+    assert [arguments["review_type"] for name, arguments in invoker.calls if name == "review_change_with_agent"] == expected_reviews
 
 
-def test_execution_explicit_empty_reviews_disable_risk_default_reviews() -> None:
+def test_execution_risk_triggers_add_targeted_reviews_and_selection_terms() -> None:
     invoker = _Invoker()
     result = asyncio.run(
         ChangeExecutionService(invoker).execute(
             project=r"C:\Projects\fixture",
-            risk_profile="standard",
+            complexity="small",
+            task_terms=("tests",),
+            risk_triggers=("architecture_boundary", "public_contract", "security"),
+        )
+    )
+
+    assert result.complexity == "small"
+    assert result.risk_triggers == ("architecture_boundary", "public_contract", "security")
+    assert invoker.calls[0][1]["task_terms"] == ["tests", "architecture_boundary", "public_contract", "security"]
+    assert [arguments["review_type"] for name, arguments in invoker.calls if name == "review_change_with_agent"] == ["architecture", "api-contracts", "safety-security"]
+
+
+def test_execution_explicit_empty_reviews_do_not_disable_medium_base_review() -> None:
+    invoker = _Invoker()
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            complexity="medium",
             review_types=(),
         )
     )
 
     assert result.status == "passed"
-    assert all(name != "review_change_with_agent" for name, _ in invoker.calls)
+    assert [arguments["review_type"] for name, arguments in invoker.calls if name == "review_change_with_agent"] == ["code-quality"]
 
 
 def test_execution_rejects_unknown_review_type_before_any_nested_call() -> None:
@@ -157,13 +171,25 @@ def test_execution_rejects_unknown_review_type_before_any_nested_call() -> None:
     assert invoker.calls == []
 
 
-def test_execution_rejects_unknown_risk_profile_before_any_nested_call() -> None:
+def test_execution_rejects_unknown_complexity_before_any_nested_call() -> None:
     invoker = _Invoker()
-    with pytest.raises(ValueError, match="risk_profile"):
+    with pytest.raises(ValueError, match="complexity"):
         asyncio.run(
             ChangeExecutionService(invoker).execute(
                 project=r"C:\Projects\fixture",
-                risk_profile="heroic",
+                complexity="heroic",
+            )
+        )
+    assert invoker.calls == []
+
+
+def test_execution_rejects_unknown_risk_trigger_before_any_nested_call() -> None:
+    invoker = _Invoker()
+    with pytest.raises(ValueError, match="risk_triggers"):
+        asyncio.run(
+            ChangeExecutionService(invoker).execute(
+                project=r"C:\Projects\fixture",
+                risk_triggers=("made-up-risk",),
             )
         )
     assert invoker.calls == []

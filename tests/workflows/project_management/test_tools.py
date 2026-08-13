@@ -59,6 +59,7 @@ class Service:
             to_json_dict=lambda: {
                 "total_records": len(records),
                 "traceability_gaps": kwargs.get("traceability_gaps", {}),
+                "records": [item.to_json_dict() for item in records],
             }
         )
 
@@ -135,3 +136,30 @@ def test_reconcile_defaults_to_preview_and_requires_idempotency_for_apply() -> N
     assert applied is not None
     assert applied["outcomes"][0]["applied"] is True
     assert applied["outcomes"][0]["idempotency_key"] == "apply-1"
+
+
+def test_portfolio_status_preserves_change_classification() -> None:
+    server = FastMCP("root")
+    register_project_management_tools(server, Service())
+
+    result = asyncio.run(
+        server.call_tool(
+            "project_management_portfolio_status",
+            {
+                "records": [
+                    {
+                        "record_id": "SPEC-117",
+                        "project_id": "kis-mcp",
+                        "title": "Two-axis governance",
+                        "record_type": "specification_slice",
+                        "complexity": "medium",
+                        "risk_triggers": ["public_contract", "external_action"],
+                    }
+                ]
+            },
+        )
+    ).structured_content
+
+    assert result is not None
+    assert result["records"][0]["complexity"] == "medium"
+    assert result["records"][0]["risk_triggers"] == ["external_action", "public_contract"]

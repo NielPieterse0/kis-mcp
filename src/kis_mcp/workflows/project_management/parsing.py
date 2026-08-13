@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ...work_management import (
+    ChangeComplexity,
     CloseoutEvidence,
     DesiredProjection,
     DocumentationImpact,
@@ -18,6 +19,7 @@ from ...work_management import (
     PullRequestEvidence,
     PullRequestState,
     RecordType,
+    RiskTrigger,
     TraceabilityStage,
     VerificationEvidence,
     VerificationStatus,
@@ -87,6 +89,14 @@ def work_record_from_json(value: Any) -> WorkRecord:
         record_type=RecordType(document["record_type"]),
         state=LifecycleState(document.get("state", LifecycleState.INBOX.value)),
         priority=Priority(document.get("priority", Priority.MEDIUM.value)),
+        complexity=(
+            ChangeComplexity(document["complexity"])
+            if document.get("complexity") is not None
+            else None
+        ),
+        risk_triggers=tuple(
+            RiskTrigger(value) for value in document.get("risk_triggers", ())
+        ),
         dependency_ids=tuple(document.get("dependency_ids", ())),
         approval_required=document.get("approval_required", False),
         approval_complete=document.get("approval_complete", False),

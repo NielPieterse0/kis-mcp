@@ -55,6 +55,18 @@ def work_management_evidence(**overrides):
     return data
 
 
+def base_evidence():
+    return {
+        "local_sha": "a" * 40,
+        "local_tree": "b" * 40,
+        "upstream_sha": None,
+        "upstream_tree": None,
+        "upstream_ref": None,
+        "evidence_source": "unavailable",
+        "relation": "unavailable",
+    }
+
+
 def create_registered_change(module, repository: Path, **kwargs):
     change_number = kwargs["change_id"].split("-", 1)[0]
     kwargs.setdefault(
@@ -93,6 +105,57 @@ def test_schema_v2_claim_validates_work_management_evidence() -> None:
         module.ChangeClaim.from_mapping(data, source=Path("001-alpha/scope.json"))
 
 
+def test_schema_v3_claim_remains_valid_with_legacy_risk_profile() -> None:
+    module = load_module()
+
+    current = claim(
+        module,
+        "001-alpha",
+        schema_version=3,
+        risk_profile="lean",
+        base_evidence=base_evidence(),
+    )
+
+    assert current.risk_profile == "lean"
+    assert current.complexity is None
+    assert current.risk_triggers == ()
+
+
+def test_schema_v4_claim_validates_two_axis_classification() -> None:
+    module = load_module()
+
+    current = claim(
+        module,
+        "001-alpha",
+        schema_version=4,
+        complexity="small",
+        risk_triggers=["public_contract", "secrets"],
+        base_evidence=base_evidence(),
+    )
+    assert current.complexity == "small"
+    assert current.risk_triggers == ("public_contract", "secrets")
+
+    with pytest.raises(module.ClaimError, match="CHANGE_RISK_TRIGGER_DUPLICATE"):
+        claim(
+            module,
+            "001-alpha",
+            schema_version=4,
+            complexity="small",
+            risk_triggers=["secrets", "secrets"],
+            base_evidence=base_evidence(),
+        )
+
+    with pytest.raises(module.ClaimError, match="CHANGE_RISK_TRIGGER_ORDER_INVALID"):
+        claim(
+            module,
+            "001-alpha",
+            schema_version=4,
+            complexity="small",
+            risk_triggers=["secrets", "public_contract"],
+            base_evidence=base_evidence(),
+        )
+
+
 def test_claim_requires_standard_branch_and_worktree() -> None:
     module = load_module()
 
@@ -121,6 +184,47 @@ def test_exclusive_path_overlap_is_rejected() -> None:
     conflicts = module.find_claim_conflicts([first, second])
 
     assert any("EXCLUSIVE_PATH_OVERLAP" in conflict for conflict in conflicts)
+
+
+def test_pull_request_claim_projection_releases_landed_schema_v3_claims() -> None:
+    module = load_module()
+    historical = claim(
+        module,
+        "115-historical",
+        schema_version=3,
+        risk_profile="standard",
+        base_evidence=base_evidence(),
+        owned_paths=["docs/OPERATIONS.md"],
+    )
+    current = claim(
+        module,
+        "117-current",
+        schema_version=4,
+        complexity="medium",
+        risk_triggers=["public_contract"],
+        base_evidence=base_evidence(),
+        owned_paths=["docs/OPERATIONS.md"],
+    )
+    legacy = claim(
+        module,
+        "099-legacy",
+        schema_version=2,
+        work_management=work_management_evidence(record_id="SPEC-099", source_number=99),
+        owned_paths=["legacy/**"],
+    )
+
+    assert module.find_claim_conflicts([historical, current])
+
+    projected = module.project_pull_request_claims(
+        [historical, current, legacy],
+        current_branch=current.branch,
+    )
+
+    projected_by_id = {item.change_id: item for item in projected}
+    assert projected_by_id[historical.change_id].status == "closed"
+    assert projected_by_id[current.change_id].status == "active"
+    assert projected_by_id[legacy.change_id].status == "active"
+    assert not module.find_claim_conflicts(projected)
 
 
 def test_coordinated_shared_path_overlap_is_allowed() -> None:
@@ -296,8 +400,9 @@ def test_create_change_worktree_allows_local_first_initialization(tmp_path: Path
     scope = json.loads(
         (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(encoding="utf-8")
     )
-    assert scope["schema_version"] == 3
-    assert scope["risk_profile"] == "standard"
+    assert scope["schema_version"] == 4
+    assert scope["complexity"] == "medium"
+    assert scope["risk_triggers"] == []
     assert scope["base_evidence"]["relation"] == "unavailable"
     assert scope["base_evidence"]["evidence_source"] == "unavailable"
     assert "work_management" not in scope
@@ -328,7 +433,7 @@ def test_create_change_worktree_classifies_tree_equivalent_upstream_base(tmp_pat
     assert scope["base_evidence"]["evidence_source"] == "provided"
 
 
-def test_create_change_worktree_emits_schema_v3_work_management_evidence(tmp_path: Path) -> None:
+def test_create_change_worktree_emits_schema_v4_work_management_evidence(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -346,8 +451,8 @@ def test_create_change_worktree_emits_schema_v3_work_management_evidence(tmp_pat
             encoding="utf-8"
         )
     )
-    assert scope["schema_version"] == 3
-    assert scope["risk_profile"] == "standard"
+    assert scope["schema_version"] == 4
+    assert scope["complexity"] == "medium"
     assert scope["work_management"] == work_management_evidence()
 
 
@@ -377,7 +482,7 @@ def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: P
         assert (target / ".work" / "changes" / "001-alpha" / name).is_file()
 
 
-def test_create_change_worktree_lean_profile_uses_compact_record(tmp_path: Path) -> None:
+def test_create_small_change_with_risk_trigger_uses_compact_record(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -386,9 +491,13 @@ def test_create_change_worktree_lean_profile_uses_compact_record(tmp_path: Path)
         change_id="001-alpha",
         outcome="Implement alpha",
         owned_paths=["src/**"],
-        risk_profile="lean",
+        complexity="small",
+        risk_triggers=["secrets"],
     )
     change_root = target / ".work" / "changes" / "001-alpha"
+    scope = json.loads((change_root / "scope.json").read_text(encoding="utf-8"))
+    assert scope["complexity"] == "small"
+    assert scope["risk_triggers"] == ["secrets"]
     assert (change_root / "scope.json").is_file()
     assert (change_root / "change.md").is_file()
     assert not (change_root / "spec.md").exists()
@@ -557,7 +666,8 @@ def test_legacy_schema_v2_cleanup_still_requires_explicit_closed_status(tmp_path
     scope_path = target / ".work" / "changes" / "001-alpha" / "scope.json"
     scope = json.loads(scope_path.read_text(encoding="utf-8"))
     scope["schema_version"] = 2
-    scope.pop("risk_profile")
+    scope.pop("complexity")
+    scope.pop("risk_triggers")
     scope.pop("base_evidence")
     scope_path.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
     run_git(target, "add", ".work/changes/001-alpha")

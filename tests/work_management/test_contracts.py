@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from kis_mcp.work_management import (
+    ChangeComplexity,
     DocumentationImpact,
     DocumentationMilestoneState,
     DocumentationMode,
@@ -10,6 +11,7 @@ from kis_mcp.work_management import (
     ManagedProject,
     Priority,
     RecordType,
+    RiskTrigger,
     WorkRecord,
 )
 
@@ -57,6 +59,33 @@ def test_work_record_is_project_scoped_and_json_safe() -> None:
     assert record.dependency_ids == ("TASK-001", "TASK-002")
     assert record.to_json_dict()["record_type"] == "task"
     assert record.to_json_dict()["project_id"] == "alpha-project"
+
+
+def test_work_record_serializes_two_axis_classification_canonically() -> None:
+    record = WorkRecord(
+        record_id="SPEC-117",
+        project_id="kis-mcp",
+        title="Two-axis governance",
+        record_type=RecordType.SPECIFICATION_SLICE,
+        complexity=ChangeComplexity.MEDIUM,
+        risk_triggers=(RiskTrigger.PUBLIC_CONTRACT, RiskTrigger.EXTERNAL_ACTION),
+    )
+
+    payload = record.to_json_dict()
+
+    assert payload["complexity"] == "medium"
+    assert payload["risk_triggers"] == ["external_action", "public_contract"]
+
+
+def test_work_record_rejects_duplicate_risk_triggers() -> None:
+    with pytest.raises(ValueError, match="risk_triggers must be unique"):
+        WorkRecord(
+            record_id="SPEC-117",
+            project_id="kis-mcp",
+            title="Invalid classification",
+            record_type=RecordType.SPECIFICATION_SLICE,
+            risk_triggers=(RiskTrigger.SECRETS, RiskTrigger.SECRETS),
+        )
 
 
 def test_work_record_rejects_wrong_enum_types() -> None:

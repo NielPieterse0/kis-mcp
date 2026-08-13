@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
+from ..change_controls import select_change_controls
 from .contracts import ChangeExecutionResult, ChangeExecutionStepResult
 
 Invoker = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
@@ -18,12 +19,6 @@ _REVIEW_TYPES = frozenset({
 })
 _REVIEW_BACKENDS = frozenset({"nvidia-nim", "codex-cli"})
 _REVIEW_MODELS = frozenset({"nano", "super", "ultra"})
-_RISK_PROFILES = frozenset({"lean", "standard", "rigorous"})
-_RISK_DEFAULTS = {
-    "lean": (6, ()),
-    "standard": (20, ("code-quality",)),
-    "rigorous": (20, ("code-quality", "safety-security", "architecture")),
-}
 _MAX_TIMEOUT_MS = 300_000
 
 
@@ -46,7 +41,8 @@ class ChangeExecutionService:
         base_ref: str | None = None,
         head_ref: str | None = None,
         task_terms: tuple[str, ...] = (),
-        risk_profile: str = "standard",
+        complexity: str = "medium",
+        risk_triggers: tuple[str, ...] = (),
         max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
         review_types: tuple[str, ...] | None = None,
@@ -54,15 +50,15 @@ class ChangeExecutionService:
         review_model: str | None = None,
     ) -> ChangeExecutionResult:
         project = _required(project, "project")
-        risk_profile = _validate_risk_profile(risk_profile)
-        default_max_verifications, default_reviews = _RISK_DEFAULTS[risk_profile]
-        verification_limit = (
-            default_max_verifications
-            if max_verifications is None
-            else _validate_max_verifications(max_verifications)
+        controls = select_change_controls(
+            complexity=complexity,
+            risk_triggers=risk_triggers,
+            review_types=review_types or (),
+            max_verifications=max_verifications,
         )
+        verification_limit = controls.max_verifications
         reviews = _validate_reviews(
-            default_reviews if review_types is None else review_types,
+            controls.review_types,
             review_backend,
             review_model,
         )
@@ -75,7 +71,7 @@ class ChangeExecutionService:
                 "commit_ref": commit_ref,
                 "base_ref": base_ref,
                 "head_ref": head_ref,
-                "task_terms": list(task_terms),
+                "task_terms": list(dict.fromkeys((*task_terms, *controls.risk_triggers))),
                 "max_verifications": verification_limit,
             },
         )
@@ -144,7 +140,8 @@ class ChangeExecutionService:
         return ChangeExecutionResult(
             project=project,
             source_fingerprint=source_fingerprint,
-            risk_profile=risk_profile,
+            complexity=controls.complexity,
+            risk_triggers=controls.risk_triggers,
             selection=selection,
             verifications=tuple(verification_results),
             reviews=tuple(review_results),
@@ -232,20 +229,6 @@ def _validate_reviews(
     if review_backend == "codex-cli" and review_model is not None:
         raise ValueError("review_model is invalid with review_backend='codex-cli'")
     return review_types
-
-
-def _validate_risk_profile(risk_profile: str) -> str:
-    if risk_profile not in _RISK_PROFILES:
-        raise ValueError(f"unsupported risk_profile {risk_profile!r}")
-    return risk_profile
-
-
-def _validate_max_verifications(max_verifications: int) -> int:
-    if isinstance(max_verifications, bool) or not isinstance(max_verifications, int):
-        raise ValueError("max_verifications must be an integer")
-    if max_verifications < 1 or max_verifications > 20:
-        raise ValueError("max_verifications must be between 1 and 20")
-    return max_verifications
 
 
 def _validate_timeout(timeout_ms: int) -> int:

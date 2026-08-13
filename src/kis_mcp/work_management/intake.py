@@ -7,10 +7,12 @@ from typing import Any, Protocol, runtime_checkable
 
 from .contracts import (
     PUBLIC_SCHEMA_VERSION,
+    ChangeComplexity,
     DocumentationImpact,
     LifecycleState,
     Priority,
     RecordType,
+    RiskTrigger,
 )
 
 _PROJECT_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
@@ -50,6 +52,8 @@ class CaptureWorkItem:
     note: str | None = None
     record_type: RecordType = RecordType.IDEA
     priority: Priority = Priority.MEDIUM
+    complexity: ChangeComplexity | None = None
+    risk_triggers: tuple[RiskTrigger, ...] = ()
     module: str | None = None
     state: LifecycleState = LifecycleState.INBOX
     documentation_impact: DocumentationImpact = DocumentationImpact.NOT_ASSESSED
@@ -67,6 +71,14 @@ class CaptureWorkItem:
             raise ValueError("record_type must be a RecordType value")
         if not isinstance(self.priority, Priority):
             raise ValueError("priority must be a Priority value")
+        if self.complexity is not None and not isinstance(self.complexity, ChangeComplexity):
+            raise ValueError("complexity must be a ChangeComplexity value")
+        triggers = tuple(self.risk_triggers)
+        if any(not isinstance(item, RiskTrigger) for item in triggers):
+            raise ValueError("risk_triggers must contain RiskTrigger values")
+        if len(set(triggers)) != len(triggers):
+            raise ValueError("risk_triggers must be unique")
+        object.__setattr__(self, "risk_triggers", tuple(sorted(triggers, key=lambda item: item.value)))
         if not isinstance(self.state, LifecycleState):
             raise ValueError("state must be a LifecycleState value")
         if not isinstance(self.documentation_impact, DocumentationImpact):
@@ -88,6 +100,8 @@ class CaptureWorkItem:
             "note": self.note,
             "record_type": self.record_type.value,
             "priority": self.priority.value,
+            "complexity": self.complexity.value if self.complexity is not None else None,
+            "risk_triggers": [item.value for item in self.risk_triggers],
             "module": self.module,
             "state": self.state.value,
             "documentation_impact": self.documentation_impact.value,
@@ -143,6 +157,8 @@ async def capture_work_item(
     note: str | None = None,
     record_type: RecordType = RecordType.IDEA,
     priority: Priority = Priority.MEDIUM,
+    complexity: ChangeComplexity | None = None,
+    risk_triggers: tuple[RiskTrigger, ...] = (),
     module: str | None = None,
     state: LifecycleState = LifecycleState.INBOX,
     documentation_impact: DocumentationImpact = DocumentationImpact.NOT_ASSESSED,
@@ -156,6 +172,8 @@ async def capture_work_item(
         note=note,
         record_type=record_type,
         priority=priority,
+        complexity=complexity,
+        risk_triggers=risk_triggers,
         module=module,
         state=state,
         documentation_impact=documentation_impact,
