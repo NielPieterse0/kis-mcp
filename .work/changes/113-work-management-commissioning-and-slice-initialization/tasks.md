@@ -9,4 +9,4 @@
 - [x] Commission supported Project capabilities and record the operator-only remainder.
 - [x] Update 113 to schema v2 and keep lifecycle evidence current.
 - [x] Run scope, focused, review, and canonical verification gates.
-- [ ] Deliver the verified change, reconcile post-merge documentation, and perform governed cleanup.
+- [x] Deliver the verified change, reconcile post-merge documentation, and perform governed cleanup.
