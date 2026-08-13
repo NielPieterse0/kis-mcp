@@ -1,0 +1,58 @@
+{
+  "schema_version": 4,
+  "change_id": "120-kis-speculative-landing-queue",
+  "status": "active",
+  "branch": "change/120-kis-speculative-landing-queue",
+  "worktree": ".work/worktrees/120-kis-speculative-landing-queue",
+  "base": "main",
+  "outcome": "Implement and commission a KIS speculative landing queue with exact frozen PR heads, cumulative merge candidates, candidate GitHub Actions verification, generation invalidation, and lease-guarded fast-forward landing.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_merge_queue.py",
+    "src/kis_mcp/capabilities/execution.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/workflows/merge_queue.py",
+    "src/kis_mcp/workflows/project_management/descriptors.py",
+    "settings/github-merge-queue.settings.json",
+    "contracts/projects/github-merge-queue-settings.schema.json",
+    ".github/workflows/work-management.yml",
+    "scripts/smoke-github-merge-queue.ps1",
+    "tests/projects/test_github_merge_queue.py",
+    "tests/capabilities/test_github_merge_queue_capability.py",
+    "tests/workflows/test_github_merge_queue_workflow.py",
+    "tests/workflows/test_merge_queue_governance.py",
+    "tests/workflows/project_management/test_descriptors.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/120-kis-speculative-landing-queue/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "deployment",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "73156f3bfa70936f1b4d3b79fbe73548a1dba9d1",
+    "local_tree": "55ee8709393dac94accdef5d78e45246d1c1e563",
+    "upstream_sha": "73156f3bfa70936f1b4d3b79fbe73548a1dba9d1",
+    "upstream_tree": "55ee8709393dac94accdef5d78e45246d1c1e563",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-120",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 167,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}

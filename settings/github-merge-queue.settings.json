@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "state_root": "C:\\Projects\\.kis-mcp\\merge-queue",
+  "target_branch": "main",
+  "merge_method": "merge",
+  "grouping_strategy": "allgreen",
+  "build_concurrency": 3,
+  "status_check_timeout_minutes": 30,
+  "min_entries_to_merge": 1,
+  "max_entries_to_merge": 3,
+  "min_entries_to_merge_wait_minutes": 0,
+  "allow_jump": false,
+  "candidate_ref_prefix": "kis-readonly-queue",
+  "verification_workflow": "work-management.yml"
+}

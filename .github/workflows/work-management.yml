@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - 'kis-readonly-queue/main/**'
   workflow_call:
   workflow_dispatch:
 

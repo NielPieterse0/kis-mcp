@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/projects/github-merge-queue-settings.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "enabled",
+    "state_root",
+    "target_branch",
+    "merge_method",
+    "grouping_strategy",
+    "build_concurrency",
+    "status_check_timeout_minutes",
+    "min_entries_to_merge",
+    "max_entries_to_merge",
+    "min_entries_to_merge_wait_minutes",
+    "allow_jump",
+    "candidate_ref_prefix",
+    "verification_workflow"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "enabled": {"type": "boolean"},
+    "state_root": {"type": "string", "pattern": "^[A-Za-z]:\\\\.+"},
+    "target_branch": {"type": "string", "minLength": 1},
+    "merge_method": {"const": "merge"},
+    "grouping_strategy": {"const": "allgreen"},
+    "build_concurrency": {"type": "integer", "minimum": 1, "maximum": 100},
+    "status_check_timeout_minutes": {"type": "integer", "minimum": 1},
+    "min_entries_to_merge": {"type": "integer", "minimum": 1},
+    "max_entries_to_merge": {"type": "integer", "minimum": 1},
+    "min_entries_to_merge_wait_minutes": {"const": 0},
+    "allow_jump": {"const": false},
+    "candidate_ref_prefix": {"type": "string", "minLength": 1},
+    "verification_workflow": {"type": "string", "minLength": 1}
+  }
+}

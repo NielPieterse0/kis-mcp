@@ -15,6 +15,7 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
         "reconcile-project-state",
         "report-programme-status",
         "verify-change-traceability",
+        "complete-work-managed-merge-queue",
         "complete-work-managed-pull-request",
     }
     assert by_id["capture-project-work"].required_steps == (

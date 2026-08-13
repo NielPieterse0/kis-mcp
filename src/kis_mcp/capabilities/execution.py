@@ -8,6 +8,8 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from ..projects.github_exact import execute_registered_github_operation
+from ..projects.github_merge_queue import REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS
+from ..workflows.merge_queue import execute_governed_github_merge_queue_operation
 from ..projects.github_tracking import (
     REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS,
     execute_registered_github_tracking_operation,
@@ -227,6 +229,11 @@ class CapabilityExecutionRouter:
                 )
             if operation.name in REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS:
                 result = execute_registered_github_tracking_operation(
+                    operation.name,
+                    dict(arguments),
+                )
+            elif operation.name in REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS:
+                result = execute_governed_github_merge_queue_operation(
                     operation.name,
                     dict(arguments),
                 )

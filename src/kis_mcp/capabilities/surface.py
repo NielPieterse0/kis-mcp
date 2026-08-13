@@ -6,6 +6,7 @@ from dataclasses import replace
 from typing import Any
 
 from ..projects.github_exact import REGISTERED_GITHUB_OPERATION_SCHEMAS
+from ..projects.github_merge_queue import REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS
 from ..projects.github_tracking import REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS
 from .contracts import (
     CapabilityContribution,
@@ -213,7 +214,60 @@ def capability_control_contribution() -> CapabilityContribution:
             input_schema=REGISTERED_GITHUB_OPERATION_SCHEMAS["kis_github_delete_registered_branch"],
         ),
     )
-    descriptors = (*descriptors, *virtual_descriptors)
+    merge_queue_specs = (
+        (
+            "kis_github_merge_queue_status",
+            "Read the registered speculative landing queue and compare its generation base with live GitHub truth.",
+            (OperationEffect.EXTERNAL, OperationEffect.READ_ONLY),
+            False,
+        ),
+        (
+            "kis_github_merge_queue_enqueue",
+            "Enqueue one registered pull request at an explicitly frozen head SHA after recomputing exact Work Management merge readiness from supplied record and trace evidence.",
+            (OperationEffect.EXTERNAL, OperationEffect.LOCAL_CHANGE),
+            True,
+        ),
+        (
+            "kis_github_merge_queue_reconcile",
+            "Reconcile exact queue identity, cumulative candidates, and candidate Actions evidence for one registered repository.",
+            (OperationEffect.EXTERNAL, OperationEffect.LOCAL_CHANGE),
+            True,
+        ),
+        (
+            "kis_github_merge_queue_dequeue",
+            "Dequeue one registered pull request only at its frozen head SHA and invalidate its queue generation.",
+            (OperationEffect.EXTERNAL, OperationEffect.LOCAL_CHANGE),
+            True,
+        ),
+        (
+            "kis_github_merge_queue_land",
+            "Advance the registered default branch only from the queue generation's exact base to an ALLGREEN cumulative candidate after fresh Work Management readiness is recomputed for every selected pull request.",
+            (OperationEffect.EXTERNAL, OperationEffect.LOCAL_CHANGE),
+            True,
+        ),
+    )
+    merge_queue_descriptors = tuple(
+        OperationDescriptor(
+            operation_id=f"capability-control.{name.replace('_', '-')}",
+            name=name,
+            description=description,
+            capabilities=(f"operation.{name}",),
+            effects=effects,
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=94),
+            quality=default_quality(
+                context_cost=20,
+                reversibility=85,
+                reliability=95,
+                workflow_integration=100,
+            ),
+            approval_required=approval_required,
+            tags=("registered-github", "virtual", "merge-queue"),
+            input_schema=REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS[name],
+        )
+        for name, description, effects, approval_required in merge_queue_specs
+    )
+    descriptors = (*descriptors, *virtual_descriptors, *merge_queue_descriptors)
     contribution_id = "capability-control"
     return CapabilityContribution(
         contribution_id=contribution_id,
