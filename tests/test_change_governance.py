@@ -42,6 +42,57 @@ def claim(module, change_id: str, **overrides):
     return module.ChangeClaim.from_mapping(data, source=Path(f"{change_id}/scope.json"))
 
 
+def work_management_evidence(**overrides):
+    data = {
+        "project_id": "kis-mcp",
+        "record_id": "SPEC-001",
+        "source_repository": "NielPieterse0/kis-mcp",
+        "source_number": 101,
+        "source_kind": "issue",
+        "documentation_impact": "planned",
+    }
+    data.update(overrides)
+    return data
+
+
+def create_registered_change(module, repository: Path, **kwargs):
+    change_number = kwargs["change_id"].split("-", 1)[0]
+    kwargs.setdefault(
+        "work_management",
+        work_management_evidence(
+            record_id=f"SPEC-{change_number}",
+            source_number=100 + int(change_number),
+        ),
+    )
+    return module.create_change_worktree(repository, **kwargs)
+
+
+def test_schema_v1_claim_remains_valid_without_work_management() -> None:
+    module = load_module()
+
+    current = claim(module, "001-alpha")
+
+    assert current.schema_version == 1
+    assert current.work_management is None
+
+
+def test_schema_v2_claim_requires_work_management_evidence() -> None:
+    module = load_module()
+
+    with pytest.raises(module.ClaimError, match="CHANGE_FIELDS_MISSING: work_management"):
+        claim(module, "001-alpha", schema_version=2)
+
+
+def test_schema_v2_claim_validates_work_management_evidence() -> None:
+    module = load_module()
+    data = claim(module, "001-alpha").to_mapping()
+    data["schema_version"] = 2
+    data["work_management"] = work_management_evidence(record_id="bad")
+
+    with pytest.raises(module.ClaimError, match="WORK_MANAGEMENT_RECORD_ID_INVALID"):
+        module.ChangeClaim.from_mapping(data, source=Path("001-alpha/scope.json"))
+
+
 def test_claim_requires_standard_branch_and_worktree() -> None:
     module = load_module()
 
@@ -232,11 +283,47 @@ def test_primary_claim_overrides_stale_copies_in_other_worktrees(tmp_path: Path)
     assert matches[0].status == "closed"
 
 
+def test_create_change_worktree_requires_work_management_initialization(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+
+    with pytest.raises(module.ClaimError, match="WORK_MANAGEMENT_INITIALIZATION_REQUIRED"):
+        module.create_change_worktree(
+            repository,
+            change_id="001-alpha",
+            outcome="Implement alpha",
+            owned_paths=["src/**"],
+        )
+
+
+def test_create_change_worktree_emits_schema_v2_work_management_evidence(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+
+    target = create_registered_change(
+        module,
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+        work_management=work_management_evidence(),
+    )
+
+    scope = json.loads(
+        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert scope["schema_version"] == 2
+    assert scope["work_management"] == work_management_evidence()
+
+
 def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -261,7 +348,8 @@ def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(tmp_pa
     module = load_module()
     repository = initialize_repository(tmp_path)
 
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -278,7 +366,8 @@ def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(tmp_pa
 def test_create_change_worktree_rejects_duplicate_active_outcome(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    module.create_change_worktree(
+    create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -286,7 +375,8 @@ def test_create_change_worktree_rejects_duplicate_active_outcome(tmp_path: Path)
     )
 
     with pytest.raises(module.ClaimError, match="DUPLICATE_ACTIVE_OUTCOME"):
-        module.create_change_worktree(
+        create_registered_change(
+            module,
             repository,
             change_id="002-beta",
             outcome="  implement   ALPHA ",
@@ -301,7 +391,8 @@ def test_create_change_worktree_rejects_existing_unregistered_worktree(tmp_path:
     run_git(repository, "worktree", "add", str(existing), "-b", "change/001-alpha", "main")
 
     with pytest.raises(module.ClaimError, match="ACTIVE_CHANGE_CLAIM_MISSING"):
-        module.create_change_worktree(
+        create_registered_change(
+            module,
             repository,
             change_id="002-beta",
             outcome="Implement beta",
@@ -312,7 +403,8 @@ def test_create_change_worktree_rejects_existing_unregistered_worktree(tmp_path:
 def test_validate_repository_resolves_primary_root_from_linked_worktree(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -356,7 +448,8 @@ def test_validate_repository_can_skip_worktree_topology_for_isolated_ci(tmp_path
 def test_cleanup_refuses_dirty_worktree(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -377,7 +470,8 @@ def test_cleanup_refuses_merged_claim_until_status_is_closed(
 ) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -398,7 +492,8 @@ def test_cleanup_refuses_merged_claim_until_status_is_closed(
 def test_cleanup_removes_clean_merged_worktree_and_branch(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -422,7 +517,8 @@ def test_cleanup_recovers_unregistered_long_path_remnant(
 ) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",
@@ -465,7 +561,8 @@ def test_cleanup_does_not_move_or_delete_when_registration_remains(
 ) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
-    target = module.create_change_worktree(
+    target = create_registered_change(
+        module,
         repository,
         change_id="001-alpha",
         outcome="Implement alpha",

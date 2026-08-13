@@ -255,7 +255,7 @@ For managed implementation/specification work, classify documentation impact at 
 
 Review evidence writes only beneath `.work/reviews/<review-id>/`, uses atomic replacement, retains staged recovery evidence on failed replacement, and exposes no delete operation. The reusable `.github/workflows/work-management.yml` validates the exact revision, settings, Project schema manifest, governance claims, focused Work Management tests, and optionally the canonical verifier.
 
-Current routing uses the central registry binding for `kis-mcp` user Project #1 while retaining `github-default` for compatibility. Live evidence from 2026-08-12 confirms the Project is reachable but still has only GitHub built-ins plus `Status = Todo / In Progress / Done`; the remaining 18-field/12-view provisioning gap is recorded in the commissioning guide and change 110 evidence. All custom/native automation remains disabled. Runtime-scoped GitHub OAuth remains a separate supervised connection state.
+Current routing uses the central registry binding for `kis-mcp` user Project #1 while retaining `github-default` for compatibility. Live evidence from 2026-08-13 confirms the Project is reachable but still has only GitHub built-ins plus `Status = Todo / In Progress / Done`; the remaining rich-field/12-view provisioning gap is recorded in the commissioning guide. Change 113 also backfilled recent slice and residual records into the live Project through preview-first reconciliation. All custom/native automation remains disabled. Runtime-scoped GitHub OAuth remains a separate supervised connection state.
 
 ## Use Discover
 
@@ -638,17 +638,23 @@ A complete external commissioning record requires:
 
 Create implementation worktrees only from a clean primary `main` checkout. The workflow supports any number of parallel agents; it rejects duplicate outcomes and conflicting scope claims rather than imposing a concurrency limit.
 
-Create a change:
+Initialize Work Management before creating a change. Create or identify the durable source record, preview and explicitly apply its Project projection, and classify documentation impact. Then run:
 
 ```powershell
 pwsh -File .\scripts\change-workflow.ps1 new 002-example-change `
     --outcome "Implement one bounded result" `
     --owned "src/example/**" `
     --owned "tests/test_example.py" `
-    --exclude "policy/**"
+    --exclude "policy/**" `
+    --work-project-id "example-project" `
+    --work-record-id "SPEC-002" `
+    --work-source-repository "owner/repository" `
+    --work-source-number 123 `
+    --work-source-kind issue `
+    --documentation-impact planned
 ```
 
-The command creates branch `change/002-example-change`, worktree `.work/worktrees/002-example-change`, and the five required artifacts beneath `.work/changes/<change-id>/`. Those generated tracked artifacts are written with explicit LF bytes on every host so Windows newline translation cannot create a `core.safecrlf` staging failure.
+The command validates the supplied initialization evidence without contacting the provider, creates branch `change/002-example-change`, worktree `.work/worktrees/002-example-change`, and the five required artifacts beneath `.work/changes/<change-id>/`, and records the evidence in schema-version-2 `scope.json`. Historical schema-version-1 scopes remain valid. Generated tracked artifacts use explicit LF bytes on every host so Windows newline translation cannot create a `core.safecrlf` staging failure.
 
 List or validate active claims:
 

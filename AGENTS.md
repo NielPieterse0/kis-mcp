@@ -162,11 +162,13 @@ Parallel agent count is not limited. Coordination is enforced through explicit c
 
 Before implementation begins:
 
-1. Start from a clean primary `main` worktree.
-2. Create one stable change ID in the form `NNN-kebab-case`.
-3. Run `pwsh -File scripts/change-workflow.ps1 new <change-id> --outcome <text> --owned <path>` with additional `--owned`, `--shared`, `--exclude`, `--depends-on`, or `--integration-owner` arguments as required.
-4. Work only in `.work/worktrees/<change-id>` on branch `change/<change-id>`.
+1. Start from a clean primary `main` worktree and choose one unused stable change ID in the form `NNN-kebab-case`.
+2. Initialize the slice in the configured Work Management backend before creating its branch or worktree. Create or identify one durable source issue/PR, preview and explicitly apply its Project projection, and classify documentation impact.
+3. Run `pwsh -File scripts/change-workflow.ps1 new <change-id> --outcome <text> --owned <path> --work-project-id <project-id> --work-record-id <record-id> --work-source-repository <owner/repository> --work-source-number <number> --work-source-kind <issue|pull_request> --documentation-impact <classification>` with additional `--owned`, `--shared`, `--exclude`, `--depends-on`, or `--integration-owner` arguments as required.
+4. Work only in `.work/worktrees/<change-id>` on branch `change/<change-id>` and keep the Work Management projection current as the lifecycle advances.
 5. Keep `scope.json`, `spec.md`, `plan.md`, `tasks.md`, and `closeout.md` under `.work/changes/<change-id>/` current with the implementation.
+
+Newly created scopes use schema version 2 and retain the Work Management initialization evidence supplied to `new`. Historical schema-version-1 scopes remain valid and do not require retroactive mutation. Local change governance validates recorded evidence only; it performs no GitHub or other network call.
 
 Path claims are repository-relative exact paths or recursive paths ending in `/**`. `owned_paths` are exclusive. An overlap is permitted only when every overlapping claim uses `shared_paths` and coordination is explicit through a dependency or integration owner. Duplicate outcomes, branches, worktree paths, change IDs, and uncoordinated overlaps must fail before worktree creation.
 

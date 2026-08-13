@@ -19,8 +19,8 @@ Each implementation phase uses its own governed change, isolated worktree, bound
 
 ## Documentation feedback routine
 
-1. Classify documentation impact when a slice is created.
-2. Name affected documents and authority owners in the plan.
+1. Initialize the slice in Work Management before its governed worktree is created and classify documentation impact on that record.
+2. Record that Work Management identity in the new change scope, then name affected documents and authority owners in the plan.
 3. Complete pre-merge updates or record an explicit no-impact decision.
 4. Capture the PR number and merge commit when merge completes.
 5. Reconcile merge-specific closeout, README, operations, architecture, product, and module documentation.
@@ -34,4 +34,4 @@ The GitHub adapter reads configured Projects and field schema and applies only b
 
 The platform exposes eight bounded Work Management tools and seven task-level workflows, including Project schema status, pre-merge documentation readiness, and post-merge documentation reconciliation. The reusable exact-revision CI workflow validates settings, the Project schema manifest, governance claims, focused tests, and optionally the canonical verifier. `settings/work-management/github-projects.settings.json` is enabled for `kis-mcp` user Project #1; all native/custom automation remains disabled.
 
-Repository implementation is complete for the approved schema/drift and documentation-lifecycle integration. Live rich Project schema/view commissioning remains incomplete at the current approved provider boundary. Current operator status and next actions are owned by `docs/OPERATIONS.md`; detailed dated evidence is retained in `docs/development/github-project-onboarding/commissioning.md` and change 110 rather than duplicated here.
+Repository implementation is complete for the approved schema/drift and documentation-lifecycle integration. Change 113 adds a backward-compatible governance contract requiring each newly governed slice to record its already-initialized Work Management identity before implementation begins; historical schema-version-1 scopes remain valid. Live rich Project schema/view commissioning remains incomplete at the current approved provider boundary. Current operator status and next actions are owned by `docs/OPERATIONS.md`; detailed dated evidence is retained in `docs/development/github-project-onboarding/commissioning.md` and change records rather than duplicated here.

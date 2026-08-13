@@ -137,11 +137,13 @@ List active claims:
 pwsh -NoProfile -File .\scripts\change-workflow.ps1 list
 ```
 
-Create a change only after declaring a non-overlapping outcome and owned paths:
+Create a change only after its Work Management record exists, its Project projection is applied, documentation impact is classified, and the path claim is non-overlapping:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\change-workflow.ps1 new <change-id> --outcome <text> --owned <path>
+pwsh -NoProfile -File .\scripts\change-workflow.ps1 new <change-id> --outcome <text> --owned <path> --work-project-id <project-id> --work-record-id <record-id> --work-source-repository <owner/repository> --work-source-number <number> --work-source-kind issue --documentation-impact <classification>
 ```
+
+The command records schema-version-2 initialization evidence and performs no provider call. Historical schema-version-1 scopes remain valid.
 
 From the change worktree, validate scope before review:
 

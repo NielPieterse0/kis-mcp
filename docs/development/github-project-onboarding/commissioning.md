@@ -22,9 +22,9 @@ The desired `Status` options are:
 
 `project_management_schema_status(project_id)` compares live field inventory against that manifest. Saved-view observability is reported separately because the approved connector does not expose saved-view inventory.
 
-## Live state checked 2026-08-12
+## Live state checked 2026-08-13
 
-Project #1 is reachable. Its live field inventory contains GitHub built-ins plus `Status`; the live `Status` options are still `Todo`, `In Progress`, and `Done`.
+Project #1 is reachable. Its live field inventory contains GitHub built-ins plus `Status`; the live `Status` options remain `Todo`, `In Progress`, and `Done`. The current schema check reports 16 custom fields not yet provisioned and 12 views not yet verified.
 
 The approved GitHub MCP Project write surface can add/update Project items and create an iteration field. It does **not** expose bounded operations for generic custom-field creation, single-select option-schema changes, saved-view creation, or native Project-workflow configuration.
 
@@ -46,9 +46,15 @@ GitHub issue `#102` (`085: Commission GitHub Projects writes`) remains the first
 
 That evidence proves bounded item mutation compatibility only. It does not prove the richer 18-field/12-view schema is provisioned.
 
+## Change 113 backfill evidence
+
+On 2026-08-13, bounded reconciliation added the recent governed slices and residual work to Project #1: change 113 issue #138 (`In Progress`), change 110 issue #139 (`Done`), change 111 issue #140 (`Done`), and existing audit change 112 issue #141 (`In Progress`). Separate `Todo` records track rich Project commissioning (#142), provider commissioning-status persistence (#143), Docker Hub search compatibility (#144), and the pinned dependency advisory risk (#145). A fresh bounded inventory returned all eight records.
+
+Because the rich fields are not yet provisioned, record type/change ID/authority metadata is carried by the source records and repository change artifacts rather than falsely represented as live Project fields.
+
 ## Close the remaining external gap
 
-When the approved connector gains bounded schema/view configuration, or a separate supervised GitHub UI procedure is approved:
+Change 113 has operator approval for a supervised GitHub UI commissioning procedure because the bounded connector still lacks these schema/view mutations:
 
 1. provision the missing fields and exact Status options from the manifest;
 2. create the 12 named views from the programme specification;

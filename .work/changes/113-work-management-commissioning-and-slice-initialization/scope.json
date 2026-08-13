@@ -1,0 +1,31 @@
+{
+  "schema_version": 2,
+  "change_id": "113-work-management-commissioning-and-slice-initialization",
+  "status": "ready",
+  "branch": "change/113-work-management-commissioning-and-slice-initialization",
+  "worktree": ".work/worktrees/113-work-management-commissioning-and-slice-initialization",
+  "base": "main",
+  "outcome": "Commission the approved Work Management projection, backfill changes 110-112, and require Work Management initialization evidence before every newly governed slice executes.",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "tests/test_change_governance.py",
+    "AGENTS.md",
+    "docs/OPERATIONS.md",
+    ".work/programmes/work-management/**",
+    ".agents/skills/kis-mcp/references/operator-support.md",
+    "docs/development/github-project-onboarding/commissioning.md",
+    ".work/changes/113-work-management-commissioning-and-slice-initialization/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-113",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 138,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}
