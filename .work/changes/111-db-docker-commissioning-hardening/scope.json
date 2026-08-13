@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "change_id": "111-db-docker-commissioning-hardening",
-  "status": "active",
+  "status": "closed",
   "branch": "change/111-db-docker-commissioning-hardening",
   "worktree": ".work/worktrees/111-db-docker-commissioning-hardening",
   "base": "main",

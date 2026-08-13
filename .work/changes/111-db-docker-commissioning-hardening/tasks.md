@@ -10,4 +10,6 @@
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
 - [x] Run `pwsh -File scripts/verify.ps1`.
 - [x] Attempt independent review and record both unavailable reviewer backends plus direct bounded diff inspection.
-- [ ] Commit, publish PR, merge, restart both KIS surfaces, verify mounted status, run post-merge live smoke checks, and perform safe cleanup.
+- [x] Commit, publish PR #136, merge the exact authorized head, restart both KIS surfaces, verify mounted status, and run post-merge live smoke checks.
+
+Governed remote-branch/worktree/helper cleanup is the postcondition of this lifecycle reconciliation and does not require another repository-content edit.

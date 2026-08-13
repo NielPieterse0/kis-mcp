@@ -16,6 +16,7 @@
 - One-shot commissioning: `scripts/commission-db-docker-providers.ps1` exited `0`; DBHub discovered two College tools and Docker Hub discovered exactly six public tools.
 - Live Docker Hub reads: `checkRepository`, `checkRepositoryTag`, `getRepositoryInfo`, `getRepositoryTag`, `listRepositoriesByNamespace`, and `listRepositoryTags` all succeeded against public `library/alpine` evidence.
 - DBHub live evidence: College `search_objects` and read-only `execute_sql` succeeded during commissioning, including a bounded SELECT against `runs`.
+- Fresh post-merge `kis-op` runtime started from source revision `1e0e23f0061154c5ead057891c5ae81caadda203`; provider status reported DBHub and Docker Hub mounted/ready, Docker Hub exposed exactly six public operations with `search` absent, live `library/alpine` lookup succeeded, and `SELECT COUNT(*) FROM runs` returned `29`.
 - Diff scope check: `scripts/change-workflow.ps1 check` passed with all changed paths inside declared change ownership.
 - Canonical repository verification: `scripts/verify.ps1` passed; pytest reached 100% with two expected skips, 277 Python files syntax-checked, and configuration/dependencies/governance/HR-001/HR-002/HR-003 checks green.
 ## Review
@@ -28,9 +29,11 @@
 
 - Branch: `change/111-db-docker-commissioning-hardening`
 - Worktree: `.work/worktrees/111-db-docker-commissioning-hardening`
-- Commit: pending final exact-tree verification.
-- Pull request or merge: pending governed delivery.
-- Cleanup: pending merge and post-restart smoke verification.
+- Verified local implementation commit: `1e0e23f0061154c5ead057891c5ae81caadda203`.
+- Exact remote PR head: `11b8d180e99b14fad4c80995a3bdf527997bb2c8`; all 10 declared remote paths were previously verified blob-identical to the local implementation commit.
+- Pull request #136 merged at the exact authorized head; GitHub `main` advanced to `34d6b3c49b801800bc45c59183650b4aebad40cc`.
+- Local `main` is tree-equivalent at `1e0e23f0061154c5ead057891c5ae81caadda203`; the lifecycle reconciliation is published separately against the current GitHub default head rather than rewriting remote history.
+- Remote review branch remains recoverably present at `11b8d180e99b14fad4c80995a3bdf527997bb2c8` until the lifecycle reconciliation is merged; exact-head branch deletion and governed local cleanup are its postconditions.
 
 ## Residual items
 
