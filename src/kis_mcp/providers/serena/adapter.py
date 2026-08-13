@@ -184,6 +184,15 @@ class _SharedProviderClient:
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> object:
         return await self._inner.call_tool(name, arguments)
 
+    async def call_tool_mcp(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        *,
+        meta: dict[str, Any] | None = None,
+    ) -> object:
+        return await self._inner.call_tool_mcp(name=name, arguments=arguments, meta=meta)
+
     async def list_tools(self) -> Sequence[Any]:
         return await self._inner.list_tools()
 

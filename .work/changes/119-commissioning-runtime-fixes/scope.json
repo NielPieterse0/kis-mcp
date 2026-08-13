@@ -1,0 +1,38 @@
+{
+  "schema_version": 3,
+  "change_id": "119-commissioning-runtime-fixes",
+  "status": "active",
+  "branch": "change/119-commissioning-runtime-fixes",
+  "worktree": ".work/worktrees/119-commissioning-runtime-fixes",
+  "base": "main",
+  "outcome": "Fix the two post-merge runtime commissioning blockers for change 116: exact committed-change verification selection and Serena mounted proxy execution, then re-run bounded live commissioning.",
+  "owned_paths": [
+    "src/kis_mcp/discover/git_change_reader.py",
+    "tests/workflows/verification/test_verification_platform.py",
+    "src/kis_mcp/providers/serena/adapter.py",
+    "tests/providers/test_context7_serena_providers.py",
+    ".work/changes/119-commissioning-runtime-fixes/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "risk_profile": "rigorous",
+  "base_evidence": {
+    "local_sha": "4fb47ff59f3e0039b53403c8e13f0ac4df11ff77",
+    "local_tree": "64f74b4ff1deaacd3ba800b5586593bc3ef0d456",
+    "upstream_sha": "aa969fa79716817bde1f838ebbb5d3a7c5f83f7c",
+    "upstream_tree": "64f74b4ff1deaacd3ba800b5586593bc3ef0d456",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "tree_equivalent"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-119",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 161,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

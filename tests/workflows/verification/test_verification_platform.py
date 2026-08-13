@@ -70,3 +70,4 @@ def test_platform_change_analyzer_supports_exact_commit_targets() -> None:
 
     assert isinstance(analyzer._reader, GitChangeReader)  # noqa: SLF001
     assert callable(getattr(analyzer._reader, "inspect_change_target", None))  # noqa: SLF001
+    assert analyzer._analysis_service is not None  # noqa: SLF001
