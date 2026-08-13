@@ -18,7 +18,7 @@ ALL_TOOLS = (
 )
 PUBLIC_TOOLS = (
     "checkRepository", "checkRepositoryTag", "getRepositoryInfo", "getRepositoryTag",
-    "listRepositoriesByNamespace", "listRepositoryTags", "search",
+    "listRepositoriesByNamespace", "listRepositoryTags",
 )
 _KEYS = {"schema_version", "provider_id", "authoritative_source", "source_revision", "transport", "node_executable", "entry_point", "auth"}
 _AUTH_KEYS = {"mode", "username", "secret_ref"}

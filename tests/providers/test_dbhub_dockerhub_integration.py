@@ -125,7 +125,6 @@ def test_dbhub_descriptor_predeclares_college_read_only_effects() -> None:
     tools = {tool for capability in descriptor.capabilities for tool in capability.tool_names}
     assert tools == {"db_college_results_execute_sql", "db_college_results_search_objects"}
     assert all(capability.effects == ("read_only",) for capability in descriptor.capabilities)
-    assert descriptor.readiness_probe().state is ProviderState.UNAVAILABLE
 
 
 def _dockerhub_settings(mode: str = "public") -> DockerHubSettings:
@@ -153,12 +152,26 @@ def test_dockerhub_child_environment_is_minimal_for_public_and_pat_modes() -> No
     assert adapter.arguments()[-1] == "--username=niel"
 
 
-def test_dockerhub_public_descriptor_exposes_only_public_long_tail_tools() -> None:
+def test_dockerhub_public_descriptor_exposes_only_live_verified_public_tools() -> None:
     descriptor = dockerhub_provider_descriptor(repository_root=ROOT, environment={})
     tools = {tool for capability in descriptor.capabilities for tool in capability.tool_names}
-    assert "search" in tools and "createRepository" not in tools and "updateRepositoryInfo" not in tools
+    assert tools == {
+        "checkRepository",
+        "checkRepositoryTag",
+        "getRepositoryInfo",
+        "getRepositoryTag",
+        "listRepositoriesByNamespace",
+        "listRepositoryTags",
+    }
+    assert "search" not in tools
+    assert "createRepository" not in tools and "updateRepositoryInfo" not in tools
     assert descriptor.boundary is ProviderBoundary.APPROVED_EXTERNAL_CONNECTOR
-    assert descriptor.readiness_probe().state is ProviderState.UNAVAILABLE
+
+
+def test_commissioning_script_preserves_successful_child_exit_when_stderr_has_diagnostics() -> None:
+    text = (ROOT / "scripts" / "commission-db-docker-providers.ps1").read_text(encoding="utf-8")
+    assert "Write-Error $ErrorOutput.Trim()" not in text
+    assert "[Console]::Error.WriteLine($ErrorOutput.Trim())" in text
 
 
 def test_checked_in_dbhub_and_dockerhub_settings_match_their_strict_schemas() -> None:

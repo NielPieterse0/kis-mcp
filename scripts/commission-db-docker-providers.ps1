@@ -63,7 +63,7 @@ try {
     $ErrorOutput = $Process.StandardError.ReadToEnd()
     $Process.WaitForExit()
     if ($Output) { Write-Output $Output.Trim() }
-    if ($ErrorOutput) { Write-Error $ErrorOutput.Trim() }
+    if ($ErrorOutput) { [Console]::Error.WriteLine($ErrorOutput.Trim()) }
     exit $Process.ExitCode
 }
 finally {
