@@ -36,4 +36,4 @@ Canonical `change-workflow new` is blocked by the unrelated pre-existing exclusi
 - Focused verification: 25 tests passed across adapter, enhanced tools, and board selection.
 - `git diff --check` and `change-workflow check` passed.
 - Ruff is unavailable in the locked environment and was not installed ad hoc.
-- Earlier Codex/NVIDIA advisory attempts failed before findings; the final NVIDIA code-quality review completed successfully with no findings after the affected tests were green.
+- Codex and NVIDIA advisory attempts failed before producing findings while the implementation diff was present; a later post-commit NVIDIA invocation saw no working-tree diff and is not treated as substantive review evidence.
