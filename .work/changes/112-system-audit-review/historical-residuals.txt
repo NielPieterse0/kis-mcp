@@ -1,0 +1,308 @@
+### 001-parallel-agent-governance
+- `feat/lean-contract-baseline` remains as an unmerged local recovery branch because force branch deletion is prohibited by the available Git policy.
+- The owners of `change/002-modularity-contracts` and `change/003-quarantine-integrity` must add the required claim artifacts or recreate their worktrees through `change-workflow.ps1 new`; the validator now makes these gaps explicit.
+
+### 006-provider-state-atomicity
+- PR #3 must remain draft until this change is merged into its branch and its own live commissioning command passes on the integrated head.
+- Temporary provider-state files may accumulate one per interrupted background save. A separate bounded recovery/quarantine policy can be considered only if accumulation becomes operationally material.
+
+### 007-chatgpt-remote-commissioning
+- The repository does not contain the real `operation` and `development` tunnel IDs or control-plane scope identifiers. Both instances remain `configured: false` with blank external IDs.
+- A live tunnel-client run, ChatGPT custom-app tool scan, and ChatGPT-originated write/read/quarantine smoke were not performed and are not claimed.
+- Desktop Commander emits pre-existing FastMCP notification-validation warnings for some string logging payloads. They did not affect initialization, discovery, health, or file/quarantine execution.
+
+### 008-github-mcp-provider
+- Install an operator-approved official executable built or acquired from the pinned source revision.
+- Supply a fine-grained token or GitHub App installation token restricted to `NielPieterse0/kis-mcp`.
+- Run `scripts/smoke-github-mcp.ps1 -RequireLive`.
+- Perform authenticated read and write MCP smoke calls.
+- Compose the standalone provider into the ChatGPT-facing transport in a separate non-overlapping change after remote commissioning stabilizes.
+- Repair the repository change-governance duplicate-record defect separately; do not alter another active agent's worktree from this branch.
+
+### 012-skills-module
+- Desktop Commander continues to emit existing notification-validation warnings during local in-process proxy calls. Tool results remain successful; provider notification handling is outside this slice.
+- The initial conservative frontmatter parser intentionally supports a bounded YAML subset. Expand it only with a concrete shared-skill compatibility case and tests.
+- Further catalogue splitting is deferred until repeated independent change reasons establish a real seam; premature micro-modules would add indirection without evidence.
+- The user-supplied post-merge review of PR #13 identifies separate Discover defects: strict schema omission of `recent_commits`, unvalidated effective Git metadata paths, nondeterministic cutoff selection, silent Python diagnostic truncation, and missing diagnostic evidence links. Those findings are inherited from `origin/main`, are not caused or modified by this Skills slice, and require a separate Discover hardening change.
+
+### 013-startup-hardening
+- Owned child stdout and stderr are drained asynchronously but materialized into their diagnostic files during launcher cleanup; unusually long sessions may retain accumulated output in memory until shutdown. Streaming file capture is deferred.
+- Tunnel-client remains externally networked by design and continues to produce verbose internal diagnostics in its local runtime log; these no longer reach the operator console.
+- The temporary observation used port `8012` because port `8011` was occupied by another kis-mcp development runtime. The production instance-specific ports remain governed by settings and collision checks.
+- A real MAS score is intentionally deferred until a second substantial slice records the same read-set, edit-set, and change-reason measurements.
+
+### 014-provider-runtime-composition
+- Install and commission the official GitHub MCP binary with interactive OAuth/device flow and live scoped repository verification in its dedicated follow-up slice.
+- Commission Supabase hosted OAuth/DCR, approved token persistence, and a harmless project-scoped live read in its dedicated follow-up slice.
+- Keep `docs/PROVIDER-MODULE-PRODUCT-SPEC.md` unchanged until its historical change-010 ownership is resolved; current behavior is documented in `SPEC.md`, `docs/OPERATIONS.md`, and the verification record.
+
+### 018-github-oauth-commissioning
+- OAuth must normally be repeated after provider restart because tokens are process-lifetime.
+- `--toolsets=all` causes the official OAuth application to request broad scopes. Local middleware constrains explicit repository targets, but the official built-in OAuth application controls GitHub-side scope granularity.
+- Desktop Commander string-form notification validation warnings remain visible during shared-runtime smoke. They are pre-existing and outside Slice B ownership.
+
+### 019-provider-runtime-repair
+GitHub OAuth commissioning and Supabase OAuth/DCR commissioning remain separate slices. This repair does not claim either provider is authenticated, upstream-connected, tool-discovered, or live-verified.
+
+### 020-discover-change-inventory
+This PR intentionally does not register a public `inspect_change` tool and does not add commit/range inspection, diff content, symbol impact, dependency impact, verification handoffs, or remote pull-request evidence. Those remain separate bounded slices.
+
+### 023-discover-change-service
+This slice intentionally does not expose a public `inspect_change` tool or implement commit/range inspection, diff content, changed symbols, dependant modules, verification handoffs, semantic providers, or remote forge evidence. Those remain separate bounded Discover slices.
+
+### 025-line-ending-hygiene
+- Existing active worktrees receive the committed attributes when they next rebase or merge this branch; their current states were checked and remain clean.
+
+### 025-stateful-remote-http
+- The unregistered `.work/worktrees/025-stateful-remote-http` directory may be moved to recoverable quarantine after the Windows handle is released. It is not an active Git worktree and does not block development.
+
+### 026-commissioning-refresh
+- GitHub and Supabase authentication, upstream connectivity, discovered tools, and live verification remain explicit runtime actions; this slice does not claim or perform them.
+- Discover Git-index handling, Windows `list_processes`, gateway-wide telemetry coverage, and stopped-search lifecycle reporting remain outside this slice and are not modified.
+- Repository verification uses a shared editable Python environment and must remain serialized across worktrees. This run synchronized that environment to change 026; other active worktrees must run their own verification before relying on it.
+
+### 027-discover-change-targets
+- Public MCP registration for the generalized request remains intentionally deferred to the Discover integration slice.
+- Remote pull-request evidence, semantic symbol impact, and bounded dependant graphs remain later roadmap slices and are reported explicitly rather than inferred.
+
+### 028-discover-context-broker
+- Public FastMCP registration and shared runtime composition remain intentionally deferred to the Discover integration slice because active change `026-commissioning-refresh` owns the shared integration files.
+- External semantic providers, remote forge evidence, persistent indexes, vector retrieval, and cross-repository context remain later roadmap slices and are reported through provider state and unknowns rather than inferred.
+
+### 029-discover-impact-graph
+- Non-Python symbol graphs remain explicitly unavailable; path, test, and verification evidence remain usable.
+- Public runtime registration and composition remain deferred to the final Discover integration slice.
+
+### 029-tools-code-tooling
+- Context7 and Serena require separate operator-approved adapter slices.
+- Change 035 must rebase onto the merged Tools foundation before Codex integration resumes.
+
+### 030-discover-contract-intelligence
+- YAML contract parsing and remote reference resolution remain explicit future provider capabilities.
+- Public runtime registration and composition remain deferred to the final Discover integration slice.
+
+### 031-agent-tooling-bootstrap
+- Claude Code, OpenCode, and Codex executables were not found on the current process `PATH`. Their managed AgentSys profiles are installed and ready, but direct launch requires the corresponding host CLI installation or PATH configuration.
+- The AgentSys marketplace attempted 25 entries; 21 produced valid Claude plugin packages. Four marketplace entries did not yield valid cached plugin packages in this run, while OpenCode and Codex still received 25 command/skill projections. This is upstream catalogue behavior and is recorded rather than hidden.
+- Future kis-mcp integration should consume the now-merged generic Tools framework through a separate bounded slice. It should enable commands through JSON and must not add command-specific Python code when an existing generic execution contract is sufficient.
+- A separate agnix MCP slice may install or build the native `agnix-mcp` binary after its release artifact and supply-chain verification are explicitly designed.
+
+### 031-application-secrets
+- A process with equivalent operating-system access can inspect unlocked process memory. This design reduces exposure surfaces but cannot defend against an equally privileged local process.
+- Environment bootstrap is weaker than supervised unlock because the bootstrap value exists in the parent/launcher environment before consumption.
+- Managed runtimes may create short-lived immutable string copies while decoding standard-input JSON. The implementation minimizes lifetime and references but cannot guarantee complete memory erasure.
+- Loss of all valid external unlock material is unrecoverable by design.
+
+### 032-discover-impact-parity
+- Public registration and broader Discover workflow composition remain owned by the later final-integration slice.
+- JavaScript/TypeScript package aliases, external package resolution, dynamic imports, and language-server semantics remain explicit unsupported or unknown states.
+- Provider admission and explicit cross-repository cataloging remain in independent changes `033` and `034`.
+
+### 033-discover-provider-admission
+- Public FastMCP registration and composition with explicit operator-selected inputs remain in the final Discover integration change.
+- License compatibility, runtime health, provider behavior, and conformance execution remain unresolved until Govern and Work receive approved evidence and authority.
+
+### 034-discover-project-catalog
+- Public composition behind an explicit selected-project input remains in the final Discover integration change.
+- Background indexes, semantic providers, forge evidence, package resolution, and cross-repository change impact remain outside this bounded local foundation.
+
+### 036-kis-control-center
+- The Control Center is a standalone MCP App server invoked with `python -m kis_mcp.control_center`.
+- Mounting it into the primary `build_server()` surface is intentionally deferred because `src/kis_mcp/server.py` was exclusively owned by active change `035-llm-capability` during this slice. The standalone app remains complete and independently deployable.
+- Host support for MCP App rendering varies; structured fallback content remains available.
+
+### 037-discover-final-integration
+- Discover accepts GitHub context supplied by the caller; it does not execute the GitHub connector or infer missing remote evidence.
+- Dynamic JavaScript imports, alias/package resolution, external module resolution, background indexing, implicit project-root scans, and verification execution remain explicitly outside this bounded local slice.
+- Optional semantic providers and additional contract formats remain separately governed expansion work and are not represented as installed.
+
+### 039-documentation-reconciliation
+- Complete the hard-block register structure and explicit operator decisions through active change `040-context7-serena-adapters`; do not infer approvals.
+- Reconcile `docs/DISCOVER-MODULE-PRODUCT-SPEC.md` through or after active change `037-discover-final-integration`.
+- Reconcile canonical implementation-status fields through or after active change `031-application-secrets`.
+- Resolve the `stateless_http` code/configuration contradiction in a separate executable slice with tests.
+- Add semantic current-state drift detection as a separate code slice if durable automated enforcement is approved.
+
+### 041-dual-instance-commissioning
+- Live external tunnel readiness for `kis-dev` requires one operator-entered vault unlock in an interactive terminal. This is a commissioning prerequisite, not an implementation or verification failure.
+
+### 042-mcp-inspector-bootstrap
+- npm reports upstream peer-resolution and deprecated-transitive-package warnings during install. Installation and package smoke succeed; these dependencies are owned by upstream Inspector `2.0.0`, not modified in this slice.
+- Inspector is intentionally not auto-started. The selected kis-mcp instance must be running before launch.
+
+### 043-control-center-ui-integration
+- Observability is process-local and resets when the gateway restarts; it is labelled as current-process evidence rather than persisted history.
+- UI rendering depends on host MCP App support. Hosts without MCP App rendering still receive the complete structured fallback result.
+- Displayed action names are guidance only; actions remain subject to the ordinary supervised kis-mcp tool surface and three-rule policy.
+
+### 045-git-workflow-tooling
+- The commands do not include uncommitted content in `diff-summary`; readiness separately reports dirty state.
+- `cleanup-preview` performs no mutation and does not automatically clean unrelated worktrees.
+- Remote push, PR creation, review, merge, and remote-branch deletion remain explicit connector actions.
+- The authoritative scope check remains the existing change-governance implementation and therefore retains its established Git execution behavior.
+
+### 046-modularity-hardening
+- `src/kis_mcp/server.py` composition thinning remains deferred because active change `040-context7-serena-adapters` owns that file exclusively. A coordinated post-040 slice should introduce module registration entry points without overlapping worktrees.
+- Discover remains externally cohesive but internally flat. Its migration should continue incrementally by feature slice; no big-bang package move was attempted.
+- Desktop Commander root-package consolidation and its existing lazy application import remain separate structural work requiring explicit ownership and scope.
+- The assessment's missing `029-tools-code-tooling` dependency is already closed on current `main`; the generic Tools foundation is present and was not reimplemented.
+- Recovery is a normal Git revert of the change or merge commit. No data migration or irreversible repository deletion is part of this slice.
+
+### 049-github-project-management-spec
+- P1: read-only GitHub Project inventory and adapter contracts after change 047.
+- P2: typed remote records, decisions, assumptions, risks, approvals, and holds.
+- P3: change, PR, verification, merge, and documentation traceability.
+- P4: review evidence, triage, and finding extraction.
+- P5: CLI, CI, automation, reconciliation, public composition, and commissioning.
+
+### 051-github-project-inventory
+- P2: intake, typed records, governance records, and holds.
+- P3: implementation traceability and documentation milestones.
+- P4: review evidence, triage, and finding extraction.
+- P5: automation, CLI, CI, reconciliation, live commissioning, and status.
+P1 performs no remote Project mutation and does not claim live GitHub Project commissioning.
+
+### 053-work-management-traceability
+- P4: review evidence, triage, and finding extraction.
+- P5: provider workflows, CLI, CI, automation, reconciliation service, portfolio status, public composition, and live commissioning.
+
+### 054-work-management-traceability-reconciliation
+- P4: review evidence, triage, and finding extraction.
+- P5: provider workflows, CLI, CI, automation, reconciliation service, portfolio status, public composition, and live commissioning.
+
+### 055-work-management-review-evidence
+P5 remains responsible for runtime evidence persistence, provider adapters, executable workflows, GitHub Project integration, settings and schemas, CLI, CI, automation, reconciliation, portfolio status, public composition, and live commissioning.
+
+### 056-work-management-review-evidence-reconciliation
+- P5: runtime evidence persistence, provider workflows, CLI, CI, automation, reconciliation service, portfolio status, public composition, and live commissioning.
+
+### 057-work-management-automation
+- Select and commission a valid GitHub Project before enabling checked-in work-management settings.
+- Built-in GitHub Project workflow provisioning remains unsupported and requires explicit operator setup.
+- Organization-only issue types, paid rulesets, stronger P6 enforcement, and broad generic orchestration remain future optional scope.
+- The pre-existing shared-gateway proxy enumeration warning should be addressed in a separate bounded change; it does not authorize work-management enablement without a valid Project.
+
+### 058-work-management-commissioning
+- Any later write enablement must separately adapt and verify the pinned provider's numeric Project item write identifiers.
+- Local worktree removal remains subject to the repository cleanup command proving a clean worktree, closed claim, and merged ancestry; no force deletion is authorized.
+
+### 059-instance-startup-lifecycle-hardening
+- Live credential-gated development startup is intentionally not claimed by repository verification and remains the immediate post-merge commissioning check.
+- The optional advisory review backend currently returns `404 Link not found` and requires separate provider/agent diagnosis if independent agent review is desired.
+
+### 060-runtime-state-atomic-replace
+After merge and primary-main verification, rerun `start-chatgpt.ps1 -Instance development` while leaving `kis-op` untouched. Commissioning must prove that the existing development process is reclaimed, a fresh 8011 listener is created, `development/current.json` reaches `ready`, and the operation listener/PID remains unchanged.
+
+### 063-github-tools-experience
+- No remaining 063 implementation scope.
+- The signed-32-bit Actions run/job ID limitation in `mcp-tool-1` remains an external tooling defect; `kis-dev` GitHub MCP readers provide the current compatible path.
+
+### 064-discover-scan-priority
+- Local worktree removal remains subject to the repository cleanup command proving a clean worktree, closed claim, and merged ancestry; no force deletion is authorized.
+
+### 065-ci-governance-validation
+- PR #80 must reconcile repaired `main`, pass a fresh exact-head Windows gate, merge, and complete post-merge P5 commissioning.
+
+### 077-control-center-commissioning-status
+- Active change `078-project-registry-routing` currently owns `SPEC.md`, `docs/OPERATIONS.md`, and `docs/PLATFORM-CONCEPT.md`; change 077 intentionally did not cross that ownership boundary.
+- `docs/STARTUP-HARDENING.md` and `docs/development/secrets/README.md` are reconciled in this change. The three authority documents above must adopt the same promptless-startup/vault-separation wording after change 078 releases or integrates those paths.
+- The currently running kis-op/kis-dev processes were started from pre-change code. The corrected startup/UI behavior becomes live on their next normal supervised restart after this change is merged; no active parallel instance was terminated to prove that transition.
+
+### 078-project-registry-routing
+- No remaining 078 implementation scope. Governed branch/worktree cleanup is the final lifecycle action.
+- Live Supabase account OAuth and explicit registered-project commissioning remain supervised deployment evidence, not inferred from implementation tests.
+
+### 079-workflow-discovery-bridge
+- No remaining 079 implementation scope. Governed branch/worktree cleanup is the final lifecycle action.
+
+### 080-mcp-development-skill
+- Consider centralized activation/effect/workflow-role enrichment for the new skills after active change 078 releases `settings/capabilities.settings.json`; the minimum runtime-composition metadata now lives intrinsically in each skill frontmatter.
+- Promote complete multi-file packages to the shared runtime catalogue only through a mechanism that preserves all references; do not use single-file `create_skill` for these packages.
+- Evaluate future Skills-over-MCP compatibility separately after the working-group extension stabilizes.
+
+### 081-skills-asset-compatibility
+- Run governed 081 worktree/branch cleanup after this closeout record lands, then rerun canonical `main` verification.
+- Preserve clean change 040 unchanged throughout.
+
+### 082-register-college-project
+- Canonical verification should be rerun when the MCP process launcher is healthy.
+
+### 082-startup-runtime-reclaim
+- None within the approved scope. Provider authentication and live `kis-op` commissioning are performed after the merged `main` restart.
+
+### 087-registered-commit-publication
+- No implementation or commissioning item remains.
+- Preserve the four unmerged remote branches above and local `recovery/080-local-divergent` until separately reconciled; they are not safe cleanup candidates in this closeout.
+
+### 091-nvidia-nim-model-profiles
+- Codex CLI installation/authentication and independent code/safety-security review modes are intentionally deferred to the next separately commissioned slice.
+
+### 092-codex-independent-review
+- None required for the approved 092 outcome. Remaining merge/cleanup/publication steps are procedural and do not change implementation behavior.
+
+### 093-change-intelligence-enrichment
+- Reviewer-runtime failure is outside the 093 implementation scope and must not be represented as a passed local agent review.
+- Later approved slices remain separate: development-tooling quality gates, agnix integration, verification selection, workflow orchestration, closeout automation, and overall completion coordination.
+
+### 094-documentation-authority-refresh
+- `SPEC.md` was reviewed as current-product authority but intentionally excluded because active parallel change `093-change-intelligence-enrichment` exclusively owns it. No 094 edit is required to establish documentation routing because that routing is owned by `AGENTS.md`.
+- Supporting/historical documents identified as stale by the operator audit were intentionally not rewritten; higher authorities now define the current rule and current operator behavior.
+
+### 095-nim-subagent-models
+- Any future production-profile promotion must be a separate bounded change with fresh repeated evidence. MiniMax M3 is the strongest experimental candidate observed, but its later 2/3 success repeat demonstrates upstream/reliability variance that must be resolved before promotion.
+
+### 096-documentation-authority-closeout-reconciliation
+- The earlier 094 independent Codex/NVIDIA reviewer attempts remain failed-before-findings evidence; this reconciliation does not convert them into a pass.
+- Active parallel worktree 095 remains outside this change and must not be cleaned or modified by 096.
+
+### 096-python-quality-tooling-evidence
+- This slice discovers declared tooling only; installation, executable availability, change-aware verification selection, workflow execution, and broader orchestration remain later slices.
+- Parallel change worktrees were not modified by 096; at closeout time `098-specialist-review-purposes` is independently active.
+
+### 099-verification-selection-policy
+- Slice 4 selects but does not execute verification. Slice 5 owns bounded execution orchestration.
+- Parallel 098 owns specialist review purposes and shared `SPEC.md`/`docs/OPERATIONS.md`; 099 did not modify those paths.
+
+### 100-governance-authority-drift
+- Gateway/catalogue composition remains a separate slice because 099 owns overlapping registration paths; that integration must honor `settings.enabled` when mounting Govern.
+- Semantic contradiction inference, automatic documentation rewriting, and any Work blocking/mutation authority remain out of scope.
+
+### 101-executable-change-workflow
+- Reviewer backend/runtime commissioning remains separate; failures above are not implementation findings.
+- Govern exposure, historical/test-gap intelligence, performance investigation, commissioning/closeout coordination, and top-level task-to-PR orchestration remain subsequent programme slices.
+
+### 102-register-commodity-project
+- A running `kis-op`/`kis-dev` process must be restarted before its in-memory project registry reflects the newly merged configuration.
+- Configuring `origin` inside `C:\Projects\commodity` is separate from KIS central registration and remains out of scope.
+
+### 103-govern-change-workflow-exposure
+- Slice 6 commissioning hardening remains isolated in change 104; Slice 7 top-level completion coordination remains separate.
+
+### 104-commissioning-closeout-hardening
+- Pre-implementation red-test output was not preserved in the resumed committed worktree; final regression and canonical evidence remain required.
+
+### 105-kis-mcp-skill-refresh
+- Slice 7 remains the separate active `106-reviewable-pr-coordinator` implementation. This skill documents its declared operator boundary and live-discovery gate; change 105 does not implement or alter that coordinator.
+- A running kis-op/kis-dev process may lag the checked-out repository. Live capability and schema evidence remains authoritative for invocation availability.
+
+### 106-reviewable-pr-coordinator
+- Final seven-slice programme reconciliation remains. Merge/delete/cleanup remain outside the coordinator implementation itself.
+
+### 107-register-workspace-projects
+- Running `kis-op` and `kis-dev` processes retain their startup registry snapshot and must be restarted after integration before `kis_list_projects` exposes the new projects.
+- `import-isolate` and `app-builder` intentionally have no GitHub binding until a repository identity is explicitly established.
+- Repairing the stale `ChatGPT-skill` local Git remote/AGENTS naming and initializing Git metadata under `signal` are separate target-project changes and remain out of scope.
+
+### 109-db-docker-provider-integration
+- DBHub and Docker Hub are implementation-verified but not live-commissioned because their exact pinned local source/installations are not present. Activation remains a supervised operator step using an already-provisioned exact local source checkout; normal startup performs no download or update.
+- Docker Hub remains in credential-free `public` mode and no project Docker Hub namespace is invented. External database support is available but no external database binding is currently registered.
+
+### 110-work-management-documentation-completion
+- Repository implementation of Slice 1 is complete; live rich Project schema/view provisioning is not possible through the currently approved bounded GitHub MCP surface.
+- The remaining external commissioning gap is to provision the approved missing fields, Status options, and 12 saved views through a future bounded connector capability or separately approved supervised GitHub UI procedure, then re-run schema status.
+- No generated/code-derived module documentation architecture was introduced; that remains Slice 2.
+
+### 111-db-docker-commissioning-hardening
+- Docker Hub upstream `search` remains hidden until an approved provider update or compatibility fix accepts the current `search_after` result shape.
+- The pinned Docker Hub production dependency audit previously recorded 13 advisories, 0 critical and 9 high; exposure remains constrained to single-client stdio plus six public read operations.
+- Docker Engine/runtime control is intentionally outside change 111.

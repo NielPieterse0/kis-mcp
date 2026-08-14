@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "change_id": "112-system-audit-review",
+  "status": "closed",
+  "branch": "change/112-system-audit-review",
+  "worktree": ".work/worktrees/112-system-audit-review",
+  "base": "main",
+  "outcome": "Read-only modularity, code, documentation/specification, and historical implementation/commissioning audit; record concise findings only; no product code/design/policy/runtime changes.",
+  "owned_paths": [
+    ".work/changes/112-system-audit-review/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null
+}
