@@ -86,22 +86,24 @@ def _tools(server: FastMCP):
     return list(asyncio.run(server.list_tools()))
 
 
-def test_registers_three_bounded_read_only_tools() -> None:
+def test_registers_three_bounded_read_only_tools_with_effect_scope() -> None:
     server = FastMCP("root")
     register_project_management_enhancement_tools(server, _Service())
 
-    tools = _tools(server)
-    assert {tool.name for tool in tools} == {
+    tools = {tool.name: tool for tool in _tools(server)}
+    assert set(tools) == {
         "project_management_current_work",
         "project_management_board_data",
         "project_management_contract",
     }
-    for tool in tools:
+    for tool in tools.values():
         assert tool.annotations is not None
         assert tool.annotations.readOnlyHint is True
         assert tool.annotations.destructiveHint is False
         assert tool.annotations.idempotentHint is True
-        assert tool.annotations.openWorldHint is False
+    assert tools["project_management_current_work"].annotations.openWorldHint is True
+    assert tools["project_management_board_data"].annotations.openWorldHint is True
+    assert tools["project_management_contract"].annotations.openWorldHint is False
 
 
 def test_current_work_returns_provenance_envelope_without_mutating_claim() -> None:
@@ -153,7 +155,7 @@ def test_board_data_publishes_exact_derived_snapshot_to_bridge() -> None:
     assert bridge_value["cards"] == result["result"]["cards"]
 
 
-def test_contract_describes_staged_result_and_mutation_semantics() -> None:
+def test_contract_describes_every_project_management_operation() -> None:
     server = FastMCP("root")
     register_project_management_enhancement_tools(server, _Service())
 
@@ -163,8 +165,34 @@ def test_contract_describes_staged_result_and_mutation_semantics() -> None:
 
     assert result is not None
     assert result["result_envelope"]["authority"] == "configured_work_management_backend"
-    assert result["operations"]["project_management_board_data"] == "read"
-    assert result["operations"]["project_management_claim_work"] == "preview_or_idempotent_mutation"
+    operations = result["operations"]
+    assert operations["project_management_board_data"] == "external_read"
+    assert operations["project_management_claim_work"] == (
+        "preview_or_idempotent_external_mutation"
+    )
+    assert operations["project_management_persist_review"] == "local_idempotent_persistence"
+    assert set(operations) == {
+        "project_management_inventory",
+        "project_management_reconcile",
+        "project_management_next_work",
+        "project_management_take_next_work",
+        "project_management_claim_work",
+        "project_management_release_work",
+        "project_management_transition_work",
+        "project_management_hold_work",
+        "project_management_defer_work",
+        "project_management_sync_change_classification",
+        "project_management_complete_work",
+        "project_management_schema_plan",
+        "project_management_schema_status",
+        "project_management_merge_readiness",
+        "project_management_documentation_reconcile",
+        "project_management_portfolio_status",
+        "project_management_persist_review",
+        "project_management_verify_traceability",
+        "project_management_current_work",
+        "project_management_board_data",
+    }
     assert "conflict" in result["typed_errors"]
 
 
