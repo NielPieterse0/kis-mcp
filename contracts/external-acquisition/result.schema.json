@@ -20,7 +20,12 @@
     "content_class": {"enum": ["data-evidence", "web-evidence", "executable-source"]},
     "artifact_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "byte_count": {"type": "integer", "minimum": 0},
-    "artifact_relative_path": {"type": "string", "minLength": 1, "maxLength": 512},
+    "artifact_relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?![A-Za-z]:)(?![/\\\\])(?!.*(?:^|[/\\\\])\\.\\.(?:[/\\\\]|$))[^:]+$"
+    },
     "provider_implementation_revision": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "container_image_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "credential_references": {
