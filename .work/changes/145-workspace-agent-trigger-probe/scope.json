@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "145-workspace-agent-trigger-probe",
+  "status": "active",
+  "branch": "change/145-workspace-agent-trigger-probe",
+  "worktree": ".work/worktrees/145-workspace-agent-trigger-probe",
+  "base": "main",
+  "outcome": "Validate external ChatGPT Workspace Agent triggering through a bounded GitHub Actions probe and deterministic contract tests without widening local Work network authority.",
+  "owned_paths": [
+    ".github/workflows/workspace-agent-trigger-probe.yml",
+    "scripts/workspace-agent-trigger-probe.py",
+    "tests/workspace_agents/**",
+    ".work/changes/145-workspace-agent-trigger-probe/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "public_contract",
+    "secrets",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "f6dd7d534213e3e1df7bca456f3e14aa15d2e95f",
+    "local_tree": "1b69f322f7e68a41f3c3f1ad1a4f27bb0dd688cc",
+    "upstream_sha": "f6dd7d534213e3e1df7bca456f3e14aa15d2e95f",
+    "upstream_tree": "1b69f322f7e68a41f3c3f1ad1a4f27bb0dd688cc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-145",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 233,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

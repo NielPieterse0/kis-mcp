@@ -1,0 +1,58 @@
+name: Workspace Agent Trigger Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate the event contract or perform a live Workspace Agent trigger.
+        required: true
+        default: validate
+        type: choice
+        options:
+          - validate
+          - live
+      conversation_key:
+        description: Stable conversation key for this work item.
+        required: true
+        type: string
+      input:
+        description: Trigger input passed to the Workspace Agent.
+        required: true
+        type: string
+      idempotency_key:
+        description: Optional stable key for retrying the same event.
+        required: false
+        type: string
+  repository_dispatch:
+    types:
+      - workspace-agent-trigger-probe
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workspace-agent-trigger-probe-${{ github.event.client_payload.event_id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Validate or trigger Workspace Agent
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OPENAI_WORKSPACE_AGENT_TRIGGER_ID: ${{ vars.OPENAI_WORKSPACE_AGENT_TRIGGER_ID }}
+      OPENAI_WORKSPACE_AGENT_ACCESS_TOKEN: ${{ secrets.OPENAI_WORKSPACE_AGENT_ACCESS_TOKEN }}
+    steps:
+      - name: Check out exact workflow revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Workspace Agent trigger probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/workspace-agent-trigger-probe.py \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --event-path "$GITHUB_EVENT_PATH" \
+            --run-id "$GITHUB_RUN_ID"
