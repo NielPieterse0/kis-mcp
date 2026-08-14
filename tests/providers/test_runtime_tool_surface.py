@@ -114,6 +114,33 @@ def test_runtime_tools_are_absent_when_provider_is_not_mounted() -> None:
     ) == ()
 
 
+def test_runtime_merge_named_validation_tool_preserves_fastmcp_contract() -> None:
+    parameters = {
+        "type": "object",
+        "properties": {
+            "record": {"type": "object"},
+            "trace": {"type": "object"},
+            "pull_request_number": {"type": "integer"},
+        },
+        "required": ["record", "trace", "pull_request_number"],
+    }
+    tool = SimpleNamespace(
+        name="project_management_merge_readiness",
+        description="Evaluate exact-head traceability and pre-merge documentation readiness.",
+        annotations={},
+        parameters=parameters,
+    )
+
+    augmented = augment_with_runtime_surface((), (tool,), {})
+    runtime = next(item for item in augmented if item.contribution_id == "runtime-surface")
+    operation = next(
+        item for item in runtime.operations if item.name == "project_management_merge_readiness"
+    )
+
+    assert operation.approval_required is False
+    assert operation.input_schema == parameters
+
+
 def test_serena_runtime_snapshot_keeps_public_semantic_operations_eligible() -> None:
     root = Path(__file__).resolve().parents[2]
     settings = load_serena_settings(root / "settings/providers/serena.provider.json")

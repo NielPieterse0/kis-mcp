@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "131-capability-approval-classification",
+  "status": "active",
+  "branch": "change/131-capability-approval-classification",
+  "worktree": ".work/worktrees/131-capability-approval-classification",
+  "base": "main",
+  "outcome": "Make required Work Management read/validation gates invokable through the advertised capability dispatcher by deriving approval requirements from actual tool semantics rather than operation-name substring matches.",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/surface.py",
+    "tests/providers/test_runtime_tool_surface.py",
+    ".work/changes/131-capability-approval-classification/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "local_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "upstream_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-131",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 191,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
