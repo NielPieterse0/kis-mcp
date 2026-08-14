@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +57,10 @@ def validate_installation(settings: DBHubSettings) -> None:
     }
     if dict(manifest) != expected:
         raise RuntimeError("DBHUB_INSTALLATION_IDENTITY_MISMATCH")
+
+
+def dbhub_commissioning_tool_names(tool_names: Sequence[str]) -> list[str]:
+    return sorted(f"db_{name}" for name in tool_names)
 
 
 def dbhub_commissioning_identity(
@@ -243,6 +247,7 @@ def register_dbhub_provider(
 
 __all__ = [
     "dbhub_commissioning_identity",
+    "dbhub_commissioning_tool_names",
     "dbhub_provider_descriptor",
     "dbhub_readiness",
     "installation_manifest_path",
