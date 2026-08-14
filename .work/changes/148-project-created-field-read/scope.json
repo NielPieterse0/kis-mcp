@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "148-project-created-field-read",
+  "status": "active",
+  "branch": "change/148-project-created-field-read",
+  "worktree": ".work/worktrees/148-project-created-field-read",
+  "base": "main",
+  "outcome": "Keep Work Management selector and board reads operational when requested GitHub Project item fields are absent or unusable by filtering requests against the authoritative field inventory before item retrieval.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    ".work/changes/148-project-created-field-read/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "0134d434d3ceb77f9774b39b2e4a81684d42e0fd",
+    "local_tree": "88ff9654923cde56d68c24e5c13a331ecb27531f",
+    "upstream_sha": "0134d434d3ceb77f9774b39b2e4a81684d42e0fd",
+    "upstream_tree": "88ff9654923cde56d68c24e5c13a331ecb27531f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "emergency_manual_worktree_after_global_claim_conflict",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-148",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 243,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
