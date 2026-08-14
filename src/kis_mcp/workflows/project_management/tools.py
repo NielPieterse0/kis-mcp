@@ -18,6 +18,7 @@ from ...work_management import (
     evaluate_merge_readiness,
     evaluate_traceability,
 )
+from ...work_management.results import error_json
 from .parsing import (
     desired_projection_from_json,
     implementation_trace_from_json,
@@ -25,6 +26,25 @@ from .parsing import (
     traceability_stage,
     work_record_from_json,
 )
+
+_READ_ONLY = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+_EXTERNAL_MUTATION = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+_LOCAL_MUTATION = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
 
 
 def _objects(value: Sequence[Mapping[str, Any]], label: str) -> list[dict[str, Any]]:
@@ -39,7 +59,7 @@ def _objects(value: Sequence[Mapping[str, Any]], label: str) -> list[dict[str, A
 
 
 def _tool_error(code: str, exc: Exception) -> ToolError:
-    return ToolError(f"{code}:{type(exc).__name__}")
+    return ToolError(error_json(code, exc))
 
 
 def register_project_management_tools(
@@ -48,7 +68,7 @@ def register_project_management_tools(
 ) -> None:
     tool_server = FastMCP("kis-mcp-project-management")
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     async def project_management_inventory(
         project_id: str,
         field_names: list[str] | None = None,
@@ -66,7 +86,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_INVENTORY_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_reconcile(
         project_id: str,
         desired: list[dict[str, Any]],
@@ -105,7 +125,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_RECONCILE_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     async def project_management_next_work(
         project_id: str,
         item_limit: int = 100,
@@ -118,7 +138,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_NEXT_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_take_next_work(
         project_id: str,
         execution_owner: str,
@@ -139,7 +159,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_TAKE_NEXT_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_claim_work(
         project_id: str,
         repository: str,
@@ -162,7 +182,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_CLAIM_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_release_work(
         project_id: str,
         repository: str,
@@ -185,7 +205,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_RELEASE_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_transition_work(
         project_id: str,
         repository: str,
@@ -210,7 +230,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_TRANSITION_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_hold_work(
         project_id: str,
         repository: str,
@@ -234,7 +254,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_HOLD_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_defer_work(
         project_id: str,
         repository: str,
@@ -258,7 +278,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_DEFER_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_sync_change_classification(
         project_id: str,
         repository: str,
@@ -283,7 +303,7 @@ def register_project_management_tools(
                 "PROJECT_MANAGEMENT_CLASSIFICATION_SYNC_FAILED", exc
             ) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_EXTERNAL_MUTATION)
     async def project_management_complete_work(
         project_id: str,
         repository: str,
@@ -306,7 +326,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_COMPLETE_WORK_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     async def project_management_schema_plan(
         project_id: str,
     ) -> dict[str, Any]:
@@ -317,7 +337,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_SCHEMA_PLAN_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     async def project_management_schema_status(
         project_id: str,
     ) -> dict[str, Any]:
@@ -329,7 +349,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_SCHEMA_STATUS_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     def project_management_merge_readiness(
         record: dict[str, Any],
         trace: dict[str, Any],
@@ -347,7 +367,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_MERGE_READINESS_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     def project_management_documentation_reconcile(
         record: dict[str, Any],
         trace: dict[str, Any],
@@ -397,7 +417,7 @@ def register_project_management_tools(
                 "PROJECT_MANAGEMENT_DOCUMENTATION_RECONCILE_FAILED", exc
             ) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     def project_management_portfolio_status(
         records: list[dict[str, Any]],
         traceability_gaps: dict[str, list[str]] | None = None,
@@ -422,7 +442,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_STATUS_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_LOCAL_MUTATION)
     def project_management_persist_review(
         project_id: str,
         review_id: str,
@@ -446,7 +466,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_EVIDENCE_FAILED", exc) from exc
 
-    @tool_server.tool
+    @tool_server.tool(annotations=_READ_ONLY)
     def project_management_verify_traceability(
         trace: dict[str, Any],
         stage: str,
