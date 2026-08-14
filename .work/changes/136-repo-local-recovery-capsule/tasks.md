@@ -1,0 +1,21 @@
+# Tasks: Repo Local Recovery Capsule
+
+- [x] Confirm authority, active claims, and bounded scope.
+- [x] Register source issue #207 / SPEC-138 and project it `In Progress` on Work Management; corrected the initial SPEC-136 collision with historical change 126.
+- [x] Write rigorous specification and implementation plan.
+- [x] Add failing tests for repo-local placement, stale identity, corruption recovery, worktree isolation, and idempotent operation checkpoints.
+- [x] Implement `ProjectRecoveryCapsule` using the shared `EvidenceStore`.
+- [x] Bound the operation journal and hash idempotency identities rather than storing raw keys/payloads.
+- [x] Integrate Discover so the local hint is published only after a verified central generation is created or reused.
+- [x] Add capsule-local `*` ignore marker so `.temp\kis` never dirties a tool-user Git repo; fail rather than overwrite an incompatible marker.
+- [x] Recheck resolved capsule-path containment before writes to block link/junction escape from the registered repo.
+- [x] Reconcile `SPEC.md` and `docs/OPERATIONS.md` without touching the separately-owned `AGENTS.md`.
+- [x] Focused tests and ruff checks pass.
+- [x] Live commission against `C:\Projects\commodity`; capsule is current, repeat Discover reuses central generation, and `git status --short` remains clean.
+- [x] Architecture agent review passed with no findings.
+- [x] Safety agent review was attempted on NVIDIA and Codex backends; both backends failed independently. Manual security review found and fixed path-containment hardening.
+- [x] Run `pwsh -File scripts/change-workflow.ps1 check` successfully.
+- [ ] Reconcile onto latest `main` and rerun full repository verification.
+- [ ] Commit final verified head and prepare reviewable PR.
+- [ ] Require exact-head GitHub Actions success and land through the governed merge workflow.
+- [ ] Refresh registered default branch, complete documentation reconciliation, close issue #207 / Work Management, and safely clean the worktree.

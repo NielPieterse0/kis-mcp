@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "change_id": "136-repo-local-recovery-capsule",
+  "status": "active",
+  "branch": "change/136-repo-local-recovery-capsule",
+  "worktree": ".work/worktrees/136-repo-local-recovery-capsule",
+  "base": "main",
+  "outcome": "Add a validated, reconstructible repo-local KIS recovery capsule beneath each registered project's own .temp\\kis directory for restart recovery, stale-state detection, idempotent operation checkpoints, and worktree-aware multi-agent coordination without changing authoritative state.",
+  "owned_paths": [
+    "src/kis_mcp/projects/recovery.py",
+    "src/kis_mcp/projects/__init__.py",
+    "src/kis_mcp/discover/intelligence.py",
+    "tests/projects/test_recovery.py",
+    "tests/discover/test_intelligence.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/136-repo-local-recovery-capsule/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "65f77bf02ea1a482680e597df13f3abb2ff960b9",
+    "local_tree": "f986919af3f4bd624319982827e26e27ffcbaf74",
+    "upstream_sha": "65f77bf02ea1a482680e597df13f3abb2ff960b9",
+    "upstream_tree": "f986919af3f4bd624319982827e26e27ffcbaf74",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-138",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 207,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}
