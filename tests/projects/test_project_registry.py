@@ -21,6 +21,7 @@ def test_registry_indexes_declared_provider_resources() -> None:
         "nielpieterse0/commodity",
         "nielpieterse0/doc-solution",
         "nielpieterse0/gpt-os",
+        "nielpieterse0/import-isolate",
         "nielpieterse0/kis-mcp",
         "nielpieterse0/mi-fi",
         "nielpieterse0/prose2llm",

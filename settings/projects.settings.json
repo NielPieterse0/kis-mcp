@@ -83,7 +83,10 @@
       "project_id": "import-isolate",
       "display_name": "import-isolate",
       "local_root": "C:\\Projects\\import-isolate",
-      "github": null,
+      "github": {
+        "repository": "NielPieterse0/import-isolate",
+        "projects": []
+      },
       "supabase": null,
       "databases": [],
       "dockerhub": null
