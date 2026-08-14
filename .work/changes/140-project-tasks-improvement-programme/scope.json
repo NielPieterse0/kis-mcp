@@ -70,7 +70,6 @@
     "source_repository": "NielPieterse0/kis-mcp",
     "source_number": 215,
     "source_kind": "issue",
-    "documentation_impact": "required",
-    "child_issues": [216, 217, 218, 219]
+    "documentation_impact": "required"
   }
 }
