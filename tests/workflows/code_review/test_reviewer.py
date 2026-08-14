@@ -4,8 +4,8 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
-from kis_mcp.providers.nvidia import nvidia_settings_from_mapping
-from kis_mcp.tools.codex_cli import CodexSettings
+from kis_mcp.providers.nvidia import NvidiaNimError, nvidia_settings_from_mapping
+from kis_mcp.tools.codex_cli import CodexCliError, CodexSettings
 from kis_mcp.workflows.code_review.reviewer import CodeReviewAgent
 from kis_mcp.workflows.code_review.settings import AgentSettings
 
@@ -54,6 +54,31 @@ class FakeNvidiaBackend(FakeBackend):
         if isinstance(self.output, Exception):
             raise self.output
         return self.output
+
+
+class SequenceBackend:
+    def __init__(self, name: str, outcomes: list[str | Exception]) -> None:
+        self.name = name
+        self.outcomes = list(outcomes)
+        self.calls: list[tuple[Path, str]] = []
+        self.model_calls: list[tuple[Path, str, str]] = []
+
+    def available(self) -> bool:
+        return True
+
+    def _next(self) -> str:
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    def review(self, project_path: Path, prompt: str) -> str:
+        self.calls.append((project_path, prompt))
+        return self._next()
+
+    def review_with_model(self, project_path: Path, prompt: str, model_profile: str) -> str:
+        self.model_calls.append((project_path, prompt, model_profile))
+        return self._next()
 
 
 def _nvidia_settings():
@@ -116,6 +141,7 @@ def _settings() -> AgentSettings:
         fallback_backend="codex-cli",
         max_evidence_chars=120000,
         max_output_chars=30000,
+        max_backend_attempts=2,
         nvidia=_nvidia_settings(),
         codex=CodexSettings(
             enabled=True,
@@ -397,7 +423,8 @@ def test_agent_returns_bounded_failure_without_exception_text(tmp_path: Path) ->
 
     assert result["status"] == "failed"
     assert result["backend"] == "nvidia-nim"
-    assert result["diagnostics"] == ["AGENT_BACKEND_FAILED:RuntimeError"]
+    assert result["diagnostics"] == ["AGENT_BACKENDS_FAILED"]
+    assert result["manual_fallback"]["required"] is True
     assert "secret upstream detail" not in str(result)
 
 
@@ -488,3 +515,117 @@ def test_benchmark_nvidia_model_respects_disabled_benchmark(tmp_path: Path) -> N
     assert result["status"] == "disabled"
     assert result["diagnostics"] == ["AGENT_BENCHMARK_DISABLED"]
     assert nvidia.benchmark_calls == []
+
+
+def test_agent_retries_typed_nvidia_timeout_then_recovers(tmp_path: Path) -> None:
+    nvidia = SequenceBackend(
+        "nvidia-nim",
+        [
+            NvidiaNimError(
+                "NVIDIA_NIM_TIMEOUT",
+                "timed out",
+                {"timeout_seconds": 30},
+            ),
+            _structured_output(),
+        ],
+    )
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": nvidia, "codex-cli": FakeBackend("codex-cli")},
+    )
+
+    result = agent.review(tmp_path, backend="nvidia-nim", review_type="architecture")
+
+    assert result["status"] == "completed"
+    assert result["backend"] == "nvidia-nim"
+    assert result["attempts"] == [
+        {
+            "backend": "nvidia-nim",
+            "attempt": 1,
+            "status": "failed",
+            "code": "NVIDIA_NIM_TIMEOUT",
+            "category": "timeout",
+            "retryable": True,
+            "details": {"timeout_seconds": 30},
+        },
+        {
+            "backend": "nvidia-nim",
+            "attempt": 2,
+            "status": "completed",
+        },
+    ]
+
+
+def test_agent_retries_codex_timeout_then_recovers(tmp_path: Path) -> None:
+    codex = SequenceBackend(
+        "codex-cli",
+        [
+            CodexCliError(
+                "CODEX_CLI_TIMEOUT",
+                "timed out",
+                {"timeout_seconds": 30},
+            ),
+            _structured_output(),
+        ],
+    )
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli", review_type="api-contracts")
+
+    assert result["status"] == "completed"
+    assert result["backend"] == "codex-cli"
+    assert [item["status"] for item in result["attempts"]] == ["failed", "completed"]
+    assert result["attempts"][0] == {
+        "backend": "codex-cli",
+        "attempt": 1,
+        "status": "failed",
+        "code": "CODEX_CLI_TIMEOUT",
+        "category": "timeout",
+        "retryable": True,
+        "details": {"timeout_seconds": 30},
+    }
+
+
+def test_agent_dual_backend_failure_requires_manual_exact_diff_fallback(
+    tmp_path: Path,
+) -> None:
+    nvidia = SequenceBackend(
+        "nvidia-nim",
+        [
+            NvidiaNimError("NVIDIA_NIM_TIMEOUT", "timed out", {"timeout_seconds": 30}),
+            NvidiaNimError("NVIDIA_NIM_TIMEOUT", "timed out", {"timeout_seconds": 30}),
+        ],
+    )
+    codex = SequenceBackend(
+        "codex-cli",
+        [CodexCliError("CODEX_CLI_PROCESS_FAILED", "process failed", {"returncode": 7})],
+    )
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": nvidia, "codex-cli": codex},
+    )
+
+    result = agent.review(tmp_path, review_type="architecture")
+
+    assert result["status"] == "failed"
+    assert result["diagnostics"] == ["AGENT_BACKENDS_FAILED"]
+    assert [item["backend"] for item in result["attempts"]] == [
+        "nvidia-nim",
+        "nvidia-nim",
+        "codex-cli",
+    ]
+    assert [item["retryable"] for item in result["attempts"]] == [True, True, False]
+    assert result["manual_fallback"] == {
+        "required": True,
+        "mode": "exact-diff",
+        "review_type": "architecture",
+        "reason": "all_configured_backends_failed_or_unavailable",
+    }
+    assert "timed out" not in str(result)
+    assert "process failed" not in str(result)

@@ -9,6 +9,7 @@ from urllib.request import Request, urlopen
 from .settings import NvidiaSettings, NvidiaSettingsError
 
 RequestSender = Callable[[Request, int], bytes]
+_RETRYABLE_HTTP_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 
 class NvidiaNimError(RuntimeError):
@@ -114,12 +115,23 @@ class NvidiaNimClient:
         try:
             raw = self._sender(request, timeout)
         except HTTPError as exc:
+            code = (
+                "NVIDIA_NIM_HTTP_RETRYABLE"
+                if exc.code in _RETRYABLE_HTTP_STATUSES
+                else "NVIDIA_NIM_HTTP_FAILED"
+            )
             raise NvidiaNimError(
-                "NVIDIA_NIM_HTTP_FAILED",
+                code,
                 "NVIDIA NIM returned an HTTP error",
                 {"status": exc.code},
             ) from exc
-        except (URLError, TimeoutError, OSError) as exc:
+        except TimeoutError as exc:
+            raise NvidiaNimError(
+                "NVIDIA_NIM_TIMEOUT",
+                "NVIDIA NIM request timed out",
+                {"timeout_seconds": timeout},
+            ) from exc
+        except (URLError, OSError) as exc:
             raise NvidiaNimError(
                 "NVIDIA_NIM_TRANSPORT_FAILED",
                 "NVIDIA NIM transport failed",

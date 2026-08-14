@@ -114,12 +114,9 @@ class ChangeExecutionService:
                 arguments["model"] = review_model
             try:
                 payload = await self._invoker("review_change_with_agent", arguments)
-                step = ChangeExecutionStepResult(
-                    step_id=review_type,
-                    kind="review",
-                    status="completed",
-                    payload=payload,
-                )
+                step = _review_step(review_type, payload)
+                if step.status != "completed":
+                    review_error_count += 1
             except ChangeExecutionInvocationError as exc:
                 step = ChangeExecutionStepResult(
                     step_id=review_type,
@@ -187,6 +184,45 @@ def _selection_identity(selection: Mapping[str, Any]) -> tuple[str, tuple[str, .
             )
         identifiers.append(identifier.strip())
     return fingerprint, tuple(identifiers)
+
+
+def _review_step(
+    review_type: str,
+    payload: Mapping[str, Any],
+) -> ChangeExecutionStepResult:
+    agent_status = payload.get("status")
+    if agent_status == "completed":
+        return ChangeExecutionStepResult(
+            step_id=review_type,
+            kind="review",
+            status="completed",
+            payload=payload,
+        )
+    diagnostics = payload.get("diagnostics")
+    error_code = "AGENT_REVIEW_RESULT_INVALID"
+    if isinstance(diagnostics, Sequence) and not isinstance(
+        diagnostics, (str, bytes, bytearray)
+    ):
+        for diagnostic in diagnostics:
+            if isinstance(diagnostic, str) and diagnostic.strip():
+                error_code = diagnostic.strip()
+                break
+    summary = payload.get("summary")
+    reason = (
+        summary.strip()
+        if isinstance(summary, str) and summary.strip()
+        else f"Reviewer returned non-success status {agent_status!r}."
+    )
+    return ChangeExecutionStepResult(
+        step_id=review_type,
+        kind="review",
+        status="error",
+        payload=payload,
+        error_code=error_code,
+        reason=reason,
+    )
+
+
 def _verification_step(
     verification_id: str,
     payload: Mapping[str, Any],

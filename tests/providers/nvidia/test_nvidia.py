@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
 import pytest
@@ -239,3 +240,62 @@ def test_nvidia_client_uses_portable_allowlisted_benchmark_payload() -> None:
         "max_tokens": 1024,
         "stream": False,
     }
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_code", "expected_details"),
+    [
+        (
+            TimeoutError("timed out"),
+            "NVIDIA_NIM_TIMEOUT",
+            {"timeout_seconds": 45},
+        ),
+        (
+            URLError("connection reset"),
+            "NVIDIA_NIM_TRANSPORT_FAILED",
+            {"error_type": "URLError"},
+        ),
+    ],
+)
+def test_nvidia_client_types_transport_failures(
+    failure: Exception,
+    expected_code: str,
+    expected_details: dict[str, object],
+) -> None:
+    def send(_: Request, __: int) -> bytes:
+        raise failure
+
+    client = NvidiaNimClient(_settings(), api_key="secret-value", sender=send)
+
+    with pytest.raises(NvidiaNimError) as exc_info:
+        client.complete("prompt")
+
+    assert exc_info.value.code == expected_code
+    assert exc_info.value.details == expected_details
+
+
+@pytest.mark.parametrize(
+    ("status", "expected_code"),
+    [
+        (429, "NVIDIA_NIM_HTTP_RETRYABLE"),
+        (503, "NVIDIA_NIM_HTTP_RETRYABLE"),
+        (400, "NVIDIA_NIM_HTTP_FAILED"),
+    ],
+)
+def test_nvidia_client_classifies_http_failures(status: int, expected_code: str) -> None:
+    def send(_: Request, __: int) -> bytes:
+        raise HTTPError(
+            "https://integrate.api.nvidia.com/v1/chat/completions",
+            status,
+            "provider error",
+            hdrs=None,
+            fp=None,
+        )
+
+    client = NvidiaNimClient(_settings(), api_key="secret-value", sender=send)
+
+    with pytest.raises(NvidiaNimError) as exc_info:
+        client.complete("prompt")
+
+    assert exc_info.value.code == expected_code
+    assert exc_info.value.details == {"status": status}
