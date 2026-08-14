@@ -27,6 +27,7 @@ def test_checked_in_provider_settings_pin_exact_upstreams() -> None:
         ROOT / "settings" / "providers" / "gitlab.provider.json"
     )
 
+    assert python_sdk.enabled is False
     assert python_sdk.source_revision == "a4f4ccd091138771535e17191123f20b30fda68e"
     assert python_sdk.distribution_name == "mcp"
     assert python_sdk.module_name == "mcp"
@@ -39,8 +40,11 @@ def test_checked_in_provider_settings_pin_exact_upstreams() -> None:
 
 
 def test_python_sdk_provider_reports_exact_version_and_builds_only_explicitly() -> None:
-    settings = PythonSdkSettings.load(
-        ROOT / "settings" / "providers" / "python-sdk.provider.json"
+    settings = replace(
+        PythonSdkSettings.load(
+            ROOT / "settings" / "providers" / "python-sdk.provider.json"
+        ),
+        enabled=True,
     )
     imports: list[str] = []
     module = SimpleNamespace(name="mcp")
@@ -63,6 +67,26 @@ def test_python_sdk_provider_reports_exact_version_and_builds_only_explicitly() 
     assert imports == ["mcp"]
 
 
+def test_checked_in_python_sdk_lifecycle_is_disabled_without_probing() -> None:
+    settings = PythonSdkSettings.load(
+        ROOT / "settings" / "providers" / "python-sdk.provider.json"
+    )
+
+    def forbidden_lookup(_: str) -> str:
+        raise AssertionError("disabled Python SDK must not probe the local distribution")
+
+    descriptor = python_sdk_provider_descriptor(
+        settings,
+        version_lookup=forbidden_lookup,
+        importer=lambda _: (_ for _ in ()).throw(
+            AssertionError("disabled Python SDK must not import during readiness")
+        ),
+    )
+
+    assert descriptor.enabled is False
+    assert descriptor.readiness_probe().state is ProviderState.DISABLED
+
+
 @pytest.mark.parametrize(
     ("version", "expected_state"),
     [
@@ -75,8 +99,11 @@ def test_python_sdk_readiness_distinguishes_missing_and_mismatched_versions(
     version: str | None,
     expected_state: ProviderState,
 ) -> None:
-    settings = PythonSdkSettings.load(
-        ROOT / "settings" / "providers" / "python-sdk.provider.json"
+    settings = replace(
+        PythonSdkSettings.load(
+            ROOT / "settings" / "providers" / "python-sdk.provider.json"
+        ),
+        enabled=True,
     )
 
     def lookup(_: str) -> str:

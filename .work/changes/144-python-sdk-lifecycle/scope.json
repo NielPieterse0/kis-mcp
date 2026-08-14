@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "144-python-sdk-lifecycle",
+  "status": "active",
+  "branch": "change/144-python-sdk-lifecycle",
+  "worktree": ".work/worktrees/144-python-sdk-lifecycle",
+  "base": "main",
+  "outcome": "Make the MCP Python SDK lifecycle truthful by disabling the uncomposed platform-library descriptor in checked-in settings and documenting/testing that it is retained only as staged development metadata, not a mounted runtime provider.",
+  "owned_paths": [
+    "settings/providers/python-sdk.provider.json",
+    "docs/development/mcp-sdk-integrations/README.md",
+    "tests/providers/test_mcp_sdk_providers.py",
+    ".work/changes/144-python-sdk-lifecycle/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "fee9d021dbf9927a41331f4ed12d1efee3853e02",
+    "local_tree": "0afe21bcbe86cda0374937caf62dd43c836b7928",
+    "upstream_sha": "fee9d021dbf9927a41331f4ed12d1efee3853e02",
+    "upstream_tree": "0afe21bcbe86cda0374937caf62dd43c836b7928",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-133",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 193,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}
