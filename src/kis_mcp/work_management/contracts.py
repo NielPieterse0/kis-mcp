@@ -168,7 +168,7 @@ def _optional_text(value: str | None, label: str) -> str | None:
 class ManagedProject:
     project_id: str
     local_root: str
-    repository: str
+    repository: str | None
     backend_binding: str
     display_name: str | None = None
     schema_version: int = PUBLIC_SCHEMA_VERSION
@@ -185,8 +185,8 @@ class ManagedProject:
         if ".." in windows_root.parts or ".." in posix_root.parts:
             raise ValueError("local_root must not contain parent traversal")
         object.__setattr__(self, "local_root", local_root)
-        repository = _required_text(self.repository, "repository")
-        if any(char.isspace() for char in repository):
+        repository = _optional_text(self.repository, "repository")
+        if repository is not None and any(char.isspace() for char in repository):
             raise ValueError("repository must not contain whitespace")
         object.__setattr__(self, "repository", repository)
         object.__setattr__(

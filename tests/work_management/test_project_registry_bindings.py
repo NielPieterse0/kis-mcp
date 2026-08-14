@@ -46,6 +46,47 @@ def test_registry_bridge_preserves_behavior_and_existing_binding_ids() -> None:
     assert binding.project_number == 1
 
 
+def test_registry_bridge_enrolls_every_registered_project_on_shared_backend() -> None:
+    registry = _registry()
+    bridged = load_work_management_settings(
+        SETTINGS_PATH,
+        project_registry=registry,
+    )
+
+    assert {project.project_id for project in bridged.managed_projects} == {
+        project.project_id for project in registry.projects
+    }
+    for registered in registry.projects:
+        managed = bridged.project(registered.project_id)
+        expected_repository = (
+            registered.github.repository if registered.github is not None else None
+        )
+        assert managed.local_root == registered.local_root
+        assert managed.display_name == registered.display_name
+        assert managed.repository == expected_repository
+        assert managed.backend_binding == "github-default"
+
+
+def test_registry_bridge_rejects_implicit_enrollment_when_backend_is_ambiguous(
+    tmp_path: Path,
+) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    document["backend_bindings"].append(
+        {
+            "binding_id": "secondary",
+            "provider": "github-mcp",
+            "owner": "NielPieterse0",
+            "owner_type": "user",
+            "project_number": 2,
+        }
+    )
+    path = tmp_path / "work-management.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ambiguous for automatic project enrollment"):
+        load_work_management_settings(path, project_registry=_registry())
+
+
 def test_registry_bridge_overlays_backend_coordinates_without_changing_modes(
     tmp_path: Path,
 ) -> None:
@@ -70,7 +111,11 @@ def test_registry_bridge_overlays_backend_coordinates_without_changing_modes(
 
 def test_registry_bridge_rejects_ambiguous_project_coordinates(tmp_path: Path) -> None:
     registry_document = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
-    kis = next(item for item in registry_document["projects"] if item["project_id"] == "kis-mcp")
+    kis = next(
+        item
+        for item in registry_document["projects"]
+        if item["project_id"] == "kis-mcp"
+    )
     kis["github"]["projects"] = [
         {
             "binding_id": "delivery",

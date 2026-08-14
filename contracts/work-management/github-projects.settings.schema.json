@@ -79,7 +79,12 @@
       "properties": {
         "project_id": {"$ref": "#/$defs/identifier"},
         "local_root": {"type": "string", "minLength": 3},
-        "repository": {"type": "string", "pattern": "^[^\\s/]+/[^\\s/]+$"},
+        "repository": {
+          "anyOf": [
+            {"type": "string", "pattern": "^[^\\s/]+/[^\\s/]+$"},
+            {"type": "null"}
+          ]
+        },
         "backend_binding": {"$ref": "#/$defs/identifier"},
         "display_name": {
           "anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
