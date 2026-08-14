@@ -38,7 +38,10 @@ from ..providers.platform import (
 )
 from ..quarantine import QuarantineService
 from ..repositories import SelectedRepositorySettings
-from ..skills.platform import register_platform_skills, skill_capability_contributions
+from ..skills.platform import (
+    current_skill_capability_contributions,
+    register_platform_skills,
+)
 from ..tools.platform import build_platform_tool_registry, tool_capability_contributions
 from ..workflows.platform import (
     load_platform_workflow_settings,
@@ -146,17 +149,23 @@ def compose_gateway(
             ),
         )
     )
-    _, skill_cards = register_platform_skills(server)
+    skill_service, skill_cards = register_platform_skills(server)
 
     settings = load_capability_settings()
-    base_contributions = (
+    static_contributions = (
         *provider_capability_contributions(providers.service, providers.composition),
         *tool_capability_contributions(build_platform_tool_registry()),
         *discover_capability_contributions(),
-        *skill_capability_contributions(skill_cards, settings),
         project_capability_contribution(),
         capability_control_contribution(),
     )
+    def current_skill_contributions():
+        return current_skill_capability_contributions(
+            skill_service,
+            skill_cards,
+            settings,
+        )
+    base_contributions = (*static_contributions, *current_skill_contributions())
     namespaces = {
         item.provider_id: item.namespace for item in providers.composition.results
     }
@@ -174,6 +183,10 @@ def compose_gateway(
                 providers.service,
                 providers.composition,
             ),
+        ),
+        contributions_source=lambda: (
+            *static_contributions,
+            *current_skill_contributions(),
         ),
         provider_namespaces=namespaces,
     )

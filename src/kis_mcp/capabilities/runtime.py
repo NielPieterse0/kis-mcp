@@ -6,7 +6,7 @@ from types import MappingProxyType
 from typing import Any
 
 from .catalogue import CapabilityCatalogue
-from .contracts import OperationDescriptor, ReadinessSnapshot
+from .contracts import CapabilityContribution, OperationDescriptor, ReadinessSnapshot
 from .readiness import available_capabilities, evaluate_readiness
 from .resolver import CapabilityResolver
 from .settings import CapabilitySettings
@@ -14,6 +14,7 @@ from .surface import augment_with_runtime_surface
 
 
 RuntimeToolsSource = Callable[[], Sequence[Any]]
+ContributionsSource = Callable[[], Sequence[CapabilityContribution]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,7 @@ class CapabilityRuntimeState:
     base_catalogue: CapabilityCatalogue
     settings: CapabilitySettings
     runtime_tools_source: RuntimeToolsSource | None = None
+    contributions_source: ContributionsSource | None = None
     provider_namespaces: Mapping[str, str] = field(
         default_factory=lambda: MappingProxyType({})
     )
@@ -34,24 +36,32 @@ class CapabilityRuntimeState:
         settings: CapabilitySettings,
         *,
         runtime_tools_source: RuntimeToolsSource | None = None,
+        contributions_source: ContributionsSource | None = None,
         provider_namespaces: Mapping[str, str] | None = None,
     ) -> "CapabilityRuntimeState":
         return cls(
             base_catalogue=catalogue,
             settings=settings,
             runtime_tools_source=runtime_tools_source,
+            contributions_source=contributions_source,
             provider_namespaces=MappingProxyType(dict(provider_namespaces or {})),
         )
 
     @property
     def catalogue(self) -> CapabilityCatalogue:
-        if self.runtime_tools_source is None:
-            return self.base_catalogue
-        contributions = augment_with_runtime_surface(
-            self.base_catalogue.contributions,
-            tuple(self.runtime_tools_source()),
-            dict(self.provider_namespaces),
+        contributions = (
+            self.base_catalogue.contributions
+            if self.contributions_source is None
+            else tuple(self.contributions_source())
         )
+        if self.runtime_tools_source is not None:
+            contributions = augment_with_runtime_surface(
+                contributions,
+                tuple(self.runtime_tools_source()),
+                dict(self.provider_namespaces),
+            )
+        if self.contributions_source is None and self.runtime_tools_source is None:
+            return self.base_catalogue
         return CapabilityCatalogue(contributions, self.base_catalogue.workflows)
 
     @property
