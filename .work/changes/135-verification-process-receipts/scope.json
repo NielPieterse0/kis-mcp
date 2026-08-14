@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "135-verification-process-receipts",
+  "status": "active",
+  "branch": "change/135-verification-process-receipts",
+  "worktree": ".work/worktrees/135-verification-process-receipts",
+  "base": "main",
+  "outcome": "Reconcile started verification processes through terminal exit evidence within one bounded timeout budget so intermediate output cannot produce false incomplete receipts.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/verification/execution.py",
+    "tests/workflows/verification/test_verification_execution.py",
+    ".work/changes/135-verification-process-receipts/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "local_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "upstream_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-135",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 196,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
