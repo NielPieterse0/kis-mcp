@@ -1,7 +1,7 @@
 {
     "schema_version":  4,
     "change_id":  "122-stale-merged-claim-reconciliation",
-    "status":  "active",
+    "status":  "closed",
     "branch":  "change/122-stale-merged-claim-reconciliation",
     "worktree":  ".work/worktrees/122-stale-merged-claim-reconciliation",
     "base":  "main",

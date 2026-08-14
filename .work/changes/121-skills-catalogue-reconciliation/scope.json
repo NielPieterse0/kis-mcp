@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "121-skills-catalogue-reconciliation",
-  "status": "active",
+  "status": "closed",
   "branch": "change/121-skills-catalogue-reconciliation",
   "worktree": ".work/worktrees/121-skills-catalogue-reconciliation",
   "base": "main",
