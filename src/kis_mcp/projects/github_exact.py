@@ -412,7 +412,8 @@ class RegisteredGitHubOperations:
 
         target_ref = f"refs/heads/{branch_name}"
         observed_target = self._remote_branch_sha(remote_url, target_ref, cwd)
-        if observed_target != expected_branch_sha:
+        recovering_existing = observed_target is not None and observed_target != expected_branch_sha
+        if observed_target != expected_branch_sha and not recovering_existing:
             raise ToolError(
                 "REMOTE_BRANCH_MISMATCH: expected "
                 f"{expected_branch_sha or '<absent>'}, observed {observed_target or '<absent>'}"
@@ -465,6 +466,74 @@ class RegisteredGitHubOperations:
         )
 
         message = f"reconcile registered change from {source_sha}"
+        if recovering_existing:
+            self._run(
+                (
+                    *self._git_network_prefix(),
+                    "fetch",
+                    "--no-tags",
+                    "--no-recurse-submodules",
+                    remote_url,
+                    target_ref,
+                ),
+                cwd,
+            )
+            observed_after_target_fetch = self._remote_branch_sha(remote_url, target_ref, cwd)
+            if observed_after_target_fetch != observed_target:
+                raise ToolError(
+                    "REMOTE_BRANCH_CHANGED: review branch changed while recovering prior publication"
+                )
+            existing_tree_result = self._run(
+                (
+                    "git",
+                    "rev-parse",
+                    "--verify",
+                    "--end-of-options",
+                    f"{observed_target}^{{tree}}",
+                ),
+                cwd,
+            )
+            existing_tree = self._require_sha(
+                str(getattr(existing_tree_result, "stdout", "")).strip(),
+                "existing reconciliation tree",
+            )
+            existing_parents_result = self._run(
+                ("git", "rev-list", "--parents", "-n", "1", observed_target),
+                cwd,
+            )
+            existing_parents = str(getattr(existing_parents_result, "stdout", "")).strip().split()
+            existing_message_result = self._run(
+                ("git", "log", "-1", "--format=%B", observed_target),
+                cwd,
+            )
+            existing_message = str(getattr(existing_message_result, "stdout", "")).strip()
+            if (
+                existing_tree != published_tree
+                or existing_parents != [observed_target, expected_default_sha]
+                or existing_message != message
+            ):
+                raise ToolError(
+                    "REMOTE_BRANCH_CONFLICT: existing review branch does not match this exact reconciliation request"
+                )
+            return {
+                "schema_version": 1,
+                "state": "published",
+                "project_id": project.project_id,
+                "repository": repository,
+                "branch": branch_name,
+                "source_commit_sha": source_sha,
+                "source_base_sha": source_base_sha,
+                "remote_default_branch": default_branch,
+                "remote_default_sha": expected_default_sha,
+                "source_tree_sha": source_tree,
+                "tree_sha": published_tree,
+                "commit_sha": observed_target,
+                "previous_remote_sha": expected_branch_sha,
+                "base_relation": base_relation,
+                "publication_semantics": publication_semantics,
+                "recovery": "existing_exact",
+            }
+
         commit_result = self._run(
             (
                 "git",
@@ -561,7 +630,8 @@ class RegisteredGitHubOperations:
             (
                 "gh", "pr", "list", "--repo", repository,
                 "--head", branch_name, "--base", default_branch,
-                "--state", "open", "--json", "number,headRefOid,baseRefName,state,isDraft",
+                "--state", "all", "--limit", "100",
+                "--json", "number,url,title,body,headRefOid,baseRefName,state,isDraft",
             ),
             cwd,
         )
@@ -572,7 +642,41 @@ class RegisteredGitHubOperations:
         if not isinstance(existing, list):
             raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: gh returned a non-array PR list")
         if existing:
-            raise ToolError("OPEN_PULL_REQUEST_EXISTS: an open pull request already exists for this head/base")
+            if not all(isinstance(item, Mapping) for item in existing):
+                raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: gh returned malformed pull request entries")
+            exact = [
+                item
+                for item in existing
+                if str(item.get("headRefOid", "")).lower() == head_sha
+                and item.get("baseRefName") == default_branch
+                and item.get("title") == title_text
+                and item.get("body") == body
+            ]
+            if len(exact) != 1:
+                raise ToolError(
+                    "OPEN_PULL_REQUEST_EXISTS: existing pull request history conflicts with this exact request"
+                )
+            recovered = exact[0]
+            pull_number = recovered.get("number")
+            if isinstance(pull_number, bool) or not isinstance(pull_number, int) or pull_number <= 0:
+                raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: existing pull request number is invalid")
+            if recovered.get("state") != "OPEN" or recovered.get("isDraft") is True:
+                raise ToolError(
+                    "OPEN_PULL_REQUEST_EXISTS: exact prior pull request is no longer an open non-draft review"
+                )
+            return {
+                "schema_version": 1,
+                "state": "open",
+                "project_id": project.project_id,
+                "repository": repository,
+                "pull_number": pull_number,
+                "url": str(recovered.get("url") or ""),
+                "branch": branch_name,
+                "head_sha": head_sha,
+                "base_branch": default_branch,
+                "base_sha": default_sha,
+                "recovery": "existing_exact",
+            }
 
         create_result = self._run(
             (

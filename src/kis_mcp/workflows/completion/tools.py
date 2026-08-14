@@ -12,7 +12,7 @@ from .service import CompletionInvocationError
 _ANNOTATIONS = {
     "readOnlyHint": False,
     "destructiveHint": False,
-    "idempotentHint": False,
+    "idempotentHint": True,
     "openWorldHint": True,
 }
 
@@ -91,17 +91,38 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
             )
             return result.to_json_dict()
         except CompletionInvocationError as exc:
-            raise ToolError(_error_payload(exc.code, exc.reason)) from exc
+            raise ToolError(
+                _error_payload(
+                    exc.code,
+                    exc.reason,
+                    retryable=exc.retryable,
+                    stage=exc.stage,
+                    completed_steps=exc.completed_steps,
+                )
+            ) from exc
         except ValueError as exc:
             raise ToolError(_error_payload("COMPLETION_REQUEST_INVALID", str(exc))) from exc
 
 
-def _error_payload(code: str, reason: str) -> str:
-    return json.dumps(
-        {"code": code, "message": "Completion coordination failed.", "reason": reason, "retryable": False},
-        sort_keys=True,
-        separators=(",", ":"),
-    )
+def _error_payload(
+    code: str,
+    reason: str,
+    *,
+    retryable: bool = False,
+    stage: str | None = None,
+    completed_steps: tuple[str, ...] = (),
+) -> str:
+    payload: dict[str, object] = {
+        "code": code,
+        "message": "Completion coordination failed.",
+        "reason": reason,
+        "retryable": retryable,
+    }
+    if stage is not None:
+        payload["stage"] = stage
+    if completed_steps:
+        payload["completed_steps"] = list(completed_steps)
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
 __all__ = ["CompletionServicePort", "register_completion_tool"]

@@ -1,0 +1,36 @@
+{
+  "schema_version": 4,
+  "change_id": "143-pr-coordinator-retry-safety",
+  "status": "active",
+  "branch": "change/143-pr-coordinator-retry-safety",
+  "worktree": ".work/worktrees/143-pr-coordinator-retry-safety",
+  "base": "main",
+  "outcome": "Make exact registered PR preparation retry-safe across publication and PR-creation partial success without weakening SHA/base/branch gates.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/workflows/completion/service.py",
+    "src/kis_mcp/workflows/completion/tools.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    "tests/workflows/completion/test_completion_service.py",
+    "tests/workflows/completion/test_completion_tools.py",
+    ".work/changes/143-pr-coordinator-retry-safety/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "f69d0498b8b9db4fac3437093534f1fa094c8146",
+    "local_tree": "58af894ff43489a517a312a9fdcb922c4f7fb19d",
+    "upstream_sha": "f69d0498b8b9db4fac3437093534f1fa094c8146",
+    "upstream_tree": "58af894ff43489a517a312a9fdcb922c4f7fb19d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
