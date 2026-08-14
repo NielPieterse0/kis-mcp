@@ -45,7 +45,6 @@ def _routing() -> SupabaseProjectRouting:
     )
     tools = (
         _tool("list_projects", read_only=True),
-        _tool("get_project", read_only=True),
         _tool("get_project_url", read_only=True),
         _tool("apply_migration", read_only=False),
     )
@@ -67,14 +66,13 @@ def test_successful_registered_project_read_marks_live_verification() -> None:
 
     result = asyncio.run(
         middleware.on_call_tool(
-            _context("get_project", {"id": PROJECT_REF}),
+            _context("get_project_url", {"project_id": PROJECT_REF}),
             call_next,
         )
     )
 
     assert result == "ok"
     assert state.registered_project_read_verified is True
-    assert state.last_verified_tool == "get_project"
 
 
 def test_failed_or_non_read_calls_do_not_mark_live_verification() -> None:
@@ -85,8 +83,7 @@ def test_failed_or_non_read_calls_do_not_mark_live_verification() -> None:
         return "ok"
 
     for tool_name, arguments, callback in (
-        ("get_project", {"id": PROJECT_REF}, fail),
-        ("get_project", {"id": "aaaaaaaaaaaaaaaaaaaa"}, succeed),
+        ("get_project_url", {"project_id": PROJECT_REF}, fail),
         ("apply_migration", {"project_id": PROJECT_REF}, succeed),
         ("list_projects", {}, succeed),
     ):
@@ -133,21 +130,43 @@ def _write_current_state(
     endpoint: str,
     lifecycle: str = "ready",
     listener_pid: int = 4242,
+    run_id: str = "run-test",
+    include_startup_evidence: bool = True,
+    startup_policy_fingerprint: str | None = None,
+    startup_state_pointer: str | None = None,
 ) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
     path = root / "tunnel-client" / "runtime" / instance / "current.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "lifecycle": lifecycle,
-                "instance": instance,
-                "endpoint": endpoint,
-                "server_listener_pid": listener_pid,
-            }
-        ),
-        encoding="utf-8",
-    )
+    document: dict[str, Any] = {
+        "schema_version": 1,
+        "lifecycle": lifecycle,
+        "instance": instance,
+        "endpoint": endpoint,
+        "server_listener_pid": listener_pid,
+        "run_id": run_id,
+    }
+    if include_startup_evidence:
+        startup_path = path.parent / f"startup-state-{run_id}.json"
+        startup_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "health": "ready",
+                    "instance": instance,
+                    "endpoint": endpoint,
+                    "policy_fingerprint": (
+                        startup_policy_fingerprint
+                        if startup_policy_fingerprint is not None
+                        else foundation_module.policy_fingerprint(config)
+                    ),
+                    "processes": {"server_listener_pid": listener_pid},
+                }
+            ),
+            encoding="utf-8",
+        )
+        document["startup_state"] = startup_state_pointer or str(startup_path)
+    path.write_text(json.dumps(document), encoding="utf-8")
 
 
 def test_remote_status_requires_matching_ready_current_runtime(tmp_path: Path) -> None:
@@ -162,6 +181,16 @@ def test_remote_status_requires_matching_ready_current_runtime(tmp_path: Path) -
         current_pid=4242,
         state_root=tmp_path,
     ) == "local_http_discover_write_read_quarantine_verified_external_tunnel_ready"
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment=environment,
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+    assert evidence["status"] == "ready"
+    assert evidence["ready"] is True
+    assert evidence["mcp_initialized"] is True
+    assert evidence["run_id"] == "run-test"
 
 
 @pytest.mark.parametrize(
@@ -198,6 +227,133 @@ def test_remote_status_rejects_stale_or_mismatched_runtime_state(
     ) is None
 
 
+def test_remote_status_requires_completed_startup_mcp_evidence(tmp_path: Path) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    _write_current_state(
+        tmp_path,
+        endpoint=selected.endpoint_url,
+        include_startup_evidence=False,
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "startup_evidence_missing"
+
+
+def test_remote_status_rejects_invalid_run_identity(tmp_path: Path) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    _write_current_state(
+        tmp_path,
+        endpoint=selected.endpoint_url,
+        run_id="../escape",
+        include_startup_evidence=False,
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "current_state_run_id_invalid"
+
+
+def test_remote_status_rejects_noncanonical_startup_evidence_path(tmp_path: Path) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    foreign = tmp_path / "foreign-startup-state.json"
+    foreign.write_text("{}", encoding="utf-8")
+    _write_current_state(
+        tmp_path,
+        endpoint=selected.endpoint_url,
+        startup_state_pointer=str(foreign),
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "startup_evidence_path_mismatch"
+
+
+def test_remote_status_rejects_stale_source_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    _write_current_state(tmp_path, endpoint=selected.endpoint_url)
+    monkeypatch.setattr(foundation_module, "_git_revision", lambda: "f" * 40)
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "runtime_generation_stale"
+
+
+def test_remote_status_rejects_stale_config_generation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    _write_current_state(tmp_path, endpoint=selected.endpoint_url)
+    monkeypatch.setattr(
+        foundation_module,
+        "_runtime_config_generation",
+        lambda: (("settings/kis-mcp.settings.json", "changed"),),
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "runtime_generation_stale"
+
+
+def test_remote_status_rejects_startup_evidence_mismatch(tmp_path: Path) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    _write_current_state(
+        tmp_path,
+        endpoint=selected.endpoint_url,
+        startup_policy_fingerprint="wrong-policy",
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "startup_evidence_mismatch"
+
+
 def test_remote_runtime_exposes_selected_instance_only_for_process_lifetime(
     monkeypatch,
 ) -> None:
@@ -227,6 +383,11 @@ def test_health_response_uses_runtime_remote_status_without_mutating_settings(
     resolved = "local_http_discover_write_read_quarantine_verified_external_tunnel_ready"
     monkeypatch.setattr(
         foundation_module,
+        "remote_mcp_runtime_evidence",
+        lambda _runtime: {"ready": True, "status": "ready"},
+    )
+    monkeypatch.setattr(
+        foundation_module,
         "remote_mcp_implementation_status",
         lambda _runtime: resolved,
     )
@@ -239,6 +400,22 @@ def test_health_response_uses_runtime_remote_status_without_mutating_settings(
     assert response.implementation_status["remote_mcp"] == resolved
     assert config.implementation_status["remote_mcp"] == original
     assert original.endswith("external_tunnel_pending_configuration")
+
+
+def test_health_response_exposes_typed_remote_runtime_evidence(monkeypatch) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    monkeypatch.setenv(RUNTIME_INSTANCE_ENV, "development")
+    monkeypatch.setattr(
+        foundation_module,
+        "remote_mcp_runtime_evidence",
+        lambda _runtime: {"ready": False, "status": "runtime_generation_stale"},
+    )
+
+    response = foundation_module.health_response(config, config.desktop_commander_launch)
+
+    assert response.implementation_status["remote_mcp_runtime_evidence"] == (
+        "runtime_generation_stale"
+    )
 
 
 def test_health_response_exposes_process_stable_runtime_fingerprints(monkeypatch) -> None:

@@ -171,8 +171,45 @@ def test_registers_only_bounded_task_level_tools() -> None:
         "project_management_portfolio_status",
         "project_management_persist_review",
         "project_management_verify_traceability",
+        "project_management_current_work",
+        "project_management_board_data",
+        "project_management_contract",
     }
     assert all("delete" not in name and "graphql" not in name for name in names)
+
+
+def test_tool_annotations_distinguish_effect_scope_and_mutation() -> None:
+    server = FastMCP("root")
+    register_project_management_tools(server, Service())
+    tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
+
+    inventory = tools["project_management_inventory"].annotations
+    assert inventory is not None
+    assert inventory.readOnlyHint is True
+    assert inventory.destructiveHint is False
+    assert inventory.idempotentHint is True
+    assert inventory.openWorldHint is True
+
+    merge_readiness = tools["project_management_merge_readiness"].annotations
+    assert merge_readiness is not None
+    assert merge_readiness.readOnlyHint is True
+    assert merge_readiness.destructiveHint is False
+    assert merge_readiness.idempotentHint is True
+    assert merge_readiness.openWorldHint is False
+
+    claim = tools["project_management_claim_work"].annotations
+    assert claim is not None
+    assert claim.readOnlyHint is False
+    assert claim.destructiveHint is False
+    assert claim.idempotentHint is True
+    assert claim.openWorldHint is True
+
+    evidence = tools["project_management_persist_review"].annotations
+    assert evidence is not None
+    assert evidence.readOnlyHint is False
+    assert evidence.destructiveHint is False
+    assert evidence.idempotentHint is True
+    assert evidence.openWorldHint is False
 
 
 def test_reconcile_defaults_to_preview_and_requires_idempotency_for_apply() -> None:
