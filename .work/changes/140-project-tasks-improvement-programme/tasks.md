@@ -2,20 +2,22 @@
 
 - [x] Register #215 and slices #216–#219.
 - [x] Recover requested `mcp-development` and `kis-mcp` procedural guidance after host-level KIS Skills invocation failure; record operator exception.
-- [x] Register governed change 140 before implementation and exclude active recovery-capsule domains.
-- [ ] #216: generation-aware ready-state persistence.
-- [ ] #216: stale/mismatched runtime regression tests.
-- [ ] #217: current/resume Active-work selector and service operation.
-- [ ] #217: none/one/multiple/truncated/provider-failure tests.
-- [ ] #218: normalized board view model and service/MCP read.
-- [ ] #218: Control Center board source/snapshot/render integration.
-- [ ] #218: board/filter/fallback tests.
-- [ ] #219: result/provenance envelope and typed error classifier.
-- [ ] #219: accurate MCP annotations for project-management tools.
-- [ ] #219: compatibility/annotation/error tests.
-- [ ] Reconcile `SPEC.md` and `docs/OPERATIONS.md`.
-- [ ] Open PR and obtain exact-head canonical CI.
-- [ ] Complete required code-quality, architecture and API-contract review evidence.
+- [x] Register governed change 140 before implementation and isolate the then-active recovery-capsule domains.
+- [x] #216: generation-aware ready-state validation and typed stale-runtime evidence.
+- [x] #216: stale/mismatched source, config, process, run-id, and startup-evidence regression tests.
+- [x] #217: current/resume Active-work selector and read-only MCP operation.
+- [x] #217: none/one/multiple/truncated/provider-failure tests.
+- [x] #218: normalized board view model and read-only MCP board operation.
+- [x] #218: Control Center board source/snapshot composition using the exact derived projection, without a second Project interpretation or store.
+- [x] #218: board/filter/group/fallback tests.
+- [x] #219: result/provenance envelope and typed error classifier.
+- [x] #219: accurate external-read/local-read/external-mutation/local-persistence MCP annotations for project-management tools.
+- [x] #219: compatibility/annotation/error-contract tests.
+- [x] Reconcile programme behavior into bounded authoritative documentation via `docs/PROJECT-TASKS-IMPROVEMENT.md`, preserving the freshly landed `SPEC.md` / `docs/OPERATIONS.md` recovery-capsule baseline.
+- [x] Open PR #221 and reconcile it onto the current `main`, including landed change 136, without overlapping implementation files.
+- [x] Complete code-quality, architecture, and API-contract review evidence; resolve all blocking findings.
+- [ ] Pass Canonical Verification on the final exact PR head after this closeout/documentation reconciliation.
 - [ ] Merge exact verified head.
-- [ ] Reconcile/close child issues to actual evidence.
-- [ ] Perform live KIS runtime commissioning when a KIS-enabled host is available; close #215 only when this required evidence is genuinely complete.
+- [ ] Reconcile child issues #216–#219 to landed repository evidence and actual commissioning state.
+- [ ] Reconcile native Project #1 membership/sub-issue relationships when an approved KIS Work Management surface exposes those mutations.
+- [ ] Perform live KIS runtime commissioning when a KIS-enabled host is available; close #215 only when required commissioning/projection evidence is genuinely complete.
