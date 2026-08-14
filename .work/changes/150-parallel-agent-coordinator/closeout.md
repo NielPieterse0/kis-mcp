@@ -1,42 +1,52 @@
-# Closeout: Parallel Agent Coordinator — Slice 1
+# Closeout: Parallel Agent Coordinator — Slice 2 (#248)
+
+## Starting evidence
+
+- Existing parent branch: `change/150-parallel-agent-coordinator`.
+- Authoritative pre-Slice-2 HEAD: `3a8233229f827f26c577400f0f27677a6321ecc8`.
+- Slice 1 implementation commit in this branch history: `778f81e1878b212638ffd092db5da42284fdfb9d`.
+- Parent governed change remains active; #249 is the next permitted slice after this handoff.
 
 ## Implemented scope
 
-- Created the single governed parent change `150-parallel-agent-coordinator` for #241.
-- Added ten strict Draft 2020-12 coordinator contract schemas.
-- Added repository-owned executable schema resources only; no runtime coordinator package, mutation service, or execution service was added.
-- Added executable historical scenarios for the 140/145 exclusive-claim conflict and disjoint-work liveness requirement.
-- Added the long-lived coordinator module architecture, authority-plane model, lifecycle states, contract ownership, and slice sequencing.
+- Added the internal coordinator reservation runtime package.
+- Added cross-process serialized admission using a durable reservation mutex.
+- Added globally unique sequence allocation across active claims, historical change scopes, and consumed journal evidence.
+- Added duplicate identity, exclusive-path overlap, and coordinated shared-path admission checks.
+- Added append-only pending/reserved/aborted/degraded reservation evidence.
+- Added exact-base capture, pre-create revalidation, post-create governed-claim revalidation, and degraded handling for observed base mismatch.
+- Added configured Work Management claim/compensation ports inside the admission transaction.
+- Added existing-authority delegation for governed branch/worktree creation through `change-workflow.ps1`.
+- Added initial `authority_revision=1`, unique lease ID, and `fence_token=1` issuance without implementing lease enforcement.
+- Added explicit project-boundary enforcement for coordinator durable state.
 
-## Validation evidence
+## Verification evidence
 
-- TDD RED: 13 focused tests failed because `kis_mcp.workflows.coordinator` did not exist.
-- TDD GREEN: `python -m pytest tests/workflows/coordinator -q` -> 13 passed.
-- Scope check: `pwsh -NoProfile -File scripts/change-workflow.ps1 check` -> passed with only declared paths.
-- Contract inventory/schema validation is exercised by the focused suite; Slice 1 intentionally has no coordinator source package to compile.
-- `git diff --check` -> passed.
+- TDD RED: focused reservation tests initially failed because `kis_mcp.workflows.coordinator` did not exist.
+- Focused Slice 2 reservation suite after review hardening: `16 passed`, including a spawned cross-process exclusive-claim race.
+- Local governance adapter exact-Git-base test: `1 passed` as part of the coordinator suite.
+- Full coordinator suite after review hardening: `30 passed`.
+- Python compilation: coordinator source/tests compile successfully.
+- `git diff --check`: passed on the final pre-review diff.
+- Governed scope check: passed; all changed paths remain inside the parent coordinator claim.
 
-## Review
+## Review gate
 
-- Required reviews: `code-quality`, `architecture`, `api-contracts`.
-- Final full-diff `code-quality` review: `kis-op` / NVIDIA NIM `super` -> completed with zero findings.
-- Final full-diff `architecture` review: `kis-dev` / Codex CLI -> completed with zero findings after all earlier blocking findings were corrected.
-- Automated `api-contracts` review remained unavailable after repeated `kis-dev` and `kis-op` backend timeouts; no automated pass is claimed.
-- Exact-diff API-contract fallback: machine audit validated all ten Draft 2020-12 schemas, stable contract IDs, closed top-level objects, non-authorizing runtime binding, runtime-binding correlation through packet/handoff/reconciliation, reconciliation/DAG boundaries, degraded-component constraints, and absence of a Slice-1 runtime coordinator package -> `API_CONTRACT_EXACT_DIFF_FALLBACK_PASS`.
+Required by schema-v4 risk classification: `code-quality`, `architecture`, `api-contracts`.
 
-## Git and integration
+- **Code-quality:** zero blocking findings after adjudication. The reviewer surfaced malformed-journal hardening, which was implemented and regression-tested. Its final two claims were false positives: `^{commit}` / `^{tree}` are valid Git revision syntax and were executed successfully against the real repository; the OS byte lock is independently covered by a spawned cross-process race test.
+- **Architecture:** automated backends timed out/failed and explicitly required exact-diff manual fallback. Manual review found zero blocking findings after documenting the single canonical shared authority-state-root production invariant and preserving the strict #249+ deferrals.
+- **API contracts:** automated backend timed out and exact-diff manual fallback found zero blocking findings. Successful reservation output validates against `coordinator-reservation-v1`; Work claim authority now requires applied/Active/successful evidence; the returned work-packet value is identity material only and does not claim the #250 work-packet contract.
 
-- Branch: `change/150-parallel-agent-coordinator`
-- Worktree: `.work/worktrees/150-parallel-agent-coordinator`
-- Slice 1 implementation commit: `778f81e1878b212638ffd092db5da42284fdfb9d`.
-- This closeout receipt is recorded separately after that verified implementation commit.
-- Parent merge/cleanup: intentionally deferred; the parent governed change remains active for #248.
+## Recovery and residual risk
 
-## Residual items
+- Admission is intentionally serialized only while authority is being issued; worker execution remains outside this mutex.
+- A pending/degraded journal entry remains blocking evidence rather than being silently deleted.
+- If governed creation is observed on a different exact base, no successful reservation is returned and the transaction is recorded as degraded.
+- Lease expiry/reassignment, stale-fence enforcement, and deterministic degraded-state recovery remain explicitly #249.
+- The existing three-digit governed change ID format is fail-closed at sequence 999.
 
-- #248 owns atomic reservation and global-claim admission behavior.
-- #249 owns CAS scope changes, lease enforcement, fencing, and recovery.
-- #250 owns planner/work-packet generation and runtime resolution.
-- #251 owns durable worker lifecycle and MCP worker execution.
-- #252 owns reconciliation execution, verification derivation, serialized integration, and landing.
-- #253 owns observability, evaluation, operator UX, and live commissioning.
+## Integration boundary
+
+- Slice 2 is committed only on the existing parent branch.
+- No push, pull request, merge, cleanup, runtime restart, or #249 implementation is part of this closeout.

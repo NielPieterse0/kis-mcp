@@ -126,7 +126,7 @@ The example intentionally records this as one degraded conflict component. It do
 
 The target outcome is explicit: a disjoint reservation such as the narrow GitHub Project adapter change remains admissible while the 140/145 conflict component is degraded.
 
-These fixtures are architecture acceptance evidence only. Slice 1 does not execute admission or conflict-graph resolution.
+These fixtures remain architecture acceptance evidence. Slice 2 now executes reservation admission against the same overlap/liveness semantics; it does not implement a general conflict-graph repair or recovery service.
 
 ## Planned implementation ownership
 
@@ -148,28 +148,37 @@ The default dependency chain is strict:
 247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253
 ```
 
-Slice 1 grants no exception to this dependency chain: #248-#253 proceed sequentially under the single parent change. A future overlap is permitted only if a later landed authority mechanism explicitly records a governed sequence exception with prerequisite revision and landed-base evidence; conversational scope judgment alone is insufficient.
+No implemented slice grants an exception to this dependency chain: the remaining slices proceed sequentially under the single parent change. A future overlap is permitted only if a later landed authority mechanism explicitly records a governed sequence exception with prerequisite revision and landed-base evidence; conversational scope judgment alone is insufficient.
 
 Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
 
-## Slice 1 implementation status
+## Cumulative implementation status through Slice 2
 
 Implemented by #247:
 
-- the ten coordinator JSON Schema contracts;
-- repository-owned executable schemas with no runtime coordinator package;
-- executable examples for degraded overlap and disjoint liveness;
-- this architecture and ownership map;
-- contract tests proving structural boundaries.
+- the ten strict coordinator JSON Schema contracts;
+- executable degraded-overlap/disjoint-liveness examples;
+- the four-plane architecture, state model, ownership map, and slice sequence.
 
-Not implemented by #247:
+Implemented by #248 on the parent change branch:
 
-- reservation transactions or sequence allocation;
-- lease timers, fencing enforcement, reassignment, or recovery;
-- dependency compilation or worker scheduling;
-- agent process/session execution or MCP connection management;
-- reconciliation execution or verification selection;
-- integration queues, PR creation, merge, or cleanup coordination;
-- coordinator telemetry, Control Center projection, evaluation, or live commissioning.
+- an internal reservation service with a cross-process admission mutex;
+- unique sequence allocation across active claims, historical change records, and consumed reservation-journal evidence;
+- deterministic duplicate/exclusive/shared claim admission checks;
+- append-only pending/reserved/aborted/degraded reservation evidence bounded by the declared project boundary;
+- exact-base capture and initial `authority_revision=1`, lease identity, and `fence_token=1` issuance;
+- configured Work Management claim/compensation ports inside the serialized transaction, with applied/Active/successful mutation evidence required before claim authority is accepted;
+- delegation of branch/worktree creation to the existing governed change workflow, followed by claim identity re-read;
+- schema validation proving successful responses conform to the Slice 1 reservation contract.
 
-Any current-product claim for those behaviors must wait for its owning later slice and fresh verification evidence.
+Slice 2 exposes no public MCP coordinator tool and does not treat tool discovery or transport connectivity as authority. Before any public composition, every coordinator instance for the same repository must be wired to one canonical shared authority state root; separate roots would not provide global admission and are therefore not an allowed production topology.
+
+Not yet implemented:
+
+- #249 CAS scope revisions, active lease/fence enforcement, expiry, reassignment, and recovery;
+- #250 dependency compilation, actual work-packet production, runtime resolution, or agent selection;
+- #251 durable worker process/session lifecycle and MCP worker execution;
+- #252 reconciliation execution, verification derivation, integration queue, PR/merge, or cleanup coordination;
+- #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
+
+Any current-product claim for those remaining behaviors must wait for its owning later slice and fresh verification evidence.
