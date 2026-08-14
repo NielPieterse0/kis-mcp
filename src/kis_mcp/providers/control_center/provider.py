@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from ...control_center.app import build_control_center_server
+from ...control_center.contracts import ControlCenterSnapshot
 from ...control_center.settings import (
     ControlCenterSettingsError,
     load_control_center_settings,
 )
 from ...control_center.snapshot import ControlCenterSnapshotService
+from ...work_management.board_bridge import get_work_board_bridge
 from ..contracts import (
     ProviderBoundary,
     ProviderCapability,
@@ -21,6 +24,25 @@ from ..contracts import (
 from ..registry import ProviderRegistry
 
 ProviderStatusSource = Callable[[], Mapping[str, Any]]
+WorkBoardSource = Callable[[], Mapping[str, Any]]
+
+
+class _WorkBoardSnapshotService:
+    """Inject the latest derived Work board without persisting or reinterpreting it."""
+
+    def __init__(
+        self,
+        base: ControlCenterSnapshotService,
+        work_board_source: WorkBoardSource,
+    ) -> None:
+        self._base = base
+        self._work_board_source = work_board_source
+
+    def collect(self) -> ControlCenterSnapshot:
+        return replace(
+            self._base.collect(),
+            work_board=dict(self._work_board_source()),
+        )
 
 
 def control_center_provider_descriptor(
@@ -65,9 +87,13 @@ def control_center_provider_descriptor(
 
     def build() -> Any:
         settings = load_control_center_settings(settings_path)
-        service = ControlCenterSnapshotService(
+        base_service = ControlCenterSnapshotService(
             settings,
             provider_status_source=provider_status_source,
+        )
+        service = _WorkBoardSnapshotService(
+            base_service,
+            get_work_board_bridge().current,
         )
         return build_control_center_server(
             settings=settings,
@@ -115,6 +141,7 @@ def register_control_center_provider(
 
 __all__ = [
     "ProviderStatusSource",
+    "WorkBoardSource",
     "control_center_provider_descriptor",
     "register_control_center_provider",
 ]

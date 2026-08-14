@@ -183,6 +183,7 @@ def test_snapshot_collects_bounded_truthful_local_status(tmp_path: Path) -> None
     assert snapshot.verification.status == "not_recorded"
     assert snapshot.verification.command[-1] == "scripts/verify.ps1"
     assert snapshot.generated_at.endswith("+00:00")
+    assert snapshot.work_board["status"] == "unavailable"
 
 
 def test_snapshot_preserves_unknown_states_instead_of_failing(tmp_path: Path) -> None:
@@ -224,3 +225,20 @@ def test_snapshot_ignores_inherited_git_repository_overrides(
 
     assert snapshot.project.git.status == "not_repository"
     assert snapshot.project.git.branch is None
+
+
+def test_structured_snapshot_keeps_work_board_explicitly_unavailable_without_injection(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    _initialize_dirty_repository(project)
+    snapshot = ControlCenterSnapshotService(_settings(tmp_path, project)).collect()
+
+    structured = snapshot.to_dict()
+
+    assert structured["work_board"] == {
+        "schema_version": 1,
+        "status": "unavailable",
+        "reason": "no_authoritative_board_read_observed_in_process",
+        "authority": "configured_work_management_backend",
+    }

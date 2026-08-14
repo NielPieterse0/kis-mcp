@@ -31,6 +31,8 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
     assert files == {
         "__init__.py",
         "backend.py",
+        "board.py",
+        "board_bridge.py",
         "contracts.py",
         "command_settings.py",
         "evidence.py",
@@ -39,6 +41,7 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
         "project_commands.py",
         "records.py",
         "reconciliation.py",
+        "results.py",
         "reviews.py",
         "schema.py",
         "selection.py",
