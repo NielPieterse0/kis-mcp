@@ -1,0 +1,1202 @@
+﻿{
+  "caveats": [
+    "distinct_subjects is not RFC kinds",
+    "fan_in and fan_out are unmeasured for unsupported or mixed dependency languages"
+  ],
+  "depth": 3,
+  "granularity": "dir",
+  "relevant_commits": 224,
+  "repo": ".",
+  "sampling": "alternating highest LOC and highest commit count",
+  "since": "180 days ago",
+  "units": [
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.778,
+          "pair_commits": 28,
+          "peer": "tests/discover",
+          "support": 0.125
+        },
+        {
+          "confidence": 0.222,
+          "pair_commits": 8,
+          "peer": "src/kis_mcp",
+          "support": 0.036
+        },
+        {
+          "confidence": 0.194,
+          "pair_commits": 7,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.031
+        },
+        {
+          "confidence": 0.167,
+          "pair_commits": 6,
+          "peer": "tests",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.111,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/gateway",
+          "support": 0.018
+        }
+      ],
+      "commits": 36,
+      "distinct_subjects": 30,
+      "fan_in": 28,
+      "fan_out": 4,
+      "loc": 14604,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/discover"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.394,
+          "pair_commits": 26,
+          "peer": "tests/providers",
+          "support": 0.116
+        },
+        {
+          "confidence": 0.273,
+          "pair_commits": 18,
+          "peer": "tests/providers/github",
+          "support": 0.08
+        },
+        {
+          "confidence": 0.197,
+          "pair_commits": 13,
+          "peer": "src/kis_mcp",
+          "support": 0.058
+        },
+        {
+          "confidence": 0.167,
+          "pair_commits": 11,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.049
+        },
+        {
+          "confidence": 0.167,
+          "pair_commits": 11,
+          "peer": "tests",
+          "support": 0.049
+        }
+      ],
+      "commits": 66,
+      "distinct_subjects": 63,
+      "fan_in": 15,
+      "fan_out": 14,
+      "loc": 8763,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/providers"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.7,
+          "pair_commits": 28,
+          "peer": "src/kis_mcp/discover",
+          "support": 0.125
+        },
+        {
+          "confidence": 0.225,
+          "pair_commits": 9,
+          "peer": "src/kis_mcp",
+          "support": 0.04
+        },
+        {
+          "confidence": 0.2,
+          "pair_commits": 8,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.036
+        },
+        {
+          "confidence": 0.175,
+          "pair_commits": 7,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.031
+        },
+        {
+          "confidence": 0.15,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/gateway",
+          "support": 0.027
+        }
+      ],
+      "commits": 40,
+      "distinct_subjects": 34,
+      "fan_in": 0,
+      "fan_out": 5,
+      "loc": 7612,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/discover"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.889,
+          "pair_commits": 16,
+          "peer": "tests/work_management",
+          "support": 0.071
+        },
+        {
+          "confidence": 0.278,
+          "pair_commits": 5,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.167,
+          "pair_commits": 3,
+          "peer": "tests/providers",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.167,
+          "pair_commits": 3,
+          "peer": "tests/providers/github",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.111,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp",
+          "support": 0.009
+        }
+      ],
+      "commits": 18,
+      "distinct_subjects": 18,
+      "fan_in": 10,
+      "fan_out": 7,
+      "loc": 5604,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/work_management"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.771,
+          "pair_commits": 27,
+          "peer": "tests",
+          "support": 0.121
+        },
+        {
+          "confidence": 0.371,
+          "pair_commits": 13,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.058
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 10,
+          "peer": "tests/providers",
+          "support": 0.045
+        },
+        {
+          "confidence": 0.257,
+          "pair_commits": 9,
+          "peer": "tests/discover",
+          "support": 0.04
+        },
+        {
+          "confidence": 0.229,
+          "pair_commits": 8,
+          "peer": "src/kis_mcp/discover",
+          "support": 0.036
+        }
+      ],
+      "commits": 35,
+      "distinct_subjects": 34,
+      "fan_in": 33,
+      "fan_out": 7,
+      "loc": 5485,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.491,
+          "pair_commits": 27,
+          "peer": "src/kis_mcp",
+          "support": 0.121
+        },
+        {
+          "confidence": 0.2,
+          "pair_commits": 11,
+          "peer": "scripts",
+          "support": 0.049
+        },
+        {
+          "confidence": 0.2,
+          "pair_commits": 11,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.049
+        },
+        {
+          "confidence": 0.127,
+          "pair_commits": 7,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.031
+        },
+        {
+          "confidence": 0.127,
+          "pair_commits": 7,
+          "peer": "tests/providers",
+          "support": 0.031
+        }
+      ],
+      "commits": 55,
+      "distinct_subjects": 54,
+      "fan_in": 0,
+      "fan_out": 2,
+      "loc": 5479,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.423,
+          "pair_commits": 11,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.049
+        },
+        {
+          "confidence": 0.308,
+          "pair_commits": 8,
+          "peer": "tests/discover",
+          "support": 0.036
+        },
+        {
+          "confidence": 0.269,
+          "pair_commits": 7,
+          "peer": "src/kis_mcp",
+          "support": 0.031
+        },
+        {
+          "confidence": 0.269,
+          "pair_commits": 7,
+          "peer": "tests",
+          "support": 0.031
+        },
+        {
+          "confidence": 0.231,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/capabilities",
+          "support": 0.027
+        }
+      ],
+      "commits": 26,
+      "distinct_subjects": 23,
+      "fan_in": 3,
+      "fan_out": 10,
+      "loc": 4196,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/workflows"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.727,
+          "pair_commits": 16,
+          "peer": "src/kis_mcp/work_management",
+          "support": 0.071
+        },
+        {
+          "confidence": 0.182,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.091,
+          "pair_commits": 2,
+          "peer": "scripts",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.091,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.091,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.009
+        }
+      ],
+      "commits": 22,
+      "distinct_subjects": 22,
+      "fan_in": 0,
+      "fan_out": 4,
+      "loc": 3540,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/work_management"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.839,
+          "pair_commits": 26,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.116
+        },
+        {
+          "confidence": 0.323,
+          "pair_commits": 10,
+          "peer": "src/kis_mcp",
+          "support": 0.045
+        },
+        {
+          "confidence": 0.226,
+          "pair_commits": 7,
+          "peer": "tests",
+          "support": 0.031
+        },
+        {
+          "confidence": 0.194,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/control_center",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.194,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.027
+        }
+      ],
+      "commits": 31,
+      "distinct_subjects": 29,
+      "fan_in": 0,
+      "fan_out": 7,
+      "loc": 3414,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/providers"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.714,
+          "pair_commits": 10,
+          "peer": "tests/capabilities",
+          "support": 0.045
+        },
+        {
+          "confidence": 0.429,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.357,
+          "pair_commits": 5,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.214,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/projects",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.214,
+          "pair_commits": 3,
+          "peer": "tests",
+          "support": 0.013
+        }
+      ],
+      "commits": 14,
+      "distinct_subjects": 14,
+      "fan_in": 35,
+      "fan_out": 3,
+      "loc": 2249,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/capabilities"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.733,
+          "pair_commits": 11,
+          "peer": "tests",
+          "support": 0.049
+        },
+        {
+          "confidence": 0.267,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.267,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.2,
+          "pair_commits": 3,
+          "peer": "tests/providers",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.133,
+          "pair_commits": 2,
+          "peer": "tests/work_management",
+          "support": 0.009
+        }
+      ],
+      "commits": 15,
+      "distinct_subjects": 15,
+      "fan_in": 0,
+      "fan_out": 3,
+      "loc": 2159,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "scripts"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.9,
+          "pair_commits": 9,
+          "peer": "tests/control_center",
+          "support": 0.04
+        },
+        {
+          "confidence": 0.6,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.6,
+          "pair_commits": 6,
+          "peer": "tests/providers",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.4,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.3,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/discover",
+          "support": 0.013
+        }
+      ],
+      "commits": 10,
+      "distinct_subjects": 9,
+      "fan_in": 3,
+      "fan_out": 3,
+      "loc": 1790,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/control_center"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.667,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.556,
+          "pair_commits": 5,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.444,
+          "pair_commits": 4,
+          "peer": "tests/providers",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.333,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.333,
+          "pair_commits": 3,
+          "peer": "tests/tools",
+          "support": 0.013
+        }
+      ],
+      "commits": 9,
+      "distinct_subjects": 8,
+      "fan_in": 3,
+      "fan_out": 5,
+      "loc": 1774,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/tools"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.692,
+          "pair_commits": 18,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.08
+        },
+        {
+          "confidence": 0.192,
+          "pair_commits": 5,
+          "peer": "tests/providers",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.154,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.154,
+          "pair_commits": 4,
+          "peer": "tests/discover",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.154,
+          "pair_commits": 4,
+          "peer": "tests/repositories",
+          "support": 0.018
+        }
+      ],
+      "commits": 26,
+      "distinct_subjects": 24,
+      "fan_in": 1,
+      "fan_out": 7,
+      "loc": 1760,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/providers/github"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.714,
+          "pair_commits": 10,
+          "peer": "src/kis_mcp/capabilities",
+          "support": 0.045
+        },
+        {
+          "confidence": 0.357,
+          "pair_commits": 5,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.214,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/projects",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.214,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/skills",
+          "support": 0.013
+        }
+      ],
+      "commits": 14,
+      "distinct_subjects": 14,
+      "fan_in": 0,
+      "fan_out": 7,
+      "loc": 1684,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/capabilities"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.857,
+          "pair_commits": 6,
+          "peer": "tests/skills",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.429,
+          "pair_commits": 3,
+          "peer": "tests/capabilities",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/capabilities",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/discover",
+          "support": 0.009
+        }
+      ],
+      "commits": 7,
+      "distinct_subjects": 7,
+      "fan_in": 6,
+      "fan_out": 3,
+      "loc": 1636,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/skills"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.714,
+          "pair_commits": 5,
+          "peer": "tests",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.571,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.571,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.429,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.429,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/capabilities",
+          "support": 0.013
+        }
+      ],
+      "commits": 7,
+      "distinct_subjects": 6,
+      "fan_in": 16,
+      "fan_out": 4,
+      "loc": 1503,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/projects"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 1.0,
+          "pair_commits": 9,
+          "peer": "src/kis_mcp/control_center",
+          "support": 0.04
+        },
+        {
+          "confidence": 0.556,
+          "pair_commits": 5,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.556,
+          "pair_commits": 5,
+          "peer": "tests/providers",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.333,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.333,
+          "pair_commits": 3,
+          "peer": "tests",
+          "support": 0.013
+        }
+      ],
+      "commits": 9,
+      "distinct_subjects": 8,
+      "fan_in": 0,
+      "fan_out": 4,
+      "loc": 1367,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/control_center"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 1.0,
+          "pair_commits": 2,
+          "peer": "tests",
+          "support": 0.009
+        },
+        {
+          "confidence": 1.0,
+          "pair_commits": 2,
+          "peer": "tests/secret_vault",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.5,
+          "pair_commits": 1,
+          "peer": "src/kis_mcp",
+          "support": 0.004
+        }
+      ],
+      "commits": 2,
+      "distinct_subjects": 2,
+      "fan_in": 5,
+      "fan_out": 3,
+      "loc": 1316,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/secrets"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.9,
+          "pair_commits": 9,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.04
+        },
+        {
+          "confidence": 0.3,
+          "pair_commits": 3,
+          "peer": "tests/providers/github",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.2,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.2,
+          "pair_commits": 2,
+          "peer": "tests/discover",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.1,
+          "pair_commits": 1,
+          "peer": "scripts",
+          "support": 0.004
+        }
+      ],
+      "commits": 10,
+      "distinct_subjects": 10,
+      "fan_in": 1,
+      "fan_out": 4,
+      "loc": 1289,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/providers/supabase"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 1.0,
+          "pair_commits": 5,
+          "peer": "tests",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.4,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.4,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.4,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/secrets",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.4,
+          "pair_commits": 2,
+          "peer": "tests/providers",
+          "support": 0.009
+        }
+      ],
+      "commits": 5,
+      "distinct_subjects": 5,
+      "fan_in": 0,
+      "fan_out": 4,
+      "loc": 1128,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/secret_vault"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.857,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/skills",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.429,
+          "pair_commits": 3,
+          "peer": "tests/capabilities",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/capabilities",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.286,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/discover",
+          "support": 0.009
+        }
+      ],
+      "commits": 7,
+      "distinct_subjects": 7,
+      "fan_in": 0,
+      "fan_out": 4,
+      "loc": 1051,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/skills"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.545,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.545,
+          "pair_commits": 6,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.545,
+          "pair_commits": 6,
+          "peer": "tests/discover",
+          "support": 0.027
+        },
+        {
+          "confidence": 0.455,
+          "pair_commits": 5,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.022
+        },
+        {
+          "confidence": 0.364,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/discover",
+          "support": 0.018
+        }
+      ],
+      "commits": 11,
+      "distinct_subjects": 9,
+      "fan_in": 4,
+      "fan_out": 5,
+      "loc": 519,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "src/kis_mcp/gateway"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.25,
+          "pair_commits": 2,
+          "peer": "src/kis_mcp/workflows",
+          "support": 0.009
+        },
+        {
+          "confidence": 0.125,
+          "pair_commits": 1,
+          "peer": "src/kis_mcp/tools",
+          "support": 0.004
+        },
+        {
+          "confidence": 0.125,
+          "pair_commits": 1,
+          "peer": "tests",
+          "support": 0.004
+        },
+        {
+          "confidence": 0.125,
+          "pair_commits": 1,
+          "peer": "tests/discover",
+          "support": 0.004
+        },
+        {
+          "confidence": 0.125,
+          "pair_commits": 1,
+          "peer": "tests/secret_vault",
+          "support": 0.004
+        }
+      ],
+      "commits": 8,
+      "distinct_subjects": 8,
+      "fan_in": 0,
+      "fan_out": 0,
+      "loc": 278,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/bootstrap"
+    },
+    {
+      "cochange_peers": [
+        {
+          "confidence": 0.5,
+          "pair_commits": 4,
+          "peer": "src/kis_mcp/providers",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.5,
+          "pair_commits": 4,
+          "peer": "tests/projects",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.5,
+          "pair_commits": 4,
+          "peer": "tests/providers/github",
+          "support": 0.018
+        },
+        {
+          "confidence": 0.375,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/gateway",
+          "support": 0.013
+        },
+        {
+          "confidence": 0.375,
+          "pair_commits": 3,
+          "peer": "src/kis_mcp/projects",
+          "support": 0.013
+        }
+      ],
+      "commits": 8,
+      "distinct_subjects": 7,
+      "fan_in": 0,
+      "fan_out": 2,
+      "loc": 200,
+      "provenance": {
+        "cochange_peers": "M",
+        "commits": "M",
+        "distinct_subjects": "M",
+        "fan_in": "M",
+        "fan_out": "M",
+        "loc": "M"
+      },
+      "unit": "tests/repositories"
+    }
+  ]
+}

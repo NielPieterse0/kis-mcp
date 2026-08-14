@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "134-preserve-system-audit-evidence",
+  "status": "active",
+  "branch": "change/134-preserve-system-audit-evidence",
+  "worktree": ".work/worktrees/134-preserve-system-audit-evidence",
+  "base": "main",
+  "outcome": "Preserve the completed 112 system-audit evidence bundle on current main lineage, then retire the stale 112 worktree only after exact governed landing.",
+  "owned_paths": [
+    ".work/changes/112-system-audit-review/**",
+    ".work/changes/134-preserve-system-audit-evidence/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "local_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "upstream_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-134",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 194,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}
