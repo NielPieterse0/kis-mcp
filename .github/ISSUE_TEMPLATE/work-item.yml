@@ -1,0 +1,47 @@
+name: Work item
+description: Capture one bounded outcome for Work Management.
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a plain bounded outcome for the title, for example `Add deterministic next-work selection`.
+        Do not add status, priority, record IDs, or type prefixes to the title; structured Work Management fields own those facts.
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What should be true when this work is complete?
+      placeholder: Describe one bounded result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why is this needed? Keep implementation metadata in Work Management, not here.
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List the observable conditions that establish completion.
+      placeholder: |
+        - [ ] First observable completion condition
+        - [ ] Second observable completion condition
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints / dependencies
+      description: Optional constraints, dependencies, or known blockers.
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence / references
+      description: Optional links, source reviews, screenshots, or other supporting evidence.

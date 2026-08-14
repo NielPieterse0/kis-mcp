@@ -24,15 +24,19 @@ def imported_modules(path: Path) -> set[str]:
     return modules
 
 
-def test_work_management_package_has_bounded_files_and_no_platform_dependencies() -> None:
+def test_work_management_package_has_bounded_files_and_no_platform_dependencies() -> (
+    None
+):
     files = {path.name for path in PACKAGE.glob("*.py")}
     assert files == {
         "__init__.py",
         "backend.py",
         "contracts.py",
+        "command_settings.py",
         "evidence.py",
         "intake.py",
         "lifecycle.py",
+        "project_commands.py",
         "records.py",
         "reconciliation.py",
         "reviews.py",
@@ -45,12 +49,8 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
     }
 
     imports = {
-        module
-        for path in PACKAGE.glob("*.py")
-        for module in imported_modules(path)
+        module for path in PACKAGE.glob("*.py") for module in imported_modules(path)
     }
     assert not {
-        module
-        for module in imports
-        if module.startswith(FORBIDDEN_IMPORT_PREFIXES)
+        module for module in imports if module.startswith(FORBIDDEN_IMPORT_PREFIXES)
     }

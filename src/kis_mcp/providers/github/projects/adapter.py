@@ -215,14 +215,21 @@ def _repository_name(value: Any) -> str | None:
         return value.strip() or None
     if not isinstance(value, Mapping):
         return None
-    direct = value.get("nameWithOwner", value.get("name_with_owner", value.get("full_name")))
+    direct = value.get(
+        "nameWithOwner", value.get("name_with_owner", value.get("full_name"))
+    )
     if isinstance(direct, str) and direct.strip():
         return direct.strip()
     owner = value.get("owner")
     name = value.get("name")
     if isinstance(owner, Mapping):
         owner = owner.get("login", owner.get("name"))
-    if isinstance(owner, str) and owner.strip() and isinstance(name, str) and name.strip():
+    if (
+        isinstance(owner, str)
+        and owner.strip()
+        and isinstance(name, str)
+        and name.strip()
+    ):
         return f"{owner.strip()}/{name.strip()}"
     return None
 
@@ -280,9 +287,7 @@ def _field_values(raw: Any, operation: str) -> tuple[ProjectFieldValue, ...]:
         raw_value: Any = entry.get("value")
         if "value" not in entry:
             raw_value = entry
-        values.append(
-            _field_value(name, raw_value, field_id=_optional_text(field_id))
-        )
+        values.append(_field_value(name, raw_value, field_id=_optional_text(field_id)))
     return tuple(values)
 
 
@@ -301,7 +306,10 @@ def _normalize_item(raw: Mapping[str, Any], operation: str) -> ProjectItem:
         if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
             raise _invalid(operation, "item number was not a positive integer")
     state = raw.get("state", content.get("state"))
-    url = raw.get("url", raw.get("html_url", content.get("url", content.get("html_url"))))
+    url = raw.get(
+        "url", raw.get("html_url", content.get("url", content.get("html_url")))
+    )
+    revision = raw.get("updatedAt", raw.get("updated_at", raw.get("revision")))
     values = raw.get(
         "fieldValues",
         raw.get(
@@ -317,6 +325,7 @@ def _normalize_item(raw: Mapping[str, Any], operation: str) -> ProjectItem:
         number=number,
         state=_optional_text(state),
         url=_optional_text(url),
+        revision=_optional_text(revision),
         field_values=_field_values(values, operation),
     )
 
@@ -331,15 +340,25 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
     ) -> None:
         if not hasattr(caller, "call_tool"):
             raise ValueError("caller must provide call_tool")
-        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 50:
+        if (
+            isinstance(page_size, bool)
+            or not isinstance(page_size, int)
+            or not 1 <= page_size <= 50
+        ):
             raise ValueError("page_size must be between 1 and 50")
-        if isinstance(max_pages, bool) or not isinstance(max_pages, int) or max_pages <= 0:
+        if (
+            isinstance(max_pages, bool)
+            or not isinstance(max_pages, int)
+            or max_pages <= 0
+        ):
             raise ValueError("max_pages must be a positive integer")
         self._caller = caller
         self._page_size = page_size
         self._max_pages = max_pages
 
-    async def _call(self, operation: str, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    async def _call(
+        self, operation: str, tool: str, arguments: dict[str, Any]
+    ) -> dict[str, Any]:
         try:
             result = await self._caller.call_tool(tool, arguments)
         except Exception as exc:
@@ -356,7 +375,9 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
             "project_number": binding.project_number,
         }
 
-    async def _read_project(self, binding: ProjectBinding) -> tuple[str, str | None, bool]:
+    async def _read_project(
+        self, binding: ProjectBinding
+    ) -> tuple[str, str | None, bool]:
         arguments = {"method": "get_project", **self._base_arguments(binding)}
         document = await self._call("get_project", _PROJECT_GET, arguments)
         candidate = document.get("project", document.get("projectV2", document))
@@ -383,7 +404,9 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
                 arguments["after"] = cursor
             document = await self._call("list_project_fields", _PROJECT_LIST, arguments)
             nodes, page_source = _nodes(document, "fields", "list_project_fields")
-            fields.extend(_normalize_field(node, "list_project_fields") for node in nodes)
+            fields.extend(
+                _normalize_field(node, "list_project_fields") for node in nodes
+            )
             has_next, cursor = _page_info(page_source, "list_project_fields")
             if not has_next:
                 return tuple(fields)
@@ -414,9 +437,7 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
             document = await self._call("list_project_items", _PROJECT_LIST, arguments)
             nodes, page_source = _nodes(document, "items", "list_project_items")
             has_next, next_cursor = _page_info(page_source, "list_project_items")
-            normalized = [
-                _normalize_item(node, "list_project_items") for node in nodes
-            ]
+            normalized = [_normalize_item(node, "list_project_items") for node in nodes]
             if len(normalized) > remaining:
                 if not has_next or next_cursor is None:
                     raise _invalid(
@@ -445,7 +466,11 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
             raise ValueError("project_binding must be a ProjectBinding")
         if project_binding.provider_id != "github-mcp":
             raise ValueError("GitHub inventory requires provider_id github-mcp")
-        if isinstance(item_limit, bool) or not isinstance(item_limit, int) or item_limit <= 0:
+        if (
+            isinstance(item_limit, bool)
+            or not isinstance(item_limit, int)
+            or item_limit <= 0
+        ):
             raise ValueError("item_limit must be a positive integer")
         normalized_fields: list[str] = []
         seen: set[str] = set()

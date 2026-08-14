@@ -11,6 +11,28 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 
+def _load_change_governance_settings() -> dict[str, Any]:
+    path = (
+        Path(__file__).resolve().parents[1]
+        / "settings"
+        / "change-governance.settings.json"
+    )
+    document = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(document, dict) or document.get("schema_version") != 1:
+        raise RuntimeError(
+            "CHANGE_GOVERNANCE_SETTINGS_INVALID: schema_version must be 1"
+        )
+    required = {"schema_version", "complexities", "review_types", "risk_triggers"}
+    if set(document) != required:
+        raise RuntimeError(
+            "CHANGE_GOVERNANCE_SETTINGS_INVALID: unexpected settings keys"
+        )
+    return document
+
+
+_CHANGE_GOVERNANCE_SETTINGS = _load_change_governance_settings()
+
+
 CHANGE_ID_PATTERN = re.compile(r"^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 PROJECT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 WORK_RECORD_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+$")
@@ -18,30 +40,45 @@ SOURCE_REPOSITORY_PATTERN = re.compile(r"^[^/\s]+/[^/\s]+$")
 ACTIVE_STATUSES = frozenset({"active", "ready"})
 ALL_STATUSES = ACTIVE_STATUSES | {"closed"}
 DOCUMENTATION_IMPACTS = frozenset(
-    {"not_assessed", "none", "planned", "in_progress", "pre_merge_complete", "post_merge_complete"}
+    {
+        "not_assessed",
+        "none",
+        "planned",
+        "in_progress",
+        "pre_merge_complete",
+        "post_merge_complete",
+    }
 )
 WORK_SOURCE_KINDS = frozenset({"issue", "pull_request"})
 LEGACY_RISK_PROFILES = frozenset({"lean", "standard", "rigorous"})
-COMPLEXITIES = frozenset({"small", "medium", "large"})
-RISK_TRIGGERS = frozenset(
-    {
-        "security",
-        "secrets",
-        "sensitive_data",
-        "money",
-        "persistent_state",
-        "migration",
-        "external_action",
-        "deployment",
-        "destructive",
-        "public_contract",
-        "architecture_boundary",
-    }
+COMPLEXITIES = frozenset(_CHANGE_GOVERNANCE_SETTINGS["complexities"])
+RISK_TRIGGERS = frozenset(_CHANGE_GOVERNANCE_SETTINGS["risk_triggers"])
+CHANGE_FILES_BY_COMPLEXITY = {
+    name: tuple(spec["artifacts"])
+    for name, spec in _CHANGE_GOVERNANCE_SETTINGS["complexities"].items()
+}
+BASE_RELATIONS = frozenset(
+    {"same_sha", "tree_equivalent", "content_divergence", "unavailable"}
 )
-BASE_RELATIONS = frozenset({"same_sha", "tree_equivalent", "content_divergence", "unavailable"})
-FULL_CHANGE_FILES = ("scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md")
-COMPACT_CHANGE_FILES = ("scope.json", "change.md")
-TEMPLATE_CHANGE_FILES = FULL_CHANGE_FILES + ("change.md",)
+LEGACY_FULL_CHANGE_FILES = (
+    "scope.json",
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "closeout.md",
+)
+LEGACY_COMPACT_CHANGE_FILES = ("scope.json", "change.md")
+TEMPLATE_CHANGE_FILES = tuple(
+    dict.fromkeys(
+        file_name
+        for files in (
+            *CHANGE_FILES_BY_COMPLEXITY.values(),
+            LEGACY_FULL_CHANGE_FILES,
+            LEGACY_COMPACT_CHANGE_FILES,
+        )
+        for file_name in files
+    )
+)
 REQUIRED_FIELDS = frozenset(
     {
         "schema_version",
@@ -80,9 +117,9 @@ class PathClaim:
         if not self.recursive and not other.recursive:
             return self.prefix == other.prefix
         if self.recursive and other.recursive:
-            return _is_same_or_descendant(self.prefix, other.prefix) or _is_same_or_descendant(
-                other.prefix, self.prefix
-            )
+            return _is_same_or_descendant(
+                self.prefix, other.prefix
+            ) or _is_same_or_descendant(other.prefix, self.prefix)
         recursive = self if self.recursive else other
         exact = other if self.recursive else self
         return _is_same_or_descendant(exact.prefix, recursive.prefix)
@@ -127,9 +164,17 @@ class WorkManagementClaim:
                 f"WORK_MANAGEMENT_SOURCE_REPOSITORY_INVALID: {source_repository}"
             )
         source_number = data["source_number"]
-        if isinstance(source_number, bool) or not isinstance(source_number, int) or source_number <= 0:
-            raise ClaimError("WORK_MANAGEMENT_SOURCE_NUMBER_INVALID: expected positive integer")
-        source_kind = _require_string(data["source_kind"], "work_management.source_kind")
+        if (
+            isinstance(source_number, bool)
+            or not isinstance(source_number, int)
+            or source_number <= 0
+        ):
+            raise ClaimError(
+                "WORK_MANAGEMENT_SOURCE_NUMBER_INVALID: expected positive integer"
+            )
+        source_kind = _require_string(
+            data["source_kind"], "work_management.source_kind"
+        )
         if source_kind not in WORK_SOURCE_KINDS:
             raise ClaimError(f"WORK_MANAGEMENT_SOURCE_KIND_INVALID: {source_kind}")
         documentation_impact = _require_string(
@@ -173,18 +218,30 @@ class BaseEvidence:
     def from_mapping(cls, data: Mapping[str, Any]) -> "BaseEvidence":
         local_sha = _require_sha(data.get("local_sha"), "base_evidence.local_sha")
         local_tree = _require_sha(data.get("local_tree"), "base_evidence.local_tree")
-        upstream_sha = _optional_sha(data.get("upstream_sha"), "base_evidence.upstream_sha")
-        upstream_tree = _optional_sha(data.get("upstream_tree"), "base_evidence.upstream_tree")
-        upstream_ref = _optional_string(data.get("upstream_ref"), "base_evidence.upstream_ref")
-        evidence_source = _require_string(data.get("evidence_source"), "base_evidence.evidence_source")
+        upstream_sha = _optional_sha(
+            data.get("upstream_sha"), "base_evidence.upstream_sha"
+        )
+        upstream_tree = _optional_sha(
+            data.get("upstream_tree"), "base_evidence.upstream_tree"
+        )
+        upstream_ref = _optional_string(
+            data.get("upstream_ref"), "base_evidence.upstream_ref"
+        )
+        evidence_source = _require_string(
+            data.get("evidence_source"), "base_evidence.evidence_source"
+        )
         relation = _require_string(data.get("relation"), "base_evidence.relation")
         if relation not in BASE_RELATIONS:
             raise ClaimError(f"BASE_EVIDENCE_RELATION_INVALID: {relation}")
         if (upstream_sha is None) != (upstream_tree is None):
-            raise ClaimError("BASE_EVIDENCE_UPSTREAM_INCOMPLETE: sha/tree must be supplied together")
+            raise ClaimError(
+                "BASE_EVIDENCE_UPSTREAM_INCOMPLETE: sha/tree must be supplied together"
+            )
         expected = _base_relation(local_sha, local_tree, upstream_sha, upstream_tree)
         if relation != expected:
-            raise ClaimError(f"BASE_EVIDENCE_RELATION_MISMATCH: expected {expected}, received {relation}")
+            raise ClaimError(
+                f"BASE_EVIDENCE_RELATION_MISMATCH: expected {expected}, received {relation}"
+            )
         return cls(
             local_sha=local_sha,
             local_tree=local_tree,
@@ -246,7 +303,9 @@ class ChangeClaim:
             allowed_fields.update({"risk_profile", "base_evidence", "work_management"})
         elif schema_version == 4:
             required_fields.update({"complexity", "risk_triggers", "base_evidence"})
-            allowed_fields.update({"complexity", "risk_triggers", "base_evidence", "work_management"})
+            allowed_fields.update(
+                {"complexity", "risk_triggers", "base_evidence", "work_management"}
+            )
         missing = sorted(required_fields.difference(data))
         unknown = sorted(set(data).difference(allowed_fields))
         if missing:
@@ -299,7 +358,11 @@ class ChangeClaim:
             )
 
         base = _require_string(data["base"], "base")
-        if base.startswith("-") or ".." in base or any(character.isspace() for character in base):
+        if (
+            base.startswith("-")
+            or ".." in base
+            or any(character.isspace() for character in base)
+        ):
             raise ClaimError(f"CHANGE_BASE_INVALID: {base}")
 
         outcome = _require_string(data["outcome"], "outcome")
@@ -377,11 +440,15 @@ class ChangeClaim:
         }
         if self.schema_version == 3:
             mapping["risk_profile"] = self.risk_profile
-            mapping["base_evidence"] = self.base_evidence.to_mapping() if self.base_evidence else None
+            mapping["base_evidence"] = (
+                self.base_evidence.to_mapping() if self.base_evidence else None
+            )
         elif self.schema_version >= 4:
             mapping["complexity"] = self.complexity
             mapping["risk_triggers"] = list(self.risk_triggers)
-            mapping["base_evidence"] = self.base_evidence.to_mapping() if self.base_evidence else None
+            mapping["base_evidence"] = (
+                self.base_evidence.to_mapping() if self.base_evidence else None
+            )
         if self.work_management is not None:
             mapping["work_management"] = self.work_management.to_mapping()
         return mapping
@@ -406,7 +473,9 @@ class CleanupResult:
             "cleaned": self.change_id,
             "branch": self.branch,
             "recovered": self.recovered,
-            "backup_path": str(self.backup_path) if self.backup_path is not None else None,
+            "backup_path": str(self.backup_path)
+            if self.backup_path is not None
+            else None,
         }
 
 
@@ -577,18 +646,24 @@ def _capture_base_evidence(
     supplied_sha = _optional_sha(upstream_sha, "upstream_sha")
     supplied_tree = _optional_sha(upstream_tree, "upstream_tree")
     if (supplied_sha is None) != (supplied_tree is None):
-        raise ClaimError("BASE_EVIDENCE_UPSTREAM_INCOMPLETE: sha/tree must be supplied together")
+        raise ClaimError(
+            "BASE_EVIDENCE_UPSTREAM_INCOMPLETE: sha/tree must be supplied together"
+        )
     ref = _optional_string(upstream_ref, "upstream_ref")
     evidence_source = "provided" if supplied_sha is not None else "unavailable"
     if supplied_sha is None:
         candidate = ref or f"refs/remotes/origin/{base}"
         if _git_ref_exists(root, candidate):
             supplied_sha = _require_sha(
-                _run_git(root, "rev-parse", "--verify", f"{candidate}^{{commit}}").stdout.strip(),
+                _run_git(
+                    root, "rev-parse", "--verify", f"{candidate}^{{commit}}"
+                ).stdout.strip(),
                 "base_evidence.upstream_sha",
             )
             supplied_tree = _require_sha(
-                _run_git(root, "rev-parse", "--verify", f"{supplied_sha}^{{tree}}").stdout.strip(),
+                _run_git(
+                    root, "rev-parse", "--verify", f"{supplied_sha}^{{tree}}"
+                ).stdout.strip(),
                 "base_evidence.upstream_tree",
             )
             ref = candidate
@@ -634,7 +709,9 @@ def create_change_worktree(
         work_management_claim = (
             work_management
             if isinstance(work_management, WorkManagementClaim)
-            else WorkManagementClaim.from_mapping(_require_mapping(work_management, "work_management"))
+            else WorkManagementClaim.from_mapping(
+                _require_mapping(work_management, "work_management")
+            )
         )
     _require_primary_clean_worktree(root, base)
     _require_worktree_directory_ignored(root)
@@ -774,7 +851,9 @@ def check_current_change(repository: Path) -> list[str]:
     claim = matches[0]
     _require_change_artifacts(root, claim)
     merge_base = _run_git(root, "merge-base", claim.base, "HEAD").stdout.strip()
-    committed = _run_git(root, "diff", "--name-only", f"{merge_base}...HEAD").stdout.splitlines()
+    committed = _run_git(
+        root, "diff", "--name-only", f"{merge_base}...HEAD"
+    ).stdout.splitlines()
     working = _working_tree_paths(root)
     changed = [*committed, *working]
     violations = paths_outside_claim(claim, changed)
@@ -788,7 +867,9 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
     normalized_id = _require_change_id(change_id, "change_id")
     target = (root / ".work" / "worktrees" / normalized_id).resolve()
     branch = f"change/{normalized_id}"
-    entries = {entry.branch: entry for entry in discover_worktrees(root) if entry.branch}
+    entries = {
+        entry.branch: entry for entry in discover_worktrees(root) if entry.branch
+    }
     entry = entries.get(branch)
     if entry is None or entry.path != target:
         raise ClaimError(f"CHANGE_WORKTREE_MISSING: {normalized_id}")
@@ -797,7 +878,11 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
     if status.strip():
         raise ClaimError(f"CHANGE_WORKTREE_DIRTY: {target}")
 
-    claims = [claim for claim in _claims_in_checkout(target) if claim.change_id == normalized_id]
+    claims = [
+        claim
+        for claim in _claims_in_checkout(target)
+        if claim.change_id == normalized_id
+    ]
     if len(claims) != 1:
         raise ClaimError(f"CHANGE_SCOPE_MISSING: {normalized_id}")
     claim = claims[0]
@@ -828,7 +913,11 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
             if worktree.branch
         }
         if branch in remaining:
-            detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+            detail = (
+                removal.stderr.strip()
+                or removal.stdout.strip()
+                or "unknown removal failure"
+            )
             raise ClaimError(
                 f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered: {detail}"
             )
@@ -883,7 +972,9 @@ def _path_conflicts(left: ChangeClaim, right: ChangeClaim) -> list[str]:
                 )
     for left_shared in left.shared_paths:
         for right_shared in right.shared_paths:
-            if left_shared.overlaps(right_shared) and not _claims_are_coordinated(left, right):
+            if left_shared.overlaps(right_shared) and not _claims_are_coordinated(
+                left, right
+            ):
                 conflicts.append(
                     "UNCOORDINATED_SHARED_PATH: "
                     f"{left.change_id}:{left_shared.raw} overlaps "
@@ -897,7 +988,10 @@ def _claims_are_coordinated(left: ChangeClaim, right: ChangeClaim) -> bool:
         return True
     if left.integration_owner and left.integration_owner == right.integration_owner:
         return True
-    if left.integration_owner == right.change_id or right.integration_owner == left.change_id:
+    if (
+        left.integration_owner == right.change_id
+        or right.integration_owner == left.change_id
+    ):
         return True
     return False
 
@@ -917,42 +1011,64 @@ def _claims_in_checkout(root: Path) -> list[ChangeClaim]:
 def _require_primary_clean_worktree(root: Path, base: str) -> None:
     entries = discover_worktrees(root)
     if not entries or entries[0].path != root:
-        raise ClaimError("PRIMARY_WORKTREE_UNRESOLVED: cannot determine the primary checkout")
+        raise ClaimError(
+            "PRIMARY_WORKTREE_UNRESOLVED: cannot determine the primary checkout"
+        )
     current = _run_git(root, "branch", "--show-current").stdout.strip()
     if current != base:
-        raise ClaimError(f"PRIMARY_BRANCH_REQUIRED: expected {base}, received {current or '<detached>'}")
+        raise ClaimError(
+            f"PRIMARY_BRANCH_REQUIRED: expected {base}, received {current or '<detached>'}"
+        )
     status = _run_git(root, "status", "--porcelain", "--untracked-files=all").stdout
     if status.strip():
-        raise ClaimError("PRIMARY_WORKTREE_DIRTY: commit or quarantine current changes first")
+        raise ClaimError(
+            "PRIMARY_WORKTREE_DIRTY: commit or quarantine current changes first"
+        )
 
 
 def _require_worktree_directory_ignored(root: Path) -> None:
     probe = ".work/worktrees/.governance-probe"
     result = _run_git(root, "check-ignore", "-q", probe, check=False)
     if result.returncode != 0:
-        raise ClaimError("WORKTREE_DIRECTORY_NOT_IGNORED: add .work/worktrees/ to .gitignore")
+        raise ClaimError(
+            "WORKTREE_DIRECTORY_NOT_IGNORED: add .work/worktrees/ to .gitignore"
+        )
 
 
 def _required_change_files(claim: ChangeClaim) -> tuple[str, ...]:
-    if claim.schema_version == 3 and claim.risk_profile == "lean":
-        return COMPACT_CHANGE_FILES
-    if claim.schema_version >= 4 and claim.complexity == "small":
-        return COMPACT_CHANGE_FILES
-    return FULL_CHANGE_FILES
+    if claim.schema_version == 3:
+        return (
+            LEGACY_COMPACT_CHANGE_FILES
+            if claim.risk_profile == "lean"
+            else LEGACY_FULL_CHANGE_FILES
+        )
+    if claim.schema_version >= 4:
+        if claim.complexity not in CHANGE_FILES_BY_COMPLEXITY:
+            raise ClaimError(f"CHANGE_COMPLEXITY_INVALID: {claim.complexity}")
+        return CHANGE_FILES_BY_COMPLEXITY[claim.complexity]
+    return LEGACY_FULL_CHANGE_FILES
 
 
 def _require_template(root: Path) -> None:
     template = root / ".work" / "changes" / "_template"
-    missing = [name for name in TEMPLATE_CHANGE_FILES if not (template / name).is_file()]
+    missing = [
+        name for name in TEMPLATE_CHANGE_FILES if not (template / name).is_file()
+    ]
     if missing:
         raise ClaimError(f"CHANGE_TEMPLATE_MISSING: {', '.join(missing)}")
 
 
 def _require_change_artifacts(root: Path, claim: ChangeClaim) -> None:
     change_root = root / ".work" / "changes" / claim.change_id
-    missing = [name for name in _required_change_files(claim) if not (change_root / name).is_file()]
+    missing = [
+        name
+        for name in _required_change_files(claim)
+        if not (change_root / name).is_file()
+    ]
     if missing:
-        raise ClaimError(f"CHANGE_ARTIFACTS_MISSING: {claim.change_id}: {', '.join(missing)}")
+        raise ClaimError(
+            f"CHANGE_ARTIFACTS_MISSING: {claim.change_id}: {', '.join(missing)}"
+        )
 
 
 def _working_tree_paths(root: Path) -> list[str]:
@@ -969,7 +1085,10 @@ def _working_tree_paths(root: Path) -> list[str]:
 
 
 def _git_ref_exists(root: Path, ref: str) -> bool:
-    return _run_git(root, "show-ref", "--verify", "--quiet", ref, check=False).returncode == 0
+    return (
+        _run_git(root, "show-ref", "--verify", "--quiet", ref, check=False).returncode
+        == 0
+    )
 
 
 def _run_git(
@@ -985,7 +1104,11 @@ def _run_git(
         check=False,
     )
     if check and completed.returncode != 0:
-        detail = completed.stderr.strip() or completed.stdout.strip() or "unknown git failure"
+        detail = (
+            completed.stderr.strip()
+            or completed.stdout.strip()
+            or "unknown git failure"
+        )
         raise ClaimError(f"GIT_COMMAND_FAILED: git {' '.join(args)}: {detail}")
     return completed
 
@@ -1021,7 +1144,9 @@ def _require_risk_triggers(value: Any) -> tuple[str, ...]:
     if unknown:
         raise ClaimError(f"CHANGE_RISK_TRIGGER_INVALID: {', '.join(unknown)}")
     if tuple(values) != tuple(sorted(values)):
-        raise ClaimError("CHANGE_RISK_TRIGGER_ORDER_INVALID: risk_triggers must be sorted")
+        raise ClaimError(
+            "CHANGE_RISK_TRIGGER_ORDER_INVALID: risk_triggers must be sorted"
+        )
     return tuple(values)
 
 
@@ -1046,7 +1171,9 @@ def _require_change_id(value: Any, field: str) -> str:
 
 def _require_string(value: Any, field: str) -> str:
     if not isinstance(value, str) or not value.strip():
-        raise ClaimError(f"CHANGE_FIELD_TYPE_INVALID: {field} must be a non-empty string")
+        raise ClaimError(
+            f"CHANGE_FIELD_TYPE_INVALID: {field} must be a non-empty string"
+        )
     return value.strip()
 
 
@@ -1069,7 +1196,9 @@ def _optional_sha(value: Any, field: str) -> str | None:
     return _require_sha(value, field)
 
 
-def _base_relation(local_sha: str, local_tree: str, upstream_sha: str | None, upstream_tree: str | None) -> str:
+def _base_relation(
+    local_sha: str, local_tree: str, upstream_sha: str | None, upstream_tree: str | None
+) -> str:
     if upstream_sha is None or upstream_tree is None:
         return "unavailable"
     if local_sha == upstream_sha:
@@ -1107,7 +1236,9 @@ def _is_same_or_descendant(path: str, parent: str) -> bool:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Manage bounded parallel change worktrees.")
+    parser = argparse.ArgumentParser(
+        description="Manage bounded parallel change worktrees."
+    )
     parser.add_argument("--repository", type=Path, default=Path.cwd())
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -1120,7 +1251,9 @@ def _build_parser() -> argparse.ArgumentParser:
     new.add_argument("--depends-on", action="append", default=[])
     new.add_argument("--integration-owner")
     new.add_argument("--complexity", default="medium", choices=sorted(COMPLEXITIES))
-    new.add_argument("--risk-trigger", action="append", default=[], choices=sorted(RISK_TRIGGERS))
+    new.add_argument(
+        "--risk-trigger", action="append", default=[], choices=sorted(RISK_TRIGGERS)
+    )
     new.add_argument("--upstream-sha")
     new.add_argument("--upstream-tree")
     new.add_argument("--upstream-ref")
@@ -1132,13 +1265,17 @@ def _build_parser() -> argparse.ArgumentParser:
     new.add_argument("--documentation-impact", choices=sorted(DOCUMENTATION_IMPACTS))
     new.add_argument("--base", default="main")
 
-    validate = subparsers.add_parser("validate", help="Validate active change claims and worktrees.")
+    validate = subparsers.add_parser(
+        "validate", help="Validate active change claims and worktrees."
+    )
     validate.add_argument(
         "--claims-only",
         action="store_true",
         help="Validate claim semantics without requiring unrelated active worktrees to exist locally.",
     )
-    subparsers.add_parser("check", help="Check the current diff against its declared scope.")
+    subparsers.add_parser(
+        "check", help="Check the current diff against its declared scope."
+    )
     subparsers.add_parser("list", help="List active and ready change claims.")
     cleanup = subparsers.add_parser("cleanup", help="Remove one clean merged worktree.")
     cleanup.add_argument("change_id")
@@ -1184,7 +1321,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.repository,
                 require_active_worktrees=not args.claims_only,
             )
-            print(json.dumps({"active_changes": sum(c.status in ACTIVE_STATUSES for c in claims)}))
+            print(
+                json.dumps(
+                    {"active_changes": sum(c.status in ACTIVE_STATUSES for c in claims)}
+                )
+            )
         elif args.command == "check":
             changed = check_current_change(args.repository)
             print(json.dumps({"changed_paths": changed}))

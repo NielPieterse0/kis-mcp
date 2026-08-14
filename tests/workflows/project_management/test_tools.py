@@ -18,6 +18,77 @@ class Service:
             }
         )
 
+    async def next_work(self, project_id: str, *, item_limit=100):
+        return SimpleNamespace(
+            to_json_dict=lambda: {
+                "project_id": project_id,
+                "item_limit": item_limit,
+                "selected": {"number": 7},
+                "complete": True,
+            }
+        )
+
+    async def take_next_work(self, project_id, execution_owner, **kwargs):
+        return {
+            "mode": "apply" if kwargs.get("apply") else "preview",
+            "project_id": project_id,
+            "execution_owner": execution_owner,
+        }
+
+    async def claim_work(
+        self, project_id, repository, issue_number, execution_owner, **kwargs
+    ):
+        return {
+            "mode": "apply" if kwargs.get("apply") else "preview",
+            "project_id": project_id,
+            "repository": repository,
+            "issue_number": issue_number,
+            "execution_owner": execution_owner,
+        }
+
+    async def release_work(
+        self, project_id, repository, issue_number, expected_owner, **kwargs
+    ):
+        return {
+            "mode": "apply" if kwargs.get("apply") else "preview",
+            "released": expected_owner,
+        }
+
+    async def transition_work(
+        self, project_id, repository, issue_number, target, **kwargs
+    ):
+        return {
+            "mode": "apply" if kwargs.get("apply") else "preview",
+            "target": target.value,
+        }
+
+    async def sync_change_classification(
+        self, project_id, repository, issue_number, change_id, **kwargs
+    ):
+        return {
+            "mode": "apply" if kwargs.get("apply") else "preview",
+            "change_id": change_id,
+        }
+
+    async def complete_work(
+        self, project_id, repository, issue_number, record, **kwargs
+    ):
+        return {
+            "mode": "apply" if kwargs.get("apply") else "preview",
+            "record_id": record.record_id,
+        }
+
+    async def schema_plan(self, project_id: str):
+        return SimpleNamespace(
+            to_json_dict=lambda: {
+                "project_id": project_id,
+                "portfolio_id": "default",
+                "ready": False,
+                "automatic_ready": False,
+                "actions": [{"kind": "create_field", "target": "Effort"}],
+            }
+        )
+
     async def schema_status(self, project_id: str):
         return SimpleNamespace(
             to_json_dict=lambda: {
@@ -84,6 +155,16 @@ def test_registers_only_bounded_task_level_tools() -> None:
     assert names == {
         "project_management_inventory",
         "project_management_reconcile",
+        "project_management_next_work",
+        "project_management_take_next_work",
+        "project_management_claim_work",
+        "project_management_release_work",
+        "project_management_transition_work",
+        "project_management_hold_work",
+        "project_management_defer_work",
+        "project_management_sync_change_classification",
+        "project_management_complete_work",
+        "project_management_schema_plan",
         "project_management_schema_status",
         "project_management_merge_readiness",
         "project_management_documentation_reconcile",
@@ -162,4 +243,7 @@ def test_portfolio_status_preserves_change_classification() -> None:
 
     assert result is not None
     assert result["records"][0]["complexity"] == "medium"
-    assert result["records"][0]["risk_triggers"] == ["external_action", "public_contract"]
+    assert result["records"][0]["risk_triggers"] == [
+        "external_action",
+        "public_contract",
+    ]

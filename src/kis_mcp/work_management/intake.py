@@ -9,6 +9,7 @@ from .contracts import (
     PUBLIC_SCHEMA_VERSION,
     ChangeComplexity,
     DocumentationImpact,
+    Effort,
     LifecycleState,
     Priority,
     RecordType,
@@ -52,6 +53,7 @@ class CaptureWorkItem:
     note: str | None = None
     record_type: RecordType = RecordType.IDEA
     priority: Priority = Priority.MEDIUM
+    effort: Effort = Effort.MEDIUM
     complexity: ChangeComplexity | None = None
     risk_triggers: tuple[RiskTrigger, ...] = ()
     module: str | None = None
@@ -64,21 +66,29 @@ class CaptureWorkItem:
             raise ValueError("capture command schema_version must be 1")
         object.__setattr__(self, "project_id", _project_id(self.project_id))
         object.__setattr__(self, "title", _text(self.title, "title"))
-        object.__setattr__(self, "idempotency_key", _text(self.idempotency_key, "idempotency_key"))
+        object.__setattr__(
+            self, "idempotency_key", _text(self.idempotency_key, "idempotency_key")
+        )
         object.__setattr__(self, "note", _optional_text(self.note, "note"))
         object.__setattr__(self, "module", _optional_text(self.module, "module"))
         if not isinstance(self.record_type, RecordType):
             raise ValueError("record_type must be a RecordType value")
         if not isinstance(self.priority, Priority):
             raise ValueError("priority must be a Priority value")
-        if self.complexity is not None and not isinstance(self.complexity, ChangeComplexity):
+        if not isinstance(self.effort, Effort):
+            raise ValueError("effort must be an Effort value")
+        if self.complexity is not None and not isinstance(
+            self.complexity, ChangeComplexity
+        ):
             raise ValueError("complexity must be a ChangeComplexity value")
         triggers = tuple(self.risk_triggers)
         if any(not isinstance(item, RiskTrigger) for item in triggers):
             raise ValueError("risk_triggers must contain RiskTrigger values")
         if len(set(triggers)) != len(triggers):
             raise ValueError("risk_triggers must be unique")
-        object.__setattr__(self, "risk_triggers", tuple(sorted(triggers, key=lambda item: item.value)))
+        object.__setattr__(
+            self, "risk_triggers", tuple(sorted(triggers, key=lambda item: item.value))
+        )
         if not isinstance(self.state, LifecycleState):
             raise ValueError("state must be a LifecycleState value")
         if not isinstance(self.documentation_impact, DocumentationImpact):
@@ -100,7 +110,10 @@ class CaptureWorkItem:
             "note": self.note,
             "record_type": self.record_type.value,
             "priority": self.priority.value,
-            "complexity": self.complexity.value if self.complexity is not None else None,
+            "effort": self.effort.value,
+            "complexity": self.complexity.value
+            if self.complexity is not None
+            else None,
             "risk_triggers": [item.value for item in self.risk_triggers],
             "module": self.module,
             "state": self.state.value,
@@ -122,13 +135,24 @@ class MutationResult:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("mutation result schema_version must be 1")
         object.__setattr__(self, "project_id", _project_id(self.project_id))
-        object.__setattr__(self, "idempotency_key", _text(self.idempotency_key, "idempotency_key"))
+        object.__setattr__(
+            self, "idempotency_key", _text(self.idempotency_key, "idempotency_key")
+        )
         if not isinstance(self.disposition, MutationDisposition):
             raise ValueError("disposition must be a MutationDisposition value")
-        object.__setattr__(self, "record_id", _optional_text(self.record_id, "record_id"))
+        object.__setattr__(
+            self, "record_id", _optional_text(self.record_id, "record_id")
+        )
         object.__setattr__(self, "message", _text(self.message, "message"))
-        object.__setattr__(self, "conflict_revision", _optional_text(self.conflict_revision, "conflict_revision"))
-        if self.disposition is MutationDisposition.CONFLICT and self.conflict_revision is None:
+        object.__setattr__(
+            self,
+            "conflict_revision",
+            _optional_text(self.conflict_revision, "conflict_revision"),
+        )
+        if (
+            self.disposition is MutationDisposition.CONFLICT
+            and self.conflict_revision is None
+        ):
             raise ValueError("conflict_revision is required for conflict results")
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -157,6 +181,7 @@ async def capture_work_item(
     note: str | None = None,
     record_type: RecordType = RecordType.IDEA,
     priority: Priority = Priority.MEDIUM,
+    effort: Effort = Effort.MEDIUM,
     complexity: ChangeComplexity | None = None,
     risk_triggers: tuple[RiskTrigger, ...] = (),
     module: str | None = None,
@@ -172,6 +197,7 @@ async def capture_work_item(
         note=note,
         record_type=record_type,
         priority=priority,
+        effort=effort,
         complexity=complexity,
         risk_triggers=risk_triggers,
         module=module,
@@ -181,7 +207,10 @@ async def capture_work_item(
     result = await backend.capture(command)
     if not isinstance(result, MutationResult):
         raise TypeError("intake backend returned an invalid result")
-    if result.project_id != command.project_id or result.idempotency_key != command.idempotency_key:
+    if (
+        result.project_id != command.project_id
+        or result.idempotency_key != command.idempotency_key
+    ):
         raise ValueError("intake backend returned mismatched identity")
     return result
 

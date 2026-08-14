@@ -10,8 +10,11 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
 
     assert set(by_id) == {
         "capture-project-work",
+        "take-next-project-work",
+        "manage-project-work-state",
         "persist-review-evidence",
         "inspect-project-schema",
+        "sync-change-classification",
         "reconcile-project-state",
         "report-programme-status",
         "verify-change-traceability",
@@ -22,9 +25,24 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
         "project_management_inventory",
         "project_management_reconcile",
     )
-    assert by_id["persist-review-evidence"].effects == (
-        OperationEffect.LOCAL_CHANGE,
+    assert by_id["take-next-project-work"].required_steps == (
+        "project_management_take_next_work",
     )
+    assert by_id["manage-project-work-state"].required_steps == (
+        "project_management_transition_work",
+        "project_management_hold_work",
+        "project_management_defer_work",
+        "project_management_release_work",
+        "project_management_complete_work",
+    )
+    assert by_id["sync-change-classification"].required_steps == (
+        "project_management_sync_change_classification",
+    )
+    assert by_id["inspect-project-schema"].required_steps == (
+        "project_management_schema_status",
+        "project_management_schema_plan",
+    )
+    assert by_id["persist-review-evidence"].effects == (OperationEffect.LOCAL_CHANGE,)
     assert by_id["reconcile-project-state"].effects == (
         OperationEffect.EXTERNAL,
         OperationEffect.LOCAL_CHANGE,

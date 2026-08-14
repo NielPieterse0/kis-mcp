@@ -1,31 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
-from .contracts import LifecycleState, Priority, WorkRecord
-
-_EXECUTABLE_STATES = frozenset(
-    {
-        LifecycleState.APPROVED,
-        LifecycleState.ACTIVE,
-        LifecycleState.REVIEW,
-        LifecycleState.VERIFICATION,
-        LifecycleState.DOCUMENTATION,
-    }
-)
-_STATE_ORDER = {
-    LifecycleState.ACTIVE: 0,
-    LifecycleState.REVIEW: 1,
-    LifecycleState.VERIFICATION: 2,
-    LifecycleState.DOCUMENTATION: 3,
-    LifecycleState.APPROVED: 4,
-}
-_PRIORITY_ORDER = {
-    Priority.CRITICAL: 0,
-    Priority.HIGH: 1,
-    Priority.MEDIUM: 2,
-    Priority.LOW: 3,
-}
+from .command_settings import CommandPlaneSettings, load_command_plane_settings
+from .contracts import WorkRecord
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,13 +21,39 @@ class WorkSelection:
     evaluations: tuple[CandidateEvaluation, ...]
 
 
-def _selection_key(record: WorkRecord) -> tuple[int, int, int, str]:
-    return (
-        _STATE_ORDER[record.state],
-        _PRIORITY_ORDER[record.priority],
-        record.created_order,
-        record.record_id,
-    )
+def _rank_index(value: str, ordered: tuple[str, ...], field: str) -> int:
+    try:
+        return ordered.index(value)
+    except ValueError as exc:
+        raise ValueError(f"{field} value is not configured: {value}") from exc
+
+
+def _selection_key(
+    record: WorkRecord, settings: CommandPlaneSettings
+) -> tuple[Any, ...]:
+    values: list[Any] = []
+    for field in settings.queue.ranking:
+        if field == "queue_rank":
+            values.append(
+                record.queue_rank if record.queue_rank is not None else 2**31 - 1
+            )
+        elif field == "priority":
+            values.append(
+                _rank_index(
+                    record.priority.value, settings.queue.priority_order, "priority"
+                )
+            )
+        elif field == "effort":
+            values.append(
+                _rank_index(record.effort.value, settings.queue.effort_order, "effort")
+            )
+        elif field == "created_order":
+            values.append(record.created_order)
+        elif field == "record_id":
+            values.append(record.record_id)
+        else:
+            raise ValueError(f"unsupported ranking field: {field}")
+    return tuple(values)
 
 
 def select_next_work(
@@ -56,11 +61,13 @@ def select_next_work(
     *,
     project_id: str | None = None,
     completed_record_ids: tuple[str, ...] = (),
+    settings: CommandPlaneSettings | None = None,
 ) -> WorkSelection:
     if not isinstance(records, tuple):
         raise ValueError("records must be a tuple")
     if any(not isinstance(record, WorkRecord) for record in records):
         raise ValueError("records must contain WorkRecord values")
+    configured = settings or load_command_plane_settings()
     if project_id is not None:
         if not isinstance(project_id, str) or not project_id.strip():
             raise ValueError("project_id must be a non-empty string")
@@ -71,19 +78,21 @@ def select_next_work(
     completed = {
         (record.project_id, record.record_id)
         for record in records
-        if record.state is LifecycleState.DONE
+        if record.state is configured.completion.terminal_state
     }
     if project_id is not None:
         completed.update((project_id, record_id) for record_id in completed_record_ids)
+
     evaluations: list[CandidateEvaluation] = []
     eligible_records: list[WorkRecord] = []
-
     for record in records:
         reasons: list[str] = []
         if project_id is not None and record.project_id != project_id:
             reasons.append("project_mismatch")
-        if record.state not in _EXECUTABLE_STATES:
+        if record.state not in configured.queue.eligible_states:
             reasons.append("state_not_executable")
+        if record.execution_owner is not None:
+            reasons.append(f"already_claimed:{record.execution_owner}")
         if record.approval_required and not record.approval_complete:
             reasons.append("approval_incomplete")
         for dependency_id in record.dependency_ids:
@@ -102,12 +111,12 @@ def select_next_work(
         if eligible:
             eligible_records.append(record)
 
-    selected = min(eligible_records, key=_selection_key) if eligible_records else None
+    selected = (
+        min(eligible_records, key=lambda record: _selection_key(record, configured))
+        if eligible_records
+        else None
+    )
     return WorkSelection(selected=selected, evaluations=tuple(evaluations))
 
 
-__all__ = [
-    "CandidateEvaluation",
-    "WorkSelection",
-    "select_next_work",
-]
+__all__ = ["CandidateEvaluation", "WorkSelection", "select_next_work"]

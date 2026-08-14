@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "field_authority": {
+    "Status": {"authority": "work_management", "direction": "command"},
+    "Record Type": {"authority": "work_management", "direction": "command"},
+    "Priority": {"authority": "work_management", "direction": "command"},
+    "Effort": {"authority": "work_management", "direction": "command"},
+    "Execution Owner": {"authority": "work_management", "direction": "command"},
+    "Review Trigger": {"authority": "work_management", "direction": "command"},
+    "Target Date": {"authority": "work_management", "direction": "command"},
+    "Iteration": {"authority": "work_management", "direction": "command"},
+    "Origin": {"authority": "work_management", "direction": "command"},
+    "Disposition": {"authority": "work_management", "direction": "command"},
+    "Severity": {"authority": "work_management", "direction": "command"},
+    "Confidence": {"authority": "work_management", "direction": "command"},
+    "Source Review": {"authority": "work_management", "direction": "command"},
+    "External Link": {"authority": "work_management", "direction": "command"},
+    "Documentation Impact": {"authority": "work_management_then_repository_change", "direction": "handoff"},
+    "Module": {"authority": "work_management_then_repository_change", "direction": "handoff"},
+    "Project ID": {"authority": "derived", "direction": "evidence"},
+    "Created": {"authority": "github", "direction": "evidence"},
+    "Blocked By": {"authority": "github", "direction": "evidence"},
+    "Change ID": {"authority": "repository_change", "direction": "evidence"},
+    "Complexity": {"authority": "repository_change", "direction": "evidence"},
+    "Risk Triggers": {"authority": "repository_change", "direction": "evidence"},
+    "Authority Revision": {"authority": "git", "direction": "evidence"},
+    "Verification": {"authority": "actions", "direction": "evidence"},
+    "Delivery Stage": {"authority": "derived", "direction": "evidence"},
+    "Repository": {"authority": "github", "direction": "evidence"}
+  },
+  "work_states": ["inbox", "triage", "proposed", "approved", "ready", "active", "blocked", "on_hold", "deferred", "rejected", "superseded", "done"],
+  "transitions": {
+    "inbox": ["triage", "deferred", "rejected", "superseded"],
+    "triage": ["proposed", "approved", "deferred", "rejected", "superseded"],
+    "proposed": ["approved", "deferred", "rejected", "superseded"],
+    "approved": ["ready", "active", "on_hold", "deferred", "superseded"],
+    "ready": ["active", "on_hold", "deferred", "superseded"],
+    "active": ["ready", "review", "blocked", "on_hold", "deferred", "done", "superseded"],
+    "review": ["active", "verification", "blocked", "on_hold", "superseded"],
+    "verification": ["active", "documentation", "blocked", "superseded"],
+    "documentation": ["done", "active", "blocked", "superseded"],
+    "blocked": ["ready", "active", "on_hold", "deferred", "superseded"],
+    "on_hold": ["ready", "active", "deferred", "rejected", "superseded"],
+    "deferred": ["triage", "proposed", "approved", "rejected", "superseded"],
+    "rejected": ["triage", "superseded"],
+    "done": [],
+    "superseded": []
+  },
+  "queue": {
+    "state_field": "Status",
+    "priority_field": "Priority",
+    "effort_field": "Effort",
+    "created_field": "Created",
+    "blocked_by_field": "Blocked By",
+    "eligible_states": ["ready"],
+    "priority_order": ["critical", "high", "medium", "low"],
+    "effort_order": ["tiny", "small", "medium", "large"],
+    "ranking": ["priority", "effort", "created_order", "record_id"]
+  },
+  "readiness": {
+    "required_project_fields": ["Record Type", "Priority", "Effort", "Documentation Impact"],
+    "required_issue_sections": ["Outcome", "Acceptance criteria"],
+    "requires_dependencies_understood": true
+  },
+  "transition_requirements": {
+    "on_hold": ["Review Trigger"],
+    "deferred": ["Review Trigger"]
+  },
+  "claim": {
+    "execution_owner_field": "Execution Owner",
+    "auto_expiry": false
+  },
+  "delivery_stages": [
+    "none", "change_created", "implementing", "pr_open", "review",
+    "ci_pending", "ci_failed", "ci_passed", "merged", "documentation",
+    "commissioning", "complete"
+  ],
+  "delivery": {
+    "stage_field": "Delivery Stage",
+    "change_id_field": "Change ID",
+    "complexity_field": "Complexity",
+    "risk_triggers_field": "Risk Triggers",
+    "change_created_stage": "change_created",
+    "complete_stage": "complete"
+  },
+  "completion": {
+    "terminal_state": "done",
+    "require_no_active_claim_after_close": false
+  }
+}

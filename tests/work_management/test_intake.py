@@ -7,6 +7,7 @@ import pytest
 from kis_mcp.work_management import (
     ChangeComplexity,
     DocumentationImpact,
+    Effort,
     LifecycleState,
     Priority,
     RecordType,
@@ -60,6 +61,7 @@ def test_capture_defaults_to_low_friction_inbox_idea() -> None:
     assert command.record_type is RecordType.IDEA
     assert command.state is LifecycleState.INBOX
     assert command.priority is Priority.MEDIUM
+    assert command.effort is Effort.MEDIUM
     assert command.documentation_impact is DocumentationImpact.NOT_ASSESSED
     assert command.note is None
     assert outcome.disposition is MutationDisposition.CREATED
@@ -77,6 +79,7 @@ def test_capture_accepts_explicit_type_state_and_metadata() -> None:
             note="P2 internal contract slice",
             record_type=RecordType.TASK,
             priority=Priority.HIGH,
+            effort=Effort.SMALL,
             complexity=ChangeComplexity.MEDIUM,
             risk_triggers=(RiskTrigger.PUBLIC_CONTRACT, RiskTrigger.EXTERNAL_ACTION),
             module="work-management",
@@ -88,6 +91,7 @@ def test_capture_accepts_explicit_type_state_and_metadata() -> None:
     command = backend.commands[0]
     assert command.record_type is RecordType.TASK
     assert command.state is LifecycleState.TRIAGE
+    assert command.effort is Effort.SMALL
     assert command.module == "work-management"
     assert command.complexity is ChangeComplexity.MEDIUM
     assert command.documentation_impact is DocumentationImpact.PLANNED

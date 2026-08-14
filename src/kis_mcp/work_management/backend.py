@@ -79,13 +79,17 @@ class ProjectBinding:
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("project binding schema_version must be 1")
-        object.__setattr__(self, "binding_id", _identifier(self.binding_id, "binding_id"))
+        object.__setattr__(
+            self, "binding_id", _identifier(self.binding_id, "binding_id")
+        )
         object.__setattr__(
             self,
             "managed_project_id",
             _identifier(self.managed_project_id, "managed_project_id"),
         )
-        object.__setattr__(self, "provider_id", _identifier(self.provider_id, "provider_id"))
+        object.__setattr__(
+            self, "provider_id", _identifier(self.provider_id, "provider_id")
+        )
         object.__setattr__(self, "owner", _required_text(self.owner, "owner"))
         if not isinstance(self.owner_type, ProjectOwnerType):
             raise ValueError("owner_type must be a ProjectOwnerType value")
@@ -93,7 +97,9 @@ class ProjectBinding:
             self, "project_number", _positive_int(self.project_number, "project_number")
         )
         repository = _optional_text(self.repository, "repository")
-        if repository is not None and any(character.isspace() for character in repository):
+        if repository is not None and any(
+            character.isspace() for character in repository
+        ):
             raise ValueError("repository must not contain whitespace")
         object.__setattr__(self, "repository", repository)
 
@@ -151,12 +157,19 @@ class ProjectField:
             raise ValueError("options are allowed only for single_select fields")
         option_ids = [option.option_id for option in self.options]
         option_names = [option.name.casefold() for option in self.options]
-        if len(set(option_ids)) != len(option_ids) or len(set(option_names)) != len(option_names):
+        if len(set(option_ids)) != len(option_ids) or len(set(option_names)) != len(
+            option_names
+        ):
             raise ValueError("field options must have unique IDs and names")
         object.__setattr__(
             self,
             "options",
-            tuple(sorted(self.options, key=lambda option: (option.name.casefold(), option.option_id))),
+            tuple(
+                sorted(
+                    self.options,
+                    key=lambda option: (option.name.casefold(), option.option_id),
+                )
+            ),
         )
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -179,9 +192,13 @@ class ProjectFieldValue:
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("project field value schema_version must be 1")
-        object.__setattr__(self, "field_name", _required_text(self.field_name, "field_name"))
+        object.__setattr__(
+            self, "field_name", _required_text(self.field_name, "field_name")
+        )
         object.__setattr__(self, "field_id", _optional_text(self.field_id, "field_id"))
-        if self.value is not None and not isinstance(self.value, (str, int, float, bool)):
+        if self.value is not None and not isinstance(
+            self.value, (str, int, float, bool)
+        ):
             raise ValueError("field value must be a JSON scalar")
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -202,6 +219,7 @@ class ProjectItem:
     number: int | None = None
     state: str | None = None
     url: str | None = None
+    revision: str | None = None
     field_values: tuple[ProjectFieldValue, ...] = ()
     schema_version: int = PUBLIC_SCHEMA_VERSION
 
@@ -213,13 +231,16 @@ class ProjectItem:
             raise ValueError("kind must be a ProjectItemKind value")
         object.__setattr__(self, "title", _required_text(self.title, "item title"))
         repository = _optional_text(self.repository, "repository")
-        if repository is not None and any(character.isspace() for character in repository):
+        if repository is not None and any(
+            character.isspace() for character in repository
+        ):
             raise ValueError("repository must not contain whitespace")
         object.__setattr__(self, "repository", repository)
         if self.number is not None:
             object.__setattr__(self, "number", _positive_int(self.number, "number"))
         object.__setattr__(self, "state", _optional_text(self.state, "state"))
         object.__setattr__(self, "url", _optional_text(self.url, "url"))
+        object.__setattr__(self, "revision", _optional_text(self.revision, "revision"))
         if any(not isinstance(value, ProjectFieldValue) for value in self.field_values):
             raise ValueError("field_values must contain ProjectFieldValue values")
         names = [value.field_name.casefold() for value in self.field_values]
@@ -228,7 +249,9 @@ class ProjectItem:
         object.__setattr__(
             self,
             "field_values",
-            tuple(sorted(self.field_values, key=lambda value: value.field_name.casefold())),
+            tuple(
+                sorted(self.field_values, key=lambda value: value.field_name.casefold())
+            ),
         )
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -241,6 +264,7 @@ class ProjectItem:
             "number": self.number,
             "state": self.state,
             "url": self.url,
+            "revision": self.revision,
             "field_values": [value.to_json_dict() for value in self.field_values],
         }
 
@@ -261,9 +285,13 @@ class ProjectInventoryPage:
         item_ids = [item.item_id for item in self.items]
         if len(set(item_ids)) != len(item_ids):
             raise ValueError("page item IDs must be unique")
-        if not isinstance(self.has_next_page, bool) or not isinstance(self.truncated, bool):
+        if not isinstance(self.has_next_page, bool) or not isinstance(
+            self.truncated, bool
+        ):
             raise ValueError("page flags must be booleans")
-        object.__setattr__(self, "next_cursor", _optional_text(self.next_cursor, "next_cursor"))
+        object.__setattr__(
+            self, "next_cursor", _optional_text(self.next_cursor, "next_cursor")
+        )
         if self.has_next_page and self.next_cursor is None:
             raise ValueError("next_cursor is required when has_next_page is true")
 
@@ -296,7 +324,9 @@ class ProjectInventory:
             raise ValueError("binding must be a ProjectBinding")
         object.__setattr__(self, "title", _required_text(self.title, "project title"))
         object.__setattr__(
-            self, "project_node_id", _optional_text(self.project_node_id, "project_node_id")
+            self,
+            "project_node_id",
+            _optional_text(self.project_node_id, "project_node_id"),
         )
         if not isinstance(self.closed, bool) or not isinstance(self.truncated, bool):
             raise ValueError("inventory flags must be booleans")
@@ -316,10 +346,17 @@ class ProjectInventory:
         object.__setattr__(
             self,
             "fields",
-            tuple(sorted(self.fields, key=lambda field: (field.name.casefold(), field.field_id))),
+            tuple(
+                sorted(
+                    self.fields,
+                    key=lambda field: (field.name.casefold(), field.field_id),
+                )
+            ),
         )
         object.__setattr__(self, "items", tuple(self.items))
-        object.__setattr__(self, "next_cursor", _optional_text(self.next_cursor, "next_cursor"))
+        object.__setattr__(
+            self, "next_cursor", _optional_text(self.next_cursor, "next_cursor")
+        )
         if self.truncated and self.next_cursor is None:
             raise ValueError("next_cursor is required when inventory is truncated")
 

@@ -8,7 +8,7 @@ from typing import Any
 from .backend import ProjectField, ProjectFieldKind
 from .contracts import PUBLIC_SCHEMA_VERSION
 
-_MANIFEST_KEYS = frozenset({"schema_version", "project_id", "fields", "views"})
+_MANIFEST_KEYS = frozenset({"schema_version", "portfolio_id", "fields", "views"})
 _FIELD_KEYS = frozenset({"name", "type", "options"})
 _VIEW_KEYS = frozenset({"name", "purpose"})
 
@@ -31,6 +31,7 @@ def _exact_keys(value: dict[str, Any], expected: frozenset[str], label: str) -> 
     if unknown or missing:
         raise ValueError(f"{label} keys must be exactly {', '.join(sorted(expected))}")
 
+
 @dataclass(frozen=True, slots=True)
 class ProjectFieldSpec:
     name: str
@@ -49,7 +50,11 @@ class ProjectFieldSpec:
         object.__setattr__(self, "options", normalized)
 
     def to_json_dict(self) -> dict[str, Any]:
-        return {"name": self.name, "type": self.kind.value, "options": list(self.options)}
+        return {
+            "name": self.name,
+            "type": self.kind.value,
+            "options": list(self.options),
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,7 +72,7 @@ class ProjectViewSpec:
 
 @dataclass(frozen=True, slots=True)
 class ProjectSchemaManifest:
-    project_id: str
+    portfolio_id: str
     fields: tuple[ProjectFieldSpec, ...]
     views: tuple[ProjectViewSpec, ...]
     schema_version: int = PUBLIC_SCHEMA_VERSION
@@ -75,7 +80,9 @@ class ProjectSchemaManifest:
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("project schema manifest schema_version must be 1")
-        object.__setattr__(self, "project_id", _text(self.project_id, "project_id"))
+        object.__setattr__(
+            self, "portfolio_id", _text(self.portfolio_id, "portfolio_id")
+        )
         field_names = [item.name.casefold() for item in self.fields]
         view_names = [item.name.casefold() for item in self.views]
         if len(set(field_names)) != len(field_names):
@@ -93,14 +100,60 @@ class ProjectSchemaManifest:
     def to_json_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
-            "project_id": self.project_id,
+            "portfolio_id": self.portfolio_id,
             "fields": [item.to_json_dict() for item in self.fields],
             "views": [item.to_json_dict() for item in self.views],
         }
 
+
+@dataclass(frozen=True, slots=True)
+class ProjectSchemaRepairAction:
+    kind: str
+    target: str
+    disposition: str
+    reason: str
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"create_field", "change_field_type", "add_option"}:
+            raise ValueError("unsupported schema repair action kind")
+        if self.disposition not in {"automatic", "provider_gap", "manual"}:
+            raise ValueError("unsupported schema repair disposition")
+        object.__setattr__(self, "target", _text(self.target, "repair target"))
+        object.__setattr__(self, "reason", _text(self.reason, "repair reason"))
+
+    def to_json_dict(self) -> dict[str, str]:
+        return {
+            "kind": self.kind,
+            "target": self.target,
+            "disposition": self.disposition,
+            "reason": self.reason,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectSchemaPlan:
+    project_id: str
+    portfolio_id: str
+    ready: bool
+    automatic_ready: bool
+    actions: tuple[ProjectSchemaRepairAction, ...]
+    unverified_views: tuple[str, ...]
+
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "portfolio_id": self.portfolio_id,
+            "ready": self.ready,
+            "automatic_ready": self.automatic_ready,
+            "actions": [action.to_json_dict() for action in self.actions],
+            "unverified_views": list(self.unverified_views),
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class ProjectSchemaStatus:
     project_id: str
+    portfolio_id: str
     fields_ready: bool
     views_ready: bool | None
     missing_fields: tuple[str, ...] = ()
@@ -117,6 +170,7 @@ class ProjectSchemaStatus:
         return {
             "schema_version": self.schema_version,
             "project_id": self.project_id,
+            "portfolio_id": self.portfolio_id,
             "ready": self.ready,
             "fields_ready": self.fields_ready,
             "views_ready": self.views_ready,
@@ -138,6 +192,7 @@ def _field_spec(value: Any) -> ProjectFieldSpec:
         kind=ProjectFieldKind(item["type"]),
         options=tuple(options),
     )
+
 
 def _view_spec(value: Any) -> ProjectViewSpec:
     item = _object(value, "project view spec")
@@ -163,21 +218,24 @@ def load_project_schema_manifest(path: Path | None = None) -> ProjectSchemaManif
         raise ValueError("project schema fields and views must be arrays")
     return ProjectSchemaManifest(
         schema_version=root["schema_version"],
-        project_id=root["project_id"],
+        portfolio_id=root["portfolio_id"],
         fields=tuple(_field_spec(item) for item in fields),
         views=tuple(_view_spec(item) for item in views),
     )
+
 
 def compare_project_schema(
     manifest: ProjectSchemaManifest,
     observed_fields: tuple[ProjectField, ...],
     *,
+    project_id: str,
     views_observed: tuple[str, ...] | None,
 ) -> ProjectSchemaStatus:
     if not isinstance(manifest, ProjectSchemaManifest):
         raise ValueError("manifest must be a ProjectSchemaManifest")
     if any(not isinstance(item, ProjectField) for item in observed_fields):
         raise ValueError("observed_fields must contain ProjectField values")
+    normalized_project_id = _text(project_id, "project_id")
     observed = {item.name.casefold(): item for item in observed_fields}
     missing_fields: list[str] = []
     mismatches: list[str] = []
@@ -188,7 +246,9 @@ def compare_project_schema(
             missing_fields.append(expected.name)
             continue
         if actual.kind is not expected.kind:
-            mismatches.append(f"{expected.name}:{actual.kind.value}->{expected.kind.value}")
+            mismatches.append(
+                f"{expected.name}:{actual.kind.value}->{expected.kind.value}"
+            )
             continue
         available_options = {item.name.casefold() for item in actual.options}
         for option in expected.options:
@@ -201,13 +261,16 @@ def compare_project_schema(
     else:
         observed_views = {value.casefold() for value in views_observed}
         unverified_views = tuple(
-            item.name for item in manifest.views if item.name.casefold() not in observed_views
+            item.name
+            for item in manifest.views
+            if item.name.casefold() not in observed_views
         )
         views_ready = not unverified_views
 
     fields_ready = not (missing_fields or mismatches or missing_options)
     return ProjectSchemaStatus(
-        project_id=manifest.project_id,
+        project_id=normalized_project_id,
+        portfolio_id=manifest.portfolio_id,
         fields_ready=fields_ready,
         views_ready=views_ready,
         missing_fields=tuple(sorted(missing_fields, key=str.casefold)),
@@ -217,11 +280,71 @@ def compare_project_schema(
     )
 
 
+def plan_project_schema_repair(
+    status: ProjectSchemaStatus,
+    manifest: ProjectSchemaManifest,
+) -> ProjectSchemaPlan:
+    if not isinstance(status, ProjectSchemaStatus):
+        raise ValueError("status must be a ProjectSchemaStatus")
+    if not isinstance(manifest, ProjectSchemaManifest):
+        raise ValueError("manifest must be a ProjectSchemaManifest")
+    if status.portfolio_id != manifest.portfolio_id:
+        raise ValueError("schema status and manifest portfolio_id must match")
+
+    actions: list[ProjectSchemaRepairAction] = []
+    for field_name in status.missing_fields:
+        actions.append(
+            ProjectSchemaRepairAction(
+                kind="create_field",
+                target=field_name,
+                disposition="provider_gap",
+                reason=(
+                    "the bounded GitHub Projects provider can update item fields "
+                    "but does not expose general custom-field creation"
+                ),
+            )
+        )
+    for mismatch in status.type_mismatches:
+        actions.append(
+            ProjectSchemaRepairAction(
+                kind="change_field_type",
+                target=mismatch,
+                disposition="provider_gap",
+                reason=(
+                    "the bounded GitHub Projects provider does not expose field-type migration"
+                ),
+            )
+        )
+    for option in status.missing_options:
+        actions.append(
+            ProjectSchemaRepairAction(
+                kind="add_option",
+                target=option,
+                disposition="provider_gap",
+                reason=(
+                    "the bounded GitHub Projects provider does not expose single-select option provisioning"
+                ),
+            )
+        )
+    actions.sort(key=lambda action: (action.kind, action.target.casefold()))
+    return ProjectSchemaPlan(
+        project_id=status.project_id,
+        portfolio_id=status.portfolio_id,
+        ready=status.ready,
+        automatic_ready=status.ready and not actions,
+        actions=tuple(actions),
+        unverified_views=status.unverified_views,
+    )
+
+
 __all__ = [
     "ProjectFieldSpec",
     "ProjectSchemaManifest",
+    "ProjectSchemaPlan",
+    "ProjectSchemaRepairAction",
     "ProjectSchemaStatus",
     "ProjectViewSpec",
     "compare_project_schema",
     "load_project_schema_manifest",
+    "plan_project_schema_repair",
 ]

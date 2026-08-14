@@ -169,59 +169,105 @@ def test_verify_traceability_reports_exact_stage_result(tmp_path: Path, capsys) 
     assert payload["traceability"]["valid"] is True
 
 
-def test_schema_manifest_command_validates_repository_contract(tmp_path: Path, capsys) -> None:
+def test_schema_manifest_command_validates_repository_contract(
+    tmp_path: Path, capsys
+) -> None:
     repository_root = Path(__file__).resolve().parents[2]
-    manifest = repository_root / "settings" / "work-management" / "github-project-schema.json"
+    manifest = (
+        repository_root / "settings" / "work-management" / "github-project-schema.json"
+    )
 
-    exit_code = main([
-        "schema-manifest",
-        "--manifest", str(manifest),
-        "--revision", "abc1234",
-    ])
+    exit_code = main(
+        [
+            "schema-manifest",
+            "--manifest",
+            str(manifest),
+            "--revision",
+            "abc1234",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert exit_code == 0
     assert payload["ok"] is True
-    assert len(payload["schema"]["fields"]) == 20
-    assert [field["name"] for field in payload["schema"]["fields"]][3:5] == [
+    assert payload["schema"]["portfolio_id"] == "default"
+    assert len(payload["schema"]["fields"]) == 24
+    assert [field["name"] for field in payload["schema"]["fields"]][7:9] == [
         "Complexity",
         "Risk Triggers",
     ]
     assert len(payload["schema"]["views"]) == 12
 
 
-def test_merge_readiness_cli_blocks_unfinished_documentation(tmp_path: Path, capsys) -> None:
+def test_merge_readiness_cli_blocks_unfinished_documentation(
+    tmp_path: Path, capsys
+) -> None:
     head = "a" * 40
-    record_path = write_json(tmp_path / "record.json", {
-        "record_id": "SPEC-110", "project_id": "kis-mcp", "title": "Slice 1",
-        "record_type": "specification_slice", "state": "verification",
-        "documentation_mode": "required", "documentation_impact": "planned",
-        "traceability_required": True,
-    })
-    trace_path = write_json(tmp_path / "trace-merge-ready.json", {
-        "project_id": "kis-mcp", "specification_record_id": "SPEC-110",
-        "change_id": "110-work-management-documentation-completion",
-        "branch": "change/110-work-management-documentation-completion",
-        "worktree": ".work/worktrees/110-work-management-documentation-completion",
-        "pull_requests": [{
-            "repository": "NielPieterse0/kis-mcp", "number": 140,
-            "head_branch": "change/110-work-management-documentation-completion",
-            "head_revision": head, "base_branch": "main", "state": "open",
-        }],
-        "verifications": [{
-            "evidence_id": "verify-110", "pull_request_number": 140,
-            "revision": head, "status": "passed", "command": "verify",
-            "source": "github_actions", "reference": "run-110",
-        }],
-        "merges": [], "closeout": None, "documentation_events": [],
-    })
+    record_path = write_json(
+        tmp_path / "record.json",
+        {
+            "record_id": "SPEC-110",
+            "project_id": "kis-mcp",
+            "title": "Slice 1",
+            "record_type": "specification_slice",
+            "state": "verification",
+            "documentation_mode": "required",
+            "documentation_impact": "planned",
+            "traceability_required": True,
+        },
+    )
+    trace_path = write_json(
+        tmp_path / "trace-merge-ready.json",
+        {
+            "project_id": "kis-mcp",
+            "specification_record_id": "SPEC-110",
+            "change_id": "110-work-management-documentation-completion",
+            "branch": "change/110-work-management-documentation-completion",
+            "worktree": ".work/worktrees/110-work-management-documentation-completion",
+            "pull_requests": [
+                {
+                    "repository": "NielPieterse0/kis-mcp",
+                    "number": 140,
+                    "head_branch": "change/110-work-management-documentation-completion",
+                    "head_revision": head,
+                    "base_branch": "main",
+                    "state": "open",
+                }
+            ],
+            "verifications": [
+                {
+                    "evidence_id": "verify-110",
+                    "pull_request_number": 140,
+                    "revision": head,
+                    "status": "passed",
+                    "command": "verify",
+                    "source": "github_actions",
+                    "reference": "run-110",
+                }
+            ],
+            "merges": [],
+            "closeout": None,
+            "documentation_events": [],
+        },
+    )
 
-    exit_code = main([
-        "merge-readiness", "--record", str(record_path), "--trace", str(trace_path),
-        "--pull-request-number", "140", "--revision", "abc1234",
-    ])
+    exit_code = main(
+        [
+            "merge-readiness",
+            "--record",
+            str(record_path),
+            "--trace",
+            str(trace_path),
+            "--pull-request-number",
+            "140",
+            "--revision",
+            "abc1234",
+        ]
+    )
     payload = json.loads(capsys.readouterr().out)
 
     assert exit_code == 4
     assert payload["ok"] is False
-    assert payload["readiness"]["blocking_reasons"] == ["documentation_pre_merge_incomplete"]
+    assert payload["readiness"]["blocking_reasons"] == [
+        "documentation_pre_merge_incomplete"
+    ]

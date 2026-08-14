@@ -6,11 +6,13 @@ from typing import Any
 from ...work_management import (
     ChangeComplexity,
     CloseoutEvidence,
+    DeliveryStage,
     DesiredProjection,
     DocumentationImpact,
     DocumentationMilestoneState,
     DocumentationMode,
     DocumentationReconciliationEvent,
+    Effort,
     ImplementationTrace,
     LifecycleState,
     MergeEvidence,
@@ -89,6 +91,13 @@ def work_record_from_json(value: Any) -> WorkRecord:
         record_type=RecordType(document["record_type"]),
         state=LifecycleState(document.get("state", LifecycleState.INBOX.value)),
         priority=Priority(document.get("priority", Priority.MEDIUM.value)),
+        effort=Effort(document.get("effort", Effort.MEDIUM.value)),
+        delivery_stage=DeliveryStage(
+            document.get("delivery_stage", DeliveryStage.NONE.value)
+        ),
+        execution_owner=document.get("execution_owner"),
+        claimed_at=document.get("claimed_at"),
+        queue_rank=document.get("queue_rank"),
         complexity=(
             ChangeComplexity(document["complexity"])
             if document.get("complexity") is not None

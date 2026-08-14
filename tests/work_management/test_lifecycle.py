@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from kis_mcp.work_management import (
@@ -11,6 +13,7 @@ from kis_mcp.work_management import (
     TransitionRejected,
     WorkRecord,
     evaluate_transition,
+    load_command_plane_settings,
     transition_record,
 )
 
@@ -27,13 +30,18 @@ def record(**overrides: object) -> WorkRecord:
     return WorkRecord(**values)  # type: ignore[arg-type]
 
 
-def test_transition_rejects_undeclared_state_change() -> None:
+def test_active_to_done_is_allowed_by_policy_but_guarded_by_closeout() -> None:
     decision = evaluate_transition(
         record(state=LifecycleState.ACTIVE), LifecycleState.DONE
     )
 
     assert decision.allowed is False
-    assert decision.reasons == ("transition_not_declared",)
+    assert decision.reasons == ("documentation_incomplete",)
+
+
+def test_approved_work_can_move_to_ready() -> None:
+    updated = transition_record(record(), LifecycleState.READY)
+    assert updated.state is LifecycleState.READY
 
 
 def test_activation_requires_completed_approval() -> None:
@@ -153,3 +161,24 @@ def test_traceability_completed_reconciliation_allows_done() -> None:
     )
 
     assert transition_record(current, LifecycleState.DONE).state is LifecycleState.DONE
+
+
+def test_completion_can_require_claim_release() -> None:
+    configured = load_command_plane_settings()
+    configured = replace(
+        configured,
+        completion=replace(
+            configured.completion,
+            require_no_active_claim_after_close=True,
+        ),
+    )
+    current = record(
+        state=LifecycleState.DOCUMENTATION,
+        execution_owner="kis-dev/session-1",
+        documentation_impact=DocumentationImpact.POST_MERGE_COMPLETE,
+    )
+
+    decision = evaluate_transition(current, LifecycleState.DONE, settings=configured)
+
+    assert decision.allowed is False
+    assert decision.reasons == ("active_claim_present",)
