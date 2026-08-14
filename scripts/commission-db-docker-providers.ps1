@@ -13,11 +13,16 @@ if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
 $Code = @'
 import asyncio, json, os
 from pathlib import Path
-from kis_mcp.providers.dbhub.provider import dbhub_provider_descriptor
-from kis_mcp.providers.dockerhub.provider import dockerhub_provider_descriptor
+from kis_mcp.projects import load_project_registry_settings
+from kis_mcp.providers.commissioning import commissioning_evidence_root, write_commissioning_evidence
+from kis_mcp.providers.dbhub.provider import dbhub_commissioning_identity, dbhub_provider_descriptor
+from kis_mcp.providers.dbhub.settings import load_dbhub_settings
+from kis_mcp.providers.dockerhub.provider import dockerhub_commissioning_identity, dockerhub_provider_descriptor
+from kis_mcp.providers.dockerhub.settings import load_dockerhub_settings
 
 root = Path.cwd()
 environment = dict(os.environ)
+evidence_root = commissioning_evidence_root(root)
 rows = []
 for name, factory in (
     ("dbhub", dbhub_provider_descriptor),
@@ -31,6 +36,20 @@ for name, factory in (
             server = descriptor.builder()
             tools = asyncio.run(server.list_tools())
             row["tools"] = sorted(tool.name for tool in tools)
+            if name == "dbhub":
+                identity = dbhub_commissioning_identity(
+                    load_dbhub_settings(root),
+                    load_project_registry_settings(root / "settings" / "projects.settings.json"),
+                )
+            else:
+                identity = dockerhub_commissioning_identity(load_dockerhub_settings(root))
+            evidence_path = write_commissioning_evidence(
+                evidence_root,
+                name,
+                identity,
+                row["tools"],
+            )
+            row["commissioning_evidence"] = str(evidence_path)
             row["live_verified"] = True
         except Exception as exc:
             row["live_error_type"] = type(exc).__name__
