@@ -6,7 +6,6 @@ import os
 import subprocess
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -19,10 +18,18 @@ from ..quarantine import QuarantineRecord
 _SERVER_INSTANCE_ID = uuid4().hex
 _SERVER_STARTED_AT = datetime.now(UTC).isoformat()
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+_RUNTIME_GENERATION_FILES = (
+    "settings/kis-mcp.settings.json",
+    "settings/projects.settings.json",
+    "settings/capabilities.settings.json",
+    "settings/work-management/command-plane.settings.json",
+    "settings/work-management/github-projects.settings.json",
+    "settings/work-management/github-project-schema.json",
+    "policy/kis-mcp.policy.json",
+)
 
 
-@lru_cache(maxsize=1)
-def _source_revision() -> str:
+def _git_revision() -> str:
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--verify", "HEAD"],
@@ -38,6 +45,35 @@ def _source_revision() -> str:
     if result.returncode != 0 or len(revision) != 40:
         return "unknown"
     return revision if all(char in "0123456789abcdef" for char in revision) else "unknown"
+
+
+def _runtime_config_generation() -> tuple[tuple[str, str], ...]:
+    values: list[tuple[str, str]] = []
+    for relative in _RUNTIME_GENERATION_FILES:
+        path = _REPOSITORY_ROOT / relative
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError:
+            digest = "missing"
+        values.append((relative, digest))
+    return tuple(values)
+
+
+_PROCESS_SOURCE_REVISION = _git_revision()
+_PROCESS_CONFIG_GENERATION = _runtime_config_generation()
+
+
+def _source_revision() -> str:
+    return _PROCESS_SOURCE_REVISION
+
+
+def _runtime_generation_matches() -> bool:
+    if _PROCESS_SOURCE_REVISION == "unknown":
+        return False
+    return (
+        _git_revision() == _PROCESS_SOURCE_REVISION
+        and _runtime_config_generation() == _PROCESS_CONFIG_GENERATION
+    )
 
 
 def _contract_fingerprint(runtime: RuntimeConfig, source_revision: str) -> str:
@@ -136,6 +172,96 @@ def quarantine_payload(record: QuarantineRecord) -> dict[str, Any]:
     }
 
 
+def _json_mapping(path: Path) -> Mapping[str, Any] | None:
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, json.JSONDecodeError):
+        return None
+    return document if isinstance(document, Mapping) else None
+
+
+def remote_mcp_runtime_evidence(
+    runtime: RuntimeConfig,
+    *,
+    environment: Mapping[str, str] | None = None,
+    current_pid: int | None = None,
+    state_root: Path | None = None,
+) -> dict[str, Any]:
+    env = environment if environment is not None else os.environ
+    selected = env.get("KIS_MCP_RUNTIME_INSTANCE")
+    if not isinstance(selected, str) or not selected.strip():
+        return {"status": "runtime_instance_not_selected", "ready": False}
+    try:
+        instance = runtime.remote_instance(selected)
+    except RuntimeError:
+        return {"status": "runtime_instance_unknown", "ready": False}
+    path = (
+        state_root if state_root is not None else Path(runtime.state_root)
+    ) / "tunnel-client" / "runtime" / instance.name / "current.json"
+    document = _json_mapping(path)
+    if document is None:
+        return {
+            "status": "current_state_unavailable",
+            "ready": False,
+            "current_state": str(path),
+        }
+    expected_pid = os.getpid() if current_pid is None else int(current_pid)
+    listener_pid = document.get("server_listener_pid")
+    lifecycle = document.get("lifecycle")
+    base = {
+        "ready": False,
+        "current_state": str(path),
+        "run_id": document.get("run_id"),
+        "lifecycle": lifecycle,
+        "source_revision": _PROCESS_SOURCE_REVISION,
+        "config_generation": dict(_PROCESS_CONFIG_GENERATION),
+    }
+    if document.get("schema_version") != 1:
+        return {"status": "current_state_schema_mismatch", **base}
+    if lifecycle != "ready":
+        return {"status": f"current_state_{lifecycle or 'unknown'}", **base}
+    if document.get("instance") != instance.name:
+        return {"status": "current_state_instance_mismatch", **base}
+    if document.get("endpoint") != instance.endpoint_url:
+        return {"status": "current_state_endpoint_mismatch", **base}
+    if (
+        isinstance(listener_pid, bool)
+        or not isinstance(listener_pid, int)
+        or listener_pid != expected_pid
+    ):
+        return {"status": "current_state_process_mismatch", **base}
+    if not _runtime_generation_matches():
+        return {"status": "runtime_generation_stale", **base}
+
+    startup_state_value = document.get("startup_state")
+    if not isinstance(startup_state_value, str) or not startup_state_value.strip():
+        return {"status": "startup_evidence_missing", **base}
+    startup_path = Path(startup_state_value)
+    startup = _json_mapping(startup_path)
+    if startup is None:
+        return {"status": "startup_evidence_unavailable", **base}
+    processes = startup.get("processes")
+    startup_listener_pid = (
+        processes.get("server_listener_pid") if isinstance(processes, Mapping) else None
+    )
+    if (
+        startup.get("schema_version") != 1
+        or startup.get("health") != "ready"
+        or startup.get("instance") != instance.name
+        or startup.get("endpoint") != instance.endpoint_url
+        or startup_listener_pid != expected_pid
+        or startup.get("policy_fingerprint") != policy_fingerprint(runtime)
+    ):
+        return {"status": "startup_evidence_mismatch", **base}
+    return {
+        "status": "ready",
+        **base,
+        "ready": True,
+        "startup_state": str(startup_path),
+        "mcp_initialized": True,
+    }
+
+
 def remote_mcp_implementation_status(
     runtime: RuntimeConfig,
     *,
@@ -143,34 +269,13 @@ def remote_mcp_implementation_status(
     current_pid: int | None = None,
     state_root: Path | None = None,
 ) -> str | None:
-    env = environment if environment is not None else os.environ
-    selected = env.get("KIS_MCP_RUNTIME_INSTANCE")
-    if not isinstance(selected, str) or not selected.strip():
-        return None
-    try:
-        instance = runtime.remote_instance(selected)
-    except RuntimeError:
-        return None
-    path = (
-        state_root if state_root is not None else Path(runtime.state_root)
-    ) / "tunnel-client" / "runtime" / instance.name / "current.json"
-    try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(document, Mapping):
-        return None
-    listener_pid = document.get("server_listener_pid")
-    expected_pid = os.getpid() if current_pid is None else int(current_pid)
-    if (
-        document.get("schema_version") != 1
-        or document.get("lifecycle") != "ready"
-        or document.get("instance") != instance.name
-        or document.get("endpoint") != instance.endpoint_url
-        or isinstance(listener_pid, bool)
-        or not isinstance(listener_pid, int)
-        or listener_pid != expected_pid
-    ):
+    evidence = remote_mcp_runtime_evidence(
+        runtime,
+        environment=environment,
+        current_pid=current_pid,
+        state_root=state_root,
+    )
+    if evidence.get("ready") is not True:
         return None
     current = runtime.implementation_status.get("remote_mcp", "").strip()
     pending = "external_tunnel_pending_configuration"
@@ -185,9 +290,15 @@ def remote_mcp_implementation_status(
 def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> HealthResponse:
     entry = Path(str(launch.get("args", [""])[0]))
     implementation_status = dict(runtime.implementation_status)
-    remote_status = remote_mcp_implementation_status(runtime)
-    if remote_status is not None:
-        implementation_status["remote_mcp"] = remote_status
+    runtime_evidence = remote_mcp_runtime_evidence(runtime)
+    if runtime_evidence.get("ready") is True:
+        remote_status = remote_mcp_implementation_status(runtime)
+        if remote_status is not None:
+            implementation_status["remote_mcp"] = remote_status
+    if os.environ.get("KIS_MCP_RUNTIME_INSTANCE", "").strip():
+        implementation_status["remote_mcp_runtime_evidence"] = str(
+            runtime_evidence.get("status", "unknown")
+        )
     runtime_instance = os.environ.get("KIS_MCP_RUNTIME_INSTANCE", "stdio").strip() or "stdio"
     is_remote = runtime_instance != "stdio"
     source_revision = _source_revision()
@@ -218,6 +329,7 @@ __all__ = [
     "ensure_state_directories",
     "health_response",
     "remote_mcp_implementation_status",
+    "remote_mcp_runtime_evidence",
     "provider_environment",
     "quarantine_payload",
     "quarantine_response",
