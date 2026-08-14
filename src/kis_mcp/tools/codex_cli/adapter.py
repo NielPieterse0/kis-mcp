@@ -66,6 +66,8 @@ class CodexCliAdapter:
                 timeout=self.settings.timeout_seconds,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="strict",
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
@@ -73,6 +75,12 @@ class CodexCliAdapter:
                 "CODEX_CLI_TIMEOUT",
                 "Codex CLI review timed out",
                 {"timeout_seconds": self.settings.timeout_seconds},
+            ) from exc
+        except UnicodeError as exc:
+            raise CodexCliError(
+                "CODEX_CLI_ENCODING_FAILED",
+                "Codex CLI process text boundary failed",
+                {"error_type": type(exc).__name__},
             ) from exc
         except OSError as exc:
             raise CodexCliError(
