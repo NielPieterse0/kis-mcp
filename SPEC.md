@@ -19,7 +19,7 @@ The repository contains only:
 - recoverable quarantine support;
 - minimal JSON configuration, tests, and operational documentation.
 
-The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile permission framework, a governance subsystem, or a fork of Desktop Commander. It implements bounded Discover, Skills, Provider, Tools, workflow, and Control Center modules natively under `src/kis_mcp`; donor repositories remain source evidence only and are not runtime dependencies. Repository-local `.agents/skills` material remains procedural development guidance. The runtime Skills module resolves reusable procedures exclusively from the operator-approved shared root `C:\\Projects\\.agents\\skills` through `settings/skills.settings.json`, and its mutations re-enter the existing Work middleware and Desktop Commander backend.
+The repository does not contain an inherited SDK2 runtime, a custom replacement filesystem or terminal, a capability-profile permission framework, a governance subsystem, or a fork of Desktop Commander. It implements bounded Discover, Skills, Provider, Tools, workflow, and Control Center modules natively under `src/kis_mcp`; donor repositories remain source evidence only and are not runtime dependencies. Reusable procedures are accessed only through the KIS Skills module. The module resolves the operator-approved shared catalogue through `settings/skills.settings.json`; the repository does not carry a local skill catalogue, and Skills mutations re-enter the existing Work middleware and Desktop Commander backend.
 
 ## Product evolution
 
@@ -237,7 +237,7 @@ Configuration and implementation-status fields do not disable otherwise permitte
 
 ## Skills module
 
-The implemented Skills module resolves one reusable procedure catalogue from `C:\Projects\.agents\skills`. It builds a deterministic immutable snapshot after validating `SKILL.md` frontmatter, file paths, configured suffixes, encodings, links, sizes, and limits. Repository-local `.agents/skills` is not part of this runtime catalogue.
+The implemented Skills module is the only agent-facing access path to the reusable procedure catalogue configured by `settings/skills.settings.json`. It builds a deterministic immutable snapshot after validating `SKILL.md` frontmatter, file paths, configured suffixes, encodings, links, sizes, and limits. The repository contains no local skill catalogue.
 
 The module exposes bounded list, search, load, file-search, file-read, refresh, structural-evaluation, create, and improve operations. Runtime cards are enriched from `settings/capabilities.settings.json` so every current shared Skill has a non-empty category, capability set, activation terms, effects, and workflow roles. ChatGPT loads the returned instructions and executes their workflows through ordinary kis-mcp Work tools; the server does not import or automatically execute arbitrary skill code.
 

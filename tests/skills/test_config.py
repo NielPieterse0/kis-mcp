@@ -100,7 +100,7 @@ def test_load_skills_config_rejects_invalid_required_skills(
 @pytest.mark.parametrize(
     ("field", "value"),
     [
-        ("root", r"C:\Projects\kis-mcp\.agents\skills"),
+        ("root", r"C:\Projects\noncanonical-skills"),
         ("staging_root", r"C:\Projects\kis-mcp\.temp\skills"),
     ],
 )

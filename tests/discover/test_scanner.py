@@ -90,7 +90,7 @@ def test_narrow_file_budget_prioritizes_manifest_and_application_source(
 ) -> None:
     settings = _with_limits(discover_settings, max_files=2)
     for label in (
-        ".agents/skills/helper.py",
+        ".agents/helper.py",
         ".archive/legacy.py",
         "src/app.py",
     ):

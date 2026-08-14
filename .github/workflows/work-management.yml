@@ -47,8 +47,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path C:\Projects\kis-mcp | Out-Null
           Get-ChildItem -Force | Where-Object Name -ne '.venv' | Copy-Item -Destination C:\Projects\kis-mcp -Recurse -Force
-          New-Item -ItemType Directory -Force -Path C:\Projects\.agents\skills | Out-Null
-          Get-ChildItem -Force C:\Projects\kis-mcp\.agents\skills | Copy-Item -Destination C:\Projects\.agents\skills -Recurse -Force
           $Actual = (git -C C:\Projects\kis-mcp rev-parse HEAD).Trim().ToLowerInvariant()
           if ($Actual -ne $env:KIS_EXACT_SHA.ToLowerInvariant()) {
             throw "EXACT_HEAD_MISMATCH: expected $env:KIS_EXACT_SHA, checked out $Actual"

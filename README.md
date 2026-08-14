@@ -57,7 +57,6 @@ src/kis_mcp/                           platform implementation
 tests/                                 verification and regression coverage
 scripts/                               bootstrap, startup, workflow, smoke, and verification entry points
 .work/changes/<change-id>/             active change record; historical after merge
-.agents/skills/                        repository development procedures, not product authority
 ```
 
 ## Quick start

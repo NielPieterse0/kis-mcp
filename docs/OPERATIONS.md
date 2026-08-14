@@ -692,7 +692,7 @@ Verification requires `uv.lock`, synchronizes the external Python environment of
 The repository checks also confirm:
 
 1. the policy contains exactly HR-001, HR-002, and HR-003;
-2. repository-local skills are not used as the runtime catalogue and every shared runtime Skill has reviewed capability metadata;
+2. the repository contains no local skill catalogue and reusable Skills are resolved only through the canonical Skills module;
 3. Desktop Commander is not vendored;
 4. generated-state paths remain canonical and outside the repository;
 5. predecessor runtime identities are absent from authoritative and runtime files;

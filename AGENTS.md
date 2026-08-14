@@ -43,7 +43,7 @@ Route information to the smallest durable owner:
 | Durable module-specific contracts and roadmaps | the applicable `docs/*-MODULE-PRODUCT-SPEC.md`, subordinate to the authority order above |
 | One active change's scope, requirements, plan, execution state, and closeout evidence | `.work/changes/<change-id>/` |
 | Specialist engineering evidence or historical development notes | `docs/development/**` |
-| Reusable development procedures | `.agents/skills/**` |
+| Reusable development procedures | canonical KIS Skills module catalogue; repository-local skill copies are prohibited |
 | Executable settings, schemas, contracts, and policy values | the applicable JSON, contract, source, or test artifact |
 
 Apply these rules when writing documentation:
@@ -59,23 +59,21 @@ Apply these rules when writing documentation:
 
 ## Skill authority and routing
 
-Repository-local skills under `.agents/skills` are procedural development aids. They are not product, runtime, policy, or repository authority, and their presence does not prove that a platform capability is implemented. The runtime Skills module is separate: it resolves the operator-approved shared catalogue at `C:\Projects\.agents\skills` through `settings/skills.settings.json`. Shared runtime skills remain reusable procedures rather than repository-specific authority; ChatGPT loads their instructions and executes resulting work through the ordinary kis-mcp Work surface.
+Reusable skills MUST be discovered and loaded through the KIS Skills module. Agents must use the module operations (`search_skills`, `load_skill`, `search_skill_files`, and `read_skill_file`) rather than reading a skill package directly from the filesystem. The module owns access to the operator-approved shared catalogue configured by `settings/skills.settings.json`; its backing path is an implementation detail, not an alternate agent access path.
+
+This repository MUST NOT track a repository-local skill catalogue or reusable skill package. Historical change records may mention former local paths as evidence, but those records do not authorize current skill loading.
 
 Apply skills under these rules:
 
 1. The authority order in this file overrides every skill instruction.
-2. An externally adopted skill is authorized only when its directory contains an `adoption-manifest.json` whose approval status is `approved`. Use it only within the capabilities, filesystem scope, activation mode, dependencies, and risk boundary recorded by that manifest.
-3. A skill without an approved adoption manifest is reference-only guidance. It may inform MVP development, but it must not impose gates, require external access, authorize mutations, add dependencies, create a fourth policy rule, or override an approved repository decision.
-4. A skill requirement to invoke another skill applies only when that referenced skill is authorized under this section. Otherwise perform the necessary bounded step directly under repository authority and record any resulting verification limitation.
-5. Skill instructions that assume another host, deployment model, network access, package installation, publication, directory submission, or remote service are inapplicable unless the operator separately approves that exact activity.
+2. A skill loaded through the Skills module is procedural guidance only. It cannot authorize network access, writes, credentials, dependencies, publication, deployment, or any other mutation beyond authority already granted by the operator and repository.
+3. Skill presence, metadata, recommendation, or absence cannot create a fourth Work hard rule or override an approved repository decision.
+4. When a procedure references another skill, resolve that skill through the Skills module. If it is unavailable there, perform the bounded repository-authorized step directly and record the limitation instead of reading an alternate filesystem copy.
+5. Host-specific or deployment-specific skill instructions apply only when the repository and operator separately authorize that exact activity.
 
-The following repository-owned workflow skills are explicitly authorized by this file for specification-slice development, even though they are not third-party adopted skills:
+For specification-slice development, load canonical skill ID `develop-code` through the Skills module for executable implementation and canonical skill ID `develop-docs` through the Skills module for authoritative documentation. For mixed work, use both procedures against the same approved change record and current verification evidence.
 
-- Use `.agents/skills/develop-code/SKILL.md` for an approved specification slice that creates, changes, fixes, refactors, or verifies executable implementation. It coordinates the slice from requirements through planning, implementation, review, verification, and closeout without changing the approved product boundary.
-- Use `.agents/skills/develop-docs/SKILL.md` for a documentation-only specification slice or an authoritative documentation update. It coordinates sources, authority, structure, review, verification, and closeout without turning target-state documentation into an implementation claim.
-- For a mixed slice, use `develop-code` for executable changes and `develop-docs` for authoritative documentation, then reconcile both against the same approved specification and current verification evidence.
-
-These workflow skills remain subordinate to `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, and the current implementation phase. They cannot expand the runtime, alter HR-001 through HR-003, or make an unapproved future capability current.
+These procedures remain subordinate to `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, and the current implementation phase. They cannot expand the runtime, alter HR-001 through HR-003, or make an unapproved future capability current.
 
 ## Supporting lessons record
 

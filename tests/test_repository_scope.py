@@ -36,6 +36,27 @@ def test_repository_skills_use_only_approved_runtime_catalogue() -> None:
                 )
 
 
+def test_repository_contains_no_tracked_local_skill_catalogue() -> None:
+    pathspec = "/".join((".agents", "skills"))
+    tracked = (
+        __import__("subprocess")
+        .run(
+            ["git", "ls-files", pathspec],
+            cwd=REPOSITORY_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        .stdout.splitlines()
+    )
+    assert tracked == []
+
+    agents = (REPOSITORY_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    assert "load_skill" in agents
+    assert "read_skill_file" in agents
+    assert ("/".join((".agents", "skills")) + "/") not in agents
+
+
 def test_verification_uses_locked_external_interpreter() -> None:
     powershell = (REPOSITORY_ROOT / "scripts" / "verify.ps1").read_text(
         encoding="utf-8"
