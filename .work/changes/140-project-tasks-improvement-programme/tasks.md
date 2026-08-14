@@ -1,0 +1,21 @@
+# Tasks: Project Tasks Improvement Programme
+
+- [x] Register #215 and slices #216–#219.
+- [x] Recover requested `mcp-development` and `kis-mcp` procedural guidance after host-level KIS Skills invocation failure; record operator exception.
+- [x] Register governed change 140 before implementation and exclude active recovery-capsule domains.
+- [ ] #216: generation-aware ready-state persistence.
+- [ ] #216: stale/mismatched runtime regression tests.
+- [ ] #217: current/resume Active-work selector and service operation.
+- [ ] #217: none/one/multiple/truncated/provider-failure tests.
+- [ ] #218: normalized board view model and service/MCP read.
+- [ ] #218: Control Center board source/snapshot/render integration.
+- [ ] #218: board/filter/fallback tests.
+- [ ] #219: result/provenance envelope and typed error classifier.
+- [ ] #219: accurate MCP annotations for project-management tools.
+- [ ] #219: compatibility/annotation/error tests.
+- [ ] Reconcile `SPEC.md` and `docs/OPERATIONS.md`.
+- [ ] Open PR and obtain exact-head canonical CI.
+- [ ] Complete required code-quality, architecture and API-contract review evidence.
+- [ ] Merge exact verified head.
+- [ ] Reconcile/close child issues to actual evidence.
+- [ ] Perform live KIS runtime commissioning when a KIS-enabled host is available; close #215 only when this required evidence is genuinely complete.
