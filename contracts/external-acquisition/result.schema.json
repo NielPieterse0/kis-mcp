@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/schemas/external-acquisition-result-v1.json",
+  "title": "KIS Validated External Acquisition Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "provider", "provider_type", "project_id", "profile_id", "recipe_id", "recipe_hash",
+    "content_class", "artifact_sha256", "byte_count", "artifact_relative_path", "provider_implementation_revision",
+    "container_image_digest", "credential_references", "state", "failure_code"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {"const": "import-isolate"},
+    "provider_type": {"enum": ["http", "firecrawl-mcp"]},
+    "project_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "profile_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+    "recipe_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "recipe_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "content_class": {"enum": ["data-evidence", "web-evidence", "executable-source"]},
+    "artifact_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "byte_count": {"type": "integer", "minimum": 0},
+    "artifact_relative_path": {"type": "string", "minLength": 1, "maxLength": 512},
+    "provider_implementation_revision": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "container_image_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "credential_references": {
+      "type": "array", "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$"}
+    },
+    "state": {"const": "success"},
+    "failure_code": {"type": "null"}
+  }
+}
