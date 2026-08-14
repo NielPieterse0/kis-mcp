@@ -135,6 +135,32 @@ def _nodes(
     return [dict(item) for item in container], page_source
 
 
+def _recoverable_field_names(
+    document: Mapping[str, Any],
+    requested: tuple[str, ...],
+) -> tuple[str, ...] | None:
+    if document.get("error") != "field_not_found":
+        return None
+    missing = _optional_text(document.get("name"))
+    if missing is None or missing.casefold() not in {name.casefold() for name in requested}:
+        return None
+    candidates = document.get("candidates")
+    if not isinstance(candidates, list):
+        return None
+    supported: set[str] = set()
+    for candidate in candidates:
+        if not isinstance(candidate, Mapping):
+            return None
+        name = _optional_text(candidate.get("name"))
+        if name is None:
+            return None
+        supported.add(name.casefold())
+    reconciled = tuple(name for name in requested if name.casefold() in supported)
+    if reconciled == requested:
+        return None
+    return reconciled
+
+
 def _page_info(document: Mapping[str, Any], operation: str) -> tuple[bool, str | None]:
     raw = document.get("pageInfo", document.get("page_info", {}))
     if raw is None:
@@ -421,21 +447,40 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
     ) -> tuple[tuple[ProjectItem, ...], bool, str | None]:
         items: list[ProjectItem] = []
         cursor: str | None = None
+        requested_fields = field_names
+        fields_reconciled = False
         for _page in range(self._max_pages):
             remaining = item_limit - len(items)
             if remaining <= 0:
                 return tuple(items), cursor is not None, cursor
-            arguments = {
-                "method": "list_project_items",
-                **self._base_arguments(binding),
-                "per_page": min(self._page_size, remaining),
-            }
-            if cursor is not None:
-                arguments["after"] = cursor
-            if field_names:
-                arguments["field_names"] = list(field_names)
-            document = await self._call("list_project_items", _PROJECT_LIST, arguments)
-            nodes, page_source = _nodes(document, "items", "list_project_items")
+            while True:
+                arguments = {
+                    "method": "list_project_items",
+                    **self._base_arguments(binding),
+                    "per_page": min(self._page_size, remaining),
+                }
+                if cursor is not None:
+                    arguments["after"] = cursor
+                if requested_fields:
+                    arguments["field_names"] = list(requested_fields)
+                document = await self._call(
+                    "list_project_items", _PROJECT_LIST, arguments
+                )
+                if not fields_reconciled:
+                    reconciled = _recoverable_field_names(document, requested_fields)
+                    if reconciled is not None:
+                        requested_fields = reconciled
+                        fields_reconciled = True
+                        continue
+                if document.get("error") == "field_not_found":
+                    raise _invalid(
+                        "list_project_items",
+                        "provider field_not_found could not be reconciled",
+                    )
+                nodes, page_source = _nodes(
+                    document, "items", "list_project_items"
+                )
+                break
             has_next, next_cursor = _page_info(page_source, "list_project_items")
             normalized = [_normalize_item(node, "list_project_items") for node in nodes]
             if len(normalized) > remaining:

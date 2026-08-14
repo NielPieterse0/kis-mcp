@@ -324,3 +324,94 @@ def test_adapter_rejects_wrong_provider_and_invalid_limits() -> None:
                 binding(), item_limit=0
             )
         )
+
+
+def test_inventory_retries_field_not_found_with_provider_candidates() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "error": "field_not_found",
+            "name": "Priority",
+            "candidates": [
+                {"name": "Status", "data_type": "SINGLE_SELECT"},
+                {"name": "Created", "data_type": "CREATED"},
+                {"name": "Repository", "data_type": "REPOSITORY"},
+            ],
+        },
+        {"items": [], "pageInfo": page_info(False)},
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller).read_inventory(
+            binding(),
+            field_names=("Status", "Priority", "Created", "Repository"),
+            item_limit=20,
+        )
+    )
+
+    assert inventory.items == ()
+    assert caller.calls[-2][1]["field_names"] == [
+        "Status", "Priority", "Created", "Repository"
+    ]
+    assert caller.calls[-1][1]["field_names"] == [
+        "Status", "Created", "Repository"
+    ]
+
+
+def test_inventory_does_not_recover_from_malformed_field_candidates() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "error": "field_not_found",
+            "name": "Priority",
+            "candidates": "not-an-array",
+            "items": [],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    with pytest.raises(
+        GitHubProjectInventoryError,
+        match=(
+            "GITHUB_PROJECT_INVENTORY_INVALID_RESPONSE: "
+            "list_project_items: provider field_not_found could not be reconciled"
+        ),
+    ):
+        asyncio.run(
+            GitHubProjectInventoryAdapter(caller).read_inventory(
+                binding(), field_names=("Status", "Priority"), item_limit=20
+            )
+        )
+
+
+def test_inventory_rejects_second_field_not_found_after_reconciliation() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "error": "field_not_found",
+            "name": "Priority",
+            "candidates": [{"name": "Status"}],
+        },
+        {
+            "error": "field_not_found",
+            "name": "Status",
+            "candidates": [{"name": "Status"}],
+            "items": [],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    with pytest.raises(
+        GitHubProjectInventoryError,
+        match="provider field_not_found could not be reconciled",
+    ):
+        asyncio.run(
+            GitHubProjectInventoryAdapter(caller).read_inventory(
+                binding(), field_names=("Status", "Priority"), item_limit=20
+            )
+        )
+
+    assert len(caller.calls) == 4
