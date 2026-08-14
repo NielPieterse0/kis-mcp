@@ -7,6 +7,7 @@ from typing import Any
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from ..acquisition.service import execute_registered_acquisition_operation
 from ..projects.github_exact import execute_registered_github_operation
 from ..projects.github_merge_queue import REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS
 from ..workflows.merge_queue import execute_governed_github_merge_queue_operation
@@ -29,6 +30,7 @@ _CONTROL_DISPATCH_OPERATIONS = frozenset(
         "execute_external_action",
     }
 )
+_REGISTERED_VIRTUAL_FAMILIES = frozenset({"registered-github", "registered-acquisition"})
 
 
 def _json_chars(value: Any) -> int:
@@ -111,6 +113,17 @@ def _schema_bound_approval(
         and approved_schema.get("type") == "boolean"
         and "approved" in required
         and arguments.get("approved") is True
+    )
+
+
+def _registered_virtual_approval(
+    operation: OperationDescriptor,
+    arguments: Mapping[str, Any],
+) -> bool:
+    return (
+        "virtual" in operation.tags
+        and any(family in operation.tags for family in _REGISTERED_VIRTUAL_FAMILIES)
+        and _schema_bound_approval(operation, arguments)
     )
 
 
@@ -198,16 +211,11 @@ class CapabilityExecutionRouter:
             raise ToolError(
                 f"EFFECT_MISMATCH: {operation.name} has incompatible effects"
             )
-        schema_bound_registered_github_approval = (
-            "virtual" in operation.tags
-            and "registered-github" in operation.tags
-            and _schema_bound_approval(operation, arguments)
-        )
-        if operation.approval_required and not schema_bound_registered_github_approval:
+        if operation.approval_required and not _registered_virtual_approval(operation, arguments):
             raise ToolError(
                 "APPROVAL_REQUIRED: this registered operation requires its original "
-                "approval workflow; only registered-GitHub virtual operations may "
-                "use an explicit schema-bound approved=true input"
+                "approval workflow; only explicitly registered virtual operation families may "
+                "use a schema-bound approved=true input"
             )
 
         decision = evaluate_eligibility(
@@ -223,25 +231,28 @@ class CapabilityExecutionRouter:
             )
 
         if "virtual" in operation.tags:
-            if "registered-github" not in operation.tags:
-                raise ToolError(
-                    f"VIRTUAL_OPERATION_UNSUPPORTED: {operation.name}"
-                )
-            if operation.name in REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS:
-                result = execute_registered_github_tracking_operation(
-                    operation.name,
-                    dict(arguments),
-                )
-            elif operation.name in REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS:
-                result = execute_governed_github_merge_queue_operation(
-                    operation.name,
-                    dict(arguments),
-                )
+            if "registered-acquisition" in operation.tags:
+                if operation.name != "kis_acquire_registered_evidence":
+                    raise ToolError(f"VIRTUAL_OPERATION_UNSUPPORTED: {operation.name}")
+                result = execute_registered_acquisition_operation(dict(arguments))
+            elif "registered-github" in operation.tags:
+                if operation.name in REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS:
+                    result = execute_registered_github_tracking_operation(
+                        operation.name,
+                        dict(arguments),
+                    )
+                elif operation.name in REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS:
+                    result = execute_governed_github_merge_queue_operation(
+                        operation.name,
+                        dict(arguments),
+                    )
+                else:
+                    result = execute_registered_github_operation(
+                        operation.name,
+                        dict(arguments),
+                    )
             else:
-                result = execute_registered_github_operation(
-                    operation.name,
-                    dict(arguments),
-                )
+                raise ToolError(f"VIRTUAL_OPERATION_UNSUPPORTED: {operation.name}")
             return _budget_result(
                 operation.name,
                 result,
