@@ -31,6 +31,7 @@ def test_registry_backed_repository_settings_need_no_target_repo_kis_file() -> N
         "nielpieterse0/commodity",
         "nielpieterse0/doc-solution",
         "nielpieterse0/gpt-os",
+        "nielpieterse0/import-isolate",
         "nielpieterse0/kis-mcp",
         "nielpieterse0/mi-fi",
         "nielpieterse0/prose2llm",

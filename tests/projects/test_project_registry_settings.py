@@ -74,7 +74,7 @@ def test_checked_in_registry_has_requested_workspace_bindings() -> None:
         "commodity": ("C:\\Projects\\commodity", "nielpieterse0/commodity"),
         "doc-solution": ("C:\\Projects\\doc-solution", "nielpieterse0/doc-solution"),
         "gpt-os": ("C:\\Projects\\GPT-OS", "nielpieterse0/gpt-os"),
-        "import-isolate": ("C:\\Projects\\import-isolate", None),
+        "import-isolate": ("C:\\Projects\\import-isolate", "nielpieterse0/import-isolate"),
         "mi-fi": ("C:\\Projects\\app-builder\\mi-fi", "nielpieterse0/mi-fi"),
         "prose2llm": ("C:\\Projects\\app-builder\\Prose2LLM", "nielpieterse0/prose2llm"),
         "signal": ("C:\\Projects\\app-builder\\signal", "nielpieterse0/signal"),
