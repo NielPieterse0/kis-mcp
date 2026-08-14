@@ -27,7 +27,13 @@ from .parsing import (
     work_record_from_json,
 )
 
-_READ_ONLY = {
+_EXTERNAL_READ = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+_LOCAL_READ = {
     "readOnlyHint": True,
     "destructiveHint": False,
     "idempotentHint": True,
@@ -68,7 +74,7 @@ def register_project_management_tools(
 ) -> None:
     tool_server = FastMCP("kis-mcp-project-management")
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_inventory(
         project_id: str,
         field_names: list[str] | None = None,
@@ -125,7 +131,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_RECONCILE_FAILED", exc) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_next_work(
         project_id: str,
         item_limit: int = 100,
@@ -326,7 +332,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_COMPLETE_WORK_FAILED", exc) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_schema_plan(
         project_id: str,
     ) -> dict[str, Any]:
@@ -337,7 +343,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_SCHEMA_PLAN_FAILED", exc) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_schema_status(
         project_id: str,
     ) -> dict[str, Any]:
@@ -349,7 +355,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_SCHEMA_STATUS_FAILED", exc) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_LOCAL_READ)
     def project_management_merge_readiness(
         record: dict[str, Any],
         trace: dict[str, Any],
@@ -367,7 +373,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_MERGE_READINESS_FAILED", exc) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_LOCAL_READ)
     def project_management_documentation_reconcile(
         record: dict[str, Any],
         trace: dict[str, Any],
@@ -417,7 +423,7 @@ def register_project_management_tools(
                 "PROJECT_MANAGEMENT_DOCUMENTATION_RECONCILE_FAILED", exc
             ) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_LOCAL_READ)
     def project_management_portfolio_status(
         records: list[dict[str, Any]],
         traceability_gaps: dict[str, list[str]] | None = None,
@@ -466,7 +472,7 @@ def register_project_management_tools(
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_EVIDENCE_FAILED", exc) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_LOCAL_READ)
     def project_management_verify_traceability(
         trace: dict[str, Any],
         stage: str,
