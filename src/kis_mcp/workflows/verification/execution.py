@@ -12,6 +12,7 @@ from .contracts import VerificationResult
 
 Runner = Callable[[str, dict[str, Any]], Awaitable[Any]]
 _EXIT_MARKER = re.compile(r"(?m)^__KIS_VERIFICATION_EXIT_CODE=(-?\d+)\s*$")
+_PROCESS_STARTED_PID = re.compile(r"(?m)^Process started with PID ([1-9]\d*)\b")
 _SUPPORTED_EXECUTABLES = {
     "python": "python",
     "uv": "uv",
@@ -276,7 +277,11 @@ def _result_pid(result: Any) -> int | None:
                     return found
         return None
 
-    return visit(result, 0)
+    pid = visit(result, 0)
+    if pid is not None:
+        return pid
+    match = _PROCESS_STARTED_PID.search(_result_text(result))
+    return int(match.group(1)) if match else None
 
 
 def _exit_code(text: str) -> int | None:

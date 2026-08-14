@@ -125,7 +125,7 @@ def test_nonzero_exit_is_classified_as_verification_failure() -> None:
     assert result.evidence == "failure output"
 
 
-def test_unfinished_process_is_polled_and_can_complete() -> None:
+def test_structured_process_pid_is_polled_and_can_complete() -> None:
     runner = _Runner(
         [
             {"text": "Process started with PID 1234", "pid": 1234},
@@ -154,7 +154,7 @@ def test_unfinished_process_is_polled_and_can_complete() -> None:
 def test_intermediate_process_output_is_repolled_until_terminal_receipt() -> None:
     runner = _Runner(
         [
-            {"text": "Process started with PID 1234", "pid": 1234},
+            {"text": "Process started with PID 1234 (shell: powershell.exe)\nInitial output:"},
             {"text": "tests still running"},
             {"text": "182 passed\n__KIS_VERIFICATION_EXIT_CODE=0\n"},
         ]
@@ -184,6 +184,60 @@ def test_intermediate_process_output_is_repolled_until_terminal_receipt() -> Non
         for tool, arguments in runner.calls
         if tool == "read_process_output"
     )
+
+
+def test_textual_process_pid_reconciles_nonzero_terminal_receipt() -> None:
+    runner = _Runner(
+        [
+            {"text": "Process started with PID 4321 (shell: powershell.exe)"},
+            {"text": "six failures\n__KIS_VERIFICATION_EXIT_CODE=1\n"},
+        ]
+    )
+    result = asyncio.run(
+        VerificationExecutionService(
+            inspector=_Inspector([_declaration()]),
+            runner=runner,
+        ).run(
+            project=r"C:\Projects\fixture",
+            verification_id="python-pytest",
+            timeout_ms=30_000,
+        )
+    )
+
+    assert result.status == "failed"
+    assert result.exit_code == 1
+    assert result.failure_classification == "verification_failed"
+    assert runner.calls[1][1]["pid"] == 4321
+
+
+def test_textual_process_pid_polling_respects_original_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = iter((10.0, 10.01, 10.03, 10.03))
+    monkeypatch.setattr(
+        "kis_mcp.workflows.verification.execution.time.perf_counter",
+        lambda: next(clock),
+    )
+    runner = _Runner(
+        [
+            {"text": "Process started with PID 9876"},
+            {"text": "tests still running"},
+        ]
+    )
+    result = asyncio.run(
+        VerificationExecutionService(
+            inspector=_Inspector([_declaration()]),
+            runner=runner,
+        ).run(
+            project=r"C:\Projects\fixture",
+            verification_id="python-pytest",
+            timeout_ms=20,
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert [tool for tool, _ in runner.calls] == ["start_process", "read_process_output"]
+    assert 1 <= runner.calls[1][1]["timeout_ms"] < 20
 
 
 def test_missing_exit_marker_is_incomplete_not_success() -> None:

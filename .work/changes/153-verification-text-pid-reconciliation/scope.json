@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "153-verification-text-pid-reconciliation",
+  "status": "active",
+  "branch": "change/153-verification-text-pid-reconciliation",
+  "worktree": ".work/worktrees/153-verification-text-pid-reconciliation",
+  "base": "main",
+  "outcome": "Close SPEC-135 residual receipt defect by recognizing Desktop Commander textual process-start PID evidence so verification polling reaches the terminal KIS exit marker within the original timeout budget.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/verification/execution.py",
+    "tests/workflows/verification/test_verification_execution.py",
+    ".work/changes/153-verification-text-pid-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "a49fce4f789cbd1544273eae386a21b19e3bbaf9",
+    "local_tree": "a53f4d385294867eb22533c04a4f9f0f38a86c55",
+    "upstream_sha": "a49fce4f789cbd1544273eae386a21b19e3bbaf9",
+    "upstream_tree": "a53f4d385294867eb22533c04a4f9f0f38a86c55",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-135",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 196,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
