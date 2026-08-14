@@ -148,27 +148,28 @@
       "effects": ["read_only", "local_change", "process"],
       "workflow_roles": ["orchestration", "implementation"]
     },
-    "build-mcp-app": {
+    "mcp-development": {
       "category": "mcp-development",
       "capabilities": [
-        "mcp.app.design",
-        "mcp.ui.compose"
+        "mcp.protocol.design",
+        "mcp.integration.review"
       ],
       "activation_terms": [
-        "mcp app",
-        "widget",
-        "interactive ui"
+        "mcp protocol",
+        "mcp interoperability",
+        "mcp review"
       ],
       "effects": [
         "read_only",
         "local_change"
       ],
       "workflow_roles": [
+        "analysis",
         "design",
-        "implementation"
+        "review"
       ]
     },
-    "build-mcpb": {
+    "mcpb-local-packaging": {
       "category": "mcp-development",
       "capabilities": [
         "mcp.bundle.design",
@@ -176,8 +177,8 @@
       ],
       "activation_terms": [
         "mcpb",
-        "bundle mcp",
-        "local mcp"
+        "local mcp package",
+        "claude desktop package"
       ],
       "effects": [
         "read_only",
@@ -188,16 +189,36 @@
         "implementation"
       ]
     },
-    "build-mcp-server": {
+    "openai-mcp-app-ui": {
+      "category": "mcp-development",
+      "capabilities": [
+        "mcp.app.design",
+        "mcp.ui.compose"
+      ],
+      "activation_terms": [
+        "openai mcp app",
+        "chatgpt widget",
+        "interactive mcp ui"
+      ],
+      "effects": [
+        "read_only",
+        "local_change"
+      ],
+      "workflow_roles": [
+        "design",
+        "implementation"
+      ]
+    },
+    "openai-mcp-server": {
       "category": "mcp-development",
       "capabilities": [
         "mcp.server.design",
         "mcp.tool.design"
       ],
       "activation_terms": [
-        "mcp server",
-        "model context protocol",
-        "tool server"
+        "openai mcp server",
+        "chatgpt mcp",
+        "codex mcp"
       ],
       "effects": [
         "read_only",
