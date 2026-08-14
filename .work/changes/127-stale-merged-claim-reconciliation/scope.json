@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "127-stale-merged-claim-reconciliation",
+  "status": "active",
+  "branch": "change/127-stale-merged-claim-reconciliation",
+  "worktree": ".work/worktrees/127-stale-merged-claim-reconciliation",
+  "base": "main",
+  "outcome": "Reconcile stale merged lifecycle claims for changes 121, 122, and 124 so canonical verification and cleanup reflect repository truth.",
+  "owned_paths": [
+    ".work/changes/121-skills-catalogue-reconciliation/scope.json",
+    ".work/changes/122-stale-merged-claim-reconciliation/scope.json",
+    ".work/changes/124-canonical-skills-module-only/scope.json",
+    ".work/changes/127-stale-merged-claim-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "c048beaf4db1626c7b853a481dde2758acf982e6",
+    "local_tree": "327acc2a4e32b4d6cd9791dea64903fc74d12960",
+    "upstream_sha": "c048beaf4db1626c7b853a481dde2758acf982e6",
+    "upstream_tree": "327acc2a4e32b4d6cd9791dea64903fc74d12960",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-127",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 179,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
