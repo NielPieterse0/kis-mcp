@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "change_id": "147-runtime-startup-policy-fingerprint",
+  "status": "active",
+  "branch": "change/147-runtime-startup-policy-fingerprint",
+  "worktree": ".work/worktrees/147-runtime-startup-policy-fingerprint",
+  "base": "main",
+  "outcome": "Align launcher startup policy fingerprint evidence with the runtime's canonical JSON fingerprint so fresh kis-dev/kis-op generations can commission as ready.",
+  "owned_paths": [
+    "scripts/start-chatgpt.ps1",
+    "tests/test_startup_scripts.py",
+    ".work/changes/147-runtime-startup-policy-fingerprint/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "55262611bb589d3cc1904768193e3e37d78a8b14",
+    "local_tree": "eedb6191e21a94c4e0f01de477ab6648585f7c6f",
+    "upstream_sha": "55262611bb589d3cc1904768193e3e37d78a8b14",
+    "upstream_tree": "eedb6191e21a94c4e0f01de477ab6648585f7c6f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "emergency_manual_worktree_after_global_claim_conflict",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "ISSUE-216",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 216,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

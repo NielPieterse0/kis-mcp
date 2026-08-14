@@ -236,14 +236,22 @@ if ($NvidiaSecretReference -ne 'secret://provider/nvidia-nim/api-key') {
 if ($NvidiaApiKeyEnvironment -ne 'NVIDIA_API_KEY') {
     throw 'KIS_MCP_NVIDIA_API_KEY_ENVIRONMENT_INVALID'
 }
+$Python = Join-Path $Remote.python_environment_root 'Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
+    throw "KIS_MCP_PYTHON_MISSING: $Python"
+}
 $PolicyPath = Join-Path $RepositoryRoot 'policy\kis-mcp.policy.json'
 if (-not (Test-Path -LiteralPath $PolicyPath -PathType Leaf)) {
     throw "KIS_MCP_POLICY_MISSING: $PolicyPath"
 }
-$PolicyFingerprint = (Get-FileHash -LiteralPath $PolicyPath -Algorithm SHA256).Hash.ToLowerInvariant()
-$Python = Join-Path $Remote.python_environment_root 'Scripts\python.exe'
-if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
-    throw "KIS_MCP_PYTHON_MISSING: $Python"
+$PolicyFingerprintCommand = "import hashlib,json,sys; policy=json.load(open(sys.argv[1],encoding='utf-8')); print(hashlib.sha256(json.dumps(policy,sort_keys=True,separators=(',',':')).encode('utf-8')).hexdigest())"
+$PolicyFingerprint = [string](& $Python -c $PolicyFingerprintCommand $PolicyPath)
+if ($LASTEXITCODE -ne 0) {
+    throw 'KIS_MCP_POLICY_FINGERPRINT_FAILED'
+}
+$PolicyFingerprint = $PolicyFingerprint.Trim().ToLowerInvariant()
+if ($PolicyFingerprint -notmatch '^[0-9a-f]{64}$') {
+    throw 'KIS_MCP_POLICY_FINGERPRINT_INVALID'
 }
 $Preflight = Invoke-KisMcpSelectedInstancePreflight `
     -Remote $Remote `
