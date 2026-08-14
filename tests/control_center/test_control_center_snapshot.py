@@ -183,6 +183,7 @@ def test_snapshot_collects_bounded_truthful_local_status(tmp_path: Path) -> None
     assert snapshot.verification.status == "not_recorded"
     assert snapshot.verification.command[-1] == "scripts/verify.ps1"
     assert snapshot.generated_at.endswith("+00:00")
+    assert snapshot.work_board["status"] == "unavailable"
 
 
 def test_snapshot_preserves_unknown_states_instead_of_failing(tmp_path: Path) -> None:
@@ -226,24 +227,9 @@ def test_snapshot_ignores_inherited_git_repository_overrides(
     assert snapshot.project.git.branch is None
 
 
-def test_structured_snapshot_reuses_exact_shared_work_board_projection(
+def test_structured_snapshot_keeps_work_board_explicitly_unavailable_without_injection(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from kis_mcp.work_management import board_bridge as board_bridge_module
-
-    class _Bridge:
-        def current(self):
-            return {
-                "schema_version": 1,
-                "status": "available",
-                "project_id": "kis-mcp",
-                "observed_at": "2026-08-14T08:55:00+00:00",
-                "authority": "configured_work_management_backend",
-                "cards": [{"item_id": "item-215", "number": 215}],
-            }
-
-    monkeypatch.setattr(board_bridge_module, "_DEFAULT_WORK_BOARD_BRIDGE", _Bridge())
     project = tmp_path / "project"
     _initialize_dirty_repository(project)
     snapshot = ControlCenterSnapshotService(_settings(tmp_path, project)).collect()
@@ -252,9 +238,7 @@ def test_structured_snapshot_reuses_exact_shared_work_board_projection(
 
     assert structured["work_board"] == {
         "schema_version": 1,
-        "status": "available",
-        "project_id": "kis-mcp",
-        "observed_at": "2026-08-14T08:55:00+00:00",
+        "status": "unavailable",
+        "reason": "no_authoritative_board_read_observed_in_process",
         "authority": "configured_work_management_backend",
-        "cards": [{"item_id": "item-215", "number": 215}],
     }
