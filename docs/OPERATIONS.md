@@ -31,6 +31,8 @@ C:\Projects\.kis-mcp\
 ├── desktop-commander\
 ├── context7\
 ├── serena\
+├── telemetry\
+│   └── skills.sqlite3
 ├── discover\
 │   └── projects\<project-id>\<worktree-fingerprint>\
 ├── commissioning\
@@ -203,6 +205,18 @@ After the core gateway is created, startup loads the strict provider-runtime JSO
 For GitHub, the Provider runtime creates one shared FastMCP client and keeps its upstream GitHub MCP subprocess connected for the lifetime of the parent `kis-op` process. Before the mounted provider lifespan starts, aggregate tool inspection exposes only the GitHub adapter's local surface and deliberately does not connect the upstream GitHub process. After the shared client connects, a single `get_me` startup call triggers OAuth and initial upstream tool discovery publishes the current runtime tool snapshot without closing that connection. Downstream tool sessions reuse the authenticated process; stopping or restarting `kis-op` closes it and requires one new sign-in on the next start. Repository and Project authorization are evaluated independently on every call against the GitHub repository/Project union in `settings/projects.settings.json`.
 
 For Supabase, the runtime uses the same persistent client seam without a provider-specific startup call. It connects once to `https://mcp.supabase.com/mcp`, performs account OAuth, discovers the upstream tool surface, and reuses that client until the parent KIS runtime stops. `SUPABASE_PROJECT_REF` is not a startup requirement. Project-targeted calls must carry an explicit registered Supabase `project_id`; targetless calls are accepted only when the discovered upstream tool declares itself read-only.
+
+### Skill usage telemetry
+
+Production startup attaches the Skills module to a bounded SQLite event store at `<state_root>\telemetry\skills.sqlite3` and to the existing process-local `RuntimeObservability` registry. The durable store retains at most 20,000 redacted events and report queries return at most 100 grouped rows. It records no prompts, skill/file contents, raw search queries, credentials, secrets, or arbitrary tool arguments.
+
+Use `load_skill(skill_id, activation_id, project_id)` when the caller has a stable activation and project identity. The returned `sha256` is the immutable package-level content hash used for longitudinal version attribution. Passing the same optional activation/project values to `read_skill_file` keeps resource activity correlated to that package version without storing the requested file content or search text.
+
+A load is not evidence that the skill was applied. After an actual application or completion, use `record_skill_outcome` with the exact skill ID, activation ID, snapshot ID, package SHA-256, and project identity from the observed load. KIS rejects reported outcomes that cannot be tied to a matching earlier load. `phase` is one of `applied`, `completed`, or `failed`; these records are labeled reported rather than observed.
+
+Use `skill_telemetry_report` with optional skill/project/hash filters to retrieve separate discovery, load, resource-read, evaluation, mutation, applied, completed, failed, and error counters. Duration, tokens, tool calls, retries, and verification fields include sample counts; zero samples means the metric was not observable, not that its value was zero. Do not collapse these counters into an authorization decision or one quality score.
+
+The Control Center also exposes only the bounded recent in-memory skill activity. Durable telemetry is KIS operational evidence; behavioral candidate-vs-baseline evaluation and skill admission/withdrawal remain separate responsibilities.
 
 The feedback tool and `read_file.isUrl` mode are absent from the Work contract. Terminal and process tools remain available. The gateway builds the static/local capability surface without forcing GitHub upstream discovery, then augments the effective capability catalogue from current provider runtime-tool snapshots and current readiness whenever discovery, recommendation, eligibility, or long-tail dispatch is evaluated. The bounded direct `tools/list` profile remains fixed for the running gateway; newly discovered long-tail operations remain discoverable rather than automatically becoming direct tools. The gateway still blocks or transforms only concrete HR-001, HR-002, or HR-003 effects.
 

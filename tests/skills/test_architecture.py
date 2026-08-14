@@ -21,10 +21,27 @@ def test_skills_dependency_direction_is_explicit() -> None:
         "source.py": {"config", "errors", "frontmatter"},
         "catalogue.py": {"capabilities", "config", "errors", "metadata", "models", "source"},
         "metadata.py": {"capabilities", "models"},
-        "platform.py": {"capabilities", "metadata", "models", "service", "tools"},
+        "platform.py": {
+            "capabilities",
+            "metadata",
+            "models",
+            "runtime_observability",
+            "service",
+            "telemetry",
+            "tools",
+        },
         "backend.py": {"errors"},
-        "service.py": {"backend", "catalogue", "errors", "models"},
-        "tools.py": {"backend", "catalogue", "config", "errors", "models", "service"},
+        "service.py": {"backend", "catalogue", "errors", "models", "telemetry"},
+        "telemetry.py": {"runtime_observability"},
+        "tools.py": {
+            "backend",
+            "catalogue",
+            "config",
+            "errors",
+            "models",
+            "service",
+            "telemetry",
+        },
     }
 
     for file_name, allowed in allowed_local_imports.items():
@@ -75,7 +92,27 @@ def test_gateway_composes_skills_through_platform_entrypoint() -> None:
         REPOSITORY_ROOT / "src" / "kis_mcp" / "gateway" / "composition.py"
     ).read_text(encoding="utf-8")
     assert "from ..skills.platform import" in source
-    assert "register_platform_skills(server)" in source
+    tree = ast.parse(source)
+    compose_gateway = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "compose_gateway"
+    )
+    calls = [
+        statement.value
+        for statement in compose_gateway.body
+        if isinstance(statement, ast.Assign)
+        and isinstance(statement.value, ast.Call)
+        and isinstance(statement.value.func, ast.Name)
+        and statement.value.func.id == "register_platform_skills"
+    ]
+    assert len(calls) == 1
+    call = calls[0]
+    assert len(call.args) == 1
+    assert isinstance(call.args[0], ast.Name) and call.args[0].id == "server"
+    assert len(call.keywords) == 1
+    assert call.keywords[0].arg == "state_root"
+    assert ast.unparse(call.keywords[0].value) == "runtime.state_root"
     assert "register_skills_tools" not in source
     assert "desktop_commander" not in (
         SKILLS_ROOT / "backend.py"

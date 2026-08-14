@@ -15,9 +15,11 @@ from kis_mcp.skills.errors import SkillsError
 from kis_mcp.skills.models import SkillCard
 from kis_mcp.skills.platform import (
     active_skill_capability_contributions,
+    register_platform_skills,
     skill_capability_contributions,
 )
 from kis_mcp.skills.service import SkillsService
+from kis_mcp.skills.telemetry import SkillTelemetryStore
 
 
 def test_production_settings_require_canonical_kis_mcp() -> None:
@@ -77,6 +79,35 @@ def test_active_skill_contributions_follow_refreshed_catalogue(skills_config, ma
     assert "skill.develop-code" not in refreshed
     assert "skill.github" in refreshed
     assert catalogue.load_skill("github").skill.id == "github"
+
+
+def test_internal_capability_enumeration_does_not_emit_discovery_telemetry(
+    skills_config, make_skill, tmp_path, monkeypatch
+) -> None:
+    make_skill("develop-code")
+    store = SkillTelemetryStore(tmp_path / "skills.sqlite3")
+    service = SkillsService(SkillCatalogue(skills_config), backend=None, telemetry=store)
+    monkeypatch.setattr(
+        "kis_mcp.skills.platform.register_skills_tools",
+        lambda server, telemetry=None: service,
+    )
+
+    registered_service, startup_cards = register_platform_skills(
+        FastMCP("skill-startup-registration-test")
+    )
+    contributions = active_skill_capability_contributions(
+        service, load_capability_settings()
+    )
+
+    assert registered_service is service
+    assert any(card.id == "develop-code" for card in startup_cards)
+    assert any(item.contribution_id == "skill.develop-code" for item in contributions)
+    assert store.report().event_count == 0
+
+    service.list_skills(limit=service.catalogue.config.limits.list_max_limit)
+    report = store.report(skill_id="develop-code")
+    assert report.event_count == 1
+    assert report.groups[0].discovered_count == 1
 
 
 def test_capability_search_reconciles_after_skill_refresh(skills_config, make_skill) -> None:

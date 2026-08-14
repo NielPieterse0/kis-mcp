@@ -149,7 +149,10 @@ def compose_gateway(
             ),
         )
     )
-    skill_service, skill_cards = register_platform_skills(server)
+    skill_service, skill_cards = register_platform_skills(
+        server,
+        state_root=runtime.state_root,
+    )
 
     settings = load_capability_settings()
     static_contributions = (

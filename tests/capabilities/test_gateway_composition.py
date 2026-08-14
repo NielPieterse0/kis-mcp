@@ -141,6 +141,19 @@ def test_gateway_exposes_curated_surface_and_discovers_hidden_tools() -> None:
     )
     assert result.structured_content is not None
 
+    telemetry_search = asyncio.run(
+        composed.server.call_tool(
+            "search_capabilities",
+            {"query": "skill telemetry", "limit": 20},
+        )
+    )
+    telemetry_operations = {
+        item["operation_name"]: item
+        for item in telemetry_search.structured_content["operations"]
+    }
+    assert telemetry_operations["record_skill_outcome"]["effects"] == ["local_change"]
+    assert telemetry_operations["skill_telemetry_report"]["effects"] == ["read_only"]
+
 
 def test_unavailable_mounted_provider_is_status_visible_but_not_recommended() -> None:
     composed = compose_gateway(

@@ -1,0 +1,62 @@
+{
+  "schema_version": 4,
+  "change_id": "145-skill-usage-telemetry",
+  "status": "active",
+  "branch": "change/145-skill-usage-telemetry",
+  "worktree": ".work/worktrees/145-skill-usage-telemetry",
+  "base": "main",
+  "outcome": "Add bounded privacy-preserving version-attributed Skills usage telemetry and explicit outcome reporting for downstream effectiveness evaluation.",
+  "owned_paths": [
+    "src/kis_mcp/control_center/snapshot.py",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/runtime_observability.py",
+    "src/kis_mcp/skills/platform.py",
+    "src/kis_mcp/skills/service.py",
+    "src/kis_mcp/skills/telemetry.py",
+    "src/kis_mcp/skills/tools.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "tests/skills/test_architecture.py",
+    "tests/skills/test_service_telemetry.py",
+    "tests/skills/test_telemetry.py",
+    "tests/skills/test_tools.py",
+    "tests/skills/test_dynamic_catalogue_startup.py",
+    "tests/test_boundary_request_correlation.py",
+    "tests/test_runtime_observability_skill_activity.py",
+    "tests/capabilities/test_gateway_composition.py",
+    "scripts/smoke-skills-module.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/SKILLS-MODULE-PRODUCT-SPEC.md",
+    "docs/superpowers/plans/2026-08-14-skill-usage-telemetry.md",
+    "docs/superpowers/specs/2026-08-14-skill-usage-telemetry-design.md",
+    ".work/changes/145-skill-usage-telemetry/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "persistent_state",
+    "public_contract",
+    "sensitive_data"
+  ],
+  "base_evidence": {
+    "local_sha": "f6dd7d534213e3e1df7bca456f3e14aa15d2e95f",
+    "local_tree": "1b69f322f7e68a41f3c3f1ad1a4f27bb0dd688cc",
+    "upstream_sha": "f6dd7d534213e3e1df7bca456f3e14aa15d2e95f",
+    "upstream_tree": "1b69f322f7e68a41f3c3f1ad1a4f27bb0dd688cc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-234",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 234,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}
