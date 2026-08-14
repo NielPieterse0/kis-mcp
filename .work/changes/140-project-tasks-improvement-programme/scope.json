@@ -14,6 +14,7 @@
     "src/kis_mcp/work_management/project_commands.py",
     "src/kis_mcp/work_management/status.py",
     "src/kis_mcp/work_management/board.py",
+    "src/kis_mcp/work_management/board_bridge.py",
     "src/kis_mcp/work_management/results.py",
     "src/kis_mcp/work_management/__init__.py",
     "src/kis_mcp/workflows/platform.py",
