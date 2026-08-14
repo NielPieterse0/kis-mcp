@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/schemas/external-acquisition-settings-v1.json",
+  "title": "KIS External Acquisition Authorization Settings",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "provider", "limits", "authorizations"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "script_relative_path"],
+      "properties": {
+        "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+        "script_relative_path": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_parameters", "max_parameter_string_chars", "max_request_json_chars"],
+      "properties": {
+        "max_parameters": {"type": "integer", "minimum": 1, "maximum": 64},
+        "max_parameter_string_chars": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "max_request_json_chars": {"type": "integer", "minimum": 1024, "maximum": 65536}
+      }
+    },
+    "authorizations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project_id", "profiles"],
+        "properties": {
+          "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+          "profiles": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["profile_id", "approval_required", "recipe_directory", "recipe_id_prefix", "allowed_parameter_keys"],
+              "properties": {
+                "profile_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
+                "approval_required": {"const": true},
+                "recipe_directory": {"type": "string", "minLength": 1, "maxLength": 256},
+                "recipe_id_prefix": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$"},
+                "allowed_parameter_keys": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "maxItems": 64,
+                  "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
