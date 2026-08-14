@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 from typing import Any
 
 from fastmcp import FastMCP
@@ -12,6 +11,7 @@ from ...work_management.board import (
     build_work_board,
     select_current_work,
 )
+from ...work_management.board_bridge import get_work_board_bridge
 from ...work_management.results import error_json, result_envelope
 
 _READ_ONLY = {
@@ -29,6 +29,7 @@ def register_project_management_enhancement_tools(
     board_bridge: WorkBoardProjectionBridge | None = None,
 ) -> None:
     tool_server = FastMCP("kis-mcp-project-management-enhancements")
+    active_bridge = board_bridge or get_work_board_bridge()
 
     @tool_server.tool(annotations=_READ_ONLY)
     async def project_management_current_work(
@@ -90,8 +91,7 @@ def register_project_management_enhancement_tools(
                 query=query,
                 group_by=group_by,
             )
-            if board_bridge is not None:
-                board_bridge.publish(snapshot)
+            active_bridge.publish(snapshot)
             warnings = ("inventory_truncated",) if inventory.truncated else ()
             return result_envelope(
                 snapshot.to_json_dict(),
