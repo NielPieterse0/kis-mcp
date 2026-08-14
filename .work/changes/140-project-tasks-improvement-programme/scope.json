@@ -72,10 +72,5 @@
     "source_kind": "issue",
     "documentation_impact": "required",
     "child_issues": [216, 217, 218, 219]
-  },
-  "execution_exception": {
-    "reason": "The ChatGPT host rejects kis-dev/kis-op filesystem invocation. The operator explicitly authorized direct canonical shared-skill loading and continuation. The change record is therefore published before implementation through the approved GitHub connector; local worktree validation remains unavailable in this host and must be compensated by exact-head canonical CI before merge.",
-    "skills": ["mcp-development", "kis-mcp", "taskplanner"],
-    "recovery_capsule_overlap_control": "Do not modify EvidenceStore, project identity/registry, or repo-local capsule paths owned or plausibly owned by active change 136."
   }
 }
