@@ -1,0 +1,74 @@
+{
+  "schema_version": 4,
+  "change_id": "140-project-tasks-improvement-programme",
+  "status": "active",
+  "branch": "change/140-project-tasks-improvement-programme",
+  "worktree": ".work/worktrees/140-project-tasks-improvement-programme",
+  "base": "main",
+  "outcome": "Implement the four-slice Project Tasks Improvement Programme: generation-aware runtime truth, resumable current work, one normalized Work board projection shared with Control Center, and consistent Work Management result/error/action semantics.",
+  "owned_paths": [
+    "scripts/startup-instance-lifecycle.ps1",
+    "scripts/start-chatgpt.ps1",
+    "src/kis_mcp/gateway/foundation.py",
+    "src/kis_mcp/work_management/service.py",
+    "src/kis_mcp/work_management/project_commands.py",
+    "src/kis_mcp/work_management/status.py",
+    "src/kis_mcp/work_management/board.py",
+    "src/kis_mcp/work_management/results.py",
+    "src/kis_mcp/work_management/__init__.py",
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "src/kis_mcp/control_center/contracts.py",
+    "src/kis_mcp/control_center/snapshot.py",
+    "src/kis_mcp/control_center/render.py",
+    "tests/commissioning/test_operational_status.py",
+    "tests/work_management/test_service.py",
+    "tests/work_management/test_command_service.py",
+    "tests/work_management/test_board.py",
+    "tests/control_center/test_snapshot.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/140-project-tasks-improvement-programme/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/evidence/**",
+    "src/kis_mcp/projects.py",
+    "settings/projects.settings.json",
+    "**/.temp/kis/**",
+    "policy/**"
+  ],
+  "dependencies": [
+    "136-repo-local-recovery-capsule: no dependency on its implementation; keep its persistence/project-identity domains excluded"
+  ],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "persistent_state",
+    "public_contract",
+    "architecture_boundary",
+    "deployment"
+  ],
+  "base_evidence": {
+    "local_sha": "194b693e916bc6cbef2f24eb8912eb49cf6fab85",
+    "local_tree": "424505cd0b19db7c2e8c8465199346c517052839",
+    "upstream_sha": "194b693e916bc6cbef2f24eb8912eb49cf6fab85",
+    "upstream_tree": "424505cd0b19db7c2e8c8465199346c517052839",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provider_verified_main",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-140",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 215,
+    "source_kind": "issue",
+    "documentation_impact": "required",
+    "child_issues": [216, 217, 218, 219]
+  },
+  "execution_exception": {
+    "reason": "The ChatGPT host rejects kis-dev/kis-op filesystem invocation. The operator explicitly authorized direct canonical shared-skill loading and continuation. The change record is therefore published before implementation through the approved GitHub connector; local worktree validation remains unavailable in this host and must be compensated by exact-head canonical CI before merge.",
+    "skills": ["mcp-development", "kis-mcp", "taskplanner"],
+    "recovery_capsule_overlap_control": "Do not modify EvidenceStore, project identity/registry, or repo-local capsule paths owned or plausibly owned by active change 136."
+  }
+}
