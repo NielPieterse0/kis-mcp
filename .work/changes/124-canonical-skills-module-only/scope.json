@@ -18,6 +18,9 @@
                         "tests/discover/test_scan_selection.py",
                         "tests/discover/test_scanner.py",
                         "tests/skills/test_config.py",
+                        "tests/capabilities/test_gateway_composition.py",
+                        "tests/skills/kis-mcp/test_catalogue_metadata.py",
+                        "tests/work_management/test_ci_workflow.py",
                         ".agents/skills/**",
                         ".work/changes/120-kis-speculative-landing-queue/scope.json",
                         ".work/changes/124-canonical-skills-module-only/**"

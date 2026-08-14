@@ -179,7 +179,7 @@ def test_server_module_is_thin_compatibility_facade() -> None:
 
 
 
-def test_capability_search_returns_skill_and_workflow_contributions() -> None:
+def test_capability_search_returns_workflow_without_optional_skill_fixture() -> None:
     composed = compose_gateway(
         load_runtime_config(),
         validate_provider=False,
@@ -195,10 +195,6 @@ def test_capability_search_returns_skill_and_workflow_contributions() -> None:
     ).structured_content
 
     assert payload is not None
-    assert any(
-        item["contribution_id"] == "skill.modularity-assessment"
-        for item in payload["contributions"]
-    )
     assert any(
         item["workflow_id"] == "assess-repository-modularity"
         for item in payload["workflows"]

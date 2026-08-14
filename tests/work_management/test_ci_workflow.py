@@ -24,7 +24,8 @@ def test_work_management_workflow_is_reusable_and_exact_revision_aware() -> None
     assert text.count("scripts/verify.ps1 -SkipDependencySync") == 1
     assert "UV_CACHE_DIR: C:\\Projects\\.kis-mcp\\uv-cache" in text
     assert "Copy-Item -Destination C:\\Projects\\kis-mcp -Recurse -Force" in text
-    assert "C:\\Projects\\.agents\\skills" in text
+    assert "C:\\Projects\\.agents\\skills" not in text
+    assert "Get-ChildItem -Force C:\\Projects\\kis-mcp\\.agents\\skills" not in text
     assert "working-directory: C:\\Projects\\kis-mcp" in text
     assert "persist-credentials: false" in text
 

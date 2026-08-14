@@ -13,7 +13,9 @@
 ## Validation evidence
 
 - RED: `test_repository_contains_no_tracked_local_skill_catalogue` failed with 61 tracked files before implementation.
-- GREEN: 68 focused tests passed across repository scope, Skills config, Discover selection/scanner, and change governance.
+- GREEN before publication: 68 focused tests passed across repository scope, Skills config, Discover selection/scanner, and change governance.
+- Exact-head Canonical Verification run #64 failed only on three stale tests that still encoded repository-local Skills assumptions; no runtime/product assertion failed.
+- GREEN after CI diagnosis: 77 affected tests passed, including gateway composition, canonical Skills metadata parsing, and CI workflow contract coverage.
 - `git diff --cached --check`: passed.
 - `scripts/change-workflow.ps1 validate --claims-only`: `active_changes=3`, no conflicts.
 - `scripts/change-workflow.ps1 check`: passed for the complete staged change.
