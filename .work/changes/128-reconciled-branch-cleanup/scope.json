@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "128-reconciled-branch-cleanup",
+  "status": "active",
+  "branch": "change/128-reconciled-branch-cleanup",
+  "worktree": ".work/worktrees/128-reconciled-branch-cleanup",
+  "base": "main",
+  "outcome": "Make canonical cleanup safely normalize locally divergent but verifiably landed reconciled branches before non-forced worktree cleanup.",
+  "owned_paths": [
+    "scripts/change-workflow.ps1",
+    "scripts/git-workflow.py",
+    "tests/test_git_workflow.py",
+    ".work/changes/128-reconciled-branch-cleanup/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "destructive"
+  ],
+  "base_evidence": {
+    "local_sha": "a9902245aee3fe375c2a0274217fc81c307aedfd",
+    "local_tree": "5dc3dad779ede90aa620cd4c6b4baa457bb6554e",
+    "upstream_sha": "a9902245aee3fe375c2a0274217fc81c307aedfd",
+    "upstream_tree": "5dc3dad779ede90aa620cd4c6b4baa457bb6554e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-128",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 178,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

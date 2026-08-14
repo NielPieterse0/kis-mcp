@@ -18,6 +18,13 @@ $env:UV_OFFLINE = '1'
 
 Push-Location $RepositoryRoot
 try {
+    if ($CommandArguments.Count -ge 2 -and $CommandArguments[0] -eq 'cleanup') {
+        & uv run --offline --no-sync python scripts\git-workflow.py --repository $RepositoryRoot prepare-cleanup --change-id $CommandArguments[1]
+        if ($LASTEXITCODE -ne 0) {
+            throw "Change cleanup preparation failed with exit code $LASTEXITCODE"
+        }
+    }
+
     & uv run --offline --no-sync python scripts\change-governance.py --repository $RepositoryRoot @CommandArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Change governance failed with exit code $LASTEXITCODE"
