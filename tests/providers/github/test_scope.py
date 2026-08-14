@@ -244,6 +244,28 @@ def test_allows_only_bounded_project_item_mutations() -> None:
     scope.authorize(
         "projects_write",
         {
+            "method": "add_project_item",
+            "owner": "NielPieterse0",
+            "project_number": 12,
+            "item_owner": "NielPieterse0",
+            "item_repo": "kis-mcp",
+            "item_type": "issue",
+            "issue_number": 8,
+        },
+    )
+    scope.authorize(
+        "projects_write",
+        {
+            "method": "update_project_item",
+            "owner": "NielPieterse0",
+            "project_number": 12,
+            "item_id": "I_2",
+            "updated_field": {"name": "Status", "value": "Active"},
+        },
+    )
+    scope.authorize(
+        "projects_write",
+        {
             "method": "update_project_items",
             "owner": "NielPieterse0",
             "owner_type": "user",
@@ -268,6 +290,29 @@ def test_allows_only_bounded_project_item_mutations() -> None:
                     "item_id": "I_1",
                 },
             )
+
+
+def test_requires_owner_type_when_registered_project_identity_is_ambiguous() -> None:
+    scope = GitHubRepositoryScope(
+        ["NielPieterse0/kis-mcp"],
+        ["get_me"],
+        [
+            ("NielPieterse0", "user", 12),
+            ("NielPieterse0", "org", 12),
+        ],
+    )
+
+    with pytest.raises(GitHubRepositoryScopeError, match="owner_type is required"):
+        scope.authorize(
+            "projects_write",
+            {
+                "method": "update_project_item",
+                "owner": "NielPieterse0",
+                "project_number": 12,
+                "item_id": "I_1",
+                "updated_field": {"name": "Status", "value": "Active"},
+            },
+        )
 
 
 def test_rejects_malformed_project_identity() -> None:
