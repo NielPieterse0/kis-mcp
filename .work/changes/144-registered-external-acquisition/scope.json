@@ -15,6 +15,7 @@
     "tests/acquisition/**",
     "tests/capabilities/test_exposure_execution.py",
     "tests/capabilities/test_registered_acquisition_dispatch.py",
+    "docs/EXTERNAL-ACQUISITION-MODULE-PRODUCT-SPEC.md",
     ".work/changes/144-registered-external-acquisition/**"
   ],
   "shared_paths": [],
@@ -49,6 +50,6 @@
     "source_repository": "NielPieterse0/kis-mcp",
     "source_number": 214,
     "source_kind": "issue",
-    "documentation_impact": "planned"
+    "documentation_impact": "pre_merge_complete"
   }
 }
