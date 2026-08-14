@@ -30,11 +30,6 @@ def _default_runner(args: Sequence[str], cwd: Path, env: Mapping[str, str]) -> s
         raise ToolError("IMPORT_ISOLATE_COMMAND_TIMEOUT: registered acquisition exceeded 900 seconds") from exc
 
 
-def _bounded_detail(result: Any) -> str:
-    detail = str(getattr(result, "stderr", "")).strip() or str(getattr(result, "stdout", "")).strip()
-    return detail if len(detail) <= 2000 else detail[:2000] + "...<truncated>"
-
-
 class ImportIsolateProvider:
     """Invoke only the registered import-isolate acquisition dispatcher."""
 
@@ -83,12 +78,9 @@ class ImportIsolateProvider:
                 self.provider_root,
                 dict(os.environ),
             )
-        if int(getattr(result, "returncode", -1)) != 0:
-            detail = _bounded_detail(result)
-            raise ToolError(
-                "IMPORT_ISOLATE_ACQUISITION_FAILED"
-                + (f": {detail}" if detail else "")
-            )
+        returncode = int(getattr(result, "returncode", -1))
+        if returncode != 0:
+            raise ToolError(f"IMPORT_ISOLATE_ACQUISITION_FAILED: provider exited with code {returncode}")
         lines = [line.strip() for line in str(getattr(result, "stdout", "")).splitlines() if line.strip()]
         if not lines:
             raise ToolError("IMPORT_ISOLATE_RESULT_MISSING: provider emitted no result")
