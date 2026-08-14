@@ -180,6 +180,17 @@ def _json_mapping(path: Path) -> Mapping[str, Any] | None:
     return document if isinstance(document, Mapping) else None
 
 
+def _valid_runtime_run_id(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    run_id = value.strip()
+    if not run_id or len(run_id) > 128:
+        return None
+    if not all(char.isalnum() or char in "-_." for char in run_id):
+        return None
+    return run_id
+
+
 def remote_mcp_runtime_evidence(
     runtime: RuntimeConfig,
     *,
@@ -208,10 +219,11 @@ def remote_mcp_runtime_evidence(
     expected_pid = os.getpid() if current_pid is None else int(current_pid)
     listener_pid = document.get("server_listener_pid")
     lifecycle = document.get("lifecycle")
+    run_id = _valid_runtime_run_id(document.get("run_id"))
     base = {
         "ready": False,
         "current_state": str(path),
-        "run_id": document.get("run_id"),
+        "run_id": run_id,
         "lifecycle": lifecycle,
         "source_revision": _PROCESS_SOURCE_REVISION,
         "config_generation": dict(_PROCESS_CONFIG_GENERATION),
@@ -232,12 +244,21 @@ def remote_mcp_runtime_evidence(
         return {"status": "current_state_process_mismatch", **base}
     if not _runtime_generation_matches():
         return {"status": "runtime_generation_stale", **base}
+    if run_id is None:
+        return {"status": "current_state_run_id_invalid", **base}
 
     startup_state_value = document.get("startup_state")
     if not isinstance(startup_state_value, str) or not startup_state_value.strip():
         return {"status": "startup_evidence_missing", **base}
-    startup_path = Path(startup_state_value)
-    startup = _json_mapping(startup_path)
+    expected_startup_path = path.parent / f"startup-state-{run_id}.json"
+    try:
+        stored_startup_path = Path(startup_state_value).resolve(strict=False)
+        canonical_startup_path = expected_startup_path.resolve(strict=False)
+    except OSError:
+        return {"status": "startup_evidence_path_invalid", **base}
+    if stored_startup_path != canonical_startup_path:
+        return {"status": "startup_evidence_path_mismatch", **base}
+    startup = _json_mapping(canonical_startup_path)
     if startup is None:
         return {"status": "startup_evidence_unavailable", **base}
     processes = startup.get("processes")
@@ -257,7 +278,7 @@ def remote_mcp_runtime_evidence(
         "status": "ready",
         **base,
         "ready": True,
-        "startup_state": str(startup_path),
+        "startup_state": str(canonical_startup_path),
         "mcp_initialized": True,
     }
 
