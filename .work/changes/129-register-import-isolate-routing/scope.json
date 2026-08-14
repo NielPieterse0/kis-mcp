@@ -1,0 +1,33 @@
+{
+  "schema_version": 4,
+  "change_id": "129-register-import-isolate-routing",
+  "status": "active",
+  "branch": "change/129-register-import-isolate-routing",
+  "worktree": ".work/worktrees/129-register-import-isolate-routing",
+  "base": "main",
+  "outcome": "Register import-isolate GitHub repository routing in the central KIS project registry while preserving the shared Project #1 resource binding as a single kis-mcp-owned coordinate.",
+  "owned_paths": [
+    "settings/projects.settings.json",
+    "tests/projects/test_project_registry.py",
+    "tests/projects/test_project_registry_settings.py",
+    "tests/repositories/test_project_registry_settings.py",
+    ".work/changes/129-register-import-isolate-routing/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "local_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_sha": "cc946a5fc65c32f26313f9cce92346d2652debf6",
+    "upstream_tree": "1209deabfa04260ab79a5716ea2a7e16f6bb724f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
