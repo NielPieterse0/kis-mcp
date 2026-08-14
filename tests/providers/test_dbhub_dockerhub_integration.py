@@ -215,6 +215,9 @@ def test_commissioning_script_preserves_successful_child_exit_when_stderr_has_di
     text = (ROOT / "scripts" / "commission-db-docker-providers.ps1").read_text(encoding="utf-8")
     assert "Write-Error $ErrorOutput.Trim()" not in text
     assert "[Console]::Error.WriteLine($ErrorOutput.Trim())" in text
+    assert "write_commissioning_evidence" in text
+    assert "commissioning_evidence_root" in text
+    assert 'row["live_verified"] = True' in text
 
 
 def test_checked_in_dbhub_and_dockerhub_settings_match_their_strict_schemas() -> None:
@@ -282,3 +285,104 @@ def test_dockerhub_readiness_distinguishes_public_and_pat_auth(monkeypatch: pyte
         _dockerhub_settings("pat"), {INTERNAL_PAT_ENV: "opaque-token"}
     )
     assert pat_ready.state is ProviderState.READY
+
+
+def test_commissioning_evidence_round_trip_is_identity_bound_and_idempotent(tmp_path: Path) -> None:
+    from kis_mcp.providers.commissioning import (
+        read_commissioning_evidence,
+        write_commissioning_evidence,
+    )
+
+    root = tmp_path / "commissioning" / "providers"
+    identity = {"source_revision": "rev-1", "expected_tools": ["alpha", "beta"]}
+    path = write_commissioning_evidence(root, "example", identity, ("beta", "alpha"))
+    os.utime(path, ns=(1_000_000_000, 1_000_000_000))
+    evidence = read_commissioning_evidence(root, "example", identity)
+    same = write_commissioning_evidence(root, "example", identity, ("alpha", "beta"))
+
+    assert evidence is not None
+    assert evidence["verified_tools"] == ["alpha", "beta"]
+    assert same == path
+    assert path.stat().st_mtime_ns == 1_000_000_000
+    stale = {**identity, "source_revision": "rev-2"}
+    assert read_commissioning_evidence(root, "example", stale) is None
+
+
+def test_dbhub_readiness_reconstructs_historical_commissioning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from kis_mcp.providers.commissioning import write_commissioning_evidence
+
+    settings = _dbhub_settings()
+    monkeypatch.setattr(dbhub_provider_module, "validate_installation", lambda value: None)
+    monkeypatch.setattr(dbhub_provider_module, "_sha256", lambda path: "a" * 64)
+    database = tmp_path / "results" / "college.db"
+    database.parent.mkdir()
+    database.touch()
+    projects = ProjectRegistry(
+        default_project_id="college",
+        projects=(ProjectDefinition(
+            project_id="college", display_name="College", local_root=str(tmp_path),
+            databases=(DatabaseBinding("results", "sqlite", "local", r"results\college.db", None),),
+        ),),
+    )
+    evidence_root = tmp_path / "commissioning" / "providers"
+    identity = dbhub_provider_module.dbhub_commissioning_identity(settings, projects)
+    write_commissioning_evidence(evidence_root, "dbhub", identity, identity["expected_tools"])
+
+    readiness = dbhub_provider_module.dbhub_readiness(
+        settings,
+        projects,
+        {},
+        commissioning_root=evidence_root,
+    )
+
+    commissioning = readiness.details["commissioning"]
+    assert commissioning["live_verified"] == "historically_verified"
+    assert commissioning["upstream_connected"] == "pending_live_verification"
+    assert set(commissioning) == {
+        "installed",
+        "configured",
+        "authenticated",
+        "upstream_connected",
+        "tools_discovered",
+        "live_verified",
+    }
+
+
+def test_dockerhub_readiness_reconstructs_historical_commissioning(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from kis_mcp.providers.commissioning import write_commissioning_evidence
+
+    settings = _dockerhub_settings("public")
+    monkeypatch.setattr(dockerhub_provider_module, "validate_installation", lambda value: None)
+    monkeypatch.setattr(dockerhub_provider_module, "_sha256", lambda path: "b" * 64)
+    evidence_root = tmp_path / "commissioning" / "providers"
+    identity = dockerhub_provider_module.dockerhub_commissioning_identity(settings)
+    write_commissioning_evidence(
+        evidence_root,
+        "dockerhub-mcp",
+        identity,
+        identity["expected_tools"],
+    )
+
+    readiness = dockerhub_provider_module.dockerhub_readiness(
+        settings,
+        {},
+        commissioning_root=evidence_root,
+    )
+
+    commissioning = readiness.details["commissioning"]
+    assert commissioning["live_verified"] == "historically_verified"
+    assert commissioning["tools_discovered"] == "pending_live_verification"
+    assert set(commissioning) == {
+        "installed",
+        "configured",
+        "authenticated",
+        "upstream_connected",
+        "tools_discovered",
+        "live_verified",
+    }

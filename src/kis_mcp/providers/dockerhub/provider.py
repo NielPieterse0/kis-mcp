@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from kis_mcp.projects import load_project_registry_settings
+from kis_mcp.providers.commissioning import commissioning_evidence_root, read_commissioning_evidence
 from kis_mcp.providers.contracts import (
     ProviderBoundary, ProviderCapability, ProviderDescriptor, ProviderKind,
     ProviderReadiness, ProviderState,
@@ -49,24 +50,52 @@ def validate_installation(settings: DockerHubSettings) -> None:
         raise RuntimeError("DOCKERHUB_INSTALLATION_IDENTITY_MISMATCH")
 
 
-def _commissioning(installed: bool, auth_ready: bool, mode: str) -> dict[str, str]:
+def dockerhub_commissioning_identity(settings: DockerHubSettings) -> dict[str, Any]:
+    expected_tools = ALL_TOOLS if settings.auth_mode == "pat" else PUBLIC_TOOLS
+    return {
+        "source_revision": settings.source_revision,
+        "entry_point_sha256": _sha256(settings.entry_point),
+        "auth_mode": settings.auth_mode,
+        "username": settings.username,
+        "secret_ref": settings.secret_ref,
+        "expected_tools": sorted(expected_tools),
+    }
+
+
+def _commissioning(
+    installed: bool,
+    auth_ready: bool,
+    mode: str,
+    historical_verified: bool,
+) -> dict[str, str]:
     return {
         "installed": "ready" if installed else "required",
         "configured": "ready",
         "authenticated": "not_required_public" if mode == "public" else ("ready" if auth_ready else "required"),
         "upstream_connected": "pending_live_verification" if installed and auth_ready else "blocked",
         "tools_discovered": "pending_live_verification" if installed and auth_ready else "blocked",
-        "live_verified": "pending",
+        "live_verified": "historically_verified" if historical_verified else "pending",
     }
 
 
-def dockerhub_readiness(settings: DockerHubSettings, environment: Mapping[str, str]) -> ProviderReadiness:
+def dockerhub_readiness(
+    settings: DockerHubSettings,
+    environment: Mapping[str, str],
+    *,
+    commissioning_root: Path | None = None,
+) -> ProviderReadiness:
     installed = True
     try:
         validate_installation(settings)
     except RuntimeError:
         installed = False
     auth_ready = settings.auth_mode == "public" or bool(environment.get(INTERNAL_PAT_ENV))
+    historical_verified = False
+    if installed and auth_ready and commissioning_root is not None:
+        identity = dockerhub_commissioning_identity(settings)
+        evidence = read_commissioning_evidence(commissioning_root, "dockerhub-mcp", identity)
+        historical_verified = evidence is not None
+
     if not installed:
         state = ProviderState.UNAVAILABLE
         label = "Unavailable — Docker Hub pinned installation required"
@@ -78,7 +107,12 @@ def dockerhub_readiness(settings: DockerHubSettings, environment: Mapping[str, s
     else:
         state = ProviderState.READY
         label = "Ready — Docker Hub local preflight complete"
-        action = "Run live commissioning to verify upstream connection and tool discovery."
+        action = (
+            "Historical commissioning is verified; current runtime mount/liveness "
+            "is reported separately."
+            if historical_verified
+            else "Run live commissioning to verify upstream connection and tool discovery."
+        )
     projects = load_project_registry_settings()
     routed = [project.project_id for project in projects.projects if project.dockerhub is not None]
     return ProviderReadiness(
@@ -91,7 +125,12 @@ def dockerhub_readiness(settings: DockerHubSettings, environment: Mapping[str, s
             "project_bindings": routed,
             "public_tools": list(PUBLIC_TOOLS),
             "user_status": {"state": state.value, "label": label, "required_action": action},
-            "commissioning": _commissioning(installed, auth_ready, settings.auth_mode),
+            "commissioning": _commissioning(
+                installed,
+                auth_ready,
+                settings.auth_mode,
+                historical_verified,
+            ),
         },
     )
 
@@ -122,7 +161,9 @@ def _capabilities(settings: DockerHubSettings) -> tuple[ProviderCapability, ...]
 def dockerhub_provider_descriptor(
     *, repository_root: Path | None = None, environment: Mapping[str, str]
 ) -> ProviderDescriptor:
-    settings = load_dockerhub_settings(repository_root)
+    root = repository_root or Path(__file__).resolve().parents[4]
+    settings = load_dockerhub_settings(root)
+    evidence_root = commissioning_evidence_root(root)
     adapter = DockerHubAdapter(settings, environment=environment)
     return ProviderDescriptor(
         provider_id="dockerhub-mcp",
@@ -133,7 +174,11 @@ def dockerhub_provider_descriptor(
         source_revision=settings.source_revision,
         capabilities=_capabilities(settings),
         builder=lambda: (validate_installation(settings), adapter.build_server())[1],
-        readiness_probe=lambda: dockerhub_readiness(settings, environment),
+        readiness_probe=lambda: dockerhub_readiness(
+            settings,
+            environment,
+            commissioning_root=evidence_root,
+        ),
     )
 
 
@@ -147,6 +192,7 @@ def register_dockerhub_provider(
 
 
 __all__ = [
+    "dockerhub_commissioning_identity",
     "dockerhub_provider_descriptor",
     "dockerhub_readiness",
     "installation_manifest_path",

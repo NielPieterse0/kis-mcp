@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
+from kis_mcp.providers.commissioning import (
+    commissioning_evidence_root,
+    read_commissioning_evidence,
+)
 from kis_mcp.providers.contracts import (
     ProviderBoundary,
     ProviderCapability,
@@ -55,14 +59,51 @@ def validate_installation(settings: DBHubSettings) -> None:
         raise RuntimeError("DBHUB_INSTALLATION_IDENTITY_MISMATCH")
 
 
-def _commissioning(installed: bool, bindings_ready: bool) -> dict[str, str]:
+def dbhub_commissioning_identity(
+    settings: DBHubSettings,
+    projects: ProjectRegistry,
+) -> dict[str, Any]:
+    bindings: list[dict[str, Any]] = []
+    expected_tools: list[str] = []
+    for project in sorted(projects.projects, key=lambda item: item.project_id):
+        for binding in sorted(project.databases, key=lambda item: item.binding_id):
+            bindings.append(
+                {
+                    "project_id": project.project_id,
+                    "binding_id": binding.binding_id,
+                    "engine": binding.engine,
+                    "boundary": binding.boundary,
+                    "location": binding.location,
+                    "secret_ref": binding.secret_ref,
+                }
+            )
+            expected_tools.extend(
+                operation_name(project.project_id, binding.binding_id, tool)
+                for tool in settings.enabled_tools
+            )
+    return {
+        "release_tag": settings.release_tag,
+        "source_revision": settings.source_revision,
+        "entry_point_sha256": _sha256(settings.entry_point),
+        "max_rows": settings.max_rows,
+        "enabled_tools": list(settings.enabled_tools),
+        "bindings": bindings,
+        "expected_tools": sorted(expected_tools),
+    }
+
+
+def _commissioning(
+    installed: bool,
+    bindings_ready: bool,
+    historical_verified: bool,
+) -> dict[str, str]:
     return {
         "installed": "ready" if installed else "required",
         "configured": "ready",
         "authenticated": "not_required" if bindings_ready else "binding_credentials_required",
         "upstream_connected": "pending_live_verification" if installed else "blocked_installation",
         "tools_discovered": "pending_live_verification" if installed else "blocked_installation",
-        "live_verified": "pending",
+        "live_verified": "historically_verified" if historical_verified else "pending",
     }
 
 
@@ -70,6 +111,8 @@ def dbhub_readiness(
     settings: DBHubSettings,
     projects: ProjectRegistry,
     environment: Mapping[str, str],
+    *,
+    commissioning_root: Path | None = None,
 ) -> ProviderReadiness:
     installed = True
     install_error: str | None = None
@@ -95,6 +138,12 @@ def dbhub_readiness(
                     local_missing.append(identity)
 
     bindings_ready = not missing_bindings and not local_missing
+    historical_verified = False
+    if installed and bindings_ready and commissioning_root is not None:
+        identity = dbhub_commissioning_identity(settings, projects)
+        evidence = read_commissioning_evidence(commissioning_root, "dbhub", identity)
+        historical_verified = evidence is not None
+
     if not installed:
         state = ProviderState.UNAVAILABLE
         label = "Unavailable — DBHub pinned installation required"
@@ -106,7 +155,12 @@ def dbhub_readiness(
     else:
         state = ProviderState.READY
         label = "Ready — DBHub local preflight complete"
-        action = "Run live provider commissioning to verify stdio connection and tool discovery."
+        action = (
+            "Historical commissioning is verified; current runtime mount/liveness "
+            "is reported separately."
+            if historical_verified
+            else "Run live provider commissioning to verify stdio connection and tool discovery."
+        )
     return ProviderReadiness(
         provider_id="dbhub",
         state=state,
@@ -119,7 +173,7 @@ def dbhub_readiness(
             "missing_local_bindings": local_missing,
             "install_error": install_error,
             "user_status": {"state": state.value, "label": label, "required_action": action},
-            "commissioning": _commissioning(installed, bindings_ready),
+            "commissioning": _commissioning(installed, bindings_ready, historical_verified),
         },
     )
 
@@ -154,6 +208,7 @@ def dbhub_provider_descriptor(
     root = repository_root or Path(__file__).resolve().parents[4]
     settings = load_dbhub_settings(root)
     projects = load_project_registry_settings(root / "settings" / "projects.settings.json")
+    evidence_root = commissioning_evidence_root(root)
     return ProviderDescriptor(
         provider_id="dbhub",
         display_name="DBHub MCP",
@@ -166,7 +221,12 @@ def dbhub_provider_descriptor(
             validate_installation(settings),
             DBHubAdapter(settings, projects, environment=environment).build_server(),
         )[1],
-        readiness_probe=lambda: dbhub_readiness(settings, projects, environment),
+        readiness_probe=lambda: dbhub_readiness(
+            settings,
+            projects,
+            environment,
+            commissioning_root=evidence_root,
+        ),
     )
 
 
@@ -182,6 +242,7 @@ def register_dbhub_provider(
 
 
 __all__ = [
+    "dbhub_commissioning_identity",
     "dbhub_provider_descriptor",
     "dbhub_readiness",
     "installation_manifest_path",
