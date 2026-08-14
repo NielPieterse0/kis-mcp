@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from ..capabilities.contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -10,9 +12,11 @@ from ..capabilities.contracts import (
 )
 from ..capabilities.normalization import default_quality, normalize_effects
 from ..capabilities.settings import CapabilitySettings, load_capability_settings
+from ..runtime_observability import get_runtime_observability
 from .metadata import enrich_skill_card
 from .models import SkillCard
 from .service import SkillsService
+from .telemetry import SkillTelemetryStore
 from .tools import register_skills_tools
 
 
@@ -59,7 +63,7 @@ def active_skill_capability_contributions(
     cards: list[SkillCard] = []
     cursor: str | None = None
     while True:
-        page = service.list_skills(
+        page = service._list_catalogue_skills(
             limit=service.catalogue.config.limits.list_max_limit,
             cursor=cursor,
         )
@@ -80,11 +84,19 @@ def current_skill_capability_contributions(
     return skill_capability_contributions(startup_cards, settings)
 
 
-def register_platform_skills(server):
-    service = register_skills_tools(server)
+def register_platform_skills(server, *, state_root: Path | str | None = None):
+    telemetry = None
+    if state_root is not None:
+        telemetry = SkillTelemetryStore(
+            Path(state_root) / "telemetry" / "skills.sqlite3",
+            observability=get_runtime_observability(),
+        )
+    service = register_skills_tools(server, telemetry=telemetry)
     if not isinstance(service, SkillsService):
         return service, ()
-    response = service.list_skills(limit=service.catalogue.config.limits.list_max_limit)
+    response = service._list_catalogue_skills(
+        limit=service.catalogue.config.limits.list_max_limit
+    )
     settings = load_capability_settings()
     cards = tuple(enrich_skill_card(card, settings) for card in response.skills)
     return service, cards

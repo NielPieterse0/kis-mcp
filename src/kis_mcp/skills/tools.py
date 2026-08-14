@@ -20,6 +20,7 @@ from .models import (
     SkillSearchResponse,
 )
 from .service import SkillsService
+from .telemetry import SkillTelemetryEvent, SkillTelemetryReport, SkillTelemetryStore
 
 
 LOGGER = logging.getLogger(__name__)
@@ -34,6 +35,8 @@ SKILLS_TOOL_NAMES = (
     "evaluate_skill",
     "create_skill",
     "improve_skill",
+    "record_skill_outcome",
+    "skill_telemetry_report",
 )
 
 
@@ -60,8 +63,13 @@ class _UnavailableSkillsService:
         del query, limit
         self._raise()
 
-    def load_skill(self, skill_id: str) -> SkillLoadResponse:
-        del skill_id
+    def load_skill(
+        self,
+        skill_id: str,
+        activation_id: str | None = None,
+        project_id: str | None = None,
+    ) -> SkillLoadResponse:
+        del skill_id, activation_id, project_id
         self._raise()
 
     def search_skill_files(
@@ -70,8 +78,14 @@ class _UnavailableSkillsService:
         del skill_id, query, limit
         self._raise()
 
-    def read_skill_file(self, skill_id: str, relative_path: str) -> SkillFileResponse:
-        del skill_id, relative_path
+    def read_skill_file(
+        self,
+        skill_id: str,
+        relative_path: str,
+        activation_id: str | None = None,
+        project_id: str | None = None,
+    ) -> SkillFileResponse:
+        del skill_id, relative_path, activation_id, project_id
         self._raise()
 
     def refresh_skills(self) -> SkillRefreshResponse:
@@ -97,15 +111,26 @@ class _UnavailableSkillsService:
         del skill_id, relative_path, expected_sha256, content
         self._raise()
 
+    def record_skill_outcome(self, **kwargs) -> SkillTelemetryEvent:
+        del kwargs
+        self._raise()
+
+    def skill_telemetry_report(self, **kwargs) -> SkillTelemetryReport:
+        del kwargs
+        self._raise()
+
 
 def _build_service(
-    server: FastMCP, config: SkillsConfig | None
+    server: FastMCP,
+    config: SkillsConfig | None,
+    telemetry: SkillTelemetryStore | None,
 ) -> SkillsService | _UnavailableSkillsService:
     try:
         selected = config or load_skills_config()
         return SkillsService(
             SkillCatalogue(selected),
             FastMcpWorkBackend(server),
+            telemetry=telemetry,
         )
     except SkillsError as exc:
         if exc.code == "SKILLS_REQUIRED_MISSING":
@@ -125,11 +150,12 @@ def register_skills_tools(
     *,
     config: SkillsConfig | None = None,
     service: SkillsService | None = None,
+    telemetry: SkillTelemetryStore | None = None,
 ) -> SkillsService | _UnavailableSkillsService:
     """Register the versioned Skills interface without blocking server startup."""
 
     active: SkillsService | _UnavailableSkillsService = service or _build_service(
-        server, config
+        server, config, telemetry
     )
 
     @server.tool(
@@ -158,9 +184,17 @@ def register_skills_tools(
         name="load_skill",
         description="Load one skill entrypoint and bounded catalogue evidence.",
     )
-    def load_skill(skill_id: str) -> SkillLoadResponse:
+    def load_skill(
+        skill_id: str,
+        activation_id: str | None = None,
+        project_id: str | None = None,
+    ) -> SkillLoadResponse:
         try:
-            return active.load_skill(skill_id)
+            return active.load_skill(
+                skill_id,
+                activation_id=activation_id,
+                project_id=project_id,
+            )
         except SkillsError as exc:
             raise ToolError(str(exc)) from exc
 
@@ -182,9 +216,19 @@ def register_skills_tools(
         name="read_skill_file",
         description="Read one bounded file from an active skill snapshot.",
     )
-    def read_skill_file(skill_id: str, relative_path: str) -> SkillFileResponse:
+    def read_skill_file(
+        skill_id: str,
+        relative_path: str,
+        activation_id: str | None = None,
+        project_id: str | None = None,
+    ) -> SkillFileResponse:
         try:
-            return active.read_skill_file(skill_id, relative_path)
+            return active.read_skill_file(
+                skill_id,
+                relative_path,
+                activation_id=activation_id,
+                project_id=project_id,
+            )
         except SkillsError as exc:
             raise ToolError(str(exc)) from exc
 
@@ -240,6 +284,61 @@ def register_skills_tools(
                 relative_path=relative_path,
                 expected_sha256=expected_sha256,
                 content=content,
+            )
+        except SkillsError as exc:
+            raise ToolError(str(exc)) from exc
+
+    @server.tool(
+        name="record_skill_outcome",
+        description=(
+            "Record a caller-attributed skill application/completion outcome only "
+            "when it matches a prior observed load."
+        ),
+    )
+    def record_skill_outcome(
+        skill_id: str,
+        activation_id: str,
+        snapshot_id: str,
+        content_sha256: str,
+        project_id: str | None = None,
+        phase: str = "completed",
+        duration_ms: int | None = None,
+        total_tokens: int | None = None,
+        tool_calls: int | None = None,
+        retries: int | None = None,
+        verification_passed: bool | None = None,
+    ) -> SkillTelemetryEvent:
+        try:
+            return active.record_skill_outcome(
+                skill_id=skill_id,
+                activation_id=activation_id,
+                snapshot_id=snapshot_id,
+                content_sha256=content_sha256,
+                project_id=project_id,
+                phase=phase,
+                duration_ms=duration_ms,
+                total_tokens=total_tokens,
+                tool_calls=tool_calls,
+                retries=retries,
+                verification_passed=verification_passed,
+            )
+        except SkillsError as exc:
+            raise ToolError(str(exc)) from exc
+
+    @server.tool(
+        name="skill_telemetry_report",
+        description="Return bounded redacted usage/outcome evidence grouped by skill version and project.",
+    )
+    def skill_telemetry_report(
+        skill_id: str | None = None,
+        project_id: str | None = None,
+        content_sha256: str | None = None,
+    ) -> SkillTelemetryReport:
+        try:
+            return active.skill_telemetry_report(
+                skill_id=skill_id,
+                project_id=project_id,
+                content_sha256=content_sha256,
             )
         except SkillsError as exc:
             raise ToolError(str(exc)) from exc

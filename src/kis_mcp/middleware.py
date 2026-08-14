@@ -13,7 +13,11 @@ from .contracts import PolicyEvaluator, ProviderEffectResolver
 from .line_endings import RepositoryLineEndingNormalizer
 from .models import DecisionKind, PolicyDecision
 from .quarantine import QuarantineError
-from .runtime_observability import RuntimeObservability, get_runtime_observability
+from .runtime_observability import (
+    RuntimeObservability,
+    boundary_request_context,
+    get_runtime_observability,
+)
 
 
 QuarantinePaths = Callable[[Sequence[str]], Sequence[Mapping[str, Any]]]
@@ -34,22 +38,26 @@ class BoundaryObservabilityMiddleware(Middleware):
         if method == "tools/call":
             candidate = getattr(context.message, "name", None)
             tool_name = str(candidate) if candidate else None
-        try:
-            result = await call_next(context)
-        except Exception as exc:
+        request_id = self.observability.reserve_boundary_request_id()
+        with boundary_request_context(request_id):
+            try:
+                result = await call_next(context)
+            except Exception as exc:
+                self.observability.record_boundary_request(
+                    method=method,
+                    outcome="error",
+                    tool_name=tool_name,
+                    error_type=type(exc).__name__,
+                    request_id=request_id,
+                )
+                raise
             self.observability.record_boundary_request(
                 method=method,
-                outcome="error",
+                outcome="success",
                 tool_name=tool_name,
-                error_type=type(exc).__name__,
+                request_id=request_id,
             )
-            raise
-        self.observability.record_boundary_request(
-            method=method,
-            outcome="success",
-            tool_name=tool_name,
-        )
-        return result
+            return result
 
 
 class ThreeRuleMiddleware(Middleware):

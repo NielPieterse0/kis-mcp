@@ -305,6 +305,9 @@ class ControlCenterSnapshotService:
                 : self.settings.max_active_processes
             ],
             active_searches=snapshot.active_searches[: self.settings.max_active_searches],
+            recent_skill_activity=snapshot.recent_skill_activity[
+                : self.settings.max_recent_calls
+            ],
         )
 
     @staticmethod

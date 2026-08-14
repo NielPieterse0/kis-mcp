@@ -21,6 +21,7 @@ ChatGPT
 kis-mcp Skills interface
    |-- list, search, load, read, evaluate
    |-- create and improve
+   |-- record attributed outcomes and report usage evidence
    |
    +-- immutable bounded catalogue
    |       |
@@ -54,6 +55,18 @@ ChatGPT loads skill instructions and performs the described workflow by calling 
 | `evaluate_skill` | Return bounded structural evidence derived from the active snapshot. |
 | `create_skill` | Validate, stage, and publish one new skill through the Work backend. |
 | `improve_skill` | Replace one existing text file using an expected SHA-256 precondition through the Work backend. |
+| `record_skill_outcome` | Record caller-attributed `applied`, `completed`, or `failed` evidence only when it matches a prior observed load for the exact skill/package hash and activation identity. |
+| `skill_telemetry_report` | Return bounded redacted usage/outcome aggregates grouped by skill package hash and project. |
+
+## Usage telemetry
+
+KIS observes discovery, load, resource discovery/read, refresh, evaluation, creation, and improvement without retaining prompts, skill/file contents, search text, credentials, or arbitrary tool arguments. Package-level SHA-256 from the immutable catalogue is the version identity; resource reads do not create separate file-hash versions.
+
+Loads are not treated as applications. `record_skill_outcome` is the only public path for application/completion attribution, and reported evidence is kept distinct from observed runtime evidence. A reported outcome must match an earlier observed load by skill ID, activation ID, snapshot ID, package SHA-256, and project identity when supplied.
+
+Production composition persists the redacted event contract beneath `<state_root>\telemetry\skills.sqlite3` with bounded retention. Live evidence also appears in the existing bounded `RuntimeObservability`/Control Center snapshot. Optional duration, token, tool-call, retry, and verification metrics are stored only when actually observed or explicitly reported; absent values remain not observable.
+
+The report exposes separate usage/outcome counters and metric sample counts. It does not calculate one opaque quality score or decide whether a skill should be admitted, retained, or withdrawn; those behavioral decisions belong to the downstream skill-evaluation authority.
 
 ## Module boundaries
 
@@ -63,7 +76,8 @@ skills.frontmatter  conservative SKILL.md metadata parser
 skills.source       path safety, file collection, and source normalization
 skills.catalogue    immutable snapshots and read/query operations
 skills.backend      narrow Work mutation protocol and FastMCP adapter
-skills.service      create/update orchestration and optimistic concurrency
+skills.telemetry    bounded redacted live/durable usage and outcome evidence
+skills.service      query/mutation orchestration, telemetry, and optimistic concurrency
 skills.tools        thin public FastMCP registration
 skills.models       explicit versioned response contracts
 skills.errors       corrective SKILLS_* structural failures
@@ -81,7 +95,7 @@ Dependency direction is enforced by architecture tests. Public tools depend on t
 - Traversal, absolute paths, backslashes, symbolic links, reparse points, and configured hard-link cases are rejected.
 - Text files must be UTF-8; configured PNG files are represented as binary metadata without returning binary content.
 - A refresh is atomic: any invalid source rejects the candidate refresh and preserves the prior active snapshot.
-- Initial catalogue failure is fail-open for the wider server: ordinary Work/gateway tools remain available, the nine Skills operations remain discoverable, and Skills calls return the corrective initialization failure until the source is repaired and the server is restarted.
+- Initial catalogue failure is fail-open for the wider server: ordinary Work/gateway tools remain available, the eleven Skills operations remain discoverable, and Skills calls return the corrective initialization failure until the source is repaired and the server is restarted.
 - Snapshot IDs are deterministic SHA-256-derived fingerprints of normalized skill metadata and file evidence.
 
 These are retrieval and structural correctness boundaries. They do not add a fourth Work policy rule.

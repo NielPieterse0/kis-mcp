@@ -61,7 +61,11 @@ def _runtime_effects(
             "load_",
             "evaluate_",
         )
-    ) or normalized in {"kis_health", "kis_provider_status"}
+    ) or normalized in {
+        "kis_health",
+        "kis_provider_status",
+        "skill_telemetry_report",
+    }
 
     if external:
         effects = {OperationEffect.EXTERNAL}
@@ -73,6 +77,8 @@ def _runtime_effects(
         return (OperationEffect.READ_ONLY,)
     if normalized.startswith(("kis_quarantine_", "delete_", "remove_")):
         return (OperationEffect.QUARANTINE,)
+    if normalized == "record_skill_outcome":
+        return (OperationEffect.LOCAL_CHANGE,)
     if normalized.startswith(
         ("start_process", "interact_with_process", "kill_process", "terminate_", "stop_")
     ):
