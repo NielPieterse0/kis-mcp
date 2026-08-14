@@ -130,8 +130,10 @@ def _write_current_state(
     endpoint: str,
     lifecycle: str = "ready",
     listener_pid: int = 4242,
+    run_id: str = "run-test",
     include_startup_evidence: bool = True,
     startup_policy_fingerprint: str | None = None,
+    startup_state_pointer: str | None = None,
 ) -> None:
     config = load_runtime_config(REPOSITORY_ROOT)
     path = root / "tunnel-client" / "runtime" / instance / "current.json"
@@ -142,10 +144,10 @@ def _write_current_state(
         "instance": instance,
         "endpoint": endpoint,
         "server_listener_pid": listener_pid,
-        "run_id": "run-test",
+        "run_id": run_id,
     }
     if include_startup_evidence:
-        startup_path = path.parent / "startup-state-run-test.json"
+        startup_path = path.parent / f"startup-state-{run_id}.json"
         startup_path.write_text(
             json.dumps(
                 {
@@ -163,7 +165,7 @@ def _write_current_state(
             ),
             encoding="utf-8",
         )
-        document["startup_state"] = str(startup_path)
+        document["startup_state"] = startup_state_pointer or str(startup_path)
     path.write_text(json.dumps(document), encoding="utf-8")
 
 
@@ -243,6 +245,48 @@ def test_remote_status_requires_completed_startup_mcp_evidence(tmp_path: Path) -
 
     assert evidence["ready"] is False
     assert evidence["status"] == "startup_evidence_missing"
+
+
+def test_remote_status_rejects_invalid_run_identity(tmp_path: Path) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    _write_current_state(
+        tmp_path,
+        endpoint=selected.endpoint_url,
+        run_id="../escape",
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "current_state_run_id_invalid"
+
+
+def test_remote_status_rejects_noncanonical_startup_evidence_path(tmp_path: Path) -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+    selected = config.remote_instance("development")
+    foreign = tmp_path / "foreign-startup-state.json"
+    foreign.write_text("{}", encoding="utf-8")
+    _write_current_state(
+        tmp_path,
+        endpoint=selected.endpoint_url,
+        startup_state_pointer=str(foreign),
+    )
+
+    evidence = foundation_module.remote_mcp_runtime_evidence(
+        config,
+        environment={RUNTIME_INSTANCE_ENV: "development"},
+        current_pid=4242,
+        state_root=tmp_path,
+    )
+
+    assert evidence["ready"] is False
+    assert evidence["status"] == "startup_evidence_path_mismatch"
 
 
 def test_remote_status_rejects_stale_source_generation(
