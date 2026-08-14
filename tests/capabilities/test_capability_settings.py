@@ -19,7 +19,7 @@ def test_default_capability_settings_are_complete() -> None:
     assert sum(settings.suitability_weights.values()) == 100
     assert sum(settings.quality_weights.values()) == 100
     assert len(settings.direct_operations) <= settings.direct_profile_max
-    assert len(settings.skill_metadata) == 29
+    assert len(settings.skill_metadata) == 30
     assert {
         "agentproof",
         "code-verification",
@@ -31,9 +31,14 @@ def test_default_capability_settings_are_complete() -> None:
         "github",
         "manage-code-ontology",
         "merge-conflict-resolution",
+        "mcp-development",
+        "mcpb-local-packaging",
+        "openai-mcp-app-ui",
+        "openai-mcp-server",
         "take-pr-to-completion",
         "yeet",
     } <= set(settings.skill_metadata)
+    assert not {"build-mcp-app", "build-mcpb", "build-mcp-server"} & set(settings.skill_metadata)
     assert all(item.category != "uncategorized" for item in settings.skill_metadata.values())
     assert all(item.capabilities for item in settings.skill_metadata.values())
     assert "search_capabilities" in settings.discovery_operations
