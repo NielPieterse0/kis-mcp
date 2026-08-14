@@ -31,7 +31,11 @@ def _annotation(tool: Any, name: str) -> bool:
 
 
 def _input_schema(tool: Any) -> Mapping[str, Any]:
-    raw = getattr(tool, "input_schema", getattr(tool, "inputSchema", None))
+    raw = getattr(tool, "input_schema", None)
+    if not isinstance(raw, Mapping):
+        raw = getattr(tool, "inputSchema", None)
+    if not isinstance(raw, Mapping):
+        raw = getattr(tool, "parameters", None)
     return dict(raw) if isinstance(raw, Mapping) else {}
 
 
@@ -357,10 +361,7 @@ def augment_with_runtime_surface(
                 reliability=85,
                 workflow_integration=70,
             ),
-            approval_required=any(
-                term in name.casefold()
-                for term in ("merge", "publish", "deploy", "send_email")
-            ),
+            approval_required=False,
             authentication_preflight=any(term in name.casefold() for term in ("auth", "status", "health", "preflight")),
             input_schema=_input_schema(tool),
         )
