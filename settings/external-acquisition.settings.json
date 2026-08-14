@@ -21,6 +21,17 @@
           "allowed_parameter_keys": [
             "query"
           ]
+        },
+        {
+          "profile_id": "public-http-dataset",
+          "approval_required": true,
+          "recipe_directory": "config\\acquisition-recipes",
+          "recipe_id_prefix": "commodity-",
+          "allowed_parameter_keys": [
+            "latitude",
+            "longitude",
+            "run"
+          ]
         }
       ]
     }
