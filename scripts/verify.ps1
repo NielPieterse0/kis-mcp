@@ -18,6 +18,21 @@ $CanonicalSkillsRoot = 'C:\Projects\.agents\skills'
 $CanonicalSkillsStagingRoot = 'C:\Projects\.kis-mcp\temp\skills'
 $CanonicalRequiredSkill = 'kis-mcp'
 $CanonicalRequiredSkillPath = Join-Path $CanonicalSkillsRoot "$CanonicalRequiredSkill\SKILL.md"
+$RepositoryLocalSkillsRoot = Join-Path (Join-Path $RepositoryRoot '.agents') 'skills'
+$RepositoryLocalSkillsPathspec = '.agents' + '/' + 'skills'
+$TrackedRepositoryLocalSkills = @(& git -C $RepositoryRoot ls-files -- $RepositoryLocalSkillsPathspec)
+if ($LASTEXITCODE -ne 0) {
+    throw 'SKILLS_LOCAL_CATALOGUE_CHECK_FAILED: git ls-files failed.'
+}
+if ($TrackedRepositoryLocalSkills.Count -gt 0) {
+    throw 'SKILLS_LOCAL_CATALOGUE_FORBIDDEN: repository-local skill files must not be tracked.'
+}
+if (Test-Path -LiteralPath $RepositoryLocalSkillsRoot -PathType Container) {
+    $UntrackedRepositoryLocalSkills = @(Get-ChildItem -LiteralPath $RepositoryLocalSkillsRoot -Recurse -File)
+    if ($UntrackedRepositoryLocalSkills.Count -gt 0) {
+        throw 'SKILLS_LOCAL_CATALOGUE_FORBIDDEN: repository-local skill files must not exist in the checkout.'
+    }
+}
 if ($env:GITHUB_ACTIONS -eq 'true' -and -not (Test-Path -LiteralPath $CanonicalRequiredSkillPath -PathType Leaf)) {
     $CanonicalRequiredSkillRoot = Split-Path -Parent $CanonicalRequiredSkillPath
     New-Item -ItemType Directory -Force -Path $CanonicalRequiredSkillRoot | Out-Null
