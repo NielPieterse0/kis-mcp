@@ -99,6 +99,15 @@ def test_dbhub_public_names_are_stable_and_do_not_depend_on_upstream_suffixing()
     assert operation_name("college", "results", "execute_sql") == "db_college_results_execute_sql"
 
 
+def test_dbhub_commissioning_maps_builder_tools_to_public_provider_names() -> None:
+    builder_tools = ("college_results_execute_sql", "college_results_search_objects")
+
+    assert dbhub_provider_module.dbhub_commissioning_tool_names(builder_tools) == [
+        "db_college_results_execute_sql",
+        "db_college_results_search_objects",
+    ]
+
+
 def test_dbhub_generated_local_toml_is_read_only_bounded_and_credential_free() -> None:
     project = load_project_registry_settings(ROOT / "settings" / "projects.settings.json").project("college")
     rendered = render_binding_toml(project, project.databases[0], _dbhub_settings())
