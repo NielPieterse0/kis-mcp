@@ -224,3 +224,37 @@ def test_snapshot_ignores_inherited_git_repository_overrides(
 
     assert snapshot.project.git.status == "not_repository"
     assert snapshot.project.git.branch is None
+
+
+def test_structured_snapshot_reuses_exact_shared_work_board_projection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from kis_mcp.work_management import board_bridge as board_bridge_module
+
+    class _Bridge:
+        def current(self):
+            return {
+                "schema_version": 1,
+                "status": "available",
+                "project_id": "kis-mcp",
+                "observed_at": "2026-08-14T08:55:00+00:00",
+                "authority": "configured_work_management_backend",
+                "cards": [{"item_id": "item-215", "number": 215}],
+            }
+
+    monkeypatch.setattr(board_bridge_module, "_DEFAULT_WORK_BOARD_BRIDGE", _Bridge())
+    project = tmp_path / "project"
+    _initialize_dirty_repository(project)
+    snapshot = ControlCenterSnapshotService(_settings(tmp_path, project)).collect()
+
+    structured = snapshot.to_dict()
+
+    assert structured["work_board"] == {
+        "schema_version": 1,
+        "status": "available",
+        "project_id": "kis-mcp",
+        "observed_at": "2026-08-14T08:55:00+00:00",
+        "authority": "configured_work_management_backend",
+        "cards": [{"item_id": "item-215", "number": 215}],
+    }
