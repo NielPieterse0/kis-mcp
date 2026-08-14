@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "120-kis-speculative-landing-queue",
-  "status": "active",
+  "status": "closed",
   "branch": "change/120-kis-speculative-landing-queue",
   "worktree": ".work/worktrees/120-kis-speculative-landing-queue",
   "base": "main",
