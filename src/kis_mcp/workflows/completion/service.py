@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -12,9 +13,20 @@ _SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
 class CompletionInvocationError(RuntimeError):
-    def __init__(self, code: str, reason: str) -> None:
+    def __init__(
+        self,
+        code: str,
+        reason: str,
+        *,
+        retryable: bool = False,
+        stage: str | None = None,
+        completed_steps: tuple[str, ...] = (),
+    ) -> None:
         self.code = code
         self.reason = reason
+        self.retryable = retryable
+        self.stage = stage
+        self.completed_steps = completed_steps
         super().__init__(f"{code}: {reason}")
 
 
@@ -22,6 +34,27 @@ class CompletionCoordinator:
     def __init__(self, invoker: Invoker, project_resolver: ProjectResolver) -> None:
         self._invoker = invoker
         self._project_resolver = project_resolver
+
+    async def _invoke_step(
+        self,
+        tool_name: str,
+        arguments: dict[str, Any],
+        *,
+        stage: str,
+        completed_steps: tuple[str, ...],
+    ) -> dict[str, Any]:
+        try:
+            return await self._invoker(tool_name, arguments)
+        except CompletionInvocationError:
+            raise
+        except Exception as exc:
+            raise CompletionInvocationError(
+                f"COMPLETION_{stage.upper()}_FAILED",
+                f"{type(exc).__name__}: {exc}",
+                retryable=_is_retryable_failure(exc),
+                stage=stage,
+                completed_steps=completed_steps,
+            ) from exc
 
     async def prepare(
         self,
@@ -92,16 +125,28 @@ class CompletionCoordinator:
             execution_args["review_backend"] = review_backend
         if review_model is not None:
             execution_args["review_model"] = review_model
-        execution = await self._invoker("execute_change_workflow", execution_args)
+        execution = await self._invoke_step(
+            "execute_change_workflow",
+            execution_args,
+            stage="verification",
+            completed_steps=(),
+        )
         if execution.get("contract") != "change-execution-result-v2":
             raise CompletionInvocationError(
                 "COMPLETION_EXECUTION_INVALID",
                 "change execution returned an unexpected contract",
+                retryable=False,
+                stage="verification",
             )
         if execution.get("status") != "passed":
-            raise ValueError("change execution must pass before external mutation")
+            raise CompletionInvocationError(
+                "COMPLETION_VERIFICATION_NOT_PASSED",
+                "change execution must pass before external mutation",
+                retryable=False,
+                stage="verification",
+            )
 
-        publication = await self._invoker(
+        publication = await self._invoke_step(
             "execute_external_action",
             {
                 "operation": "kis_github_reconcile_registered_commit",
@@ -115,6 +160,8 @@ class CompletionCoordinator:
                     "approved": True,
                 },
             },
+            stage="publication",
+            completed_steps=("verification",),
         )
         published_head = str(publication.get("commit_sha", "")).lower()
         if (
@@ -126,6 +173,9 @@ class CompletionCoordinator:
             raise CompletionInvocationError(
                 "COMPLETION_PUBLICATION_INVALID",
                 "registered reconciliation did not preserve the exact source commit identity and review branch",
+                retryable=True,
+                stage="publication",
+                completed_steps=("verification",),
             )
 
         pull_request_body = _render_pull_request_body(
@@ -145,7 +195,7 @@ class CompletionCoordinator:
         if len(pull_request_body) > 20_000:
             raise ValueError("generated pull request body exceeds 20000 characters")
 
-        pull_request = await self._invoker(
+        pull_request = await self._invoke_step(
             "execute_external_action",
             {
                 "operation": "kis_github_create_registered_pull_request",
@@ -159,6 +209,8 @@ class CompletionCoordinator:
                     "approved": True,
                 },
             },
+            stage="pull_request",
+            completed_steps=("verification", "publication"),
         )
         if (
             pull_request.get("state") != "open"
@@ -168,6 +220,9 @@ class CompletionCoordinator:
             raise CompletionInvocationError(
                 "COMPLETION_PULL_REQUEST_INVALID",
                 "registered pull request did not return the exact reconciled head and branch",
+                retryable=True,
+                stage="pull_request",
+                completed_steps=("verification", "publication"),
             )
         return CompletionResult(
             project_id=project_key,
@@ -178,6 +233,56 @@ class CompletionCoordinator:
             publication=publication,
             pull_request=pull_request,
         )
+
+
+_NON_RETRYABLE_EXTERNAL_CODES = frozenset({
+    "APPROVAL_REQUIRED",
+    "DEFAULT_BRANCH_PUBLICATION_BLOCKED",
+    "DEFAULT_BRANCH_PULL_REQUEST_BLOCKED",
+    "LOCAL_BASE_NOT_ANCESTOR",
+    "OPEN_PULL_REQUEST_EXISTS",
+    "REMOTE_BRANCH_CHANGED",
+    "REMOTE_BRANCH_CONFLICT",
+    "REMOTE_BRANCH_MISMATCH",
+    "REMOTE_DEFAULT_CHANGED",
+    "REMOTE_DEFAULT_MISMATCH",
+    "REMOTE_HEAD_MISMATCH",
+})
+_RETRYABLE_EXTERNAL_CODES = frozenset({
+    "PUBLICATION_NOT_VERIFIED",
+    "PULL_REQUEST_CREATE_NOT_VERIFIED",
+    "PULL_REQUEST_CREATE_UNVERIFIABLE",
+    "PULL_REQUEST_STATE_UNVERIFIABLE",
+})
+_ERROR_CODE_PREFIX = re.compile(r"^\s*([A-Z][A-Z0-9_]+):")
+
+
+def _failure_code(exc: Exception) -> str | None:
+    value = getattr(exc, "code", None)
+    if isinstance(value, str) and value:
+        return value
+    text = str(exc).strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        payload = None
+    if isinstance(payload, dict):
+        code = payload.get("code")
+        if isinstance(code, str) and code:
+            return code
+    match = _ERROR_CODE_PREFIX.match(text)
+    return None if match is None else match.group(1)
+
+
+def _is_retryable_failure(exc: Exception) -> bool:
+    if isinstance(exc, (TimeoutError, ConnectionError)):
+        return True
+    code = _failure_code(exc)
+    if code in _RETRYABLE_EXTERNAL_CODES:
+        return True
+    if code in _NON_RETRYABLE_EXTERNAL_CODES:
+        return False
+    return False
 
 
 def _render_pull_request_body(

@@ -443,6 +443,57 @@ def test_reconcile_publish_roots_exact_source_tree_on_verified_remote_default() 
     assert runner.results == []
 
 
+@pytest.mark.parametrize("prior_remote", [None, OTHER])
+def test_reconcile_publish_recovers_exact_existing_publication_after_response_loss(
+    prior_remote: str | None,
+) -> None:
+    remote_default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=f"{TARGET}\n"),
+            Result(stdout=f"{BASE}\n"),
+            Result(),
+            Result(stdout=f"{BASE_TREE}\n"),
+            Result(stdout=f"{SOURCE_TREE}\n"),
+            Result(),
+            Result(stdout=f"ref: {remote_default_ref}\tHEAD\n"),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=f"{RECONCILED}\t{target_ref}\n"),
+            Result(),
+            Result(stdout=f"{REMOTE_DEFAULT}\t{remote_default_ref}\n"),
+            Result(stdout=f"{BASE_TREE}\n"),
+            Result(),
+            Result(stdout=f"{RECONCILED}\t{target_ref}\n"),
+            Result(stdout=f"{SOURCE_TREE}\n"),
+            Result(stdout=f"{RECONCILED} {REMOTE_DEFAULT}\n"),
+            Result(stdout=f"reconcile registered change from {TARGET}\n"),
+        )
+    )
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.reconcile_publish_commit(
+        project_id="college",
+        commit="f04d30a",
+        source_base="main",
+        branch="feature/example",
+        expected_remote_default=REMOTE_DEFAULT,
+        expected_remote_branch=prior_remote,
+        approved=True,
+    )
+
+    assert result["state"] == "published"
+    assert result["commit_sha"] == RECONCILED
+    assert result["tree_sha"] == SOURCE_TREE
+    assert result["recovery"] == "existing_exact"
+    commands = [call[0] for call in runner.calls]
+    assert any(command[-1] == target_ref and "fetch" in command for command in commands)
+    assert not any(command[:2] == ("git", "commit-tree") for command in commands)
+    assert not any("push" in command for command in commands)
+    assert runner.results == []
+
+
 def test_reconcile_publish_three_way_merges_diverged_remote_base() -> None:
     remote_default_ref = "refs/heads/main"
     target_ref = "refs/heads/feature/example"
@@ -588,7 +639,39 @@ def test_create_registered_pull_request_requires_exact_remote_state() -> None:
     assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
 
 
-def test_create_registered_pull_request_rejects_existing_open_pr() -> None:
+def test_create_registered_pull_request_recovers_exact_existing_open_pr() -> None:
+    default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    url = "https://github.com/nielpieterse0/college/pull/7"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
+        Result(stdout=f"{TARGET}\t{target_ref}\n"),
+        Result(stdout=f'[{json.dumps({"number": 7, "url": url, "title": "Review exact change", "body": "Ready for review.", "headRefOid": TARGET, "baseRefName": "main", "state": "OPEN", "isDraft": False})}]\n'),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.create_pull_request(
+        project_id="college",
+        branch="feature/example",
+        expected_head=TARGET,
+        expected_remote_default=REMOTE_DEFAULT,
+        title="Review exact change",
+        body="Ready for review.",
+        approved=True,
+    )
+
+    assert result["state"] == "open"
+    assert result["pull_number"] == 7
+    assert result["head_sha"] == TARGET
+    assert result["recovery"] == "existing_exact"
+    assert result["url"] == url
+    assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
+
+
+def test_create_registered_pull_request_rejects_conflicting_existing_open_pr() -> None:
     default_ref = "refs/heads/main"
     target_ref = "refs/heads/feature/example"
     runner = QueueRunner((
@@ -597,9 +680,40 @@ def test_create_registered_pull_request_rejects_existing_open_pr() -> None:
         Result(stdout=f"ref: {default_ref}\tHEAD\n"),
         Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
         Result(stdout=f"{TARGET}\t{target_ref}\n"),
-        Result(stdout='[{"number":7,"headRefOid":"1111111111111111111111111111111111111111","baseRefName":"main","state":"OPEN","isDraft":false}]\n'),
+        Result(stdout=f'[{json.dumps({"number": 7, "headRefOid": OTHER, "baseRefName": "main", "state": "OPEN", "isDraft": False})}]\n'),
     ))
     operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="OPEN_PULL_REQUEST_EXISTS"):
+        operations.create_pull_request(
+            project_id="college",
+            branch="feature/example",
+            expected_head=TARGET,
+            expected_remote_default=REMOTE_DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "create") for call in runner.calls)
+
+
+@pytest.mark.parametrize("terminal_state", ["CLOSED", "MERGED"])
+def test_create_registered_pull_request_does_not_recreate_exact_terminal_pr(
+    terminal_state: str,
+) -> None:
+    default_ref = "refs/heads/main"
+    target_ref = "refs/heads/feature/example"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        Result(stdout=f"ref: {default_ref}\tHEAD\n"),
+        Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
+        Result(stdout=f"{TARGET}\t{target_ref}\n"),
+        Result(stdout=f'[{json.dumps({"number": 7, "url": "https://github.com/nielpieterse0/college/pull/7", "title": "Review exact change", "body": "Ready for review.", "headRefOid": TARGET, "baseRefName": "main", "state": terminal_state, "isDraft": False})}]\n'),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
     with pytest.raises(ToolError, match="OPEN_PULL_REQUEST_EXISTS"):
         operations.create_pull_request(
             project_id="college",
