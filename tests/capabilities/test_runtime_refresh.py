@@ -181,3 +181,20 @@ def test_runtime_long_tail_tools_remain_discoverable_not_direct() -> None:
 
     assert "github_get_file_contents" in plan.discoverable_operations
     assert "github_get_file_contents" not in plan.direct_operations
+
+
+def test_runtime_contribution_source_refreshes_without_gateway_rebuild() -> None:
+    provider_state = {"value": ReadinessState.READY}
+    contributions = {"value": (_provider_contribution(provider_state),)}
+    runtime = CapabilityRuntimeState.build(
+        CapabilityCatalogue(contributions["value"], ()),
+        load_capability_settings(),
+        contributions_source=lambda: contributions["value"],
+    )
+
+    assert "provider.github-mcp" in runtime.readiness
+
+    contributions["value"] = ()
+
+    assert "provider.github-mcp" not in runtime.readiness
+    assert runtime.catalogue.contributions == ()

@@ -52,6 +52,34 @@ def skill_capability_contributions(
     return tuple(contributions)
 
 
+def active_skill_capability_contributions(
+    service: SkillsService,
+    settings: CapabilitySettings,
+) -> tuple[CapabilityContribution, ...]:
+    cards: list[SkillCard] = []
+    cursor: str | None = None
+    while True:
+        page = service.list_skills(
+            limit=service.catalogue.config.limits.list_max_limit,
+            cursor=cursor,
+        )
+        cards.extend(page.skills)
+        if page.next_cursor is None:
+            break
+        cursor = page.next_cursor
+    return skill_capability_contributions(tuple(cards), settings)
+
+
+def current_skill_capability_contributions(
+    service: object,
+    startup_cards: tuple[SkillCard, ...],
+    settings: CapabilitySettings,
+) -> tuple[CapabilityContribution, ...]:
+    if isinstance(service, SkillsService):
+        return active_skill_capability_contributions(service, settings)
+    return skill_capability_contributions(startup_cards, settings)
+
+
 def register_platform_skills(server):
     service = register_skills_tools(server)
     if not isinstance(service, SkillsService):
@@ -63,6 +91,8 @@ def register_platform_skills(server):
 
 
 __all__ = [
+    "active_skill_capability_contributions",
+    "current_skill_capability_contributions",
     "enrich_skill_card",
     "register_platform_skills",
     "skill_capability_contributions",

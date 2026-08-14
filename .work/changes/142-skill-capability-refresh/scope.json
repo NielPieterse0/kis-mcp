@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "142-skill-capability-refresh",
+  "status": "active",
+  "branch": "change/142-skill-capability-refresh",
+  "worktree": ".work/worktrees/142-skill-capability-refresh",
+  "base": "main",
+  "outcome": "Reconcile skill-derived capability contributions with the active Skills snapshot after refresh so removed skills cannot remain ready and newly classified active skills can be discovered without rebuilding the gateway.",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/runtime.py",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/skills/platform.py",
+    "tests/capabilities/test_runtime_refresh.py",
+    "tests/skills/test_dynamic_catalogue_startup.py",
+    ".work/changes/142-skill-capability-refresh/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "194b693e916bc6cbef2f24eb8912eb49cf6fab85",
+    "local_tree": "424505cd0b19db7c2e8c8465199346c517052839",
+    "upstream_sha": "194b693e916bc6cbef2f24eb8912eb49cf6fab85",
+    "upstream_tree": "424505cd0b19db7c2e8c8465199346c517052839",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-142",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 183,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
