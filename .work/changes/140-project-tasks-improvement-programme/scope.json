@@ -17,6 +17,7 @@
     "src/kis_mcp/work_management/results.py",
     "src/kis_mcp/work_management/__init__.py",
     "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/workflows/project_management/__init__.py",
     "src/kis_mcp/workflows/project_management/tools.py",
     "src/kis_mcp/workflows/project_management/enhanced_tools.py",
     "src/kis_mcp/control_center/contracts.py",
