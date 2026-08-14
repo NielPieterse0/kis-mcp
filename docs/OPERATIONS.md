@@ -59,7 +59,21 @@ Agnix runtime compatibility state is separate and ignored:
 C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0\
 ```
 
-Do not commit generated state, including the repo-local agnix runtime. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
+Registered projects may also carry a disposable recovery projection in their own ignored `.temp` tree. This is not a second KIS state root and never becomes authority:
+
+```text
+<registered-project>\.temp\kis\
+└── sessions\<worktree-fingerprint>\
+    ├── current.json
+    ├── generations\...
+    └── recovery\...
+```
+
+The capsule uses the shared `EvidenceStore` format. It contains only typed project/worktree/Git/source/settings/provider fingerprints, verified central-generation hints, and hashed idempotency checkpoint identities. On first publication KIS creates `<registered-project>\.temp\kis\.gitignore` containing `*`, which keeps only the KIS capsule invisible to Git without changing the repository's tracked ignore policy; an incompatible pre-existing marker causes local publication to fail/degrade rather than being overwritten. Discover publishes its hint only after the matching central generation beneath `C:\Projects\.kis-mcp\discover` has been successfully created or reused. Missing or stale local state is ignored and reconstructed; corrupt current pointers are retained beneath the capsule recovery directory before a fresh generation is published. A capsule cannot authorize a repository/provider, carry credentials, override Git/config/provider truth, or make stale central evidence current.
+
+For troubleshooting, inspect the capsule only as diagnostic/recovery evidence. To force reconstruction, quarantine `<registered-project>\.temp\kis` through the normal KIS quarantine path and rerun the eligible operation. Separate worktrees use separate session namespaces, so one agent/worktree does not replace another worktree's current checkpoint.
+
+Do not commit generated or recovery state, including the repo-local agnix runtime and project recovery capsules. Repository-local `.venv`, `.pytest_cache`, PowerShell module cache, provider state, or command-state directories are not authoritative project artifacts.
 
 ## Install Python dependencies
 
