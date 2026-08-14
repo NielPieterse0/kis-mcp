@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from ..evidence import EvidenceCorruptionError, EvidenceStore
-from ..projects import ProjectDefinition, ProjectRegistry
+from ..projects import (
+    ProjectDefinition,
+    ProjectRecoveryCapsule,
+    ProjectRegistry,
+    RecoveryIdentity,
+)
 from .analyzers.contracts import AnalysisContext, AnalyzerOutput
 from .analyzers.dependencies import DependencyImportsAnalyzer
 from .contracts import GitSummary, ProjectDiagnostic, ProjectIdentity, Severity
@@ -26,7 +31,7 @@ from .python_index import (
     PythonSymbolRecord,
 )
 from .read_authority import ReadAuthority
-from .scanner import RepositoryScanner, RepositorySnapshot, ScannedFile
+from .scanner import RepositoryScanner, RepositorySnapshot
 from .semantic import NullSemanticProvider, SemanticEvidence, SemanticEvidenceProvider
 from .settings import DiscoverSettings
 
@@ -224,7 +229,12 @@ def _build_atlases(
     snapshot: RepositorySnapshot,
     index: PythonProjectIndexResult,
     semantic: SemanticEvidence,
-) -> tuple[dict[str, Any], tuple[dict[str, Any], ...], tuple[dict[str, Any], ...], tuple[str, ...]]:
+) -> tuple[
+    dict[str, Any],
+    tuple[dict[str, Any], ...],
+    tuple[dict[str, Any], ...],
+    tuple[str, ...],
+]:
     file_records = [
         {
             "path": item.label,
@@ -250,7 +260,16 @@ def _build_atlases(
     for item in snapshot.files:
         if len(module_records) >= settings.memory.max_modules:
             break
-        if item.suffix.casefold() not in {".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"}:
+        if item.suffix.casefold() not in {
+            ".js",
+            ".jsx",
+            ".mjs",
+            ".cjs",
+            ".ts",
+            ".tsx",
+            ".mts",
+            ".cts",
+        }:
             continue
         if item.label in known_module_paths:
             continue
@@ -259,7 +278,9 @@ def _build_atlases(
                 "name": item.label,
                 "path": item.label,
                 "package": False,
-                "language": "typescript" if "t" in item.suffix.casefold() else "javascript",
+                "language": "typescript"
+                if "t" in item.suffix.casefold()
+                else "javascript",
                 "provider": "static_javascript",
                 "provenance": "deterministic",
                 "freshness": "current",
@@ -287,7 +308,9 @@ def _build_atlases(
             continue
         symbols.append(
             {
-                "symbol_id": _fingerprint(f"{semantic.provider_id}:{item.qualified_name}")[:24],
+                "symbol_id": _fingerprint(
+                    f"{semantic.provider_id}:{item.qualified_name}"
+                )[:24],
                 "qualified_name": item.qualified_name,
                 "module": item.path,
                 "name": item.name,
@@ -414,7 +437,9 @@ def _build_atlases(
     source_files = tuple(item for item in snapshot.files if item.category == "source")
     tests = tuple(item for item in snapshot.files if item.category == "test")
     for test in tests:
-        test_stem = Path(test.label).stem.casefold().removeprefix("test_").removesuffix("_test")
+        test_stem = (
+            Path(test.label).stem.casefold().removeprefix("test_").removesuffix("_test")
+        )
         for source in source_files:
             if not test_stem or test_stem != Path(source.label).stem.casefold():
                 continue
@@ -477,7 +502,9 @@ def _python_index_from_json(value: Any) -> PythonProjectIndexResult:
             modules=tuple(PythonModuleRecord(**item) for item in value["modules"]),
             symbols=tuple(PythonSymbolRecord(**item) for item in value["symbols"]),
             imports=tuple(PythonImportRecord(**item) for item in value["imports"]),
-            inheritance=tuple(PythonInheritanceEdge(**item) for item in value["inheritance"]),
+            inheritance=tuple(
+                PythonInheritanceEdge(**item) for item in value["inheritance"]
+            ),
             calls=tuple(PythonCallEdge(**item) for item in value["calls"]),
             diagnostics=tuple(
                 ProjectDiagnostic(
@@ -493,7 +520,9 @@ def _python_index_from_json(value: Any) -> PythonProjectIndexResult:
             truncation_reasons=tuple(str(item) for item in value["truncation_reasons"]),
         )
     except (KeyError, TypeError, ValueError) as exc:
-        raise EvidenceCorruptionError("persisted Python index contract is corrupt") from exc
+        raise EvidenceCorruptionError(
+            "persisted Python index contract is corrupt"
+        ) from exc
 
 
 def _semantic_from_payload(value: Any) -> SemanticEvidence:
@@ -505,6 +534,48 @@ def _semantic_from_payload(value: Any) -> SemanticEvidence:
         status=str(value.get("status", "unavailable")),
         unknowns=tuple(str(item) for item in value.get("unknowns", ())),
     )
+
+
+def _publish_recovery_hint(
+    *,
+    definition: ProjectDefinition | None,
+    project: ProjectIdentity,
+    git: GitSummary,
+    source_fingerprint: str,
+    settings_fingerprint: str,
+    provider_fingerprint: str,
+    central_generation_id: str | None,
+) -> dict[str, Any]:
+    if definition is None or central_generation_id is None:
+        return {"status": "unavailable", "available": False}
+    capsule_root = Path(definition.local_root) / ".temp" / "kis"
+    try:
+        capsule = ProjectRecoveryCapsule(definition)
+        identity = RecoveryIdentity.for_project(
+            definition,
+            worktree_root=project.canonical_path,
+            git_revision=git.head or "unavailable",
+            git_status=git.status,
+            source_fingerprint=source_fingerprint,
+            settings_fingerprint=settings_fingerprint,
+            provider_fingerprint=provider_fingerprint,
+        )
+        snapshot = capsule.publish_discover_hint(
+            identity,
+            central_generation_id=central_generation_id,
+        )
+    except Exception as exc:
+        return {
+            "status": "degraded",
+            "available": True,
+            "root": str(capsule_root),
+            "error": type(exc).__name__,
+        }
+    return {
+        **snapshot.to_json_dict(),
+        "available": True,
+        "root": str(capsule.root),
+    }
 
 
 class ProjectIntelligenceService:
@@ -526,7 +597,9 @@ class ProjectIntelligenceService:
         snapshot = RepositoryScanner(authority, self._settings).snapshot(project_path)
         git_reader = GitReader(authority=authority, settings=self._settings)
         git = git_reader.inspect(project_path)
-        definition = _registered_project(self._projects, snapshot.project.canonical_path)
+        definition = _registered_project(
+            self._projects, snapshot.project.canonical_path
+        )
         project = _project_identity(snapshot, git, definition)
         source_fingerprint = _source_fingerprint(
             authority=authority,
@@ -585,7 +658,9 @@ class ProjectIntelligenceService:
         ):
             try:
                 code_atlas = json.loads(current_generation.artifacts["code-atlas.json"])
-                symbol_payload = json.loads(current_generation.artifacts["symbol-atlas.json"])
+                symbol_payload = json.loads(
+                    current_generation.artifacts["symbol-atlas.json"]
+                )
                 relationship_payload = json.loads(
                     current_generation.artifacts["relationship-graph.json"]
                 )
@@ -597,8 +672,12 @@ class ProjectIntelligenceService:
                 )
             except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 if self._settings.memory.corruption_handling == "fail_closed":
-                    raise EvidenceCorruptionError("persisted Discover generation is corrupt") from exc
-                recovered_pointer = store.retain_corrupt_current_pointer(namespace) if store else None
+                    raise EvidenceCorruptionError(
+                        "persisted Discover generation is corrupt"
+                    ) from exc
+                recovered_pointer = (
+                    store.retain_corrupt_current_pointer(namespace) if store else None
+                )
                 current_generation = None
             else:
                 reusable_semantic = not (
@@ -622,22 +701,30 @@ class ProjectIntelligenceService:
                             "namespace": namespace,
                             "generation_id": current_generation.generation_id,
                             "applicability_fingerprint": applicability_fingerprint,
+                            "recovery_capsule": _publish_recovery_hint(
+                                definition=definition,
+                                project=project,
+                                git=git,
+                                source_fingerprint=source_fingerprint,
+                                settings_fingerprint=settings_fingerprint,
+                                provider_fingerprint=provider_fingerprint,
+                                central_generation_id=current_generation.generation_id,
+                            ),
                         },
                         source_fingerprint=source_fingerprint,
                         settings_fingerprint=settings_fingerprint,
                         provider_fingerprint=provider_fingerprint,
                         truncated=bool(code_atlas.get("truncated", False)),
-                        truncation_reasons=tuple(code_atlas.get("truncation_reasons", ())),
+                        truncation_reasons=tuple(
+                            code_atlas.get("truncation_reasons", ())
+                        ),
                     )
-
 
         try:
             semantic = self._semantic_provider.read(
                 project_path,
                 tuple(
-                    item.label
-                    for item in snapshot.files
-                    if item.category == "source"
+                    item.label for item in snapshot.files if item.category == "source"
                 )[: self._settings.memory.max_files],
             )
         except Exception as exc:
@@ -708,7 +795,9 @@ class ProjectIntelligenceService:
                 ),
             )
             generation_id = written.generation_id
-            status = "created" if written.previous_generation_id is None else "refreshed"
+            status = (
+                "created" if written.previous_generation_id is None else "refreshed"
+            )
 
         persistence = {
             "status": status,
@@ -717,6 +806,15 @@ class ProjectIntelligenceService:
             "namespace": namespace,
             "generation_id": generation_id,
             "applicability_fingerprint": applicability_fingerprint,
+            "recovery_capsule": _publish_recovery_hint(
+                definition=definition,
+                project=project,
+                git=git,
+                source_fingerprint=source_fingerprint,
+                settings_fingerprint=settings_fingerprint,
+                provider_fingerprint=provider_fingerprint,
+                central_generation_id=generation_id,
+            ),
         }
         if recovered_pointer is not None:
             persistence["recovered_pointer"] = recovered_pointer
