@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "139-local-verifier-claim-projection",
+  "status": "active",
+  "branch": "change/139-local-verifier-claim-projection",
+  "worktree": ".work/worktrees/139-local-verifier-claim-projection",
+  "base": "main",
+  "outcome": "Make canonical local repository verification project landed historical schema-v3+ claims closed by resolving the current Git branch when GITHUB_HEAD_REF is absent, while preserving PR-head semantics.",
+  "owned_paths": [
+    "scripts/verify.py",
+    "tests/test_repository_scope.py",
+    ".work/changes/139-local-verifier-claim-projection/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "fa24dc4b64e8e08a75654746becd46b853cf4180",
+    "local_tree": "b1897c79f69eb6bc3647786265ceb5601949cf67",
+    "upstream_sha": "fa24dc4b64e8e08a75654746becd46b853cf4180",
+    "upstream_tree": "b1897c79f69eb6bc3647786265ceb5601949cf67",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-139",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 209,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

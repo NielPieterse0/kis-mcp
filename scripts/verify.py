@@ -191,6 +191,24 @@ def verify_python_syntax() -> int:
     return 0
 
 
+def _verification_branch() -> str | None:
+    for variable in ("GITHUB_HEAD_REF", "GITHUB_REF_NAME"):
+        value = os.environ.get(variable, "").strip()
+        if value:
+            return value
+    completed = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    branch = completed.stdout.strip()
+    return branch or None
+
+
 def verify_change_governance() -> int:
     governance_path = ROOT / "scripts" / "change-governance.py"
     template_root = ROOT / ".work" / "changes" / "_template"
@@ -223,7 +241,7 @@ def verify_change_governance() -> int:
             claims.append(module.load_claim(scope_path))
         claims = module.project_pull_request_claims(
             claims,
-            current_branch=os.environ.get("GITHUB_HEAD_REF"),
+            current_branch=_verification_branch(),
         )
         conflicts = module.find_claim_conflicts(claims)
         if conflicts:
