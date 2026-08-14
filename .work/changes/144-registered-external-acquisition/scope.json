@@ -1,0 +1,55 @@
+{
+  "schema_version": 4,
+  "change_id": "144-registered-external-acquisition",
+  "status": "active",
+  "branch": "change/144-registered-external-acquisition",
+  "worktree": ".work/worktrees/144-registered-external-acquisition",
+  "base": "main",
+  "outcome": "Add JSON-authoritative registered-project external acquisition authorization and recipe-bound routing to import-isolate without widening ordinary Work network authority.",
+  "owned_paths": [
+    "settings/external-acquisition.settings.json",
+    "contracts/external-acquisition/**",
+    "src/kis_mcp/acquisition/**",
+    "src/kis_mcp/capabilities/execution.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "tests/acquisition/**",
+    "tests/capabilities/test_exposure_execution.py",
+    "tests/capabilities/test_registered_acquisition_dispatch.py",
+    "docs/EXTERNAL-ACQUISITION-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/144-registered-external-acquisition/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "src/kis_mcp/work_management/**",
+    "src/kis_mcp/control_center/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "public_contract",
+    "secrets",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "fee9d021dbf9927a41331f4ed12d1efee3853e02",
+    "local_tree": "0afe21bcbe86cda0374937caf62dd43c836b7928",
+    "upstream_sha": "fee9d021dbf9927a41331f4ed12d1efee3853e02",
+    "upstream_tree": "0afe21bcbe86cda0374937caf62dd43c836b7928",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provider_verified_main",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-144",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 214,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}
