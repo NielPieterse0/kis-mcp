@@ -14,7 +14,13 @@ from ...work_management.board import (
 from ...work_management.board_bridge import get_work_board_bridge
 from ...work_management.results import error_json, result_envelope
 
-_READ_ONLY = {
+_EXTERNAL_READ = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+_LOCAL_READ = {
     "readOnlyHint": True,
     "destructiveHint": False,
     "idempotentHint": True,
@@ -31,7 +37,7 @@ def register_project_management_enhancement_tools(
     tool_server = FastMCP("kis-mcp-project-management-enhancements")
     active_bridge = board_bridge or get_work_board_bridge()
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_current_work(
         project_id: str,
         execution_owner: str,
@@ -64,7 +70,7 @@ def register_project_management_enhancement_tools(
         except Exception as exc:
             raise ToolError(error_json("project_management_current_work", exc)) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_board_data(
         project_id: str,
         include_history: bool = False,
@@ -108,7 +114,7 @@ def register_project_management_enhancement_tools(
         except Exception as exc:
             raise ToolError(error_json("project_management_board_data", exc)) from exc
 
-    @tool_server.tool(annotations=_READ_ONLY)
+    @tool_server.tool(annotations=_LOCAL_READ)
     def project_management_contract() -> dict[str, Any]:
         """Describe Work Management action semantics and the normalized result/error contract."""
 
@@ -135,20 +141,26 @@ def register_project_management_enhancement_tools(
                 "internal",
             ],
             "operations": {
-                "project_management_inventory": "read",
-                "project_management_next_work": "read",
-                "project_management_current_work": "read",
-                "project_management_board_data": "read",
-                "project_management_schema_plan": "read",
-                "project_management_schema_status": "read",
-                "project_management_reconcile": "preview_or_idempotent_mutation",
-                "project_management_take_next_work": "preview_or_idempotent_mutation",
-                "project_management_claim_work": "preview_or_idempotent_mutation",
-                "project_management_release_work": "preview_or_idempotent_mutation",
-                "project_management_transition_work": "preview_or_idempotent_mutation",
-                "project_management_hold_work": "preview_or_idempotent_mutation",
-                "project_management_defer_work": "preview_or_idempotent_mutation",
-                "project_management_complete_work": "preview_or_idempotent_mutation",
+                "project_management_inventory": "external_read",
+                "project_management_next_work": "external_read",
+                "project_management_current_work": "external_read",
+                "project_management_board_data": "external_read",
+                "project_management_schema_plan": "external_read",
+                "project_management_schema_status": "external_read",
+                "project_management_merge_readiness": "local_read",
+                "project_management_documentation_reconcile": "local_read",
+                "project_management_portfolio_status": "local_read",
+                "project_management_verify_traceability": "local_read",
+                "project_management_reconcile": "preview_or_idempotent_external_mutation",
+                "project_management_take_next_work": "preview_or_idempotent_external_mutation",
+                "project_management_claim_work": "preview_or_idempotent_external_mutation",
+                "project_management_release_work": "preview_or_idempotent_external_mutation",
+                "project_management_transition_work": "preview_or_idempotent_external_mutation",
+                "project_management_hold_work": "preview_or_idempotent_external_mutation",
+                "project_management_defer_work": "preview_or_idempotent_external_mutation",
+                "project_management_sync_change_classification": "preview_or_idempotent_external_mutation",
+                "project_management_complete_work": "preview_or_idempotent_external_mutation",
+                "project_management_persist_review": "local_idempotent_persistence",
             },
             "mutation_rule": "apply=true requires an explicit idempotency key where the operation mutates external Project state",
         }
