@@ -7,6 +7,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 AUTH_SCRIPT = REPOSITORY_ROOT / "scripts" / "auth-supabase-mcp.ps1"
 SMOKE_SCRIPT = REPOSITORY_ROOT / "scripts" / "smoke-supabase-mcp.ps1"
+LIVE_SMOKE_SCRIPT = REPOSITORY_ROOT / "scripts" / "run-provider-live-smoke.py"
 DOCUMENTATION = (
     REPOSITORY_ROOT
     / "docs"
@@ -53,6 +54,16 @@ def test_smoke_script_supports_preflight_live_and_shared_modes() -> None:
     assert "Invoke-RestMethod" not in text
     assert "curl" not in text.casefold()
     assert "npm" not in text.casefold()
+
+
+def test_shared_live_smoke_keeps_supabase_dispatch() -> None:
+    text = LIVE_SMOKE_SCRIPT.read_text(encoding="utf-8")
+
+    assert "_supabase_shared_runtime_smoke" in text
+    assert '"supabase": _supabase_shared_runtime_smoke' in text
+    assert '"search_capabilities"' in text
+    assert '"execute_external_action"' in text
+    assert 'parser.add_argument("provider", nargs="?"' in text
 
 
 def test_documentation_records_oauth_storage_scope_and_production_warning() -> None:
