@@ -6,6 +6,7 @@
 - Authoritative pre-Slice-2 HEAD: `3a8233229f827f26c577400f0f27677a6321ecc8`.
 - Slice 1 implementation commit in this branch history: `778f81e1878b212638ffd092db5da42284fdfb9d`.
 - Parent governed change remains active; #249 is the next permitted slice after this handoff.
+- Slice 2 implementation commit: `7646b111557133b5644144d83c6833ab13f5189d`.
 
 ## Implemented scope
 

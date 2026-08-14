@@ -24,7 +24,7 @@
 - [x] Full coordinator and affected regression verification passes on the final diff.
 - [x] Required code-quality, architecture, and API-contract reviews have zero blocking findings after documented fallback/adjudication.
 - [x] Governed scope check, compilation, and `git diff --check` pass.
-- [ ] Commit Slice 2 and record exact handoff evidence.
+- [x] Commit Slice 2 and record exact handoff evidence.
 
 ## Explicitly deferred
 

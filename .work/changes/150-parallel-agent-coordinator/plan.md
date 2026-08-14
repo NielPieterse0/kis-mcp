@@ -57,4 +57,4 @@
 - [x] Run Python compilation and `git diff --check`.
 - [x] Run the governed scope check.
 - [x] Perform required `code-quality`, `architecture`, and `api-contracts` reviews; fix/adjudicate findings and rerun affected evidence.
-- [ ] Commit Slice 2 on the existing parent branch and leave the parent governed change active for #249.
+- [x] Commit Slice 2 on the existing parent branch and leave the parent governed change active for #249.
