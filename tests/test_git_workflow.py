@@ -247,6 +247,122 @@ def test_cleanup_preview_classifies_dirty_and_merged_worktrees(tmp_path: Path) -
     assert "WORKTREE_DIRTY" in dirty["worktrees"][0]["blockers"]
 
 
+def _land_reconciled_tree(repository: Path, branch: str) -> tuple[str, str]:
+    original_head = run_git(repository, "rev-parse", branch).stdout.strip()
+    original_tree = run_git(repository, "show", "-s", "--format=%T", branch).stdout.strip()
+    base_head = run_git(repository, "rev-parse", "main").stdout.strip()
+    reconciled_head = run_git(
+        repository,
+        "commit-tree",
+        original_tree,
+        "-p",
+        base_head,
+        "-m",
+        "reconcile exact source tree",
+    ).stdout.strip()
+    run_git(repository, "merge", "--no-ff", reconciled_head, "-m", "merge reconciled tree")
+    return original_head, reconciled_head
+
+
+def test_cleanup_preview_accepts_reconciled_tree_equivalent_branch(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_id = "001-alpha"
+    target = repository / ".work" / "worktrees" / change_id
+    run_git(repository, "worktree", "add", str(target), "-b", f"change/{change_id}", "main")
+    write_claim(target, change_id, status="closed")
+    (target / "alpha.txt").write_text("changed\n", encoding="utf-8")
+    run_git(target, "add", ".")
+    run_git(target, "commit", "-m", "feat: reconciled alpha")
+    original_head, _ = _land_reconciled_tree(
+        repository,
+        f"change/{change_id}",
+    )
+
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", original_head, "main"],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ancestry.returncode != 0
+
+    result = module.cleanup_preview(repository, change_id=change_id)
+
+    record = result["worktrees"][0]
+    assert record["eligible"] is True
+    assert record["merged"] is True
+    assert record["landing_mode"] == "tree_equivalent_reachable"
+    assert record["landing_commit"] is not None
+    landed_tree = run_git(
+        repository,
+        "show",
+        "-s",
+        "--format=%T",
+        record["landing_commit"],
+    ).stdout.strip()
+    original_tree = run_git(repository, "show", "-s", "--format=%T", original_head).stdout.strip()
+    assert landed_tree == original_tree
+    assert "CHANGE_BRANCH_UNMERGED" not in record["blockers"]
+
+
+def test_prepare_cleanup_normalizes_reconciled_branch_recoverably(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_id = "001-alpha"
+    target = repository / ".work" / "worktrees" / change_id
+    branch = f"change/{change_id}"
+    run_git(repository, "worktree", "add", str(target), "-b", branch, "main")
+    write_claim(target, change_id, status="closed")
+    (target / "alpha.txt").write_text("changed\n", encoding="utf-8")
+    run_git(target, "add", ".")
+    run_git(target, "commit", "-m", "feat: reconciled alpha")
+    original_head, _ = _land_reconciled_tree(repository, branch)
+    main_head = run_git(repository, "rev-parse", "main").stdout.strip()
+
+    result = module.prepare_cleanup(repository, change_id=change_id)
+
+    assert result["normalized"] is True
+    assert result["landing_mode"] == "tree_equivalent_reachable"
+    assert result["original_head"] == original_head
+    assert result["normalized_head"] == main_head
+    assert run_git(repository, "rev-parse", branch).stdout.strip() == main_head
+    assert run_git(repository, "rev-parse", result["recovery_ref"]).stdout.strip() == original_head
+
+    governance = module._load_change_governance()
+    governance.cleanup_change_worktree(repository, change_id)
+    assert not target.exists()
+    assert not run_git(repository, "branch", "--list", branch).stdout.strip()
+
+
+def test_prepare_cleanup_rejects_unlanded_branch_without_rewriting(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_id = "001-alpha"
+    target = repository / ".work" / "worktrees" / change_id
+    branch = f"change/{change_id}"
+    run_git(repository, "worktree", "add", str(target), "-b", branch, "main")
+    write_claim(target, change_id, status="closed")
+    (target / "alpha.txt").write_text("changed\n", encoding="utf-8")
+    run_git(target, "add", ".")
+    run_git(target, "commit", "-m", "feat: unlanded alpha")
+    original_head = run_git(repository, "rev-parse", branch).stdout.strip()
+
+    with pytest.raises(module.GitWorkflowError, match="CHANGE_BRANCH_UNMERGED"):
+        module.prepare_cleanup(repository, change_id=change_id)
+
+    assert run_git(repository, "rev-parse", branch).stdout.strip() == original_head
+    recovery = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/kis-recovery/cleanup/{change_id}"],
+        cwd=repository,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert recovery.returncode != 0
+
+
 def test_name_status_parser_preserves_copy_and_delete_provenance() -> None:
     module = load_module()
 

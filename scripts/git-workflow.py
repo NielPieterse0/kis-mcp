@@ -466,6 +466,150 @@ def _primary_worktree(repository: Path) -> Path:
     return path.parent
 
 
+def _branch_landing_evidence(repository: Path, branch: str, base: str) -> dict[str, Any]:
+    branch_sha = _decode(_run_git(repository, "rev-parse", branch).stdout).strip()
+    base_sha = _decode(_run_git(repository, "rev-parse", base).stdout).strip()
+    ancestor = _run_git(
+        repository,
+        "merge-base",
+        "--is-ancestor",
+        branch_sha,
+        base_sha,
+        check=False,
+    )
+    if ancestor.returncode == 0:
+        return {
+            "landed": True,
+            "mode": "ancestor",
+            "branch_sha": branch_sha,
+            "base_sha": base_sha,
+            "landing_commit": branch_sha,
+        }
+
+    branch_tree = _decode(
+        _run_git(repository, "show", "-s", "--format=%T", branch_sha).stdout
+    ).strip()
+    history = _decode(
+        _run_git(
+            repository,
+            "log",
+            "--format=%H%x09%T",
+            base_sha,
+            max_output_bytes=5_000_000,
+        ).stdout
+    )
+    for line in history.splitlines():
+        commit_sha, separator, tree_sha = line.partition("\t")
+        if separator and tree_sha == branch_tree:
+            return {
+                "landed": True,
+                "mode": "tree_equivalent_reachable",
+                "branch_sha": branch_sha,
+                "base_sha": base_sha,
+                "landing_commit": commit_sha,
+            }
+
+    cherry = _run_git(repository, "cherry", base_sha, branch_sha, check=False)
+    if cherry.returncode == 0:
+        entries = [line.strip() for line in _decode(cherry.stdout).splitlines() if line.strip()]
+        if entries and all(line.startswith("-") for line in entries):
+            return {
+                "landed": True,
+                "mode": "patch_equivalent",
+                "branch_sha": branch_sha,
+                "base_sha": base_sha,
+                "landing_commit": None,
+            }
+
+    return {
+        "landed": False,
+        "mode": "unlanded",
+        "branch_sha": branch_sha,
+        "base_sha": base_sha,
+        "landing_commit": None,
+    }
+
+
+def prepare_cleanup(repository: Path | str, *, change_id: str) -> dict[str, Any]:
+    root = _repository_root(repository)
+    normalized_id = _validate_change_id(change_id)
+    if normalized_id is None:
+        raise GitWorkflowError("CHANGE_ID_INVALID", "change_id is required.", field="change_id")
+
+    preview = cleanup_preview(root, change_id=normalized_id)
+    records = preview["worktrees"]
+    if len(records) != 1:
+        raise GitWorkflowError(
+            "CHANGE_WORKTREE_MISSING",
+            f"Expected one registered worktree for {normalized_id}, found {len(records)}.",
+        )
+    record = records[0]
+    if not record["eligible"]:
+        blocker = record["blockers"][0] if record["blockers"] else "CLEANUP_NOT_ELIGIBLE"
+        raise GitWorkflowError(
+            blocker,
+            f"Change {normalized_id} is not eligible for cleanup: {', '.join(record['blockers'])}",
+        )
+
+    if record["landing_mode"] == "ancestor":
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "operation": "prepare-cleanup",
+            "change_id": normalized_id,
+            "normalized": False,
+            "landing_mode": record["landing_mode"],
+            "original_head": record["head"],
+            "normalized_head": record["head"],
+            "recovery_ref": None,
+        }
+
+    target = Path(record["path"])
+    original_head = str(record["head"])
+    base_sha = str(record["base_sha"])
+    recovery_ref = f"refs/kis-recovery/cleanup/{normalized_id}"
+    existing = _run_git(
+        root,
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        recovery_ref,
+        check=False,
+    )
+    if existing.returncode == 0:
+        existing_sha = _decode(existing.stdout).strip()
+        if existing_sha != original_head:
+            raise GitWorkflowError(
+                "CLEANUP_RECOVERY_REF_CONFLICT",
+                f"Recovery ref {recovery_ref} points to {existing_sha}, expected {original_head}.",
+            )
+    else:
+        _run_git(root, "update-ref", recovery_ref, original_head)
+
+    reset = _run_git(target, "reset", "--keep", base_sha, check=False)
+    if reset.returncode != 0:
+        detail = _decode(reset.stderr).strip() or _decode(reset.stdout).strip() or "unknown reset failure"
+        raise GitWorkflowError(
+            "CLEANUP_NORMALIZATION_FAILED",
+            f"Could not normalize {normalized_id} to verified base {base_sha}: {detail}",
+        )
+    normalized_head = _decode(_run_git(target, "rev-parse", "HEAD").stdout).strip()
+    if normalized_head != base_sha:
+        raise GitWorkflowError(
+            "CLEANUP_NORMALIZATION_MISMATCH",
+            f"Normalized head {normalized_head} does not match verified base {base_sha}.",
+        )
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "operation": "prepare-cleanup",
+        "change_id": normalized_id,
+        "normalized": True,
+        "landing_mode": record["landing_mode"],
+        "original_head": original_head,
+        "normalized_head": normalized_head,
+        "recovery_ref": recovery_ref,
+    }
+
+
 def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> dict[str, Any]:
     root = _repository_root(repository)
     change_id = _validate_change_id(change_id)
@@ -494,22 +638,22 @@ def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> 
             continue
         claim = claims.get(entry.branch)
         blockers: list[str] = []
+        landing_mode = None
+        landing_commit = None
+        base_sha = None
         if claim is None:
             blockers.append("CHANGE_CLAIM_MISSING")
             base = None
             merged = False
         else:
-            if claim.status != "closed":
+            if getattr(claim, "schema_version", 1) < 3 and claim.status != "closed":
                 blockers.append("CHANGE_STATUS_NOT_CLOSED")
             base = claim.base
-            merged = _run_git(
-                root,
-                "merge-base",
-                "--is-ancestor",
-                entry.branch,
-                base,
-                check=False,
-            ).returncode == 0
+            evidence = _branch_landing_evidence(root, entry.branch, base)
+            merged = bool(evidence["landed"])
+            landing_mode = str(evidence["mode"])
+            landing_commit = evidence["landing_commit"]
+            base_sha = str(evidence["base_sha"])
             if not merged:
                 blockers.append("CHANGE_BRANCH_UNMERGED")
 
@@ -534,9 +678,12 @@ def cleanup_preview(repository: Path | str, *, change_id: str | None = None) -> 
                 "path": str(entry.path),
                 "head": entry.head,
                 "base": base,
+                "base_sha": base_sha,
                 "registered": claim is not None,
                 "clean": clean,
                 "merged": merged,
+                "landing_mode": landing_mode,
+                "landing_commit": landing_commit,
                 "long_path_risk": _long_path_risk(entry.path),
                 "eligible": not blockers,
                 "blockers": blockers,
@@ -565,6 +712,8 @@ def _build_parser() -> argparse.ArgumentParser:
     readiness.add_argument("--base", default="main")
     cleanup = subparsers.add_parser("cleanup-preview")
     cleanup.add_argument("--change-id")
+    prepare = subparsers.add_parser("prepare-cleanup")
+    prepare.add_argument("--change-id", required=True)
     return parser
 
 
@@ -584,6 +733,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             result = pr_readiness(args.repository, base=args.base)
         elif args.command == "cleanup-preview":
             result = cleanup_preview(args.repository, change_id=args.change_id)
+        elif args.command == "prepare-cleanup":
+            result = prepare_cleanup(args.repository, change_id=args.change_id)
         else:
             raise GitWorkflowError("COMMAND_UNSUPPORTED", f"Unsupported command: {args.command}")
         print(json.dumps(result, sort_keys=True, separators=(",", ":")))
