@@ -5,6 +5,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import replace
 from typing import Any
 
+from ..acquisition.contracts import REGISTERED_ACQUISITION_OPERATION_SCHEMA
 from ..projects.github_exact import REGISTERED_GITHUB_OPERATION_SCHEMAS
 from ..projects.github_merge_queue import REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS
 from ..projects.github_tracking import REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS
@@ -216,6 +217,19 @@ def capability_control_contribution() -> CapabilityContribution:
             approval_required=True,
             tags=("registered-github", "virtual"),
             input_schema=REGISTERED_GITHUB_OPERATION_SCHEMAS["kis_github_delete_registered_branch"],
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.kis-acquire-registered-evidence",
+            name="kis_acquire_registered_evidence",
+            description="Acquire external evidence only for an authorized registered project/profile and immutable consumer recipe hash through import-isolate.",
+            capabilities=("operation.kis_acquire_registered_evidence",),
+            effects=(OperationEffect.EXTERNAL,),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=94),
+            quality=default_quality(context_cost=15, reversibility=95, reliability=90, workflow_integration=100),
+            approval_required=True,
+            tags=("registered-acquisition", "virtual"),
+            input_schema=REGISTERED_ACQUISITION_OPERATION_SCHEMA,
         ),
     )
     merge_queue_specs = (
