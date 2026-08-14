@@ -29,6 +29,7 @@ _ROOT_KEYS = frozenset(
         "fallback_backend",
         "max_evidence_chars",
         "max_output_chars",
+        "max_backend_attempts",
         "nvidia",
         "codex",
     }
@@ -83,6 +84,7 @@ class AgentSettings:
     fallback_backend: str | None
     max_evidence_chars: int
     max_output_chars: int
+    max_backend_attempts: int
     nvidia: NvidiaSettings
     codex: CodexSettings
 
@@ -98,6 +100,7 @@ def disabled_agent_settings(repository_root: Path | None = None) -> AgentSetting
         fallback_backend="codex-cli",
         max_evidence_chars=120000,
         max_output_chars=30000,
+        max_backend_attempts=2,
         nvidia=disabled_nvidia_settings(),
         codex=disabled_codex_settings(root),
     )
@@ -143,6 +146,7 @@ def load_agent_settings(repository_root: Path | None = None) -> AgentSettings:
         fallback_backend=fallback,
         max_evidence_chars=_int(document["max_evidence_chars"], "max_evidence_chars", 1000, 500000),
         max_output_chars=_int(document["max_output_chars"], "max_output_chars", 1000, 100000),
+        max_backend_attempts=_int(document["max_backend_attempts"], "max_backend_attempts", 1, 3),
         nvidia=nvidia,
         codex=codex,
     )

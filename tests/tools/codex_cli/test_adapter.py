@@ -71,6 +71,8 @@ def test_codex_adapter_invokes_fixed_script_and_extracts_agent_message(tmp_path:
     assert call["timeout"] == 60
     assert call["capture_output"] is True
     assert call["text"] is True
+    assert call["encoding"] == "utf-8"
+    assert call["errors"] == "strict"
     assert result == "review result"
 
 
@@ -316,3 +318,17 @@ def test_codex_wrapper_detects_fake_cli_repository_mutation(tmp_path: Path) -> N
 
     assert completed.returncode == 86
     assert "CODEX_CLI_MUTATION_DETECTED" in completed.stderr
+
+
+def test_codex_adapter_types_unicode_process_boundary_failure(tmp_path: Path) -> None:
+    def run(args, **kwargs):
+        raise UnicodeEncodeError("cp1252", "review Ω", 7, 8, "cannot encode")
+
+    adapter = CodexCliAdapter(_settings(), runner=run, pwsh_executable="pwsh")
+
+    with pytest.raises(CodexCliError) as exc_info:
+        adapter.review(tmp_path, "review Ω")
+
+    assert exc_info.value.code == "CODEX_CLI_ENCODING_FAILED"
+    assert exc_info.value.details == {"error_type": "UnicodeEncodeError"}
+    assert "review Ω" not in str(exc_info.value)

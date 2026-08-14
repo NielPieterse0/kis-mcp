@@ -47,6 +47,31 @@ _REVIEW_PURPOSES = {
     ),
 }
 _REVIEW_TYPES = frozenset(_REVIEW_PURPOSES)
+_RETRYABLE_BACKEND_CODES = frozenset(
+    {
+        "CODEX_CLI_TIMEOUT",
+        "NVIDIA_NIM_HTTP_RETRYABLE",
+        "NVIDIA_NIM_TIMEOUT",
+        "NVIDIA_NIM_TRANSPORT_FAILED",
+    }
+)
+_FAILURE_CATEGORIES = {
+    "CODEX_CLI_ENCODING_FAILED": "encoding",
+    "CODEX_CLI_MUTATION_DETECTED": "safety",
+    "CODEX_CLI_OUTPUT_LIMIT": "output_limit",
+    "CODEX_CLI_PROCESS_FAILED": "process",
+    "CODEX_CLI_RESPONSE_INVALID": "malformed_response",
+    "CODEX_CLI_START_FAILED": "process_start",
+    "CODEX_CLI_TIMEOUT": "timeout",
+    "NVIDIA_NIM_HTTP_FAILED": "provider_http",
+    "NVIDIA_NIM_HTTP_RETRYABLE": "provider_http",
+    "NVIDIA_NIM_RESPONSE_INVALID": "malformed_response",
+    "NVIDIA_NIM_TIMEOUT": "timeout",
+    "NVIDIA_NIM_TRANSPORT_FAILED": "transport",
+}
+_SAFE_FAILURE_DETAIL_KEYS = frozenset(
+    {"error_type", "max_output_chars", "returncode", "status", "timeout_seconds"}
+)
 _BENCHMARK_PROMPT = """You are being smoke-tested as a read-only software-review sub-agent. Analyze only the code below. Return exactly one JSON object with keys summary and findings. findings must be a list; each finding must contain category (exactly correctness or security), claim, and evidence. Identify at least one concrete correctness defect and at least one concrete security defect. Do not use tools or propose edits outside the snippet.
 
 ```python
@@ -109,6 +134,41 @@ def _model_provenance(
     return {
         "model_profile": model_profile,
         "model": settings.nvidia.profile(model_profile).model,
+    }
+
+
+def _safe_failure_details(exc: Exception) -> dict[str, Any]:
+    details = getattr(exc, "details", None)
+    if not isinstance(details, dict):
+        return {}
+    return {
+        str(key): value
+        for key, value in details.items()
+        if str(key) in _SAFE_FAILURE_DETAIL_KEYS
+        and (value is None or isinstance(value, (str, int, float, bool)))
+    }
+
+
+def _failure_attempt(backend: str, attempt: int, exc: Exception) -> dict[str, Any]:
+    raw_code = getattr(exc, "code", None)
+    code = raw_code if isinstance(raw_code, str) and raw_code else type(exc).__name__
+    return {
+        "backend": backend,
+        "attempt": attempt,
+        "status": "failed",
+        "code": code,
+        "category": _FAILURE_CATEGORIES.get(code, "backend"),
+        "retryable": code in _RETRYABLE_BACKEND_CODES,
+        "details": _safe_failure_details(exc),
+    }
+
+
+def _manual_fallback(review_type: str) -> dict[str, Any]:
+    return {
+        "required": True,
+        "mode": "exact-diff",
+        "review_type": review_type,
+        "reason": "all_configured_backends_failed_or_unavailable",
     }
 
 
@@ -472,6 +532,7 @@ class CodeReviewAgent:
                 ]
             )
         )
+        attempts: list[dict[str, Any]] = []
         first_failure: tuple[str, str] | None = None
         first_unavailable: str | None = None
         for backend_name in order:
@@ -479,34 +540,65 @@ class CodeReviewAgent:
             if selected is None or not selected.available():
                 if first_unavailable is None:
                     first_unavailable = backend_name
+                attempts.append(
+                    {
+                        "backend": backend_name,
+                        "attempt": 1,
+                        "status": "unavailable",
+                        "code": "AGENT_BACKEND_UNAVAILABLE",
+                        "category": "availability",
+                        "retryable": False,
+                        "details": {},
+                    }
+                )
                 continue
             selected_model = (
                 model or self.settings.nvidia.default_profile
                 if backend_name == "nvidia-nim"
                 else None
             )
-            try:
-                if backend_name == "nvidia-nim" and selected_model is not None:
-                    review_with_model = getattr(selected, "review_with_model", None)
-                    output = (
-                        review_with_model(project, prompt, selected_model)
-                        if callable(review_with_model)
-                        else selected.review(project, prompt)
-                    )
-                else:
-                    output = selected.review(project, prompt)
-            except Exception as exc:
-                if first_failure is None:
-                    first_failure = (backend_name, type(exc).__name__)
-                continue
-            return self._normalize(
-                backend_name,
-                output,
-                review_type=review_type,
-                model_profile=selected_model,
-            )
+            for attempt_number in range(1, self.settings.max_backend_attempts + 1):
+                try:
+                    if backend_name == "nvidia-nim" and selected_model is not None:
+                        review_with_model = getattr(selected, "review_with_model", None)
+                        output = (
+                            review_with_model(project, prompt, selected_model)
+                            if callable(review_with_model)
+                            else selected.review(project, prompt)
+                        )
+                    else:
+                        output = selected.review(project, prompt)
+                except Exception as exc:
+                    failure = _failure_attempt(backend_name, attempt_number, exc)
+                    attempts.append(failure)
+                    if first_failure is None:
+                        first_failure = (backend_name, str(failure["code"]))
+                    if failure["retryable"] and attempt_number < self.settings.max_backend_attempts:
+                        continue
+                    break
+                result = self._normalize(
+                    backend_name,
+                    output,
+                    review_type=review_type,
+                    model_profile=selected_model,
+                )
+                attempts.append(
+                    {
+                        "backend": backend_name,
+                        "attempt": attempt_number,
+                        "status": "completed",
+                    }
+                )
+                result["attempts"] = attempts
+                return result
         if first_failure is not None:
-            failed_backend, error_type = first_failure
+            failed_backend, error_code = first_failure
+            implicit_multi_backend = backend is None and model is None and len(order) > 1
+            diagnostic = (
+                "AGENT_BACKENDS_FAILED"
+                if implicit_multi_backend
+                else f"AGENT_BACKEND_FAILED:{error_code}"
+            )
             return {
                 "schema_version": 1,
                 "agent_id": self.settings.agent_id,
@@ -516,7 +608,9 @@ class CodeReviewAgent:
                 "summary": "The configured review backend failed.",
                 "findings": [],
                 "unknowns": [],
-                "diagnostics": [f"AGENT_BACKEND_FAILED:{error_type}"],
+                "diagnostics": [diagnostic],
+                "attempts": attempts,
+                "manual_fallback": _manual_fallback(review_type),
             }
         unavailable_backend = first_unavailable or (backend or self.settings.preferred_backend)
         return {
@@ -529,6 +623,8 @@ class CodeReviewAgent:
             "findings": [],
             "unknowns": [],
             "diagnostics": ["AGENT_BACKEND_UNAVAILABLE"],
+            "attempts": attempts,
+            "manual_fallback": _manual_fallback(review_type),
         }
 
 

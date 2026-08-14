@@ -16,6 +16,9 @@ from kis_mcp.workflows.code_review.settings import (
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 SETTINGS_PATH = REPOSITORY_ROOT / "settings" / "agents" / "code-review-agent.settings.json"
+SCHEMA_PATH = (
+    REPOSITORY_ROOT / "contracts" / "agents" / "code-review-agent.settings.schema.json"
+)
 
 
 def _checked_in_document() -> dict[str, object]:
@@ -30,6 +33,17 @@ def _write_settings(root: Path, document: dict[str, object]) -> None:
     )
 
 
+def test_agent_settings_schema_declares_backend_attempt_budget() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+
+    assert "max_backend_attempts" in schema["required"]
+    assert schema["properties"]["max_backend_attempts"] == {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3,
+    }
+
+
 def test_load_agent_settings_reads_strict_checked_in_configuration() -> None:
     settings = load_agent_settings(REPOSITORY_ROOT)
 
@@ -39,6 +53,7 @@ def test_load_agent_settings_reads_strict_checked_in_configuration() -> None:
     assert settings.fallback_backend == "codex-cli"
     assert settings.max_evidence_chars == 120000
     assert settings.max_output_chars == 30000
+    assert settings.max_backend_attempts == 2
     assert isinstance(settings.nvidia, NvidiaSettings)
     assert isinstance(settings.codex, CodexSettings)
     assert settings.nvidia.base_url == "https://integrate.api.nvidia.com/v1"
@@ -131,4 +146,17 @@ def test_load_agent_settings_rejects_noncanonical_https_nvidia_url(tmp_path: Pat
     _write_settings(tmp_path, document)
 
     with pytest.raises(AgentSettingsError, match="integrate.api.nvidia.com"):
+        load_agent_settings(tmp_path)
+
+
+@pytest.mark.parametrize("value", [0, 4, True, "2"])
+def test_load_agent_settings_rejects_invalid_backend_attempt_budget(
+    tmp_path: Path,
+    value: object,
+) -> None:
+    document = _checked_in_document()
+    document["max_backend_attempts"] = value
+    _write_settings(tmp_path, document)
+
+    with pytest.raises(AgentSettingsError, match="max_backend_attempts"):
         load_agent_settings(tmp_path)

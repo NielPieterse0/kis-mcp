@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "144-review-backend-reliability",
+  "status": "active",
+  "branch": "change/144-review-backend-reliability",
+  "worktree": ".work/worktrees/144-review-backend-reliability",
+  "base": "main",
+  "outcome": "Make advisory review backend failures typed, diagnosable, retry-bounded, and explicitly recoverable through manual exact-diff fallback without ever representing backend failure as review success.",
+  "owned_paths": [
+    "src/kis_mcp/tools/codex_cli/adapter.py",
+    "src/kis_mcp/providers/nvidia/client.py",
+    "src/kis_mcp/workflows/code_review/reviewer.py",
+    "src/kis_mcp/workflows/code_review/settings.py",
+    "src/kis_mcp/workflows/change_execution/service.py",
+    "settings/agents/code-review-agent.settings.json",
+    "contracts/agents/code-review-agent.settings.schema.json",
+    "tests/tools/codex_cli/test_adapter.py",
+    "tests/providers/nvidia/test_nvidia.py",
+    "tests/workflows/code_review/test_reviewer.py",
+    "tests/workflows/code_review/test_code_review_settings.py",
+    "tests/workflows/change_execution/test_change_execution_service.py",
+    ".work/changes/144-review-backend-reliability/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "fee9d021dbf9927a41331f4ed12d1efee3853e02",
+    "local_tree": "0afe21bcbe86cda0374937caf62dd43c836b7928",
+    "upstream_sha": "fee9d021dbf9927a41331f4ed12d1efee3853e02",
+    "upstream_tree": "0afe21bcbe86cda0374937caf62dd43c836b7928",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

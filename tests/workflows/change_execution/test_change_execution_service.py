@@ -43,9 +43,13 @@ class _Invoker:
             if self.review_error and arguments["review_type"] == "safety-security":
                 raise ChangeExecutionInvocationError("AGENT_REVIEW_FAILED", "backend unavailable")
             return {
+                "status": "completed",
                 "backend": arguments.get("backend") or "nvidia-nim",
                 "review_type": arguments["review_type"],
+                "summary": "review complete",
                 "findings": [],
+                "unknowns": [],
+                "diagnostics": [],
             }
         raise AssertionError(f"unexpected nested tool {tool_name}")
 
@@ -193,3 +197,57 @@ def test_execution_rejects_unknown_risk_trigger_before_any_nested_call() -> None
             )
         )
     assert invoker.calls == []
+
+
+class _ReviewPayloadInvoker(_Invoker):
+    def __init__(self, payload: dict[str, Any]) -> None:
+        super().__init__()
+        self.payload = payload
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return dict(self.payload)
+        return await super().__call__(tool_name, arguments)
+
+
+@pytest.mark.parametrize(
+    ("agent_status", "diagnostic"),
+    [
+        ("failed", "AGENT_BACKENDS_FAILED"),
+        ("unavailable", "AGENT_BACKEND_UNAVAILABLE"),
+        ("completed_unstructured", "AGENT_OUTPUT_NOT_STRUCTURED"),
+    ],
+)
+def test_execution_never_counts_noncompleted_agent_outcome_as_review_success(
+    agent_status: str,
+    diagnostic: str,
+) -> None:
+    payload = {
+        "schema_version": 1,
+        "status": agent_status,
+        "backend": "nvidia-nim",
+        "review_type": "code-quality",
+        "summary": "review did not complete successfully",
+        "findings": [],
+        "unknowns": [],
+        "diagnostics": [diagnostic],
+        "manual_fallback": {
+            "required": True,
+            "mode": "exact-diff",
+            "review_type": "code-quality",
+            "reason": "all_configured_backends_failed_or_unavailable",
+        },
+    }
+    result = asyncio.run(
+        ChangeExecutionService(_ReviewPayloadInvoker(payload)).execute(
+            project=r"C:\Projects\fixture",
+            complexity="medium",
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].status == "error"
+    assert result.reviews[0].error_code == diagnostic
+    assert result.reviews[0].payload == payload
