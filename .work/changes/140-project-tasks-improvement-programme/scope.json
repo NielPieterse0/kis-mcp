@@ -31,7 +31,7 @@
     "tests/work_management/test_board.py",
     "tests/workflows/project_management/test_tools.py",
     "tests/workflows/project_management/test_enhanced_tools.py",
-    "tests/control_center/test_snapshot.py",
+    "tests/control_center/test_control_center_snapshot.py",
     "SPEC.md",
     "docs/OPERATIONS.md",
     ".work/changes/140-project-tasks-improvement-programme/**"
