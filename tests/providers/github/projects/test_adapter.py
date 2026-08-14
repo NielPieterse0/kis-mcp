@@ -329,7 +329,15 @@ def test_adapter_rejects_wrong_provider_and_invalid_limits() -> None:
 def test_inventory_retries_field_not_found_with_provider_candidates() -> None:
     caller = FakeCaller(
         {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
-        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "fields": [
+                {"id": "F_STATUS", "name": "Status", "data_type": "single_select"},
+                {"id": "F_PRIORITY", "name": "Priority", "data_type": "single_select"},
+                {"id": "F_CREATED", "name": "Created", "data_type": "date"},
+                {"id": "F_REPOSITORY", "name": "Repository", "data_type": "repository"},
+            ],
+            "pageInfo": page_info(False),
+        },
         {
             "error": "field_not_found",
             "name": "Priority",
@@ -389,7 +397,13 @@ def test_inventory_does_not_recover_from_malformed_field_candidates() -> None:
 def test_inventory_rejects_second_field_not_found_after_reconciliation() -> None:
     caller = FakeCaller(
         {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
-        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "fields": [
+                {"id": "F_STATUS", "name": "Status", "data_type": "single_select"},
+                {"id": "F_PRIORITY", "name": "Priority", "data_type": "single_select"},
+            ],
+            "pageInfo": page_info(False),
+        },
         {
             "error": "field_not_found",
             "name": "Priority",

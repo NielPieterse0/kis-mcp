@@ -529,9 +529,15 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
 
         title, node_id, closed = await self._read_project(project_binding)
         fields = await self._read_fields(project_binding)
+        available_field_names = {field.name.casefold(): field.name for field in fields}
+        item_field_names = tuple(
+            available_field_names[name.casefold()]
+            for name in normalized_fields
+            if name.casefold() in available_field_names
+        )
         items, truncated, next_cursor = await self._read_items(
             project_binding,
-            field_names=tuple(normalized_fields),
+            field_names=item_field_names,
             item_limit=item_limit,
         )
         return ProjectInventory(
