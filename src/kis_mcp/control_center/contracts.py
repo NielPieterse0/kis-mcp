@@ -149,4 +149,8 @@ class ControlCenterSnapshot:
     diagnostics: tuple[Diagnostic, ...]
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        document = asdict(self)
+        from kis_mcp.work_management.board_bridge import get_work_board_bridge
+
+        document["work_board"] = dict(get_work_board_bridge().current())
+        return document
