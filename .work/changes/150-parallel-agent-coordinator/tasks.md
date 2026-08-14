@@ -9,7 +9,7 @@
 - [x] Create `docs/COORDINATOR-MODULE-PRODUCT-SPEC.md` with the approved architecture, planned ownership map, and slice sequencing.
 - [x] Run governed scope check, coordinator-focused tests, and Draft 2020-12 schema validation.
 - [x] Complete final code-quality and architecture reviews; automated API-contract review remained unavailable after repeated timeouts, so record the successful machine-validated exact-diff fallback without claiming an automated pass.
-- [ ] Commit Slice 1 and record handoff evidence while leaving the parent change active for #248.
+- [x] Commit Slice 1 as `778f81e1878b212638ffd092db5da42284fdfb9d` and record handoff evidence while leaving the parent change active for #248.
 
 ## Explicitly deferred
 

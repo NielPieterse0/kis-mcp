@@ -28,7 +28,8 @@
 
 - Branch: `change/150-parallel-agent-coordinator`
 - Worktree: `.work/worktrees/150-parallel-agent-coordinator`
-- Slice 1 commit: this Slice-1 handoff commit; exact SHA is reported after commit creation.
+- Slice 1 implementation commit: `778f81e1878b212638ffd092db5da42284fdfb9d`.
+- This closeout receipt is recorded separately after that verified implementation commit.
 - Parent merge/cleanup: intentionally deferred; the parent governed change remains active for #248.
 
 ## Residual items
