@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "change_id": "137-work-management-registry-enrollment",
+  "status": "active",
+  "branch": "change/137-work-management-registry-enrollment",
+  "worktree": ".work/worktrees/137-work-management-registry-enrollment",
+  "base": "main",
+  "outcome": "Make every centrally registered KIS project inherit the shared Work Management backend deterministically, preserving repository-neutral local projects and single Project-coordinate ownership, so defect #164 and the residual #177 portfolio dependency can close.",
+  "owned_paths": [
+    "src/kis_mcp/work_management/settings.py",
+    "src/kis_mcp/work_management/contracts.py",
+    "contracts/work-management/github-projects.settings.schema.json",
+    "tests/work_management/test_project_registry_bindings.py",
+    "AGENTS.md",
+    ".work/changes/137-work-management-registry-enrollment/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "2f7a69c71181e02e6fde54349561da9d87bfd8ac",
+    "local_tree": "7cafd7e859475e8d027e12f6cef491f5fa76f6ff",
+    "upstream_sha": "2f7a69c71181e02e6fde54349561da9d87bfd8ac",
+    "upstream_tree": "7cafd7e859475e8d027e12f6cef491f5fa76f6ff",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

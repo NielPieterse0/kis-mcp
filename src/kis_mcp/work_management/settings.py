@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
-from kis_mcp.projects.contracts import normalize_github_repository, normalize_windows_root
+from kis_mcp.projects.contracts import (
+    normalize_github_repository,
+    normalize_windows_root,
+)
 
 from .backend import ProjectOwnerType
 from .contracts import ManagedProject, PUBLIC_SCHEMA_VERSION
@@ -108,7 +111,9 @@ class BackendBindingSettings:
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("backend binding schema_version must be 1")
-        object.__setattr__(self, "binding_id", _identifier(self.binding_id, "binding_id"))
+        object.__setattr__(
+            self, "binding_id", _identifier(self.binding_id, "binding_id")
+        )
         object.__setattr__(self, "provider", _identifier(self.provider, "provider"))
         object.__setattr__(self, "owner", _required_text(self.owner, "owner"))
         if not isinstance(self.owner_type, ProjectOwnerType):
@@ -168,11 +173,18 @@ class WorkManagementSettings:
             raise ValueError("work-management settings schema_version must be 1")
         if not isinstance(self.enabled, bool):
             raise ValueError("enabled must be a boolean")
-        object.__setattr__(self, "portfolio_id", _identifier(self.portfolio_id, "portfolio_id"))
+        object.__setattr__(
+            self, "portfolio_id", _identifier(self.portfolio_id, "portfolio_id")
+        )
         if any(not isinstance(item, ManagedProject) for item in self.managed_projects):
             raise ValueError("managed_projects must contain ManagedProject values")
-        if any(not isinstance(item, BackendBindingSettings) for item in self.backend_bindings):
-            raise ValueError("backend_bindings must contain BackendBindingSettings values")
+        if any(
+            not isinstance(item, BackendBindingSettings)
+            for item in self.backend_bindings
+        ):
+            raise ValueError(
+                "backend_bindings must contain BackendBindingSettings values"
+            )
         project_ids = [item.project_id for item in self.managed_projects]
         binding_ids = [item.binding_id for item in self.backend_bindings]
         if len(set(project_ids)) != len(project_ids):
@@ -333,45 +345,83 @@ def _registry_project_resource(project: Any) -> Any | None:
     )
 
 
+def _automatic_backend_binding(settings: WorkManagementSettings) -> str:
+    if len(settings.backend_bindings) == 1:
+        return settings.backend_bindings[0].binding_id
+    raise ValueError(
+        "work-management backend binding is ambiguous for automatic project enrollment; "
+        "register every project explicitly when multiple backends are configured"
+    )
+
+
 def _bridge_project_registry(
     settings: WorkManagementSettings,
     registry: ProjectRegistry,
 ) -> WorkManagementSettings:
+    explicit = {project.project_id: project for project in settings.managed_projects}
+    registered_ids = {project.project_id for project in registry.projects}
+    unknown = sorted(set(explicit) - registered_ids)
+    if unknown:
+        raise ValueError(
+            "managed project is not present in the central project registry: "
+            + ", ".join(unknown)
+        )
+    missing = tuple(
+        project for project in registry.projects if project.project_id not in explicit
+    )
+    automatic_binding = _automatic_backend_binding(settings) if missing else None
     bridged_projects: list[ManagedProject] = []
     binding_resources: dict[str, Any] = {}
 
-    for managed in settings.managed_projects:
-        try:
-            registered = registry.project(managed.project_id)
-        except KeyError:
-            bridged_projects.append(managed)
-            continue
-        if registered.github is None:
+    for registered in registry.projects:
+        managed = explicit.get(registered.project_id)
+        backend_binding = (
+            managed.backend_binding if managed is not None else automatic_binding
+        )
+        if backend_binding is None:
             raise ValueError(
-                f"managed project conflicts with project registry: {managed.project_id} has no GitHub binding"
+                f"project has no Work Management backend binding: {registered.project_id}"
             )
-        if normalize_windows_root(managed.local_root).casefold() != registered.local_root.casefold():
-            raise ValueError(
-                f"managed project local_root conflicts with project registry: {managed.project_id}"
-            )
-        if normalize_github_repository(managed.repository) != registered.github.repository:
-            raise ValueError(
-                f"managed project repository conflicts with project registry: {managed.project_id}"
-            )
+        registered_repository = (
+            registered.github.repository if registered.github is not None else None
+        )
+        if managed is not None:
+            if (
+                normalize_windows_root(managed.local_root).casefold()
+                != registered.local_root.casefold()
+            ):
+                raise ValueError(
+                    "managed project local_root conflicts with project registry: "
+                    f"{managed.project_id}"
+                )
+            if managed.repository is not None:
+                if registered_repository is None or (
+                    normalize_github_repository(managed.repository)
+                    != registered_repository
+                ):
+                    raise ValueError(
+                        "managed project repository conflicts with project registry: "
+                        f"{managed.project_id}"
+                    )
+
         bridged_projects.append(
             ManagedProject(
-                project_id=managed.project_id,
+                project_id=registered.project_id,
                 local_root=registered.local_root,
-                repository=registered.github.repository,
-                backend_binding=managed.backend_binding,
+                repository=registered_repository,
+                backend_binding=backend_binding,
                 display_name=registered.display_name,
             )
         )
         resource = _registry_project_resource(registered)
         if resource is None:
             continue
-        previous = binding_resources.get(managed.backend_binding)
-        coordinate = (resource.owner.casefold(), resource.owner_type, resource.project_number)
+        previous = binding_resources.get(backend_binding)
+        coordinate = (
+            resource.owner.casefold(),
+            resource.owner_type,
+            resource.project_number,
+        )
         if previous is not None:
             previous_coordinate = (
                 previous.owner.casefold(),
@@ -380,9 +430,9 @@ def _bridge_project_registry(
             )
             if previous_coordinate != coordinate:
                 raise ValueError(
-                    f"backend binding conflicts across project registry: {managed.backend_binding}"
+                    f"backend binding conflicts across project registry: {backend_binding}"
                 )
-        binding_resources[managed.backend_binding] = resource
+        binding_resources[backend_binding] = resource
 
     bridged_bindings = []
     for binding in settings.backend_bindings:
@@ -471,7 +521,9 @@ def load_work_management_settings(
     registry = project_registry
     if registry is None and path is None:
         registry = load_project_registry_settings()
-    return settings if registry is None else _bridge_project_registry(settings, registry)
+    return (
+        settings if registry is None else _bridge_project_registry(settings, registry)
+    )
 
 
 __all__ = [
