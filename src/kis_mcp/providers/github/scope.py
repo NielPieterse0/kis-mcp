@@ -258,13 +258,6 @@ class GitHubRepositoryScope:
                 "repository_scope_violation",
                 "Project owner must be a valid GitHub owner.",
             )
-        owner_type = arguments.get("owner_type")
-        if not isinstance(owner_type, str) or owner_type.casefold() not in _PROJECT_OWNER_TYPES:
-            raise GitHubRepositoryScopeError(
-                "repository_scope_violation",
-                "Project owner_type must be user or org.",
-            )
-
         project_number = arguments.get("project_number")
         if (
             isinstance(project_number, bool)
@@ -275,9 +268,37 @@ class GitHubRepositoryScope:
                 "repository_scope_violation",
                 "Project project_number must be a positive integer.",
             )
+
+        normalized_owner = owner.strip().casefold()
+        owner_type = arguments.get("owner_type")
+        if owner_type is None:
+            matching_owner_types = {
+                approved_owner_type
+                for approved_owner, approved_owner_type, approved_project_number in self.approved_projects
+                if approved_owner == normalized_owner and approved_project_number == project_number
+            }
+            if len(matching_owner_types) != 1:
+                message = (
+                    "Project owner_type is required because the registered project identity is ambiguous."
+                    if matching_owner_types
+                    else "Project identity is not explicitly approved."
+                )
+                raise GitHubRepositoryScopeError(
+                    "repository_scope_violation",
+                    message,
+                )
+            normalized_owner_type = next(iter(matching_owner_types))
+        elif not isinstance(owner_type, str) or owner_type.casefold() not in _PROJECT_OWNER_TYPES:
+            raise GitHubRepositoryScopeError(
+                "repository_scope_violation",
+                "Project owner_type must be user or org.",
+            )
+        else:
+            normalized_owner_type = owner_type.strip().casefold()
+
         project_key = (
-            owner.strip().casefold(),
-            owner_type.strip().casefold(),
+            normalized_owner,
+            normalized_owner_type,
             project_number,
         )
         if project_key not in self.approved_projects:

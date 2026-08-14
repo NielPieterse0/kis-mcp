@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "141-project-owner-type-autodetect",
+  "status": "active",
+  "branch": "change/141-project-owner-type-autodetect",
+  "worktree": ".work/worktrees/141-project-owner-type-autodetect",
+  "base": "main",
+  "outcome": "Align GitHub Project authorization with the advertised owner_type auto-detection contract while preserving registered-project scope.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/scope.py",
+    "tests/providers/github/test_scope.py",
+    ".work/changes/141-project-owner-type-autodetect/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "194b693e916bc6cbef2f24eb8912eb49cf6fab85",
+    "local_tree": "424505cd0b19db7c2e8c8465199346c517052839",
+    "upstream_sha": "194b693e916bc6cbef2f24eb8912eb49cf6fab85",
+    "upstream_tree": "424505cd0b19db7c2e8c8465199346c517052839",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
