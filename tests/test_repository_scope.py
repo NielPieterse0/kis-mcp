@@ -188,6 +188,29 @@ def _load_repository_verifier():
     return module
 
 
+def test_verification_branch_prefers_github_pr_head(monkeypatch) -> None:
+    verifier = _load_repository_verifier()
+    monkeypatch.setenv("GITHUB_HEAD_REF", "change/139-example")
+    monkeypatch.setenv("GITHUB_REF_NAME", "139/merge")
+
+    assert verifier._verification_branch() == "change/139-example"
+
+
+def test_verification_branch_falls_back_to_local_branch(monkeypatch) -> None:
+    verifier = _load_repository_verifier()
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
+    monkeypatch.setattr(
+        verifier.subprocess,
+        "run",
+        lambda *args, **kwargs: verifier.subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout="change/139-example\n", stderr=""
+        ),
+    )
+
+    assert verifier._verification_branch() == "change/139-example"
+
+
 def test_repository_declares_canonical_line_ending_policy() -> None:
     attributes = (REPOSITORY_ROOT / ".gitattributes").read_text(encoding="utf-8")
     editor = (REPOSITORY_ROOT / ".editorconfig").read_text(encoding="utf-8")
