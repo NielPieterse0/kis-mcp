@@ -15,7 +15,7 @@ import asyncio, json, os
 from pathlib import Path
 from kis_mcp.projects import load_project_registry_settings
 from kis_mcp.providers.commissioning import commissioning_evidence_root, write_commissioning_evidence
-from kis_mcp.providers.dbhub.provider import dbhub_commissioning_identity, dbhub_provider_descriptor
+from kis_mcp.providers.dbhub.provider import dbhub_commissioning_identity, dbhub_commissioning_tool_names, dbhub_provider_descriptor
 from kis_mcp.providers.dbhub.settings import load_dbhub_settings
 from kis_mcp.providers.dockerhub.provider import dockerhub_commissioning_identity, dockerhub_provider_descriptor
 from kis_mcp.providers.dockerhub.settings import load_dockerhub_settings
@@ -34,14 +34,15 @@ for name, factory in (
     if readiness.state.value == "ready":
         try:
             server = descriptor.builder()
-            tools = asyncio.run(server.list_tools())
-            row["tools"] = sorted(tool.name for tool in tools)
+            builder_tools = sorted(tool.name for tool in asyncio.run(server.list_tools()))
             if name == "dbhub":
+                row["tools"] = dbhub_commissioning_tool_names(builder_tools)
                 identity = dbhub_commissioning_identity(
                     load_dbhub_settings(root),
                     load_project_registry_settings(root / "settings" / "projects.settings.json"),
                 )
             else:
+                row["tools"] = builder_tools
                 identity = dockerhub_commissioning_identity(load_dockerhub_settings(root))
             evidence_path = write_commissioning_evidence(
                 evidence_root,
