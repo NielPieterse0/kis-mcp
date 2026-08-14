@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/work-packet.schema.json",
+  "title": "Coordinator Work Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "packet_id", "work_id", "project_id",
+    "change_id", "slice_id", "outcome", "scope", "dependencies",
+    "acceptance_checks", "exact_base", "authority", "runtime_binding",
+    "verification_requirement_ids", "issued_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-work-packet-v1"},
+    "packet_id": {"$ref": "#/$defs/nonEmpty"},
+    "work_id": {"$ref": "#/$defs/nonEmpty"},
+    "project_id": {"$ref": "#/$defs/nonEmpty"},
+    "change_id": {"$ref": "#/$defs/nonEmpty"},
+    "slice_id": {"$ref": "#/$defs/nonEmpty"},
+    "outcome": {"$ref": "#/$defs/nonEmpty"},
+    "scope": {"$ref": "#/$defs/scope"},
+    "dependencies": {"$ref": "#/$defs/strings"},
+    "acceptance_checks": {"$ref": "#/$defs/nonEmptyStrings"},
+    "exact_base": {"$ref": "#/$defs/gitIdentity"},
+    "authority": {"$ref": "#/$defs/authority"},
+    "runtime_binding": {"$ref": "#/$defs/runtimeBindingReference"},
+    "verification_requirement_ids": {"$ref": "#/$defs/strings"},
+    "issued_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "strings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "nonEmptyStrings": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "gitIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commit_sha", "tree_sha"],
+      "properties": {
+        "commit_sha": {"$ref": "#/$defs/sha"},
+        "tree_sha": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["owned_paths", "shared_paths"],
+      "properties": {
+        "owned_paths": {"$ref": "#/$defs/strings"},
+        "shared_paths": {"$ref": "#/$defs/strings"}
+      }
+    },
+    "authority": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reservation_id", "authority_revision", "lease_id", "fence_token"],
+      "properties": {
+        "reservation_id": {"$ref": "#/$defs/nonEmpty"},
+        "authority_revision": {"type": "integer", "minimum": 1},
+        "lease_id": {"$ref": "#/$defs/nonEmpty"},
+        "fence_token": {"type": "integer", "minimum": 1}
+      }
+    },
+    "runtimeBindingReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["binding_id", "binding_fingerprint"],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/nonEmpty"},
+        "binding_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

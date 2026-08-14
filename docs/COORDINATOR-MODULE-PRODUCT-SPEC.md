@@ -1,0 +1,175 @@
+# Coordinator Module Product Specification
+
+## Authority boundary
+
+This document owns the long-lived target architecture and contract map for KIS parallel-agent coordination. It is subordinate to `AGENTS.md`, `docs/TRUST-MODEL.md`, root `SPEC.md`, and `docs/PLATFORM-CONCEPT.md`.
+
+Root `SPEC.md` remains authoritative for current implemented product behavior. The contracts defined by #241 Slice 1 do not make reservation, lease enforcement, worker execution, reconciliation, integration, observability, or commissioning current behavior.
+
+## Outcome
+
+The coordinator makes parallel repository implementation mechanically safe and recoverable without relying on chat history for ownership or handoff facts.
+
+The system must preserve both:
+
+- **safety** — conflicting mutation authority cannot be acquired concurrently; and
+- **liveness** — an invalid or conflicting component cannot globally block provably disjoint work.
+
+The coordinator is one governed #241 repository change delivered through dependent slices `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253`.
+
+## Non-policy status
+
+Coordinator admission, readiness, leases, verification, and integration state are workflow authority. They do not add a fourth Work hard rule.
+
+Concrete Work invocations remain subject only to HR-001, HR-002, and HR-003 as defined by `docs/TRUST-MODEL.md` and `policy/kis-mcp.policy.json`.
+
+## Four authority planes
+
+### 1. Registry and discovery
+
+Describes available projects, agents, MCP servers, tools, skills, endpoints, revisions, and capabilities. This plane is advisory evidence only.
+
+Discovery or successful connection MUST NOT grant repository mutation authority.
+
+### 2. Deterministic mutation authority
+
+Owns reservation identity, exclusive/shared path claims, dependency evidence, integration ownership, authority revision, lease identity, and fencing token.
+
+Only this plane may determine whether a worker currently holds valid mutation authority. Later slices must implement every authority mutation as an explicit deterministic transition.
+
+### 3. Ephemeral execution transport
+
+Carries runtime connection state such as MCP/A2A/local-process identity, tool discovery, progress, and session objects.
+
+Transport may be recreated after restart. A reconnect MUST NOT create, renew, transfer, or recover mutation authority by itself.
+
+### 4. Durable execution and evidence
+
+Persists bounded worker lifecycle, exact base/head identity, changed paths, handoff evidence, verification requirements, reconciliation facts, and closeout state.
+
+Durable evidence supports recovery but cannot override a newer reservation revision or fencing token.
+
+## Coordinator state model
+
+The authoritative coordinator lifecycle distinguishes these states:
+
+| State | Meaning |
+|---|---|
+| `planning` | Read-only dependency/scope analysis; no mutation authority. |
+| `reserved` | Deterministic reservation exists with exact base, revision, lease, and fence evidence. |
+| `executing` | A bounded worker is operating under the reservation. |
+| `handed_off` | Worker produced structured evidence; no verification or merge claim follows automatically. |
+| `reconciling` | Handoff is being checked against reservation, fence, global claims, local scope, and exact head. |
+| `reviewable` | Reconciliation and required pre-review gates permit review preparation. |
+| `integrating` | Central integration owner serializes a shared-hotspot or landing operation. |
+| `delivered` | Repository landing is evidenced; live commissioning may remain. |
+| `commissioning` | Landed behavior is undergoing required live acceptance. |
+| `closed` | All required repository, commissioning, projection, and cleanup gates are complete. |
+| `degraded` | One bounded conflict/invalid component exists; disjoint admission remains possible. |
+| `failed` | The current transition cannot continue without corrective action. |
+
+`worker_done` is a worker-handoff status, not a coordinator lifecycle terminal state. It MUST NOT be treated as `reviewable`, `delivered`, `commissioning`, or `closed`.
+
+## Executable contract ownership
+
+Slice 1 owns strict Draft 2020-12 schemas beneath `contracts/coordinator/`:
+
+| Contract | Purpose | Behavioral owner |
+|---|---|---|
+| `coordinator-state` | Lifecycle and degraded-component projection. | #253 projection after underlying slices exist. |
+| `reservation` | Frozen mutation-authority identity and path/dependency claims. | #248 |
+| `lease` | Lease holder, expiry, and fencing identity. | #249 |
+| `scope-revision` | Compare-and-swap inputs for explicit scope changes. | #249 |
+| `dependency-dag` | Candidate dependency graph and shared-hotspot ownership; Slice 1 cannot self-assert graph verification. | #250 validates endpoints/cycles and produces planner evidence. |
+| `runtime-binding` | Canonical exact runtime/tool/transport identity with mutation authority fixed false. | #250 produces/revises; #251 consumes its immutable reference. |
+| `work-packet` | Bounded worker assignment with frozen authority and immutable reference to the canonical runtime binding. | #250 |
+| `worker-handoff` | Exact worker output/evidence and residual state. | #251 |
+| `verification-requirements` | Scope/risk-derived gate requirements without pass claims. | #252 |
+| `reconciliation-result` | Deterministic handoff validation and integration disposition. | #252 |
+
+Slice 1 publishes the schemas only as repository-owned contract resources under `contracts/coordinator/`; it exposes no runtime coordinator package or MCP tool. Runtime loading/validation belongs to the later slice that implements the consuming behavior, so Slice 1 does not couple contract access to a source-checkout layout.
+
+Every contract is closed at its object boundaries. Contract expansion therefore requires an explicit versioned/governed change rather than arbitrary runtime fields.
+
+## Mutation-authority invariants
+
+Later implementations must preserve all of these invariants:
+
+1. One globally unique human-facing change sequence identifies each active governed change.
+2. One active mutation authority may own an exclusive path at a time.
+3. Shared paths require explicit dependency or integration ownership.
+4. Scope expansion is an authority revision, never an unvalidated worker edit.
+5. A stale authority revision or fencing token cannot mutate, reconcile successfully, or integrate.
+6. Runtime/registry discovery never implies authority.
+7. A worker handoff is rejected when its reservation, fence, exact head, changed scope, or evidence is stale or inconsistent.
+8. Verification requirements derive from authoritative scope/risk facts rather than worker confidence.
+9. Shared-hotspot integration is centrally serialized through the declared integration owner.
+10. Exact-head provider-native evidence remains required where repository policy requires it.
+
+The Slice-1 schemas record the evidence needed to evaluate these invariants. They do not implement the transitions themselves.
+
+## Degraded-component semantics
+
+A conflict graph may contain an invalid component while unrelated work remains valid. Coordinator state therefore models degraded components explicitly instead of reducing the entire repository to one blocked flag.
+
+Each degraded component is keyed by its stable component identity and requires non-empty affected paths plus nested reservation checks. At least one nested reservation check must intersect the component, so the component cannot be empty or detached from all affected work. Each check is therefore structurally scoped to a declared component and couples `intersects_degraded_component` to `blocked_by_component` versus `clear_of_component`.
+
+A component check is not final admission. A later admission implementation owns computation of the intersection fact and all other admission constraints. Work that is clear of one degraded component must continue through normal evaluation and may still be blocked for an independent reason.
+
+## Historical acceptance scenarios
+
+`contracts/coordinator/examples/degraded-overlap.json` represents the observed 140/145 failure: both changes held exclusive claims over shared canonical paths including `src/kis_mcp/capabilities/surface.py`, `SPEC.md`, and `docs/OPERATIONS.md`.
+
+The example intentionally records this as one degraded conflict component. It does not authorize either claimant and does not convert the conflict into a repository-wide stop.
+
+`contracts/coordinator/examples/disjoint-admission.json` represents the liveness requirement exposed when change 148 had to use an emergency manual worktree after an unrelated global claim conflict.
+
+The target outcome is explicit: a disjoint reservation such as the narrow GitHub Project adapter change remains admissible while the 140/145 conflict component is degraded.
+
+These fixtures are architecture acceptance evidence only. Slice 1 does not execute admission or conflict-graph resolution.
+
+## Planned implementation ownership
+
+| Slice | Issue | Owned behavior after implementation |
+|---|---|---|
+| 1 | #247 | Architecture, schemas, scenario contracts, ownership map. |
+| 2 | #248 | Atomic reservation, unique sequence allocation, global claim admission. |
+| 3 | #249 | CAS scope revisions, leases, fencing, expiry/reassignment, recovery. |
+| 4 | #250 | Dependency planner, bounded work packets, runtime/capability resolution. |
+| 5 | #251 | Durable worker lifecycle, retry/resume, MCP worker adapter. |
+| 6 | #252 | Handoff reconciliation, verification derivation, integration serialization. |
+| 7 | #253 | Coordinator observability, effectiveness evaluation, operator UX, commissioning. |
+
+## Slice sequencing and integration
+
+The default dependency chain is strict:
+
+```text
+247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253
+```
+
+Slice 1 grants no exception to this dependency chain: #248-#253 proceed sequentially under the single parent change. A future overlap is permitted only if a later landed authority mechanism explicitly records a governed sequence exception with prerequisite revision and landed-base evidence; conversational scope judgment alone is insufficient.
+
+Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
+
+## Slice 1 implementation status
+
+Implemented by #247:
+
+- the ten coordinator JSON Schema contracts;
+- repository-owned executable schemas with no runtime coordinator package;
+- executable examples for degraded overlap and disjoint liveness;
+- this architecture and ownership map;
+- contract tests proving structural boundaries.
+
+Not implemented by #247:
+
+- reservation transactions or sequence allocation;
+- lease timers, fencing enforcement, reassignment, or recovery;
+- dependency compilation or worker scheduling;
+- agent process/session execution or MCP connection management;
+- reconciliation execution or verification selection;
+- integration queues, PR creation, merge, or cleanup coordination;
+- coordinator telemetry, Control Center projection, evaluation, or live commissioning.
+
+Any current-product claim for those behaviors must wait for its owning later slice and fresh verification evidence.

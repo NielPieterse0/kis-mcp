@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/worker-handoff.schema.json",
+  "title": "Coordinator Worker Handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "handoff_id", "packet_id", "reservation_id",
+    "authority_revision", "fence_token", "worker_id", "runtime_binding",
+    "exact_head", "changed_paths", "evidence", "residual_state", "status", "observed_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-worker-handoff-v1"},
+    "handoff_id": {"$ref": "#/$defs/nonEmpty"},
+    "packet_id": {"$ref": "#/$defs/nonEmpty"},
+    "reservation_id": {"$ref": "#/$defs/nonEmpty"},
+    "authority_revision": {"type": "integer", "minimum": 1},
+    "fence_token": {"type": "integer", "minimum": 1},
+    "worker_id": {"$ref": "#/$defs/nonEmpty"},
+    "runtime_binding": {"$ref": "#/$defs/runtimeBindingReference"},
+    "exact_head": {"$ref": "#/$defs/gitIdentity"},
+    "changed_paths": {"$ref": "#/$defs/strings"},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "residual_state": {"$ref": "#/$defs/strings"},
+    "status": {"enum": ["worker_done", "worker_failed", "worker_incomplete"]},
+    "observed_at": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "strings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "runtimeBindingReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["binding_id", "binding_fingerprint"],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/nonEmpty"},
+        "binding_fingerprint": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "gitIdentity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["commit_sha", "tree_sha"],
+      "properties": {
+        "commit_sha": {"$ref": "#/$defs/sha"},
+        "tree_sha": {"$ref": "#/$defs/sha"}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "reference", "digest"],
+      "properties": {
+        "kind": {"$ref": "#/$defs/nonEmpty"},
+        "reference": {"$ref": "#/$defs/nonEmpty"},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}

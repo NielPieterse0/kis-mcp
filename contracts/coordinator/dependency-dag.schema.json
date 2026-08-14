@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/dependency-dag.schema.json",
+  "title": "Coordinator Dependency DAG Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "project_id", "change_id",
+    "revision", "nodes", "edges", "validation"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-dependency-dag-v1"},
+    "project_id": {"$ref": "#/$defs/nonEmpty"},
+    "change_id": {"$ref": "#/$defs/nonEmpty"},
+    "revision": {"type": "integer", "minimum": 1},
+    "nodes": {
+      "type": "object", "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/nonEmpty"},
+      "additionalProperties": {"$ref": "#/$defs/node"}
+    },
+    "edges": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/edge"}
+    },
+    "validation": {"$ref": "#/$defs/validation"}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "strings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "outcome", "owned_paths", "shared_paths", "integration_owner"],
+      "properties": {
+        "kind": {"enum": ["change", "slice", "task"]},
+        "outcome": {"$ref": "#/$defs/nonEmpty"},
+        "owned_paths": {"$ref": "#/$defs/strings"},
+        "shared_paths": {"$ref": "#/$defs/strings"},
+        "integration_owner": {"type": ["string", "null"], "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"shared_paths": {"minItems": 1}}},
+          "then": {"properties": {"integration_owner": {"$ref": "#/$defs/nonEmpty"}}}
+        }
+      ]
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "kind"],
+      "properties": {
+        "from": {"$ref": "#/$defs/nonEmpty"},
+        "to": {"$ref": "#/$defs/nonEmpty"},
+        "kind": {"enum": ["depends_on", "integrates_with"]}
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "evidence"],
+      "properties": {
+        "status": {"const": "unverified"},
+        "evidence": {"type": "array", "maxItems": 0}
+      }
+    }
+  }
+}
