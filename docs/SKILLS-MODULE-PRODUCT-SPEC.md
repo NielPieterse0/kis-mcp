@@ -119,7 +119,7 @@ Skills mutations remain ordinary Work invocations and are governed only by:
 
 Skill presence, status, category, metadata, evaluation evidence, catalogue membership, or validation state cannot become an independent reason to block an otherwise permitted Work invocation.
 
-Repository-local `.agents/skills` remains development guidance for this repository. Runtime skills are resolved only from the separate shared root `C:\Projects\.agents\skills`.
+The repository MUST NOT contain a local skill catalogue. Agents discover, load, and read reusable procedures only through the Skills-module operations; the configured shared catalogue path is owned by the module and is not a supported direct agent-access path.
 
 ## Errors
 
