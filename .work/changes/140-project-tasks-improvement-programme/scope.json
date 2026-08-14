@@ -29,6 +29,7 @@
     "tests/work_management/test_service.py",
     "tests/work_management/test_command_service.py",
     "tests/work_management/test_board.py",
+    "tests/workflows/project_management/test_tools.py",
     "tests/workflows/project_management/test_enhanced_tools.py",
     "tests/control_center/test_snapshot.py",
     "SPEC.md",
