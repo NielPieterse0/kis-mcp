@@ -70,6 +70,7 @@ class VerificationExecutionService:
         arguments = _arguments(declaration)
         command = _process_command(project, executable, arguments)
         started = time.perf_counter()
+        deadline = started + (timeout_ms / 1000)
         result = await self._runner(
             "start_process",
             {
@@ -80,21 +81,23 @@ class VerificationExecutionService:
         )
         text = _result_text(result)
         exit_code = _exit_code(text)
-        if exit_code is None:
-            pid = _result_pid(result)
-            if pid is not None:
-                follow_up = await self._runner(
-                    "read_process_output",
-                    {
-                        "pid": pid,
-                        "timeout_ms": timeout_ms,
-                        "offset": 0,
-                        "length": 200,
-                    },
-                )
-                follow_text = _result_text(follow_up)
-                text = "\n".join(item for item in (text, follow_text) if item)
-                exit_code = _exit_code(text)
+        pid = _result_pid(result) if exit_code is None else None
+        while exit_code is None and pid is not None:
+            remaining_ms = int((deadline - time.perf_counter()) * 1000)
+            if remaining_ms < 1:
+                break
+            follow_up = await self._runner(
+                "read_process_output",
+                {
+                    "pid": pid,
+                    "timeout_ms": remaining_ms,
+                    "offset": 0,
+                    "length": 200,
+                },
+            )
+            follow_text = _result_text(follow_up)
+            text = "\n".join(item for item in (text, follow_text) if item)
+            exit_code = _exit_code(text)
         duration_ms = max(0, round((time.perf_counter() - started) * 1000))
         evidence, truncated = _bounded_evidence(text, self._max_evidence_chars)
         if exit_code is None:

@@ -144,9 +144,45 @@ def test_unfinished_process_is_polled_and_can_complete() -> None:
     )
 
     assert result.status == "passed"
-    assert runner.calls[1] == (
+    assert runner.calls[1][0] == "read_process_output"
+    assert runner.calls[1][1]["pid"] == 1234
+    assert 1 <= runner.calls[1][1]["timeout_ms"] <= 30_000
+    assert runner.calls[1][1]["offset"] == 0
+    assert runner.calls[1][1]["length"] == 200
+
+
+def test_intermediate_process_output_is_repolled_until_terminal_receipt() -> None:
+    runner = _Runner(
+        [
+            {"text": "Process started with PID 1234", "pid": 1234},
+            {"text": "tests still running"},
+            {"text": "182 passed\n__KIS_VERIFICATION_EXIT_CODE=0\n"},
+        ]
+    )
+    result = asyncio.run(
+        VerificationExecutionService(
+            inspector=_Inspector([_declaration()]),
+            runner=runner,
+        ).run(
+            project=r"C:\Projects\fixture",
+            verification_id="python-pytest",
+            timeout_ms=30_000,
+        )
+    )
+
+    assert result.status == "passed"
+    assert result.exit_code == 0
+    assert "tests still running" in result.evidence
+    assert "182 passed" in result.evidence
+    assert [tool for tool, _ in runner.calls] == [
+        "start_process",
         "read_process_output",
-        {"pid": 1234, "timeout_ms": 30_000, "offset": 0, "length": 200},
+        "read_process_output",
+    ]
+    assert all(
+        1 <= arguments["timeout_ms"] <= 30_000
+        for tool, arguments in runner.calls
+        if tool == "read_process_output"
     )
 
 
