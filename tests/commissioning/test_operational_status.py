@@ -45,6 +45,7 @@ def _routing() -> SupabaseProjectRouting:
     )
     tools = (
         _tool("list_projects", read_only=True),
+        _tool("get_project", read_only=True),
         _tool("get_project_url", read_only=True),
         _tool("apply_migration", read_only=False),
     )
@@ -66,13 +67,14 @@ def test_successful_registered_project_read_marks_live_verification() -> None:
 
     result = asyncio.run(
         middleware.on_call_tool(
-            _context("get_project_url", {"project_id": PROJECT_REF}),
+            _context("get_project", {"id": PROJECT_REF}),
             call_next,
         )
     )
 
     assert result == "ok"
     assert state.registered_project_read_verified is True
+    assert state.last_verified_tool == "get_project"
 
 
 def test_failed_or_non_read_calls_do_not_mark_live_verification() -> None:
@@ -83,7 +85,8 @@ def test_failed_or_non_read_calls_do_not_mark_live_verification() -> None:
         return "ok"
 
     for tool_name, arguments, callback in (
-        ("get_project_url", {"project_id": PROJECT_REF}, fail),
+        ("get_project", {"id": PROJECT_REF}, fail),
+        ("get_project", {"id": "aaaaaaaaaaaaaaaaaaaa"}, succeed),
         ("apply_migration", {"project_id": PROJECT_REF}, succeed),
         ("list_projects", {}, succeed),
     ):

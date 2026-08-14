@@ -28,6 +28,7 @@ def _routing() -> SupabaseProjectRouting:
     registry = load_project_registry_settings(REGISTRY_PATH, boundary="C:\\Projects")
     tools = (
         _tool("list_projects", read_only=True),
+        _tool("get_project", read_only=True),
         _tool("get_project_url", read_only=True),
         _tool("apply_migration", read_only=False),
     )
@@ -52,6 +53,20 @@ def test_targetless_read_only_account_discovery_is_allowed() -> None:
     routing = _routing()
 
     routing.authorize("list_projects", {})
+
+
+def test_live_get_project_id_is_recognized_only_for_registered_project() -> None:
+    routing = _routing()
+
+    assert routing.is_registered_project_read("get_project", {"id": PROJECT_REF}) is True
+    assert (
+        routing.is_registered_project_read(
+            "get_project",
+            {"id": "aaaaaaaaaaaaaaaaaaaa"},
+        )
+        is False
+    )
+    assert routing.is_registered_project_read("list_projects", {}) is False
 
 
 def test_targetless_mutation_and_unknown_metadata_fail_closed() -> None:
