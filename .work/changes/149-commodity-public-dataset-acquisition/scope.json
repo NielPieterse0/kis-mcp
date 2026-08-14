@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "149-commodity-public-dataset-acquisition",
+  "status": "active",
+  "branch": "change/149-commodity-public-dataset-acquisition",
+  "worktree": ".work/worktrees/149-commodity-public-dataset-acquisition",
+  "base": "main",
+  "outcome": "Authorize Commodity to use the existing public-http-dataset registered acquisition profile for bounded weather and NYISO evidence recipes without widening ordinary Work network authority.",
+  "owned_paths": [
+    "settings/external-acquisition.settings.json",
+    ".work/changes/149-commodity-public-dataset-acquisition/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "f8d2def268a7cb771e66b5b41eb28e91e4e3cb1e",
+    "local_tree": "984ad5e598ec9bf9993c8df6b0cbaf6f22071bdc",
+    "upstream_sha": "f8d2def268a7cb771e66b5b41eb28e91e4e3cb1e",
+    "upstream_tree": "984ad5e598ec9bf9993c8df6b0cbaf6f22071bdc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
