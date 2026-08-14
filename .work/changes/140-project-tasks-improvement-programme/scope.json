@@ -43,9 +43,7 @@
     "settings/projects.settings.json",
     "policy/**"
   ],
-  "dependencies": [
-    "136-repo-local-recovery-capsule: no dependency on its implementation; keep its persistence/project-identity domains excluded"
-  ],
+  "dependencies": [],
   "integration_owner": null,
   "complexity": "large",
   "risk_triggers": [
