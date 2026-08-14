@@ -7,6 +7,7 @@ import pytest
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from kis_mcp.providers.github.projects import GitHubProjectInventoryAdapter
 from kis_mcp.work_management.backend import (
     ProjectBinding,
     ProjectFieldValue,
@@ -212,3 +213,107 @@ def test_provider_failure_is_typed_json_in_tool_error() -> None:
     assert document["error_code"] == "provider_unavailable"
     assert document["retryable"] is True
     assert document["authority"] == "configured_work_management_backend"
+
+
+class _AdapterCaller:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, object]]] = []
+        self.responses = [
+            {"project": {"id": "PVT_1", "title": "KIS Work Management", "closed": False}},
+            {
+                "fields": [
+                    {"id": "F_STATUS", "name": "Status", "data_type": "single_select"}
+                ],
+                "pageInfo": {"hasNextPage": False},
+            },
+            {
+                "items": [
+                    {
+                        "id": "item-234",
+                        "content_type": "Issue",
+                        "content": {
+                            "title": "Earlier item",
+                            "number": 234,
+                            "state": "OPEN",
+                            "repository": "NielPieterse0/kis-mcp",
+                        },
+                        "fields": [{"name": "Status", "value": {"name": "Todo"}}],
+                    }
+                ],
+                "pageInfo": {"hasNextPage": True, "nextCursor": "CURSOR_2"},
+            },
+            {
+                "error": "field_not_found",
+                "name": "Priority",
+                "candidates": [
+                    {"name": "Status", "data_type": "SINGLE_SELECT"},
+                    {"name": "Repository", "data_type": "REPOSITORY"},
+                    {"name": "Created", "data_type": "CREATED"},
+                ],
+            },
+            {
+                "items": [
+                    {
+                        "id": "item-235",
+                        "content_type": "Issue",
+                        "content": {
+                            "title": "Fix selector",
+                            "number": 235,
+                            "state": "OPEN",
+                            "repository": "NielPieterse0/kis-mcp",
+                        },
+                        "fields": [{"name": "Status", "value": {"name": "Todo"}}],
+                    }
+                ],
+                "pageInfo": {"hasNextPage": False},
+            },
+        ]
+
+    async def call_tool(self, name, arguments):
+        self.calls.append((name, dict(arguments)))
+        return self.responses.pop(0)
+
+
+class _AdapterService:
+    def __init__(self) -> None:
+        self.caller = _AdapterCaller()
+        self.adapter = GitHubProjectInventoryAdapter(self.caller)
+        self.binding = ProjectBinding(
+            binding_id="github-default",
+            managed_project_id="kis-mcp",
+            provider_id="github-mcp",
+            owner="NielPieterse0",
+            owner_type=ProjectOwnerType.USER,
+            project_number=1,
+            repository="NielPieterse0/kis-mcp",
+        )
+
+    async def read_inventory(self, project_id, *, field_names=(), item_limit=100):
+        assert project_id == "kis-mcp"
+        return await self.adapter.read_inventory(
+            self.binding, field_names=field_names, item_limit=item_limit
+        )
+
+
+def test_board_data_recovers_from_unprovisioned_project_fields() -> None:
+    server = FastMCP("root")
+    service = _AdapterService()
+    register_project_management_enhancement_tools(server, service)
+
+    result = asyncio.run(
+        server.call_tool(
+            "project_management_board_data",
+            {"project_id": "kis-mcp", "item_limit": 20},
+        )
+    ).structured_content
+
+    assert result is not None
+    assert result["result"]["complete"] is True
+    assert [card["number"] for card in result["result"]["cards"]] == [234, 235]
+    assert result["result"]["cards"][1]["work_state"] == "todo"
+    page_two_error = service.caller.calls[-2][1]
+    page_two_retry = service.caller.calls[-1][1]
+    assert page_two_error["after"] == "CURSOR_2"
+    assert page_two_retry["after"] == "CURSOR_2"
+    assert "Priority" in page_two_error["field_names"]
+    assert page_two_retry["field_names"] == ["Status", "Created", "Repository"]

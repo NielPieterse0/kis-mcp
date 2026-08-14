@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "change_id": "146-project-selector-field-drift",
+  "status": "active",
+  "branch": "change/146-project-selector-field-drift",
+  "worktree": ".work/worktrees/146-project-selector-field-drift",
+  "base": "main",
+  "outcome": "Keep Work Management board and selector reads operational when requested GitHub Project fields are not yet provisioned by reconciling typed field_not_found responses against provider-declared candidates.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    ".work/changes/146-project-selector-field-drift/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "f6dd7d534213e3e1df7bca456f3e14aa15d2e95f",
+    "local_tree": "1b69f322f7e68a41f3c3f1ad1a4f27bb0dd688cc",
+    "upstream_sha": "f6dd7d534213e3e1df7bca456f3e14aa15d2e95f",
+    "upstream_tree": "1b69f322f7e68a41f3c3f1ad1a4f27bb0dd688cc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "emergency_manual_worktree_after_global_claim_conflict",
+    "relation": "same_sha"
+  },  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-146",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 235,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
