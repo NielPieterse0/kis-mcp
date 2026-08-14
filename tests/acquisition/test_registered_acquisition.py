@@ -101,17 +101,18 @@ def request_for(recipe_hash: str, **overrides: object) -> dict[str, object]:
 
 
 def test_settings_are_strict_and_authorize_recipe_namespace(tmp_path: Path) -> None:
-    settings = load_external_acquisition_settings(settings_file(tmp_path))
+    path = settings_file(tmp_path)
+    settings = load_external_acquisition_settings(path)
     auth = settings.authorization("commodity", "firecrawl-web")
     assert auth.recipe_directory == r"config\acquisition-recipes"
     assert auth.recipe_id_prefix == "commodity-"
     assert auth.allowed_parameter_keys == ("query",)
 
-    bad = json.loads(settings_file(tmp_path).read_text())
+    bad = json.loads(path.read_text())
     bad["provider"]["url"] = "https://example.com"
-    settings_file(tmp_path).write_text(json.dumps(bad))
+    path.write_text(json.dumps(bad))
     with pytest.raises(ValueError, match="unknown provider keys"):
-        load_external_acquisition_settings(settings_file(tmp_path))
+        load_external_acquisition_settings(path)
 
 
 def test_authorized_request_hashes_registered_consumer_recipe_before_provider_call(
