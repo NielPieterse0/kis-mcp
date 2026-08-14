@@ -1,10 +1,14 @@
 {
   "schema_version": 1,
-  "project_id": "kis-mcp",
+  "portfolio_id": "default",
   "fields": [
-    {"name": "Status", "type": "single_select", "options": ["Inbox", "Triage", "Proposed", "Approved", "Active", "Review", "Verification", "Documentation", "Done", "Blocked", "On Hold", "Deferred", "Rejected", "Superseded"]},
+    {"name": "Status", "type": "single_select", "options": ["Inbox", "Triage", "Proposed", "Approved", "Ready", "Active", "Blocked", "On Hold", "Deferred", "Rejected", "Superseded", "Done"]},
     {"name": "Record Type", "type": "single_select", "options": ["Idea", "Task", "Specification Slice", "Review Run", "Finding", "Decision", "Assumption", "Risk", "Approval", "Hold", "Research", "Defect", "Security Finding"]},
     {"name": "Priority", "type": "single_select", "options": ["Critical", "High", "Medium", "Low"]},
+    {"name": "Effort", "type": "single_select", "options": ["Tiny", "Small", "Medium", "Large"]},
+    {"name": "Delivery Stage", "type": "single_select", "options": ["None", "Change Created", "Implementing", "PR Open", "Review", "CI Pending", "CI Failed", "CI Passed", "Merged", "Documentation", "Commissioning", "Complete"]},
+    {"name": "Execution Owner", "type": "text", "options": []},
+    {"name": "Documentation Impact", "type": "single_select", "options": ["Not Assessed", "None", "Planned", "In Progress", "Pre-merge Complete", "Post-merge Complete"]},
     {"name": "Complexity", "type": "single_select", "options": ["Small", "Medium", "Large"]},
     {"name": "Risk Triggers", "type": "text", "options": []},
     {"name": "Project ID", "type": "text", "options": []},

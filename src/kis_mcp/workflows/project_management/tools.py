@@ -8,6 +8,7 @@ from fastmcp.exceptions import ToolError
 
 from ...work_management import (
     DocumentationMilestoneState,
+    LifecycleState,
     ReviewArtifactKind,
     WorkManagementService,
     apply_documentation_reconciliation_event,
@@ -77,7 +78,9 @@ def register_project_management_tools(
         """Preview or explicitly apply deterministic Project reconciliation."""
 
         try:
-            if apply and (not isinstance(idempotency_key, str) or not idempotency_key.strip()):
+            if apply and (
+                not isinstance(idempotency_key, str) or not idempotency_key.strip()
+            ):
                 raise ValueError("idempotency_key is required when apply is true")
             desired_values = tuple(
                 desired_projection_from_json(item, default_project_id=project_id)
@@ -101,6 +104,218 @@ def register_project_management_tools(
             }
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_RECONCILE_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_next_work(
+        project_id: str,
+        item_limit: int = 100,
+    ) -> dict[str, Any]:
+        """Select the next eligible Ready and unclaimed Project issue deterministically."""
+
+        try:
+            selection = await service.next_work(project_id, item_limit=item_limit)
+            return selection.to_json_dict()
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_NEXT_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_take_next_work(
+        project_id: str,
+        execution_owner: str,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+        item_limit: int = 100,
+    ) -> dict[str, Any]:
+        """Select and preview/claim the next eligible Ready issue in one bounded workflow."""
+
+        try:
+            return await service.take_next_work(
+                project_id,
+                execution_owner,
+                apply=apply,
+                idempotency_key=idempotency_key,
+                item_limit=item_limit,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_TAKE_NEXT_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_claim_work(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        execution_owner: str,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Preview or claim one Ready issue using a conflict-safe two-phase claim."""
+
+        try:
+            return await service.claim_work(
+                project_id,
+                repository,
+                issue_number,
+                execution_owner,
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_CLAIM_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_release_work(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        expected_owner: str,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Preview or release an exact execution claim back to Ready."""
+
+        try:
+            return await service.release_work(
+                project_id,
+                repository,
+                issue_number,
+                expected_owner,
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_RELEASE_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_transition_work(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        target: str,
+        metadata: dict[str, Any] | None = None,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Preview or apply one configured command-plane Work State transition."""
+
+        try:
+            return await service.transition_work(
+                project_id,
+                repository,
+                issue_number,
+                LifecycleState(target),
+                metadata=metadata,
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_TRANSITION_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_hold_work(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        review_trigger: str,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Preview or place work On Hold with the configured review trigger metadata."""
+
+        try:
+            return await service.transition_work(
+                project_id,
+                repository,
+                issue_number,
+                LifecycleState.ON_HOLD,
+                metadata={"Review Trigger": review_trigger},
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_HOLD_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_defer_work(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        review_trigger: str,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Preview or defer work with the configured review trigger metadata."""
+
+        try:
+            return await service.transition_work(
+                project_id,
+                repository,
+                issue_number,
+                LifecycleState.DEFERRED,
+                metadata={"Review Trigger": review_trigger},
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_DEFER_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_sync_change_classification(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        change_id: str,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Project authoritative schema-v4 Complexity/Risk classification from `.work` evidence."""
+
+        try:
+            return await service.sync_change_classification(
+                project_id,
+                repository,
+                issue_number,
+                change_id,
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error(
+                "PROJECT_MANAGEMENT_CLASSIFICATION_SYNC_FAILED", exc
+            ) from exc
+
+    @tool_server.tool
+    async def project_management_complete_work(
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        record: dict[str, Any],
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Guard and preview/apply the terminal Work State after closeout evidence is complete."""
+
+        try:
+            return await service.complete_work(
+                project_id,
+                repository,
+                issue_number,
+                work_record_from_json(record),
+                apply=apply,
+                idempotency_key=idempotency_key,
+            )
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_COMPLETE_WORK_FAILED", exc) from exc
+
+    @tool_server.tool
+    async def project_management_schema_plan(
+        project_id: str,
+    ) -> dict[str, Any]:
+        """Return a typed commissioning plan for Project schema drift and provider gaps."""
+
+        try:
+            return (await service.schema_plan(project_id)).to_json_dict()
+        except Exception as exc:
+            raise _tool_error("PROJECT_MANAGEMENT_SCHEMA_PLAN_FAILED", exc) from exc
 
     @tool_server.tool
     async def project_management_schema_status(
@@ -178,7 +393,9 @@ def register_project_management_tools(
                 "record": updated.to_json_dict(),
             }
         except Exception as exc:
-            raise _tool_error("PROJECT_MANAGEMENT_DOCUMENTATION_RECONCILE_FAILED", exc) from exc
+            raise _tool_error(
+                "PROJECT_MANAGEMENT_DOCUMENTATION_RECONCILE_FAILED", exc
+            ) from exc
 
     @tool_server.tool
     def project_management_portfolio_status(
@@ -191,7 +408,9 @@ def register_project_management_tools(
 
         try:
             status = service.portfolio_status(
-                tuple(work_record_from_json(item) for item in _objects(records, "records")),
+                tuple(
+                    work_record_from_json(item) for item in _objects(records, "records")
+                ),
                 traceability_gaps={
                     key: tuple(value)
                     for key, value in (traceability_gaps or {}).items()

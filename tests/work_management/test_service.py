@@ -13,6 +13,9 @@ from kis_mcp.work_management import (
     GateMode,
     ManagedProject,
     ObservedProjection,
+    ProjectField,
+    ProjectFieldKind,
+    ProjectFieldOption,
     ProjectInventory,
     ProjectOwnerType,
     ReconciliationOutcome,
@@ -75,6 +78,17 @@ class Backend:
         del field_names, item_limit
         self.bindings.append(project_binding)
         return ProjectInventory(binding=project_binding, title="Programme")
+
+    async def read_schema_fields(self, project_binding):
+        self.bindings.append(project_binding)
+        return (
+            ProjectField(
+                field_id="status",
+                name="Status",
+                kind=ProjectFieldKind.SINGLE_SELECT,
+                options=(ProjectFieldOption(option_id="ready", name="Ready"),),
+            ),
+        )
 
     async def apply_reconciliation(
         self,
@@ -272,3 +286,18 @@ def test_service_persists_review_evidence_through_project_store(tmp_path: Path) 
 
     assert result.path == ".work/reviews/REV-200/report.md"
     assert (tmp_path / result.path).read_text(encoding="utf-8") == "# Durable report\n"
+
+
+def test_schema_status_uses_portfolio_manifest_for_managed_project() -> None:
+    backend = Backend()
+    service = WorkManagementService(settings(), {"github": backend})
+
+    status = asyncio.run(service.schema_status("alpha-project"))
+    plan = asyncio.run(service.schema_plan("alpha-project"))
+
+    assert status.project_id == "alpha-project"
+    assert status.portfolio_id == "default"
+    assert "Effort" in status.missing_fields
+    assert plan.project_id == "alpha-project"
+    assert plan.portfolio_id == "default"
+    assert plan.automatic_ready is False

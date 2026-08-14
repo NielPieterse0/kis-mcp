@@ -49,6 +49,7 @@ class LifecycleState(StrEnum):
     TRIAGE = "triage"
     PROPOSED = "proposed"
     APPROVED = "approved"
+    READY = "ready"
     ACTIVE = "active"
     REVIEW = "review"
     VERIFICATION = "verification"
@@ -66,6 +67,28 @@ class Priority(StrEnum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+
+
+class Effort(StrEnum):
+    TINY = "tiny"
+    SMALL = "small"
+    MEDIUM = "medium"
+    LARGE = "large"
+
+
+class DeliveryStage(StrEnum):
+    NONE = "none"
+    CHANGE_CREATED = "change_created"
+    IMPLEMENTING = "implementing"
+    PR_OPEN = "pr_open"
+    REVIEW = "review"
+    CI_PENDING = "ci_pending"
+    CI_FAILED = "ci_failed"
+    CI_PASSED = "ci_passed"
+    MERGED = "merged"
+    DOCUMENTATION = "documentation"
+    COMMISSIONING = "commissioning"
+    COMPLETE = "complete"
 
 
 class ChangeComplexity(StrEnum):
@@ -194,6 +217,11 @@ class WorkRecord:
     record_type: RecordType
     state: LifecycleState = LifecycleState.INBOX
     priority: Priority = Priority.MEDIUM
+    effort: Effort = Effort.MEDIUM
+    delivery_stage: DeliveryStage = DeliveryStage.NONE
+    execution_owner: str | None = None
+    claimed_at: str | None = None
+    queue_rank: int | None = None
     complexity: ChangeComplexity | None = None
     risk_triggers: tuple[RiskTrigger, ...] = ()
     dependency_ids: tuple[str, ...] = ()
@@ -224,6 +252,21 @@ class WorkRecord:
             raise ValueError("record_id prefix must match record_type")
         _enum(self.state, LifecycleState, "state")
         _enum(self.priority, Priority, "priority")
+        _enum(self.effort, Effort, "effort")
+        _enum(self.delivery_stage, DeliveryStage, "delivery_stage")
+        execution_owner = _optional_text(self.execution_owner, "execution_owner")
+        claimed_at = _optional_text(self.claimed_at, "claimed_at")
+        if claimed_at is not None and execution_owner is None:
+            raise ValueError("claimed_at requires execution_owner")
+        object.__setattr__(self, "execution_owner", execution_owner)
+        object.__setattr__(self, "claimed_at", claimed_at)
+        if self.queue_rank is not None:
+            if (
+                isinstance(self.queue_rank, bool)
+                or not isinstance(self.queue_rank, int)
+                or self.queue_rank < 0
+            ):
+                raise ValueError("queue_rank must be a non-negative integer")
         if self.complexity is not None:
             _enum(self.complexity, ChangeComplexity, "complexity")
         triggers = tuple(self.risk_triggers)
@@ -256,16 +299,14 @@ class WorkRecord:
             documentation_event_id,
         )
         if (
-            self.documentation_milestone
-            is DocumentationMilestoneState.NOT_REQUIRED
+            self.documentation_milestone is DocumentationMilestoneState.NOT_REQUIRED
             and documentation_event_id is not None
         ):
             raise ValueError(
                 "documentation_event_id requires a documentation milestone"
             )
         if (
-            self.documentation_milestone
-            is not DocumentationMilestoneState.NOT_REQUIRED
+            self.documentation_milestone is not DocumentationMilestoneState.NOT_REQUIRED
             and documentation_event_id is None
         ):
             raise ValueError(
@@ -275,11 +316,15 @@ class WorkRecord:
             raise ValueError("approval_required must be a boolean")
         if not isinstance(self.approval_complete, bool):
             raise ValueError("approval_complete must be a boolean")
-        if isinstance(self.created_order, bool) or not isinstance(self.created_order, int):
+        if isinstance(self.created_order, bool) or not isinstance(
+            self.created_order, int
+        ):
             raise ValueError("created_order must be a non-negative integer")
         if self.created_order < 0:
             raise ValueError("created_order must be a non-negative integer")
-        dependencies = tuple(sorted(_record_id(item, "dependency_id") for item in self.dependency_ids))
+        dependencies = tuple(
+            sorted(_record_id(item, "dependency_id") for item in self.dependency_ids)
+        )
         if len(set(dependencies)) != len(dependencies):
             raise ValueError("dependency_ids must be unique")
         if self.record_id in dependencies:
@@ -305,7 +350,14 @@ class WorkRecord:
             "record_type": self.record_type.value,
             "state": self.state.value,
             "priority": self.priority.value,
-            "complexity": self.complexity.value if self.complexity is not None else None,
+            "effort": self.effort.value,
+            "delivery_stage": self.delivery_stage.value,
+            "execution_owner": self.execution_owner,
+            "claimed_at": self.claimed_at,
+            "queue_rank": self.queue_rank,
+            "complexity": self.complexity.value
+            if self.complexity is not None
+            else None,
             "risk_triggers": [item.value for item in self.risk_triggers],
             "dependency_ids": list(self.dependency_ids),
             "approval_required": self.approval_required,

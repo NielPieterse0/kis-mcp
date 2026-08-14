@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from .command_settings import CommandPlaneSettings, load_command_plane_settings
 from .contracts import (
     DocumentationImpact,
     DocumentationMilestoneState,
@@ -9,80 +10,6 @@ from .contracts import (
     LifecycleState,
     WorkRecord,
 )
-
-_SUPERSEDABLE_STATES = frozenset(
-    {
-        LifecycleState.INBOX,
-        LifecycleState.TRIAGE,
-        LifecycleState.PROPOSED,
-        LifecycleState.APPROVED,
-        LifecycleState.ACTIVE,
-        LifecycleState.REVIEW,
-        LifecycleState.VERIFICATION,
-        LifecycleState.DOCUMENTATION,
-        LifecycleState.BLOCKED,
-        LifecycleState.ON_HOLD,
-        LifecycleState.DEFERRED,
-    }
-)
-
-_ALLOWED_TRANSITIONS: dict[LifecycleState, frozenset[LifecycleState]] = {
-    LifecycleState.INBOX: frozenset(
-        {LifecycleState.TRIAGE, LifecycleState.DEFERRED, LifecycleState.REJECTED}
-    ),
-    LifecycleState.TRIAGE: frozenset(
-        {
-            LifecycleState.PROPOSED,
-            LifecycleState.APPROVED,
-            LifecycleState.DEFERRED,
-            LifecycleState.REJECTED,
-        }
-    ),
-    LifecycleState.PROPOSED: frozenset(
-        {LifecycleState.APPROVED, LifecycleState.DEFERRED, LifecycleState.REJECTED}
-    ),
-    LifecycleState.APPROVED: frozenset(
-        {LifecycleState.ACTIVE, LifecycleState.ON_HOLD, LifecycleState.DEFERRED}
-    ),
-    LifecycleState.ACTIVE: frozenset(
-        {
-            LifecycleState.REVIEW,
-            LifecycleState.BLOCKED,
-            LifecycleState.ON_HOLD,
-            LifecycleState.DEFERRED,
-        }
-    ),
-    LifecycleState.REVIEW: frozenset(
-        {
-            LifecycleState.ACTIVE,
-            LifecycleState.VERIFICATION,
-            LifecycleState.BLOCKED,
-            LifecycleState.ON_HOLD,
-        }
-    ),
-    LifecycleState.VERIFICATION: frozenset(
-        {
-            LifecycleState.ACTIVE,
-            LifecycleState.DOCUMENTATION,
-            LifecycleState.BLOCKED,
-        }
-    ),
-    LifecycleState.DOCUMENTATION: frozenset(
-        {LifecycleState.DONE, LifecycleState.ACTIVE, LifecycleState.BLOCKED}
-    ),
-    LifecycleState.BLOCKED: frozenset(
-        {LifecycleState.ACTIVE, LifecycleState.ON_HOLD, LifecycleState.DEFERRED}
-    ),
-    LifecycleState.ON_HOLD: frozenset(
-        {LifecycleState.ACTIVE, LifecycleState.DEFERRED, LifecycleState.REJECTED}
-    ),
-    LifecycleState.DEFERRED: frozenset(
-        {LifecycleState.TRIAGE, LifecycleState.PROPOSED, LifecycleState.REJECTED}
-    ),
-    LifecycleState.REJECTED: frozenset({LifecycleState.TRIAGE}),
-    LifecycleState.DONE: frozenset(),
-    LifecycleState.SUPERSEDED: frozenset(),
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,20 +40,16 @@ def _documentation_complete(record: WorkRecord) -> bool:
 def evaluate_transition(
     record: WorkRecord,
     target: LifecycleState,
+    *,
+    settings: CommandPlaneSettings | None = None,
 ) -> TransitionDecision:
     if not isinstance(record, WorkRecord):
         raise ValueError("record must be a WorkRecord")
     if not isinstance(target, LifecycleState):
         raise ValueError("target must be a LifecycleState value")
+    configured = settings or load_command_plane_settings()
 
-    if target is LifecycleState.SUPERSEDED and record.state in _SUPERSEDABLE_STATES:
-        return TransitionDecision(
-            allowed=True,
-            source=record.state,
-            target=target,
-        )
-
-    if target not in _ALLOWED_TRANSITIONS[record.state]:
+    if target not in configured.transition_targets(record.state):
         return TransitionDecision(
             allowed=False,
             source=record.state,
@@ -134,65 +57,83 @@ def evaluate_transition(
             reasons=("transition_not_declared",),
         )
 
-    if target is LifecycleState.ACTIVE:
-        if record.approval_required and not record.approval_complete:
-            return TransitionDecision(
-                allowed=False,
-                source=record.state,
-                target=target,
-                reasons=("approval_incomplete",),
-            )
+    if (
+        target is LifecycleState.ACTIVE
+        and record.approval_required
+        and not record.approval_complete
+    ):
+        return TransitionDecision(
+            allowed=False,
+            source=record.state,
+            target=target,
+            reasons=("approval_incomplete",),
+        )
 
-    if target is LifecycleState.DONE:
-        if record.traceability_required:
-            if (
-                record.documentation_milestone
-                is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
-            ):
-                if record.documentation_mode is DocumentationMode.REQUIRED:
-                    return TransitionDecision(
-                        allowed=False,
-                        source=record.state,
-                        target=target,
-                        reasons=("documentation_reconciliation_due",),
-                    )
-                if record.documentation_mode is DocumentationMode.ADVISORY:
-                    return TransitionDecision(
-                        allowed=True,
-                        source=record.state,
-                        target=target,
-                        reasons=("documentation_reconciliation_advisory_due",),
-                    )
-            if (
-                record.documentation_mode is DocumentationMode.REQUIRED
-                and record.documentation_milestone
-                is not DocumentationMilestoneState.POST_MERGE_COMPLETE
-            ):
+    if (
+        target is LifecycleState.DONE
+        and configured.completion.require_no_active_claim_after_close
+        and record.execution_owner is not None
+    ):
+        return TransitionDecision(
+            allowed=False,
+            source=record.state,
+            target=target,
+            reasons=("active_claim_present",),
+        )
+
+    if target is LifecycleState.DONE and record.traceability_required:
+        if (
+            record.documentation_milestone
+            is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+        ):
+            if record.documentation_mode is DocumentationMode.REQUIRED:
                 return TransitionDecision(
                     allowed=False,
                     source=record.state,
                     target=target,
-                    reasons=("documentation_reconciliation_unrecorded",),
+                    reasons=("documentation_reconciliation_due",),
                 )
-            if (
-                record.documentation_mode is DocumentationMode.ADVISORY
-                and record.documentation_milestone
-                is not DocumentationMilestoneState.POST_MERGE_COMPLETE
-            ):
+            if record.documentation_mode is DocumentationMode.ADVISORY:
                 return TransitionDecision(
                     allowed=True,
                     source=record.state,
                     target=target,
-                    reasons=("documentation_reconciliation_advisory_incomplete",),
+                    reasons=("documentation_reconciliation_advisory_due",),
                 )
-        if record.documentation_mode is DocumentationMode.REQUIRED:
-            if not _documentation_complete(record):
-                return TransitionDecision(
-                    allowed=False,
-                    source=record.state,
-                    target=target,
-                    reasons=("documentation_incomplete",),
-                )
+        if (
+            record.documentation_mode is DocumentationMode.REQUIRED
+            and record.documentation_milestone
+            is not DocumentationMilestoneState.POST_MERGE_COMPLETE
+        ):
+            return TransitionDecision(
+                allowed=False,
+                source=record.state,
+                target=target,
+                reasons=("documentation_reconciliation_unrecorded",),
+            )
+        if (
+            record.documentation_mode is DocumentationMode.ADVISORY
+            and record.documentation_milestone
+            is not DocumentationMilestoneState.POST_MERGE_COMPLETE
+        ):
+            return TransitionDecision(
+                allowed=True,
+                source=record.state,
+                target=target,
+                reasons=("documentation_reconciliation_advisory_incomplete",),
+            )
+
+    if target is LifecycleState.DONE:
+        if (
+            record.documentation_mode is DocumentationMode.REQUIRED
+            and not _documentation_complete(record)
+        ):
+            return TransitionDecision(
+                allowed=False,
+                source=record.state,
+                target=target,
+                reasons=("documentation_incomplete",),
+            )
         if (
             record.documentation_mode is DocumentationMode.ADVISORY
             and not _documentation_complete(record)
@@ -204,15 +145,16 @@ def evaluate_transition(
                 reasons=("documentation_advisory_incomplete",),
             )
 
-    return TransitionDecision(
-        allowed=True,
-        source=record.state,
-        target=target,
-    )
+    return TransitionDecision(allowed=True, source=record.state, target=target)
 
 
-def transition_record(record: WorkRecord, target: LifecycleState) -> WorkRecord:
-    decision = evaluate_transition(record, target)
+def transition_record(
+    record: WorkRecord,
+    target: LifecycleState,
+    *,
+    settings: CommandPlaneSettings | None = None,
+) -> WorkRecord:
+    decision = evaluate_transition(record, target, settings=settings)
     if not decision.allowed:
         raise TransitionRejected(decision)
     return replace(record, state=target)

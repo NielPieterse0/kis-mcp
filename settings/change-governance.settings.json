@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "complexities": {
+    "small": {
+      "description": "One bounded straightforward outcome with no material design or interface redesign.",
+      "max_verifications": 6,
+      "base_reviews": [],
+      "artifacts": ["scope.json", "change.md"]
+    },
+    "medium": {
+      "description": "Several dependent steps or bounded design/shared-interface work in one contained area.",
+      "max_verifications": 20,
+      "base_reviews": ["code-quality"],
+      "artifacts": ["scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md"]
+    },
+    "large": {
+      "description": "Work spanning components or system boundaries, independently reviewable subwork, substantial state or architecture change, a new integration, or significant release or commissioning coordination.",
+      "max_verifications": 20,
+      "base_reviews": ["code-quality"],
+      "artifacts": ["scope.json", "spec.md", "plan.md", "tasks.md", "closeout.md"]
+    }
+  },
+  "review_types": [
+    "code-quality",
+    "safety-security",
+    "architecture",
+    "performance",
+    "test-quality",
+    "documentation",
+    "api-contracts"
+  ],
+  "risk_triggers": {
+    "security": {
+      "description": "Authentication, authorization, trust-boundary, or security-control behavior changes.",
+      "reviews": ["safety-security"]
+    },
+    "secrets": {
+      "description": "Secret material, credentials, key handling, or secret-storage behavior changes.",
+      "reviews": ["safety-security"]
+    },
+    "sensitive_data": {
+      "description": "Personal, regulated, confidential, or otherwise sensitive data handling changes.",
+      "reviews": ["safety-security"]
+    },
+    "money": {
+      "description": "Payments, balances, billing, settlement, or other monetary-value behavior changes.",
+      "reviews": []
+    },
+    "persistent_state": {
+      "description": "Durable state, stored records, or persistence semantics change.",
+      "reviews": []
+    },
+    "migration": {
+      "description": "Existing state, schema, configuration, or users require migration or compatibility handling.",
+      "reviews": []
+    },
+    "external_action": {
+      "description": "The change can cause externally observable actions through an approved provider or integration.",
+      "reviews": []
+    },
+    "deployment": {
+      "description": "Deployment, release, environment promotion, or commissioning behavior changes.",
+      "reviews": []
+    },
+    "destructive": {
+      "description": "The change can remove, replace, invalidate, or irreversibly transform durable resources or state.",
+      "reviews": []
+    },
+    "public_contract": {
+      "description": "A public or externally consumed interface, schema, command, tool, API, or contract changes.",
+      "reviews": ["api-contracts"]
+    },
+    "architecture_boundary": {
+      "description": "A module, provider, subsystem, ownership, dependency-direction, or system-boundary contract changes.",
+      "reviews": ["architecture"]
+    }
+  }
+}

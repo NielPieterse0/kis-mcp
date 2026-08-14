@@ -91,7 +91,9 @@ def test_schema_v1_claim_remains_valid_without_work_management() -> None:
 def test_schema_v2_claim_requires_work_management_evidence() -> None:
     module = load_module()
 
-    with pytest.raises(module.ClaimError, match="CHANGE_FIELDS_MISSING: work_management"):
+    with pytest.raises(
+        module.ClaimError, match="CHANGE_FIELDS_MISSING: work_management"
+    ):
         claim(module, "001-alpha", schema_version=2)
 
 
@@ -209,7 +211,9 @@ def test_pull_request_claim_projection_releases_landed_schema_v3_claims() -> Non
         module,
         "099-legacy",
         schema_version=2,
-        work_management=work_management_evidence(record_id="SPEC-099", source_number=99),
+        work_management=work_management_evidence(
+            record_id="SPEC-099", source_number=99
+        ),
         owned_paths=["legacy/**"],
     )
 
@@ -303,7 +307,9 @@ def test_claim_paths_reject_ambiguous_globs_and_absolute_paths() -> None:
         claim(module, "001-alpha", owned_paths=["C:/Projects/kis-mcp/src/**"])
 
 
-def run_git(repository: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+def run_git(
+    repository: Path, *args: str, check: bool = True
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],
         cwd=repository,
@@ -339,7 +345,9 @@ def set_change_status(target: Path, change_id: str, status: str) -> None:
     scope_path.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
 
 
-def test_claim_discovery_ignores_underscore_template_directories(tmp_path: Path) -> None:
+def test_claim_discovery_ignores_underscore_template_directories(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     change_root = repository / ".work" / "changes" / "001-alpha"
@@ -356,7 +364,9 @@ def test_claim_discovery_ignores_underscore_template_directories(tmp_path: Path)
     assert [item.change_id for item in checkout_claims] == ["001-alpha"]
 
 
-def test_primary_claim_overrides_stale_copies_in_other_worktrees(tmp_path: Path) -> None:
+def test_primary_claim_overrides_stale_copies_in_other_worktrees(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     change_id = "004-live-proxy-commissioning"
@@ -371,7 +381,9 @@ def test_primary_claim_overrides_stale_copies_in_other_worktrees(tmp_path: Path)
     run_git(repository, "commit", "-m", "test: register active historical claim")
 
     unrelated = repository / ".work" / "worktrees" / "001-alpha"
-    run_git(repository, "worktree", "add", str(unrelated), "-b", "change/001-alpha", "main")
+    run_git(
+        repository, "worktree", "add", str(unrelated), "-b", "change/001-alpha", "main"
+    )
 
     closed_mapping = active_claim.to_mapping()
     closed_mapping["status"] = "closed"
@@ -387,7 +399,9 @@ def test_primary_claim_overrides_stale_copies_in_other_worktrees(tmp_path: Path)
     assert matches[0].status == "closed"
 
 
-def test_create_change_worktree_allows_local_first_initialization(tmp_path: Path) -> None:
+def test_create_change_worktree_allows_local_first_initialization(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -398,7 +412,9 @@ def test_create_change_worktree_allows_local_first_initialization(tmp_path: Path
         owned_paths=["src/**"],
     )
     scope = json.loads(
-        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(encoding="utf-8")
+        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert scope["schema_version"] == 4
     assert scope["complexity"] == "medium"
@@ -408,11 +424,15 @@ def test_create_change_worktree_allows_local_first_initialization(tmp_path: Path
     assert "work_management" not in scope
 
 
-def test_create_change_worktree_classifies_tree_equivalent_upstream_base(tmp_path: Path) -> None:
+def test_create_change_worktree_classifies_tree_equivalent_upstream_base(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     tree = run_git(repository, "rev-parse", "main^{tree}").stdout.strip()
-    upstream = run_git(repository, "commit-tree", tree, "-m", "equivalent upstream").stdout.strip()
+    upstream = run_git(
+        repository, "commit-tree", tree, "-m", "equivalent upstream"
+    ).stdout.strip()
 
     target = module.create_change_worktree(
         repository,
@@ -424,7 +444,9 @@ def test_create_change_worktree_classifies_tree_equivalent_upstream_base(tmp_pat
         upstream_ref="refs/remotes/origin/main",
     )
     scope = json.loads(
-        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(encoding="utf-8")
+        (target / ".work" / "changes" / "001-alpha" / "scope.json").read_text(
+            encoding="utf-8"
+        )
     )
 
     assert scope["base_evidence"]["relation"] == "tree_equivalent"
@@ -433,7 +455,9 @@ def test_create_change_worktree_classifies_tree_equivalent_upstream_base(tmp_pat
     assert scope["base_evidence"]["evidence_source"] == "provided"
 
 
-def test_create_change_worktree_emits_schema_v4_work_management_evidence(tmp_path: Path) -> None:
+def test_create_change_worktree_emits_schema_v4_work_management_evidence(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -456,7 +480,9 @@ def test_create_change_worktree_emits_schema_v4_work_management_evidence(tmp_pat
     assert scope["work_management"] == work_management_evidence()
 
 
-def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: Path) -> None:
+def test_create_change_worktree_uses_standard_location_and_artifacts(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -482,7 +508,9 @@ def test_create_change_worktree_uses_standard_location_and_artifacts(tmp_path: P
         assert (target / ".work" / "changes" / "001-alpha" / name).is_file()
 
 
-def test_create_small_change_with_risk_trigger_uses_compact_record(tmp_path: Path) -> None:
+def test_create_small_change_with_risk_trigger_uses_compact_record(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -506,7 +534,9 @@ def test_create_small_change_with_risk_trigger_uses_compact_record(tmp_path: Pat
     assert not (change_root / "closeout.md").exists()
 
 
-def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(tmp_path: Path) -> None:
+def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
 
@@ -525,7 +555,9 @@ def test_create_change_worktree_writes_all_change_artifacts_with_lf_bytes(tmp_pa
         assert b"\r\n" not in content
 
 
-def test_create_change_worktree_rejects_duplicate_active_outcome(tmp_path: Path) -> None:
+def test_create_change_worktree_rejects_duplicate_active_outcome(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     create_registered_change(
@@ -546,11 +578,15 @@ def test_create_change_worktree_rejects_duplicate_active_outcome(tmp_path: Path)
         )
 
 
-def test_create_change_worktree_rejects_existing_unregistered_worktree(tmp_path: Path) -> None:
+def test_create_change_worktree_rejects_existing_unregistered_worktree(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     existing = repository / ".work" / "worktrees" / "001-alpha"
-    run_git(repository, "worktree", "add", str(existing), "-b", "change/001-alpha", "main")
+    run_git(
+        repository, "worktree", "add", str(existing), "-b", "change/001-alpha", "main"
+    )
 
     with pytest.raises(module.ClaimError, match="ACTIVE_CHANGE_CLAIM_MISSING"):
         create_registered_change(
@@ -562,7 +598,9 @@ def test_create_change_worktree_rejects_existing_unregistered_worktree(tmp_path:
         )
 
 
-def test_validate_repository_resolves_primary_root_from_linked_worktree(tmp_path: Path) -> None:
+def test_validate_repository_resolves_primary_root_from_linked_worktree(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     target = create_registered_change(
@@ -576,20 +614,28 @@ def test_validate_repository_resolves_primary_root_from_linked_worktree(tmp_path
 
     claims = module.validate_repository(target)
 
-    assert [item.change_id for item in claims if item.status == "active"] == ["001-alpha"]
+    assert [item.change_id for item in claims if item.status == "active"] == [
+        "001-alpha"
+    ]
 
 
-def test_validate_repository_rejects_unregistered_change_worktree(tmp_path: Path) -> None:
+def test_validate_repository_rejects_unregistered_change_worktree(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     target = repository / ".work" / "worktrees" / "001-alpha"
-    run_git(repository, "worktree", "add", str(target), "-b", "change/001-alpha", "main")
+    run_git(
+        repository, "worktree", "add", str(target), "-b", "change/001-alpha", "main"
+    )
 
     with pytest.raises(module.ClaimError, match="ACTIVE_CHANGE_CLAIM_MISSING"):
         module.validate_repository(repository)
 
 
-def test_validate_repository_can_skip_worktree_topology_for_isolated_ci(tmp_path: Path) -> None:
+def test_validate_repository_can_skip_worktree_topology_for_isolated_ci(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     change_root = repository / ".work" / "changes" / "001-alpha"
@@ -604,7 +650,9 @@ def test_validate_repository_can_skip_worktree_topology_for_isolated_ci(tmp_path
 
     claims = module.validate_repository(repository, require_active_worktrees=False)
 
-    assert [item.change_id for item in claims if item.status == "active"] == ["001-alpha"]
+    assert [item.change_id for item in claims if item.status == "active"] == [
+        "001-alpha"
+    ]
 
 
 def test_cleanup_refuses_dirty_worktree(tmp_path: Path) -> None:
@@ -647,13 +695,17 @@ def test_schema_v3_cleanup_derives_closed_state_after_verified_merge(
     module.cleanup_change_worktree(repository, "001-alpha")
 
     assert not target.exists()
-    assert not run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
+    assert not run_git(
+        repository, "branch", "--list", "change/001-alpha"
+    ).stdout.strip()
     claims = module.load_worktree_claims(repository)
     current = next(item for item in claims if item.change_id == "001-alpha")
     assert current.status == "closed"
 
 
-def test_legacy_schema_v2_cleanup_still_requires_explicit_closed_status(tmp_path: Path) -> None:
+def test_legacy_schema_v2_cleanup_still_requires_explicit_closed_status(
+    tmp_path: Path,
+) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)
     target = create_registered_change(
@@ -741,9 +793,13 @@ def test_cleanup_recovers_unregistered_long_path_remnant(
     assert result.recovered is True
     assert result.backup_path is not None
     assert result.backup_path.parent == tmp_path / ".backup"
-    assert (result.backup_path / "remnant.txt").read_text(encoding="utf-8") == "recoverable\n"
+    assert (result.backup_path / "remnant.txt").read_text(
+        encoding="utf-8"
+    ) == "recoverable\n"
     assert not target.exists()
-    assert not run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
+    assert not run_git(
+        repository, "branch", "--list", "change/001-alpha"
+    ).stdout.strip()
 
 
 def test_cleanup_does_not_move_or_delete_when_registration_remains(
@@ -783,3 +839,15 @@ def test_cleanup_does_not_move_or_delete_when_registration_remains(
     assert target.exists()
     assert run_git(repository, "branch", "--list", "change/001-alpha").stdout.strip()
     assert not (tmp_path / ".backup").exists()
+
+
+def test_schema_v4_classification_uses_repository_settings() -> None:
+    module = load_module()
+    settings_path = REPOSITORY_ROOT / "settings" / "change-governance.settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8-sig"))
+
+    assert module.COMPLEXITIES == frozenset(settings["complexities"])
+    assert module.RISK_TRIGGERS == frozenset(settings["risk_triggers"])
+    assert module.CHANGE_FILES_BY_COMPLEXITY["small"] == tuple(
+        settings["complexities"]["small"]["artifacts"]
+    )

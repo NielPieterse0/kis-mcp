@@ -77,6 +77,7 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
                 {
                     "id": "I_1",
                     "type": "ISSUE",
+                    "updatedAt": "2026-08-14T00:42:00Z",
                     "content": {
                         "title": "First issue",
                         "number": 7,
@@ -103,6 +104,7 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
     assert [option.name for option in inventory.fields[0].options] == ["Active", "Done"]
     assert inventory.items[0].kind is ProjectItemKind.ISSUE
     assert inventory.items[0].repository == "ExampleOwner/alpha"
+    assert inventory.items[0].revision == "2026-08-14T00:42:00Z"
     assert inventory.items[0].field_values[0].value == "Active"
 
     assert caller.calls == [
