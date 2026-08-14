@@ -454,6 +454,14 @@ def test_chatgpt_startup_drains_owned_process_output_live_and_retains_logs() -> 
     assert "logs = [ordered]@{" in content
 
 
+def test_chatgpt_startup_uses_runtime_canonical_policy_fingerprint() -> None:
+    content = _script("start-chatgpt.ps1")
+
+    assert "Get-FileHash -LiteralPath $PolicyPath" not in content
+    assert "$PolicyFingerprint = [string](& $Python -c" in content
+    assert "json.dumps(policy,sort_keys=True,separators=(',',':'))" in content
+
+
 def test_chatgpt_startup_emits_only_gateway_owned_readiness_fields() -> None:
     content = _script("start-chatgpt.ps1")
 
