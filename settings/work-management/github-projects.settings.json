@@ -25,6 +25,13 @@
       "display_name": "commodity"
     },
     {
+      "project_id": "import-isolate",
+      "local_root": "C:\\Projects\\import-isolate",
+      "repository": "NielPieterse0/import-isolate",
+      "backend_binding": "github-default",
+      "display_name": "import-isolate"
+    },
+    {
       "project_id": "kis-mcp",
       "local_root": "C:\\Projects\\kis-mcp",
       "repository": "NielPieterse0/kis-mcp",

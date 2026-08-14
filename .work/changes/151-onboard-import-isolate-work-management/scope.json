@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "151-onboard-import-isolate-work-management",
+  "status": "active",
+  "branch": "change/151-onboard-import-isolate-work-management",
+  "worktree": ".work/worktrees/151-onboard-import-isolate-work-management",
+  "base": "main",
+  "outcome": "Complete TASK-185 by adding import-isolate to the stable github-default Work Management managed-project set and reconciling current implementation documentation.",
+  "owned_paths": [
+    "settings/work-management/github-projects.settings.json",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/151-onboard-import-isolate-work-management/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "485851d06baa8b3979a7a6ae526ead95132921b2",
+    "local_tree": "ed7d2ef102189cb9bfc7b6defbe75cadd92c7dfc",
+    "upstream_sha": "485851d06baa8b3979a7a6ae526ead95132921b2",
+    "upstream_tree": "ed7d2ef102189cb9bfc7b6defbe75cadd92c7dfc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-185",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 185,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress"
+  }
+}
