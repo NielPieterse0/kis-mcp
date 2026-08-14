@@ -25,3 +25,15 @@ Keep Work Management current/resume and board reads available when a configured 
 ## Governance limitation
 
 Canonical `change-workflow new` is blocked by the unrelated pre-existing exclusive-path collision between active changes 140 and 145. This worktree uses the documented emergency manual-worktree exception from exact synchronized `main`; the limitation is recorded rather than treated as a pass.
+
+## Implementation and verification
+
+- `read_inventory` now canonicalizes requested item-field names against the authoritative `list_project_fields` result before calling `list_project_items`.
+- Unavailable names such as live `Created` are omitted; available names preserve provider-canonical spelling and request order.
+- Change 146's typed `field_not_found` retry remains intact for drift that occurs after field discovery.
+- Adapter and enhanced-tool regressions prove unavailable fields do not abort board/current-work reads and that the current Active claim remains selectable.
+- Affected verification: 222 tests passed across GitHub Projects provider, Project Management workflows, and Work Management suites.
+- Focused verification: 25 tests passed across adapter, enhanced tools, and board selection.
+- `git diff --check` and `change-workflow check` passed.
+- Ruff is unavailable in the locked environment and was not installed ad hoc.
+- Earlier Codex/NVIDIA advisory attempts failed before findings; the final NVIDIA code-quality review completed successfully with no findings after the affected tests were green.
