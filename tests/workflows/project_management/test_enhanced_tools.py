@@ -222,7 +222,8 @@ class _AdapterCaller:
             {"project": {"id": "PVT_1", "title": "KIS Work Management", "closed": False}},
             {
                 "fields": [
-                    {"id": "F_STATUS", "name": "Status", "data_type": "single_select"}
+                    {"id": "F_STATUS", "name": "Status", "data_type": "single_select"},
+                    {"id": "F_OWNER", "name": "Execution Owner", "data_type": "text"},
                 ],
                 "pageInfo": {"hasNextPage": False},
             },
@@ -238,21 +239,7 @@ class _AdapterCaller:
                             "repository": "NielPieterse0/kis-mcp",
                         },
                         "fields": [{"name": "Status", "value": {"name": "Todo"}}],
-                    }
-                ],
-                "pageInfo": {"hasNextPage": True, "nextCursor": "CURSOR_2"},
-            },
-            {
-                "error": "field_not_found",
-                "name": "Priority",
-                "candidates": [
-                    {"name": "Status", "data_type": "SINGLE_SELECT"},
-                    {"name": "Repository", "data_type": "REPOSITORY"},
-                    {"name": "Created", "data_type": "CREATED"},
-                ],
-            },
-            {
-                "items": [
+                    },
                     {
                         "id": "item-235",
                         "content_type": "Issue",
@@ -262,8 +249,11 @@ class _AdapterCaller:
                             "state": "OPEN",
                             "repository": "NielPieterse0/kis-mcp",
                         },
-                        "fields": [{"name": "Status", "value": {"name": "Todo"}}],
-                    }
+                        "fields": [
+                            {"name": "Status", "value": {"name": "Active"}},
+                            {"name": "Execution Owner", "value": "agent-1"},
+                        ],
+                    },
                 ],
                 "pageInfo": {"hasNextPage": False},
             },
@@ -295,7 +285,7 @@ class _AdapterService:
         )
 
 
-def test_board_data_recovers_from_unprovisioned_project_fields() -> None:
+def test_board_data_filters_unprovisioned_project_fields() -> None:
     server = FastMCP("root")
     service = _AdapterService()
     register_project_management_enhancement_tools(server, service)
@@ -309,11 +299,27 @@ def test_board_data_recovers_from_unprovisioned_project_fields() -> None:
 
     assert result is not None
     assert result["result"]["complete"] is True
-    assert [card["number"] for card in result["result"]["cards"]] == [234, 235]
-    assert result["result"]["cards"][1]["work_state"] == "todo"
-    page_two_error = service.caller.calls[-2][1]
-    page_two_retry = service.caller.calls[-1][1]
-    assert page_two_error["after"] == "CURSOR_2"
-    assert page_two_retry["after"] == "CURSOR_2"
-    assert "Priority" in page_two_error["field_names"]
-    assert page_two_retry["field_names"] == ["Status", "Created", "Repository"]
+    assert [card["number"] for card in result["result"]["cards"]] == [235, 234]
+    assert result["result"]["cards"][0]["work_state"] == "active"
+    item_call = service.caller.calls[-1][1]
+    assert item_call["field_names"] == ["Status", "Execution Owner"]
+    assert "Created" not in item_call["field_names"]
+    assert "Priority" not in item_call["field_names"]
+
+
+def test_current_work_filters_unprovisioned_project_fields() -> None:
+    server = FastMCP("root")
+    service = _AdapterService()
+    register_project_management_enhancement_tools(server, service)
+
+    result = asyncio.run(
+        server.call_tool(
+            "project_management_current_work",
+            {"project_id": "kis-mcp", "execution_owner": "agent-1", "item_limit": 20},
+        )
+    ).structured_content
+
+    assert result is not None
+    assert result["result"]["status"] == "current"
+    assert result["result"]["selected"]["number"] == 235
+    assert service.caller.calls[-1][1]["field_names"] == ["Status", "Execution Owner"]
