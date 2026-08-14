@@ -254,6 +254,7 @@ def test_remote_status_rejects_invalid_run_identity(tmp_path: Path) -> None:
         tmp_path,
         endpoint=selected.endpoint_url,
         run_id="../escape",
+        include_startup_evidence=False,
     )
 
     evidence = foundation_module.remote_mcp_runtime_evidence(
