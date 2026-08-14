@@ -41,7 +41,6 @@
     "src/kis_mcp/evidence/**",
     "src/kis_mcp/projects.py",
     "settings/projects.settings.json",
-    "**/.temp/kis/**",
     "policy/**"
   ],
   "dependencies": [
