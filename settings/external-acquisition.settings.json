@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "provider": {
+    "project_id": "import-isolate",
+    "script_relative_path": "scripts\\Invoke-RegisteredExternalAcquisition.ps1"
+  },
+  "limits": {
+    "max_parameters": 16,
+    "max_parameter_string_chars": 1024,
+    "max_request_json_chars": 16384
+  },
+  "authorizations": [
+    {
+      "project_id": "commodity",
+      "profiles": [
+        {
+          "profile_id": "firecrawl-web",
+          "approval_required": true,
+          "recipe_directory": "config\\acquisition-recipes",
+          "recipe_id_prefix": "commodity-",
+          "allowed_parameter_keys": [
+            "query"
+          ]
+        }
+      ]
+    }
+  ]
+}
