@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "change_id": "123-merge-queue-live-commissioning",
+  "status": "active",
+  "branch": "change/123-merge-queue-live-commissioning",
+  "worktree": ".work/worktrees/123-merge-queue-live-commissioning",
+  "base": "main",
+  "outcome": "Live-commission the KIS speculative landing queue by landing this governed commissioning slice through exact candidate CI and exact-base queue CAS.",
+  "owned_paths": [
+    ".work/changes/123-merge-queue-live-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "f8a9289fbd0ab4729bcf786bbbfdac16692aafeb",
+    "local_tree": "038b64fc71445ec54c9848ee7565ecf062794964",
+    "upstream_sha": "f8a9289fbd0ab4729bcf786bbbfdac16692aafeb",
+    "upstream_tree": "038b64fc71445ec54c9848ee7565ecf062794964",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-123",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 173,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
