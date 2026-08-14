@@ -11,6 +11,9 @@ from kis_mcp.projects import ProjectRegistry
 
 
 RuntimeToolsSource = Callable[[], Sequence[Any]]
+_PROJECT_REFERENCE_ARGUMENTS = {
+    "get_project": "id",
+}
 
 
 class SupabaseProjectRoutingError(RuntimeError):
@@ -45,6 +48,19 @@ def _project_id(arguments: Mapping[str, Any]) -> str | None:
         return None
     if not isinstance(value, str) or not value.strip():
         raise SupabaseProjectRoutingError("Supabase project_id must be a non-empty string")
+    return value.strip()
+
+
+def _project_reference(tool_name: str, arguments: Mapping[str, Any]) -> str | None:
+    project_id = _project_id(arguments)
+    if project_id is not None:
+        return project_id
+    argument_name = _PROJECT_REFERENCE_ARGUMENTS.get(tool_name)
+    if argument_name is None:
+        return None
+    value = arguments.get(argument_name)
+    if not isinstance(value, str) or not value.strip():
+        return None
     return value.strip()
 
 
@@ -94,8 +110,8 @@ class SupabaseProjectRouting:
         tool_name: str,
         arguments: Mapping[str, Any],
     ) -> bool:
-        project_id = _project_id(arguments)
-        if project_id is None or project_id not in self.registry.supabase_project_refs:
+        project_ref = _project_reference(tool_name, arguments)
+        if project_ref is None or project_ref not in self.registry.supabase_project_refs:
             return False
         tool = self._runtime_tool(tool_name)
         return tool is not None and _read_only_hint(tool)
