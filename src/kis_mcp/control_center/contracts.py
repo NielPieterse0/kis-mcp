@@ -1,9 +1,19 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from kis_mcp.runtime_observability import RuntimeObservabilitySnapshot
+
+
+def _unavailable_work_board() -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "status": "unavailable",
+        "reason": "no_authoritative_board_read_observed_in_process",
+        "authority": "configured_work_management_backend",
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,10 +157,7 @@ class ControlCenterSnapshot:
     actions: tuple[AvailableAction, ...]
     verification: VerificationSummary
     diagnostics: tuple[Diagnostic, ...]
+    work_board: Mapping[str, Any] = field(default_factory=_unavailable_work_board)
 
     def to_dict(self) -> dict[str, Any]:
-        document = asdict(self)
-        from kis_mcp.work_management.board_bridge import get_work_board_bridge
-
-        document["work_board"] = dict(get_work_board_bridge().current())
-        return document
+        return asdict(self)
