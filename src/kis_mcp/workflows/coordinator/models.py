@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Mapping
+from types import MappingProxyType
+from typing import Any, Mapping, Sequence
 
 
 _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -106,6 +107,110 @@ class ScopeRevisionRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class PlannerTask:
+    task_id: str
+    outcome: str
+    owned_paths: tuple[str, ...]
+    acceptance_checks: tuple[str, ...]
+    shared_paths: tuple[str, ...] = ()
+    dependencies: tuple[str, ...] = ()
+    required_capabilities: tuple[str, ...] = ()
+    integration_owner: str | None = None
+    kind: str = "task"
+
+    def __post_init__(self) -> None:
+        for label, value in (("task_id", self.task_id), ("outcome", self.outcome)):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{label} must be a non-empty string")
+        for field_name in (
+            "owned_paths",
+            "shared_paths",
+            "dependencies",
+            "acceptance_checks",
+            "required_capabilities",
+        ):
+            values = getattr(self, field_name)
+            if not isinstance(values, Sequence) or isinstance(
+                values, (str, bytes, bytearray)
+            ):
+                raise ValueError(f"{field_name} must be a sequence of strings")
+            object.__setattr__(self, field_name, tuple(values))
+        if self.kind not in {"change", "slice", "task"}:
+            raise ValueError("kind must be change, slice, or task")
+        for field_name, values in (
+            ("owned_paths", self.owned_paths),
+            ("shared_paths", self.shared_paths),
+            ("dependencies", self.dependencies),
+            ("acceptance_checks", self.acceptance_checks),
+            ("required_capabilities", self.required_capabilities),
+        ):
+            if len(set(values)) != len(values) or any(
+                not isinstance(item, str) or not item.strip() for item in values
+            ):
+                raise ValueError(f"{field_name} must contain unique non-empty strings")
+        if not self.owned_paths and not self.shared_paths:
+            raise ValueError("planner task requires at least one owned or shared path")
+        if not self.acceptance_checks:
+            raise ValueError("planner task requires at least one acceptance check")
+        if self.integration_owner is not None and (
+            not isinstance(self.integration_owner, str) or not self.integration_owner.strip()
+        ):
+            raise ValueError("integration_owner must be a non-empty string when supplied")
+
+
+@dataclass(frozen=True, slots=True)
+class PlannerRequest:
+    project_id: str
+    change_id: str
+    work_id: str
+    slice_id: str
+    revision: int
+    exact_base: Mapping[str, str]
+    tasks: tuple[PlannerTask, ...]
+    verification_requirement_ids: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("project_id", self.project_id),
+            ("change_id", self.change_id),
+            ("work_id", self.work_id),
+            ("slice_id", self.slice_id),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{label} must be a non-empty string")
+        if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 1:
+            raise ValueError("revision must be a positive integer")
+        object.__setattr__(self, "exact_base", MappingProxyType(dict(self.exact_base)))
+        if not isinstance(self.tasks, Sequence) or isinstance(
+            self.tasks, (str, bytes, bytearray)
+        ):
+            raise ValueError("tasks must be a sequence of PlannerTask values")
+        object.__setattr__(self, "tasks", tuple(self.tasks))
+        if not isinstance(self.verification_requirement_ids, Sequence) or isinstance(
+            self.verification_requirement_ids, (str, bytes, bytearray)
+        ):
+            raise ValueError("verification_requirement_ids must be a sequence of strings")
+        object.__setattr__(
+            self,
+            "verification_requirement_ids",
+            tuple(self.verification_requirement_ids),
+        )
+        if not self.tasks:
+            raise ValueError("planner request requires at least one task")
+        if any(not isinstance(task, PlannerTask) for task in self.tasks):
+            raise ValueError("tasks must contain only PlannerTask values")
+        if len({task.task_id for task in self.tasks}) != len(self.tasks):
+            raise ValueError("planner task IDs must be unique")
+        if len(set(self.verification_requirement_ids)) != len(self.verification_requirement_ids):
+            raise ValueError("verification_requirement_ids must be unique")
+        if any(
+            not isinstance(item, str) or not item.strip()
+            for item in self.verification_requirement_ids
+        ):
+            raise ValueError("verification_requirement_ids must be non-empty strings")
+
+
+@dataclass(frozen=True, slots=True)
 class ReservationResult:
     reservation: Mapping[str, Any]
     work_packet_identity: Mapping[str, Any]
@@ -136,6 +241,8 @@ class ReservationResult:
 
 
 __all__ = [
+    "PlannerRequest",
+    "PlannerTask",
     "ReservationAdmissionError",
     "ReservationRequest",
     "ReservationResult",

@@ -60,7 +60,11 @@ def test_work_packet_freezes_authority_and_runtime_identity() -> None:
         "change_id": "150-parallel-agent-coordinator",
         "slice_id": "247",
         "outcome": "Define executable coordinator contracts",
-        "scope": {"owned_paths": ["contracts/coordinator/**"], "shared_paths": []},
+        "scope": {
+            "owned_paths": ["contracts/coordinator/**"],
+            "shared_paths": [],
+            "integration_owner": None,
+        },
         "dependencies": [],
         "acceptance_checks": ["all coordinator schemas validate"],
         "exact_base": {"commit_sha": SHA, "tree_sha": SHA},
@@ -75,6 +79,8 @@ def test_work_packet_freezes_authority_and_runtime_identity() -> None:
             "binding_fingerprint": "d" * 64,
         },
         "verification_requirement_ids": ["coordinator-contract-tests"],
+        "required_handoff_fields": ["packet_id"],
+        "assignment": {"generation": 1, "key": "opaque-assignment-key"},
         "issued_at": "2026-08-14T19:45:00Z",
     }
     assert _errors("work-packet", payload) == []

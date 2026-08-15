@@ -8,7 +8,8 @@
     "schema_version", "contract", "packet_id", "work_id", "project_id",
     "change_id", "slice_id", "outcome", "scope", "dependencies",
     "acceptance_checks", "exact_base", "authority", "runtime_binding",
-    "verification_requirement_ids", "issued_at"
+    "verification_requirement_ids", "required_handoff_fields", "assignment",
+    "issued_at"
   ],
   "properties": {
     "schema_version": {"const": 1},
@@ -26,6 +27,8 @@
     "authority": {"$ref": "#/$defs/authority"},
     "runtime_binding": {"$ref": "#/$defs/runtimeBindingReference"},
     "verification_requirement_ids": {"$ref": "#/$defs/strings"},
+    "required_handoff_fields": {"$ref": "#/$defs/nonEmptyStrings"},
+    "assignment": {"$ref": "#/$defs/assignment"},
     "issued_at": {"type": "string", "format": "date-time"}
   },
   "$defs": {
@@ -49,10 +52,11 @@
     },
     "scope": {
       "type": "object", "additionalProperties": false,
-      "required": ["owned_paths", "shared_paths"],
+      "required": ["owned_paths", "shared_paths", "integration_owner"],
       "properties": {
         "owned_paths": {"$ref": "#/$defs/strings"},
-        "shared_paths": {"$ref": "#/$defs/strings"}
+        "shared_paths": {"$ref": "#/$defs/strings"},
+        "integration_owner": {"type": ["string", "null"], "minLength": 1}
       }
     },
     "authority": {
@@ -71,6 +75,14 @@
       "properties": {
         "binding_id": {"$ref": "#/$defs/nonEmpty"},
         "binding_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "assignment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["generation", "key"],
+      "properties": {
+        "generation": {"type": "integer", "minimum": 1},
+        "key": {"$ref": "#/$defs/nonEmpty"}
       }
     }
   }

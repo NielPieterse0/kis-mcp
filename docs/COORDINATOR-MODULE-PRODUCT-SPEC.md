@@ -152,7 +152,7 @@ No implemented slice grants an exception to this dependency chain: the remaining
 
 Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
 
-## Cumulative implementation status through Slice 3
+## Cumulative implementation status through Slice 4
 
 Implemented by #247:
 
@@ -182,13 +182,22 @@ Implemented by #249 on the same parent branch:
 - valid scope repair of an intersecting degraded claim when the resulting global claim set is conflict-free;
 - a Windows-safe shared admission-lock initialization path used by both reservation and authority transitions.
 
-Slices 2 and 3 expose no public MCP coordinator tool and do not treat tool discovery or transport connectivity as authority. Every coordinator instance for one repository must share the same canonical authority state root.
+Implemented by #250 on the same parent branch:
+
+- a deterministic read-only planner that validates dependency endpoints/cycles and rejects unresolved exclusive ownership or ambiguous shared-hotspot ownership;
+- canonical dependency DAG output with ready-frontier, sequencing/integration edges, explicit hotspot evidence, and bounded recommended concurrency;
+- exact runtime/capability resolution through injected discovery evidence, recording worker, runtime, tool, protocol, interface, endpoint, binding, versions/revisions, capabilities, observation time, and an immutable binding fingerprint;
+- runtime binding contracts that structurally fix `grants_mutation_authority=false`, so registry/tool discovery remains advisory rather than an authority source;
+- bounded work-packet issuance that freezes Slice 3 reservation/revision/lease/fence authority, exact base, scope, dependencies, acceptance checks, verification requirements, runtime binding, and required handoff fields;
+- stable packet identity plus generation-1 opaque assignment-key issuance, with only the SHA-256 key digest retained in durable coordinator evidence;
+- generated packet/runtime-binding state constrained to the configured coordinator state root inside the project boundary.
+
+Slices 2 through 4 expose no public MCP coordinator tool and do not treat tool discovery or transport connectivity as authority. Every coordinator instance for one repository must share the same canonical authority state root.
 
 Not yet implemented:
 
-- #250 dependency compilation, actual work-packet production, runtime/capability resolution, assignment keys, or agent selection;
-- #251 durable worker process/session lifecycle and MCP worker execution;
-- #252 reconciliation execution, verification derivation, integration queue, PR/merge, or cleanup coordination;
+- #251 durable worker process/session lifecycle, retry/resume, assignment-key reassignment semantics, and MCP worker execution;
+- #252 handoff/assignment-key reconciliation, verification derivation, integration queue, PR/merge, or cleanup coordination;
 - #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
 
 Any current-product claim for those remaining behaviors must wait for its owning later slice and fresh verification evidence.
