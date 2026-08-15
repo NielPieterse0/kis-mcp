@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from kis_mcp.discover.change_inspection_contracts import InspectChangeRequest
+from kis_mcp.discover.change_service import InspectChangeService
 from kis_mcp.discover.change_targets import build_target_arguments, parse_name_status
 from kis_mcp.discover.git_change_reader import GitChangeReader
 from kis_mcp.discover.read_authority import ReadAuthority
@@ -166,6 +167,153 @@ def test_reader_inspects_commit_range_and_branch_targets(
     assert [item.path for item in branch.changes] == expected
     assert commit.diagnostics == comparison.diagnostics == branch.diagnostics == ()
     assert commit.repository_root == str(project_root)
+
+
+def test_working_tree_inspection_rejects_inventory_fingerprint_race(
+    project_root: Path,
+    discover_settings,
+    monkeypatch,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("before\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    tracked.write_text("after\n", encoding="utf-8")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    original = reader._git.inspect_local_changes
+    calls = 0
+
+    def racing_inventory(path: str):
+        nonlocal calls
+        calls += 1
+        inventory = original(path)
+        if calls == 2:
+            (project_root / "late.txt").write_text("late\n", encoding="utf-8")
+        return inventory
+
+    monkeypatch.setattr(reader._git, "inspect_local_changes", racing_inventory)
+
+    result = reader.inspect_local_changes(str(project_root))
+
+    assert result.source_fingerprint is None
+    assert any(
+        item["code"] == "CHANGE_SOURCE_CHANGED_DURING_INSPECTION"
+        for item in result.diagnostics
+    )
+
+
+def test_staged_inspection_rejects_inventory_fingerprint_race(
+    project_root: Path,
+    discover_settings,
+    monkeypatch,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("before\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    tracked.write_text("after\n", encoding="utf-8")
+    _git(project_root, "add", "tracked.txt")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    original_run = reader._git._run
+    raced = False
+
+    def racing_run(root: Path, arguments: tuple[str, ...], deadline: float):
+        nonlocal raced
+        result = original_run(root, arguments, deadline)
+        if not raced and "--name-status" in arguments and "--cached" in arguments:
+            raced = True
+            late = project_root / "late.txt"
+            late.write_text("late\n", encoding="utf-8")
+            _git(project_root, "add", "late.txt")
+        return result
+
+    monkeypatch.setattr(reader._git, "_run", racing_run)
+
+    result = reader.inspect_change_target(
+        InspectChangeRequest(path=str(project_root), source="staged")
+    )
+
+    assert result.source_fingerprint is None
+    assert result.diagnostics[0]["code"] == "CHANGE_SOURCE_CHANGED_DURING_INSPECTION"
+
+
+def test_reader_source_fingerprint_changes_when_content_changes_at_same_path(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("before\n", encoding="utf-8")
+    _commit(project_root, "initial")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+
+    tracked.write_text("after-one\n", encoding="utf-8")
+    first = reader.inspect_local_changes(str(project_root))
+    tracked.write_text("after-two\n", encoding="utf-8")
+    second = reader.inspect_local_changes(str(project_root))
+
+    assert [item.path for item in first.changes] == ["tracked.txt"]
+    assert [item.path for item in second.changes] == ["tracked.txt"]
+    assert first.source_fingerprint is not None
+    assert second.source_fingerprint is not None
+    assert first.source_fingerprint != second.source_fingerprint
+
+
+def test_reader_resolves_movable_target_refs_into_source_fingerprint(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    _git(project_root, "switch", "-c", "feature")
+    tracked.write_text("one\n", encoding="utf-8")
+    _commit(project_root, "one")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    request = InspectChangeRequest(
+        path=str(project_root),
+        source="branch",
+        base_ref="main",
+        head_ref="feature",
+    )
+    first = reader.inspect_change_target(request)
+    first_response = InspectChangeService(reader).inspect(request)
+
+    tracked.write_text("two\n", encoding="utf-8")
+    _commit(project_root, "two")
+    second = reader.inspect_change_target(request)
+    second_response = InspectChangeService(reader).inspect(request)
+
+    assert [item.path for item in first.changes] == ["tracked.txt"]
+    assert [item.path for item in second.changes] == ["tracked.txt"]
+    assert first.source_fingerprint != second.source_fingerprint
+    assert first_response.change.fingerprint == first.source_fingerprint
+    assert second_response.change.fingerprint == second.source_fingerprint
 
 
 def test_reader_inspects_staged_target_only(

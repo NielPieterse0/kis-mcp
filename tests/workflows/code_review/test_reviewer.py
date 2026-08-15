@@ -4,20 +4,53 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 from kis_mcp.providers.nvidia import NvidiaNimError, nvidia_settings_from_mapping
 from kis_mcp.tools.codex_cli import CodexCliError, CodexSettings
+from kis_mcp.workflows.code_review.contracts import ReviewEvidence
 from kis_mcp.workflows.code_review.reviewer import CodeReviewAgent
 from kis_mcp.workflows.code_review.settings import AgentSettings
 
 
 class FakeCollector:
-    def __init__(self, evidence: str = "bounded evidence") -> None:
+    def __init__(self, evidence: str = "bounded evidence", *, complete: bool = True) -> None:
         self.evidence = evidence
+        self.complete = complete
         self.paths: list[Path] = []
+        self.requests: list[dict[str, object]] = []
 
-    def collect(self, path: Path) -> str:
+    def collect(
+        self,
+        path: Path,
+        *,
+        source: str = "working_tree",
+        commit_ref: str | None = None,
+        base_ref: str | None = None,
+        head_ref: str | None = None,
+    ) -> ReviewEvidence:
         self.paths.append(path)
-        return self.evidence
+        self.requests.append(
+            {
+                "source": source,
+                "commit_ref": commit_ref,
+                "base_ref": base_ref,
+                "head_ref": head_ref,
+            }
+        )
+        return ReviewEvidence(
+            content=self.evidence,
+            source=source,
+            source_fingerprint="a" * 64,
+            changed_files=("src/example.py",),
+            included_files=("src/example.py",) if self.complete else (),
+            omitted_files=() if self.complete else ("src/example.py",),
+            complete=self.complete,
+            commit_ref=commit_ref,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            diagnostics=() if self.complete else ("AGENT_EVIDENCE_FILES_OMITTED",),
+        )
 
 
 class FakeBackend:
@@ -25,13 +58,19 @@ class FakeBackend:
         self.name = name
         self._available = available
         self.output = output
-        self.calls: list[tuple[Path, str]] = []
+        self.calls: list[tuple[Path, str, float | None]] = []
 
     def available(self) -> bool:
         return self._available
 
-    def review(self, project_path: Path, prompt: str) -> str:
-        self.calls.append((project_path, prompt))
+    def review(
+        self,
+        project_path: Path,
+        prompt: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        self.calls.append((project_path, prompt, timeout_seconds))
         if isinstance(self.output, Exception):
             raise self.output
         return self.output
@@ -40,11 +79,18 @@ class FakeBackend:
 class FakeNvidiaBackend(FakeBackend):
     def __init__(self, *, available: bool = True, output: str = "") -> None:
         super().__init__("nvidia-nim", available=available, output=output)
-        self.model_calls: list[tuple[Path, str, str]] = []
+        self.model_calls: list[tuple[Path, str, str, float | None]] = []
         self.benchmark_calls: list[tuple[str, str]] = []
 
-    def review_with_model(self, project_path: Path, prompt: str, model_profile: str) -> str:
-        self.model_calls.append((project_path, prompt, model_profile))
+    def review_with_model(
+        self,
+        project_path: Path,
+        prompt: str,
+        model_profile: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        self.model_calls.append((project_path, prompt, model_profile, timeout_seconds))
         if isinstance(self.output, Exception):
             raise self.output
         return self.output
@@ -60,8 +106,8 @@ class SequenceBackend:
     def __init__(self, name: str, outcomes: list[str | Exception]) -> None:
         self.name = name
         self.outcomes = list(outcomes)
-        self.calls: list[tuple[Path, str]] = []
-        self.model_calls: list[tuple[Path, str, str]] = []
+        self.calls: list[tuple[Path, str, float | None]] = []
+        self.model_calls: list[tuple[Path, str, str, float | None]] = []
 
     def available(self) -> bool:
         return True
@@ -72,12 +118,25 @@ class SequenceBackend:
             raise outcome
         return outcome
 
-    def review(self, project_path: Path, prompt: str) -> str:
-        self.calls.append((project_path, prompt))
+    def review(
+        self,
+        project_path: Path,
+        prompt: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        self.calls.append((project_path, prompt, timeout_seconds))
         return self._next()
 
-    def review_with_model(self, project_path: Path, prompt: str, model_profile: str) -> str:
-        self.model_calls.append((project_path, prompt, model_profile))
+    def review_with_model(
+        self,
+        project_path: Path,
+        prompt: str,
+        model_profile: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        self.model_calls.append((project_path, prompt, model_profile, timeout_seconds))
         return self._next()
 
 
@@ -142,6 +201,7 @@ def _settings() -> AgentSettings:
         max_evidence_chars=120000,
         max_output_chars=30000,
         max_backend_attempts=2,
+        review_deadline_seconds=120,
         nvidia=_nvidia_settings(),
         codex=CodexSettings(
             enabled=True,
@@ -298,7 +358,7 @@ def test_agent_uses_default_super_model_and_returns_provenance(tmp_path: Path) -
 
 
 def test_agent_explicit_model_without_backend_forces_nvidia(tmp_path: Path) -> None:
-    nvidia = FakeNvidiaBackend(output="nano review")
+    nvidia = FakeNvidiaBackend(output=_structured_output())
     codex = FakeBackend("codex-cli", output="unused")
     agent = CodeReviewAgent(
         _settings(), collector=FakeCollector(), backends={"nvidia-nim": nvidia, "codex-cli": codex}
@@ -306,7 +366,7 @@ def test_agent_explicit_model_without_backend_forces_nvidia(tmp_path: Path) -> N
 
     result = agent.review(tmp_path, model="nano")
 
-    assert result["status"] == "completed_unstructured"
+    assert result["status"] == "completed"
     assert result["backend"] == "nvidia-nim"
     assert result["model_profile"] == "nano"
     assert result["model"].endswith("a3b-reasoning")
@@ -315,7 +375,7 @@ def test_agent_explicit_model_without_backend_forces_nvidia(tmp_path: Path) -> N
 
 
 def test_agent_explicit_ultra_backend_uses_ultra(tmp_path: Path) -> None:
-    nvidia = FakeNvidiaBackend(output="ultra review")
+    nvidia = FakeNvidiaBackend(output=_structured_output())
     agent = CodeReviewAgent(
         _settings(),
         collector=FakeCollector(),
@@ -386,10 +446,11 @@ def test_agent_falls_back_when_preferred_backend_is_unavailable_without_model(tm
 
     result = agent.review(tmp_path)
 
-    assert result["status"] == "completed_unstructured"
+    assert result["status"] == "failed"
     assert result["backend"] == "codex-cli"
-    assert result["summary"] == "plain review"
+    assert result["summary"] == "Review output was not a structured JSON object."
     assert result["diagnostics"] == ["AGENT_OUTPUT_NOT_STRUCTURED"]
+    assert result["manual_fallback"]["mode"] == "exact-diff"
     assert "model_profile" not in result
 
 
@@ -591,6 +652,29 @@ def test_agent_retries_codex_timeout_then_recovers(tmp_path: Path) -> None:
     }
 
 
+def test_agent_uses_implicit_fallback_after_invalid_preferred_backend_output(
+    tmp_path: Path,
+) -> None:
+    nvidia = FakeNvidiaBackend(output="not-json")
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": nvidia, "codex-cli": codex},
+    )
+
+    result = agent.review(tmp_path, review_type="architecture")
+
+    assert result["status"] == "completed"
+    assert result["backend"] == "codex-cli"
+    assert result["attempts"] == [
+        {"backend": "nvidia-nim", "attempt": 1, "status": "invalid"},
+        {"backend": "codex-cli", "attempt": 1, "status": "completed"},
+    ]
+    assert len(nvidia.model_calls) == 1
+    assert len(codex.calls) == 1
+
+
 def test_agent_dual_backend_failure_requires_manual_exact_diff_fallback(
     tmp_path: Path,
 ) -> None:
@@ -629,3 +713,128 @@ def test_agent_dual_backend_failure_requires_manual_exact_diff_fallback(
     }
     assert "timed out" not in str(result)
     assert "process failed" not in str(result)
+
+
+def test_agent_binds_commit_source_and_returns_kis_owned_provenance(tmp_path: Path) -> None:
+    collector = FakeCollector()
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=collector,
+        backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+    )
+
+    result = agent.review(
+        tmp_path,
+        backend="codex-cli",
+        review_type="api-contracts",
+        source="commit",
+        commit_ref="abc123",
+    )
+
+    assert result["status"] == "completed"
+    assert result["source"] == "commit"
+    assert result["source_fingerprint"] == "a" * 64
+    assert result["commit_ref"] == "abc123"
+    assert result["evidence_complete"] is True
+    assert collector.requests == [
+        {"source": "commit", "commit_ref": "abc123", "base_ref": None, "head_ref": None}
+    ]
+
+
+def test_agent_rejects_incomplete_evidence_without_invoking_backend(tmp_path: Path) -> None:
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(complete=False),
+        backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli")
+
+    assert result["status"] == "incomplete"
+    assert result["evidence_complete"] is False
+    assert result["diagnostics"] == ["AGENT_EVIDENCE_FILES_OMITTED", "AGENT_EVIDENCE_INCOMPLETE"]
+    assert codex.calls == []
+
+
+def test_agent_rejects_empty_and_schema_invalid_review_output(tmp_path: Path) -> None:
+    for output, diagnostic in (
+        ("", "AGENT_OUTPUT_NOT_STRUCTURED"),
+        (json.dumps({"summary": "", "findings": [], "unknowns": []}), "AGENT_OUTPUT_CONTRACT_INVALID"),
+        (json.dumps({"summary": "ok", "findings": [{}], "unknowns": []}), "AGENT_OUTPUT_CONTRACT_INVALID"),
+    ):
+        codex = FakeBackend("codex-cli", output=output)
+        agent = CodeReviewAgent(
+            _settings(),
+            collector=FakeCollector(),
+            backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+        )
+        result = agent.review(tmp_path, backend="codex-cli")
+        assert result["status"] == "failed"
+        assert result["diagnostics"] == [diagnostic]
+        assert result["manual_fallback"]["required"] is True
+
+
+def test_agent_stops_retrying_when_total_review_deadline_is_exhausted(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    clock = iter((0.0, 0.0, 0.0, 2.0))
+    monkeypatch.setattr("kis_mcp.workflows.code_review.reviewer.time.monotonic", lambda: next(clock))
+    codex = SequenceBackend(
+        "codex-cli",
+        [CodexCliError("CODEX_CLI_TIMEOUT", "timed out", {"timeout_seconds": 1}), _structured_output()],
+    )
+    agent = CodeReviewAgent(
+        replace(_settings(), review_deadline_seconds=1),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli")
+
+    assert result["status"] == "failed"
+    assert result["diagnostics"] == ["AGENT_REVIEW_DEADLINE_EXCEEDED"]
+    assert len(codex.calls) == 1
+    assert codex.calls[0][2] == 1.0
+    assert result["manual_fallback"]["reason"] == "review_deadline_exceeded"
+
+
+def test_agent_caps_configured_deadline_with_tighter_caller_budget(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    clock = iter((0.0, 0.0, 0.0))
+    monkeypatch.setattr("kis_mcp.workflows.code_review.reviewer.time.monotonic", lambda: next(clock))
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+    )
+
+    result = agent.review(
+        tmp_path,
+        backend="codex-cli",
+        deadline_seconds=2.5,
+    )
+
+    assert result["status"] == "completed"
+    assert codex.calls[0][2] == 2.5
+
+
+@pytest.mark.parametrize("value", [0, -1, True, "2"])
+def test_agent_rejects_invalid_caller_deadline(tmp_path: Path, value: object) -> None:
+    codex = FakeBackend("codex-cli", output=_structured_output())
+    agent = CodeReviewAgent(
+        _settings(),
+        collector=FakeCollector(),
+        backends={"nvidia-nim": FakeNvidiaBackend(), "codex-cli": codex},
+    )
+
+    result = agent.review(tmp_path, backend="codex-cli", deadline_seconds=value)  # type: ignore[arg-type]
+
+    assert result["status"] == "invalid_request"
+    assert result["diagnostics"] == ["AGENT_REVIEW_DEADLINE_INVALID"]
+    assert codex.calls == []

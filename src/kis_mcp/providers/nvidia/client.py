@@ -8,7 +8,7 @@ from urllib.request import Request, urlopen
 
 from .settings import NvidiaSettings, NvidiaSettingsError
 
-RequestSender = Callable[[Request, int], bytes]
+RequestSender = Callable[[Request, float], bytes]
 _RETRYABLE_HTTP_STATUSES = frozenset({408, 425, 429, 500, 502, 503, 504})
 
 
@@ -19,7 +19,7 @@ class NvidiaNimError(RuntimeError):
         self.details = dict(details or {})
 
 
-def _default_sender(request: Request, timeout: int) -> bytes:
+def _default_sender(request: Request, timeout: float) -> bytes:
     with urlopen(request, timeout=timeout) as response:  # noqa: S310 - approved fixed HTTPS provider URL
         return response.read()
 
@@ -45,15 +45,30 @@ class NvidiaNimClient:
     def available(self) -> bool:
         return True
 
-    def review(self, project_path: object, prompt: str) -> str:
-        del project_path
-        return self.complete(prompt)
-
-    def review_with_model(
-        self, project_path: object, prompt: str, model_profile: str
+    def review(
+        self,
+        project_path: object,
+        prompt: str,
+        *,
+        timeout_seconds: float | None = None,
     ) -> str:
         del project_path
-        return self.complete(prompt, model_profile=model_profile)
+        return self.complete(prompt, timeout_seconds=timeout_seconds)
+
+    def review_with_model(
+        self,
+        project_path: object,
+        prompt: str,
+        model_profile: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        del project_path
+        return self.complete(
+            prompt,
+            model_profile=model_profile,
+            timeout_seconds=timeout_seconds,
+        )
 
     def benchmark_model(self, prompt: str, model_alias: str) -> str:
         """Run one allowlisted benchmark candidate with a portable minimal payload."""
@@ -78,7 +93,13 @@ class NvidiaNimClient:
         }
         return self._send_payload(payload, timeout=self.settings.benchmark.timeout_seconds)
 
-    def complete(self, prompt: str, model_profile: str | None = None) -> str:
+    def complete(
+        self,
+        prompt: str,
+        model_profile: str | None = None,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
         if not isinstance(prompt, str) or not prompt.strip():
             raise NvidiaNimError("NVIDIA_NIM_PROMPT_INVALID", "Prompt must be a non-empty string")
         selected = model_profile or self.settings.default_profile
@@ -99,9 +120,12 @@ class NvidiaNimClient:
             "chat_template_kwargs": {"enable_thinking": profile.enable_thinking},
             "stream": False,
         }
-        return self._send_payload(payload, timeout=self.settings.timeout_seconds)
+        timeout = float(self.settings.timeout_seconds)
+        if timeout_seconds is not None:
+            timeout = min(timeout, max(0.001, float(timeout_seconds)))
+        return self._send_payload(payload, timeout=timeout)
 
-    def _send_payload(self, payload: dict[str, Any], *, timeout: int) -> str:
+    def _send_payload(self, payload: dict[str, Any], *, timeout: float) -> str:
         request = Request(
             f"{self.settings.base_url}/chat/completions",
             data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),

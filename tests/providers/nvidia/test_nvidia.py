@@ -154,6 +154,19 @@ def test_nvidia_client_sends_exact_profile_payload(
     assert result == "review output"
 
 
+def test_nvidia_client_honors_tighter_per_review_timeout_budget() -> None:
+    captured: dict[str, object] = {}
+
+    def send(request: Request, timeout: float) -> bytes:
+        captured["timeout"] = timeout
+        return b'{"choices":[{"message":{"content":"ok"}}]}'
+
+    client = NvidiaNimClient(_settings(), api_key="secret-value", sender=send)
+
+    assert client.complete("prompt", timeout_seconds=3.5) == "ok"
+    assert captured["timeout"] == 3.5
+
+
 def test_nvidia_client_uses_default_profile_when_omitted() -> None:
     captured: dict[str, object] = {}
 

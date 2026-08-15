@@ -30,6 +30,7 @@ _ROOT_KEYS = frozenset(
         "max_evidence_chars",
         "max_output_chars",
         "max_backend_attempts",
+        "review_deadline_seconds",
         "nvidia",
         "codex",
     }
@@ -85,6 +86,7 @@ class AgentSettings:
     max_evidence_chars: int
     max_output_chars: int
     max_backend_attempts: int
+    review_deadline_seconds: int
     nvidia: NvidiaSettings
     codex: CodexSettings
 
@@ -101,6 +103,7 @@ def disabled_agent_settings(repository_root: Path | None = None) -> AgentSetting
         max_evidence_chars=120000,
         max_output_chars=30000,
         max_backend_attempts=2,
+        review_deadline_seconds=120,
         nvidia=disabled_nvidia_settings(),
         codex=disabled_codex_settings(root),
     )
@@ -147,6 +150,7 @@ def load_agent_settings(repository_root: Path | None = None) -> AgentSettings:
         max_evidence_chars=_int(document["max_evidence_chars"], "max_evidence_chars", 1000, 500000),
         max_output_chars=_int(document["max_output_chars"], "max_output_chars", 1000, 100000),
         max_backend_attempts=_int(document["max_backend_attempts"], "max_backend_attempts", 1, 3),
+        review_deadline_seconds=_int(document["review_deadline_seconds"], "review_deadline_seconds", 1, 300),
         nvidia=nvidia,
         codex=codex,
     )

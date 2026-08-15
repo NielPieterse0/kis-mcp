@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from .contracts import EvidenceCollector, ReviewBackend
+from .contracts import EvidenceCollector, ReviewBackend, ReviewEvidence
 from .settings import AgentSettings
 
 _REVIEW_PURPOSES = {
@@ -92,7 +92,14 @@ class UnavailableReviewBackend:
     def available(self) -> bool:
         return False
 
-    def review(self, project_path: Path, prompt: str) -> str:
+    def review(
+        self,
+        project_path: Path,
+        prompt: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
+        del project_path, prompt, timeout_seconds
         raise RuntimeError(f"Backend unavailable: {self.name}")
 
 
@@ -112,18 +119,44 @@ def _json_object(text: str) -> dict[str, Any] | None:
 
 
 def _finding(value: Any) -> dict[str, Any] | None:
-    if not isinstance(value, dict):
+    required = {"severity", "path", "line", "claim", "evidence", "recommendation", "confidence"}
+    if not isinstance(value, dict) or set(value) != required:
         return None
-    claim = value.get("claim")
-    if not isinstance(claim, str) or not claim.strip():
-        return None
-    normalized: dict[str, Any] = {"claim": claim.strip()}
-    for key in ("severity", "path", "evidence", "recommendation", "confidence"):
+    normalized: dict[str, Any] = {}
+    for key in ("severity", "path", "claim", "evidence", "recommendation", "confidence"):
         item = value.get(key)
-        normalized[key] = item.strip() if isinstance(item, str) else ""
+        if not isinstance(item, str) or not item.strip():
+            return None
+        normalized[key] = item.strip()
     line = value.get("line")
-    normalized["line"] = line if isinstance(line, int) and not isinstance(line, bool) else None
+    if line is not None and (not isinstance(line, int) or isinstance(line, bool) or line < 1):
+        return None
+    normalized["line"] = line
     return normalized
+
+
+def _review_document(document: dict[str, Any]) -> tuple[str, list[dict[str, Any]], list[str]] | None:
+    if set(document) != {"summary", "findings", "unknowns"}:
+        return None
+    summary = document.get("summary")
+    findings_value = document.get("findings")
+    unknowns_value = document.get("unknowns")
+    if not isinstance(summary, str) or not summary.strip():
+        return None
+    if not isinstance(findings_value, list) or not isinstance(unknowns_value, list):
+        return None
+    findings: list[dict[str, Any]] = []
+    for value in findings_value:
+        normalized = _finding(value)
+        if normalized is None:
+            return None
+        findings.append(normalized)
+    unknowns: list[str] = []
+    for value in unknowns_value:
+        if not isinstance(value, str) or not value.strip():
+            return None
+        unknowns.append(value.strip())
+    return summary.strip(), findings, unknowns
 
 
 def _model_provenance(
@@ -163,12 +196,37 @@ def _failure_attempt(backend: str, attempt: int, exc: Exception) -> dict[str, An
     }
 
 
-def _manual_fallback(review_type: str) -> dict[str, Any]:
+def _manual_fallback(
+    review_type: str,
+    reason: str = "all_configured_backends_failed_or_unavailable",
+) -> dict[str, Any]:
     return {
         "required": True,
         "mode": "exact-diff",
         "review_type": review_type,
-        "reason": "all_configured_backends_failed_or_unavailable",
+        "reason": reason,
+    }
+
+
+def _deadline_result(
+    settings: AgentSettings,
+    review_type: str,
+    evidence: ReviewEvidence,
+    attempts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "agent_id": settings.agent_id,
+        "status": "failed",
+        "backend": None,
+        "review_type": review_type,
+        **evidence.provenance(),
+        "summary": "The review deadline was exhausted before a valid review completed.",
+        "findings": [],
+        "unknowns": [],
+        "diagnostics": ["AGENT_REVIEW_DEADLINE_EXCEEDED"],
+        "attempts": attempts,
+        "manual_fallback": _manual_fallback(review_type, "review_deadline_exceeded"),
     }
 
 
@@ -239,11 +297,12 @@ class CodeReviewAgent:
         extra = instructions.strip() if isinstance(instructions, str) else ""
         purpose = _REVIEW_PURPOSES[review_type]
         return (
-            "You are the kis-mcp code-reviewer agent. Review only the supplied current "
-            "working-tree evidence. Do not modify files, run mutating commands, commit, "
-            "merge, or spawn another agent. Return one JSON object with keys summary, "
-            "findings, and unknowns. Each finding must contain severity, path, line, "
-            "claim, evidence, recommendation, and confidence.\n\n"
+            "You are the kis-mcp code-reviewer agent. Review only the supplied source-bound "
+            "repository evidence. Do not modify files, run mutating commands, commit, merge, "
+            "or spawn another agent. Return exactly one JSON object with exactly the keys "
+            "summary, findings, and unknowns. summary must be a non-empty string; findings "
+            "and unknowns must be arrays. Each finding must contain exactly severity, path, "
+            "line, claim, evidence, recommendation, and confidence; line may be null.\n\n"
             f"{purpose}\n\n"
             f"Additional operator instructions:\n{extra or '[none]'}\n\n"
             f"Repository evidence:\n{evidence}"
@@ -255,40 +314,58 @@ class CodeReviewAgent:
         output: str,
         *,
         review_type: str,
+        evidence: ReviewEvidence,
         model_profile: str | None = None,
     ) -> dict[str, Any]:
-        diagnostics: list[str] = []
-        bounded = output
-        provenance = _model_provenance(self.settings, backend, model_profile)
-        if len(bounded) > self.settings.max_output_chars:
-            bounded = bounded[: self.settings.max_output_chars]
-            diagnostics.append("AGENT_OUTPUT_TRUNCATED")
-        document = _json_object(bounded)
-        if document is None:
-            diagnostics.append("AGENT_OUTPUT_NOT_STRUCTURED")
+        provenance = {
+            **evidence.provenance(),
+            **_model_provenance(self.settings, backend, model_profile),
+        }
+        if len(output) > self.settings.max_output_chars:
             return {
                 "schema_version": 1,
                 "agent_id": self.settings.agent_id,
-                "status": "completed_unstructured",
+                "status": "failed",
                 "backend": backend,
                 "review_type": review_type,
                 **provenance,
-                "summary": bounded.strip(),
+                "summary": "Review output exceeded the configured contract budget.",
                 "findings": [],
                 "unknowns": [],
-                "diagnostics": diagnostics,
+                "diagnostics": ["AGENT_OUTPUT_TRUNCATED"],
+                "manual_fallback": _manual_fallback(review_type, "review_output_truncated"),
             }
-        summary = document.get("summary")
-        findings_value = document.get("findings")
-        unknowns_value = document.get("unknowns")
-        findings = []
-        if isinstance(findings_value, list):
-            findings = [item for value in findings_value if (item := _finding(value))]
-        unknowns = (
-            [item.strip() for item in unknowns_value if isinstance(item, str) and item.strip()]
-            if isinstance(unknowns_value, list)
-            else []
-        )
+        document = _json_object(output)
+        if document is None:
+            return {
+                "schema_version": 1,
+                "agent_id": self.settings.agent_id,
+                "status": "failed",
+                "backend": backend,
+                "review_type": review_type,
+                **provenance,
+                "summary": "Review output was not a structured JSON object.",
+                "findings": [],
+                "unknowns": [],
+                "diagnostics": ["AGENT_OUTPUT_NOT_STRUCTURED"],
+                "manual_fallback": _manual_fallback(review_type, "review_output_not_structured"),
+            }
+        normalized = _review_document(document)
+        if normalized is None:
+            return {
+                "schema_version": 1,
+                "agent_id": self.settings.agent_id,
+                "status": "failed",
+                "backend": backend,
+                "review_type": review_type,
+                **provenance,
+                "summary": "Review output did not satisfy the strict result contract.",
+                "findings": [],
+                "unknowns": [],
+                "diagnostics": ["AGENT_OUTPUT_CONTRACT_INVALID"],
+                "manual_fallback": _manual_fallback(review_type, "review_output_contract_invalid"),
+            }
+        summary, findings, unknowns = normalized
         return {
             "schema_version": 1,
             "agent_id": self.settings.agent_id,
@@ -296,10 +373,10 @@ class CodeReviewAgent:
             "backend": backend,
             "review_type": review_type,
             **provenance,
-            "summary": summary.strip() if isinstance(summary, str) else "",
+            "summary": summary,
             "findings": findings,
             "unknowns": unknowns,
-            "diagnostics": diagnostics,
+            "diagnostics": [],
         }
 
     def _invalid_request(
@@ -468,7 +545,29 @@ class CodeReviewAgent:
         backend: str | None = None,
         model: str | None = None,
         review_type: str = "code-quality",
+        source: str = "working_tree",
+        commit_ref: str | None = None,
+        base_ref: str | None = None,
+        head_ref: str | None = None,
+        deadline_seconds: float | None = None,
     ) -> dict[str, Any]:
+        started = time.monotonic()
+        deadline_budget = float(self.settings.review_deadline_seconds)
+        if deadline_seconds is not None:
+            if (
+                isinstance(deadline_seconds, bool)
+                or not isinstance(deadline_seconds, (int, float))
+                or deadline_seconds <= 0
+            ):
+                return self._invalid_request(
+                    backend,
+                    model,
+                    "AGENT_REVIEW_DEADLINE_INVALID",
+                    "Review deadline override must be a positive number of seconds.",
+                    review_type if isinstance(review_type, str) else None,
+                )
+            deadline_budget = min(deadline_budget, float(deadline_seconds))
+        deadline = started + deadline_budget
         project = Path(path).resolve()
         if not self.settings.enabled:
             return {
@@ -514,43 +613,57 @@ class CodeReviewAgent:
                     "NVIDIA model profiles may be used only with the nvidia-nim backend.",
                 )
 
-        evidence = self._collector.collect(project)
-        prompt = self._prompt(evidence, instructions, review_type)
+        evidence = self._collector.collect(
+            project,
+            source=source,
+            commit_ref=commit_ref,
+            base_ref=base_ref,
+            head_ref=head_ref,
+        )
+        if not evidence.complete:
+            return {
+                "schema_version": 1,
+                "agent_id": self.settings.agent_id,
+                "status": "incomplete",
+                "backend": None,
+                "review_type": review_type,
+                **evidence.provenance(),
+                "summary": "Review evidence is incomplete; no backend was invoked.",
+                "findings": [],
+                "unknowns": [],
+                "diagnostics": [*evidence.diagnostics, "AGENT_EVIDENCE_INCOMPLETE"],
+                "attempts": [],
+                "manual_fallback": _manual_fallback(review_type, "review_evidence_incomplete"),
+            }
+        prompt = self._prompt(evidence.content, instructions, review_type)
         order = (
             ["nvidia-nim"]
             if model is not None
-            else (
-                [backend]
-                if backend is not None
-                else [
-                    item
-                    for item in (
-                        self.settings.preferred_backend,
-                        self.settings.fallback_backend,
-                    )
-                    if item is not None
-                ]
-            )
+            else ([backend] if backend is not None else [
+                item
+                for item in (self.settings.preferred_backend, self.settings.fallback_backend)
+                if item is not None
+            ])
         )
         attempts: list[dict[str, Any]] = []
         first_failure: tuple[str, str] | None = None
         first_unavailable: str | None = None
         for backend_name in order:
+            if time.monotonic() >= deadline:
+                return _deadline_result(self.settings, review_type, evidence, attempts)
             selected = self._backends.get(backend_name)
             if selected is None or not selected.available():
                 if first_unavailable is None:
                     first_unavailable = backend_name
-                attempts.append(
-                    {
-                        "backend": backend_name,
-                        "attempt": 1,
-                        "status": "unavailable",
-                        "code": "AGENT_BACKEND_UNAVAILABLE",
-                        "category": "availability",
-                        "retryable": False,
-                        "details": {},
-                    }
-                )
+                attempts.append({
+                    "backend": backend_name,
+                    "attempt": 1,
+                    "status": "unavailable",
+                    "code": "AGENT_BACKEND_UNAVAILABLE",
+                    "category": "availability",
+                    "retryable": False,
+                    "details": {},
+                })
                 continue
             selected_model = (
                 model or self.settings.nvidia.default_profile
@@ -558,21 +671,31 @@ class CodeReviewAgent:
                 else None
             )
             for attempt_number in range(1, self.settings.max_backend_attempts + 1):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return _deadline_result(self.settings, review_type, evidence, attempts)
                 try:
                     if backend_name == "nvidia-nim" and selected_model is not None:
                         review_with_model = getattr(selected, "review_with_model", None)
                         output = (
-                            review_with_model(project, prompt, selected_model)
+                            review_with_model(
+                                project,
+                                prompt,
+                                selected_model,
+                                timeout_seconds=remaining,
+                            )
                             if callable(review_with_model)
-                            else selected.review(project, prompt)
+                            else selected.review(project, prompt, timeout_seconds=remaining)
                         )
                     else:
-                        output = selected.review(project, prompt)
+                        output = selected.review(project, prompt, timeout_seconds=remaining)
                 except Exception as exc:
                     failure = _failure_attempt(backend_name, attempt_number, exc)
                     attempts.append(failure)
                     if first_failure is None:
                         first_failure = (backend_name, str(failure["code"]))
+                    if time.monotonic() >= deadline:
+                        return _deadline_result(self.settings, review_type, evidence, attempts)
                     if failure["retryable"] and attempt_number < self.settings.max_backend_attempts:
                         continue
                     break
@@ -580,31 +703,37 @@ class CodeReviewAgent:
                     backend_name,
                     output,
                     review_type=review_type,
+                    evidence=evidence,
                     model_profile=selected_model,
                 )
-                attempts.append(
-                    {
-                        "backend": backend_name,
-                        "attempt": attempt_number,
-                        "status": "completed",
-                    }
-                )
+                attempts.append({
+                    "backend": backend_name,
+                    "attempt": attempt_number,
+                    "status": "completed" if result["status"] == "completed" else "invalid",
+                })
+                if result["status"] == "completed":
+                    result["attempts"] = attempts
+                    return result
+                implicit_fallback = backend is None and model is None and backend_name != order[-1]
+                if implicit_fallback:
+                    diagnostic = result.get("diagnostics", ["AGENT_OUTPUT_INVALID"])[0]
+                    if first_failure is None:
+                        first_failure = (backend_name, str(diagnostic))
+                    break
                 result["attempts"] = attempts
                 return result
+        provenance = evidence.provenance()
         if first_failure is not None:
             failed_backend, error_code = first_failure
             implicit_multi_backend = backend is None and model is None and len(order) > 1
-            diagnostic = (
-                "AGENT_BACKENDS_FAILED"
-                if implicit_multi_backend
-                else f"AGENT_BACKEND_FAILED:{error_code}"
-            )
+            diagnostic = "AGENT_BACKENDS_FAILED" if implicit_multi_backend else f"AGENT_BACKEND_FAILED:{error_code}"
             return {
                 "schema_version": 1,
                 "agent_id": self.settings.agent_id,
                 "status": "failed",
                 "backend": failed_backend,
                 "review_type": review_type,
+                **provenance,
                 "summary": "The configured review backend failed.",
                 "findings": [],
                 "unknowns": [],
@@ -619,6 +748,7 @@ class CodeReviewAgent:
             "status": "unavailable",
             "backend": unavailable_backend,
             "review_type": review_type,
+            **provenance,
             "summary": "The requested review backend is unavailable.",
             "findings": [],
             "unknowns": [],

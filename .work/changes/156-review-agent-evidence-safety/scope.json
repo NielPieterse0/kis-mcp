@@ -1,0 +1,61 @@
+{
+  "schema_version": 4,
+  "change_id": "156-review-agent-evidence-safety",
+  "status": "active",
+  "branch": "change/156-review-agent-evidence-safety",
+  "worktree": ".work/worktrees/156-review-agent-evidence-safety",
+  "base": "main",
+  "outcome": "Make advisory code review source-bound, deadline-bounded, strict-result validated, and evidence-safe for #267.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/code_review/**",
+    "src/kis_mcp/workflows/change_execution/**",
+    "src/kis_mcp/discover/change_contracts.py",
+    "src/kis_mcp/discover/change_inspection_contracts.py",
+    "src/kis_mcp/discover/change_service.py",
+    "src/kis_mcp/discover/change_snapshot.py",
+    "src/kis_mcp/discover/change_targets.py",
+    "src/kis_mcp/discover/git_change_reader.py",
+    "src/kis_mcp/workflows/verification/selection.py",
+    "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/providers/nvidia/client.py",
+    "src/kis_mcp/tools/codex_cli/adapter.py",
+    "tests/workflows/code_review/**",
+    "tests/workflows/change_execution/**",
+    "tests/workflows/verification/**",
+    "tests/providers/nvidia/**",
+    "tests/tools/codex_cli/**",
+    "tests/discover/test_change_service.py",
+    "tests/discover/test_change_targets.py",
+    "settings/agents/code-review-agent.settings.json",
+    "contracts/agents/code-review-agent.settings.schema.json",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/156-review-agent-evidence-safety/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "7bd2080ab961661ba889aa60682eaa0f2406cf7d",
+    "local_tree": "10674008cce3db4ae4651341be2bc1dc2f863f0f",
+    "upstream_sha": "7bd2080ab961661ba889aa60682eaa0f2406cf7d",
+    "upstream_tree": "10674008cce3db4ae4651341be2bc1dc2f863f0f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-267",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 267,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress"
+  }
+}
