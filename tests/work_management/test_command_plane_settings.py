@@ -48,6 +48,18 @@ def test_command_plane_authority_covers_project_and_native_queue_fields() -> Non
     assert required <= declared
 
 
+def test_project_schema_provisions_dependency_evidence_field() -> None:
+    settings = load_command_plane_settings(SETTINGS_PATH)
+    project_schema = json.loads(PROJECT_SCHEMA_PATH.read_text(encoding="utf-8"))
+    fields = {field["name"]: field for field in project_schema["fields"]}
+
+    assert fields[settings.queue.blocked_by_field] == {
+        "name": "Blocked By",
+        "type": "text",
+        "options": [],
+    }
+
+
 def test_command_plane_settings_match_checked_in_schema() -> None:
     schema_path = (
         REPOSITORY_ROOT

@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "155-command-plane-live-commissioning-fixes",
+  "status": "active",
+  "branch": "change/155-command-plane-live-commissioning-fixes",
+  "worktree": ".work/worktrees/155-command-plane-live-commissioning-fixes",
+  "base": "main",
+  "outcome": "Make the commissioned Work Management command plane executable live by preserving empty GitHub Project field values as null and provisioning the required Blocked By dependency field.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "settings/work-management/github-project-schema.json",
+    "tests/work_management/test_command_plane_settings.py",
+    "tests/work_management/test_schema.py",
+    "tests/work_management/test_cli.py",
+    "tests/providers/github/projects/test_schema_commissioning.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/155-command-plane-live-commissioning-fixes/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "migration",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "5a3f09228b84f50f077c7acd9ba5acd24faffad2",
+    "local_tree": "a372248bf177770d190b84cebb7b2b208495db33",
+    "upstream_sha": "5a3f09228b84f50f077c7acd9ba5acd24faffad2",
+    "upstream_tree": "a372248bf177770d190b84cebb7b2b208495db33",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-142",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 142,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}

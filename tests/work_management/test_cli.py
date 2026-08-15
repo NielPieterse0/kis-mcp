@@ -191,8 +191,9 @@ def test_schema_manifest_command_validates_repository_contract(
     assert exit_code == 0
     assert payload["ok"] is True
     assert payload["schema"]["portfolio_id"] == "default"
-    assert len(payload["schema"]["fields"]) == 24
-    assert [field["name"] for field in payload["schema"]["fields"]][7:9] == [
+    assert len(payload["schema"]["fields"]) == 25
+    assert payload["schema"]["fields"][6]["name"] == "Blocked By"
+    assert [field["name"] for field in payload["schema"]["fields"]][8:10] == [
         "Complexity",
         "Risk Triggers",
     ]

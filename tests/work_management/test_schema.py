@@ -33,9 +33,10 @@ def test_manifest_matches_approved_programme_shape() -> None:
     manifest = load_project_schema_manifest(SCHEMA_PATH)
 
     assert manifest.portfolio_id == "default"
-    assert len(manifest.fields) == 24
+    assert len(manifest.fields) == 25
     assert len(manifest.views) == 12
     assert manifest.field("Status").kind is ProjectFieldKind.SINGLE_SELECT
+    assert manifest.field("Blocked By").kind is ProjectFieldKind.TEXT
     assert "Ready" in manifest.field("Status").options
     assert "Documentation" not in manifest.field("Status").options
     assert manifest.field("Effort").options == ("Tiny", "Small", "Medium", "Large")

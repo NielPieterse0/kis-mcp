@@ -310,9 +310,23 @@ def _field_values(raw: Any, operation: str) -> tuple[ProjectFieldValue, ...]:
             field_name = field_name or field.get("name")
             field_id = field_id or field.get("id")
         name = _required_text(field_name, operation, "field value name")
-        raw_value: Any = entry.get("value")
-        if "value" not in entry:
-            raw_value = entry
+        raw_value: Any
+        if "value" in entry:
+            raw_value = entry.get("value")
+        else:
+            direct_value = {
+                key: entry[key]
+                for key in (
+                    "text",
+                    "number",
+                    "date",
+                    "title",
+                    "iterationTitle",
+                    "iteration_title",
+                )
+                if key in entry
+            }
+            raw_value = direct_value or None
         values.append(_field_value(name, raw_value, field_id=_optional_text(field_id)))
     return tuple(values)
 
