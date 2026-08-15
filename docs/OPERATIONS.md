@@ -412,13 +412,19 @@ The gateway exposes one additive advisory operation:
 review_change_with_agent
 ```
 
-It collects bounded local `AGENTS.md`, Git status, staged diff, and unstaged diff evidence for one repository beneath `C:\Projects`. It is advisory, exposes no mutation or nested-delegation operation, and instructs the selected backend not to edit, commit, merge, or spawn another agent.
+It accepts `working_tree`, `staged`, `commit`, `range`, or `branch` source selectors using the same target-ref rules as `inspect_change`. Discover remains the source-identity authority: mutable selectors are resolved internally to exact Git object IDs, fingerprints bind working-tree/staged content or immutable commit/range identities, and evidence extraction uses those resolved identities rather than reusing movable ref names. The collector packages repository `AGENTS.md` plus whole changed-file sections, rechecks the selected source after packaging, and returns the source fingerprint with explicit included/omitted coverage. If the selected source changes during collection, inspection is truncated, instructions or changed files cannot fit the configured evidence budget, or required evidence is otherwise incomplete, the operation returns a typed non-success result without invoking a review backend. It reviews one repository beneath `C:\Projects`. It is advisory, exposes no mutation or nested-delegation operation, and instructs the selected backend not to edit, commit, merge, or spawn another agent.
 
 The default backend order is defined in `settings/agents/code-review-agent.settings.json`:
 
 ```text
 nvidia-nim -> codex-cli
 ```
+
+`review_deadline_seconds` in the same settings file is one total review deadline across all attempts, typed retries, and implicit fallback. Before every backend call, KIS computes the remaining budget and passes the tighter value to NVIDIA NIM or Codex CLI; deadline exhaustion returns `AGENT_REVIEW_DEADLINE_EXCEEDED` with exact-diff manual-fallback guidance instead of allowing each retry/fallback to consume a fresh timeout.
+
+A backend result is successful only when it is one strict JSON object containing exactly `summary`, `findings`, and `unknowns`: `summary` must be non-empty; `findings` must be a list of fully structured findings; and `unknowns` must be a list of non-empty strings. Malformed, schema-invalid, or over-budget output is a failed review, not a partial success. Successful results include KIS-owned source/evidence provenance; the model does not self-assert that provenance.
+
+When `execute_change_workflow` runs specialist reviews, it passes the same source selector used for verification selection, requires each completed review to prove `evidence_complete=true` and the exact same source fingerprint, and returns `incomplete` on mismatch. `review_timeout_ms` bounds the aggregate specialist-review phase across all requested review types; expiry is reported as `AGENT_REVIEW_PHASE_DEADLINE_EXCEEDED` for the unfinished reviews.
 
 NVIDIA NIM remains one backend with three named model profiles. `super` is the default when no model is specified:
 
@@ -502,7 +508,7 @@ codex exec --ephemeral --json --sandbox read-only --color never -C <project> -
 
 The read-only sandbox is defense in depth. The wrapper fingerprints Git-visible repository state before and after the run, including HEAD, status, tracked diff, and untracked-file content hashes. Any change fails with `CODEX_CLI_MUTATION_DETECTED`; KIS never silently accepts or overwrites it.
 
-Tests cover NVIDIA profiles, explicit review purposes, Codex exact-version/auth readiness, read-only wrapper mutation detection, fallback semantics, secret redaction, non-interactive vault-backed startup, and additive tool registration. Live upstream commissioning remains distinct from deterministic repository verification.
+Tests cover source-bound evidence for working-tree and immutable commit targets, whole-section evidence budgeting, strict review-result validation, cumulative review deadlines, aggregate specialist-review deadlines, verification/review fingerprint matching, NVIDIA/Codex tighter-timeout propagation, NVIDIA profiles, explicit review purposes, Codex exact-version/auth readiness, read-only wrapper mutation detection, fallback semantics, secret redaction, non-interactive vault-backed startup, and additive tool registration. Live upstream commissioning remains distinct from deterministic repository verification.
 
 ## Run the KIS Control Center
 

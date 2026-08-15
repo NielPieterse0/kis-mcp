@@ -46,6 +46,8 @@ class _Invoker:
                 "status": "completed",
                 "backend": arguments.get("backend") or "nvidia-nim",
                 "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64,
+                "evidence_complete": True,
                 "summary": "review complete",
                 "findings": [],
                 "unknowns": [],
@@ -85,6 +87,10 @@ def test_execution_uses_only_selected_verifications_and_allowlisted_reviews() ->
     assert invoker.calls[1][1]["verification_id"] == "repo-verify"
     assert invoker.calls[2][1]["verification_id"] == "python-pytest"
     assert invoker.calls[3][1]["backend"] == "codex-cli"
+    assert invoker.calls[3][1]["source"] == "working_tree"
+    assert invoker.calls[3][1]["commit_ref"] is None
+    assert invoker.calls[3][1]["base_ref"] is None
+    assert invoker.calls[3][1]["head_ref"] is None
 
 
 def test_execution_retains_verification_failure_and_review_error() -> None:
@@ -251,3 +257,109 @@ def test_execution_never_counts_noncompleted_agent_outcome_as_review_success(
     assert result.reviews[0].status == "error"
     assert result.reviews[0].error_code == diagnostic
     assert result.reviews[0].payload == payload
+
+
+def test_execution_rejects_completed_review_with_mismatched_source_fingerprint() -> None:
+    payload = {
+        "schema_version": 1,
+        "status": "completed",
+        "backend": "codex-cli",
+        "review_type": "code-quality",
+        "source_fingerprint": "a" * 64,
+        "evidence_complete": True,
+        "summary": "review complete",
+        "findings": [],
+        "unknowns": [],
+        "diagnostics": [],
+    }
+
+    result = asyncio.run(
+        ChangeExecutionService(_ReviewPayloadInvoker(payload)).execute(
+            project=r"C:\Projects\fixture",
+            complexity="medium",
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].error_code == "AGENT_REVIEW_SOURCE_MISMATCH"
+
+
+def test_execution_rejects_completed_review_without_complete_evidence() -> None:
+    payload = {
+        "schema_version": 1,
+        "status": "completed",
+        "backend": "codex-cli",
+        "review_type": "code-quality",
+        "source_fingerprint": "f" * 64,
+        "evidence_complete": False,
+        "summary": "review complete",
+        "findings": [],
+        "unknowns": [],
+        "diagnostics": [],
+    }
+
+    result = asyncio.run(
+        ChangeExecutionService(_ReviewPayloadInvoker(payload)).execute(
+            project=r"C:\Projects\fixture",
+            complexity="medium",
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_EVIDENCE_INCOMPLETE"
+
+
+def test_execution_passes_exact_commit_selector_to_specialist_review() -> None:
+    invoker = _Invoker()
+    asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            source="commit",
+            commit_ref="abc123",
+            complexity="medium",
+        )
+    )
+
+    review_call = next(arguments for name, arguments in invoker.calls if name == "review_change_with_agent")
+    assert review_call["source"] == "commit"
+    assert review_call["commit_ref"] == "abc123"
+    assert review_call["base_ref"] is None
+    assert review_call["head_ref"] is None
+
+
+class _SlowReviewInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            await asyncio.sleep(0.05)
+            return {
+                "status": "completed",
+                "source_fingerprint": "f" * 64,
+                "evidence_complete": True,
+                "summary": "late review",
+                "findings": [],
+                "unknowns": [],
+                "diagnostics": [],
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_bounds_aggregate_specialist_review_phase() -> None:
+    invoker = _SlowReviewInvoker()
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            complexity="small",
+            review_types=("code-quality", "safety-security"),
+            review_timeout_ms=10,
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert result.review_error_count == 2
+    assert [item.error_code for item in result.reviews] == [
+        "AGENT_REVIEW_PHASE_DEADLINE_EXCEEDED",
+        "AGENT_REVIEW_PHASE_DEADLINE_EXCEEDED",
+    ]
+    assert len([name for name, _ in invoker.calls if name == "review_change_with_agent"]) == 1

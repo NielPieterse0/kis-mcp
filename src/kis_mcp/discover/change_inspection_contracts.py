@@ -125,11 +125,24 @@ class ChangeIdentity:
     commit_ref: str | None = None
     base_ref: str | None = None
     head_ref: str | None = None
+    resolved_commit_ref: str | None = None
+    resolved_base_ref: str | None = None
+    resolved_head_ref: str | None = None
+    fingerprint_basis: str = "legacy"
 
     def __post_init__(self) -> None:
         _validated_ref(self.commit_ref, "change commit_ref")
         _validated_ref(self.base_ref, "change base_ref")
         _validated_ref(self.head_ref, "change head_ref")
+        for value, label in (
+            (self.resolved_commit_ref, "resolved change commit_ref"),
+            (self.resolved_base_ref, "resolved change base_ref"),
+            (self.resolved_head_ref, "resolved change head_ref"),
+        ):
+            if value is not None and not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", value):
+                raise ValueError(f"{label} must be a lowercase Git object ID")
+        if self.fingerprint_basis not in {"legacy", "evidence_snapshot", "immutable_ref"}:
+            raise ValueError("change fingerprint basis is unsupported")
         _validate_target_shape(
             self.source,
             commit_ref=self.commit_ref,

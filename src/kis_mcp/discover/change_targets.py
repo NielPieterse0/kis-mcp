@@ -16,8 +16,12 @@ class ChangeTargetInventory:
     commit_ref: str | None = None
     base_ref: str | None = None
     head_ref: str | None = None
+    resolved_commit_ref: str | None = None
+    resolved_base_ref: str | None = None
+    resolved_head_ref: str | None = None
     diagnostics: tuple[Mapping[str, str], ...] = ()
     truncated: bool = False
+    source_fingerprint: str | None = None
 
     def to_json_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {

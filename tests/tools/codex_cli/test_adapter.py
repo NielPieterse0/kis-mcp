@@ -76,6 +76,25 @@ def test_codex_adapter_invokes_fixed_script_and_extracts_agent_message(tmp_path:
     assert result == "review result"
 
 
+def test_codex_adapter_honors_tighter_per_review_timeout_budget(tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+
+    def run(args, **kwargs):
+        calls.append({"args": args, **kwargs})
+        stdout = json.dumps(
+            {
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": "review result"},
+            }
+        )
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    adapter = CodexCliAdapter(_settings(), runner=run, pwsh_executable="pwsh")
+
+    assert adapter.review(tmp_path, "inspect", timeout_seconds=2.5) == "review result"
+    assert calls[0]["timeout"] == 2.5
+
+
 def test_codex_adapter_reports_process_failure_without_raw_prompt(tmp_path: Path) -> None:
     def run(args, **kwargs):
         return subprocess.CompletedProcess(args, 7, stdout="", stderr="auth required")

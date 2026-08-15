@@ -31,14 +31,19 @@ def _handoff(
     )
 
 
-def _service(handoffs, declarations):
+def _service(handoffs, declarations, *, source_fingerprint: str | None = None):
     impact = SimpleNamespace(
         verification_handoffs=tuple(handoffs),
         fingerprint="f" * 64,
         truncated=False,
         truncation_reasons=(),
     )
-    analysis = SimpleNamespace(impact=impact)
+    change = (
+        None
+        if source_fingerprint is None
+        else SimpleNamespace(change=SimpleNamespace(fingerprint=source_fingerprint))
+    )
+    analysis = SimpleNamespace(impact=impact, change=change)
     analyzer = SimpleNamespace(analyze=lambda request: analysis)
     inspection = SimpleNamespace(verification={"declarations": declarations})
     inspector = SimpleNamespace(inspect=lambda request: inspection)
@@ -85,6 +90,19 @@ def test_selects_only_current_executable_handoffs_in_stable_priority_order() -> 
     assert result.skipped == ()
     assert result.source_fingerprint == "f" * 64
     assert result.truncated is False
+
+
+def test_selection_prefers_canonical_inspected_change_fingerprint() -> None:
+    handoffs = (_handoff("python-pytest"),)
+    declarations = [_declaration("python-pytest")]
+
+    result = _service(
+        handoffs,
+        declarations,
+        source_fingerprint="c" * 64,
+    ).select(project=r"C:\Projects\fixture")
+
+    assert result.source_fingerprint == "c" * 64
 
 
 def test_stale_and_unsupported_handoffs_are_reported_not_executed() -> None:
