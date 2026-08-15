@@ -6,6 +6,7 @@ from pathlib import Path
 INSTALL = Path("scripts/install-github-mcp.ps1")
 AUTH = Path("scripts/auth-github-mcp.ps1")
 SMOKE = Path("scripts/smoke-github-mcp.ps1")
+LIVE_SMOKE = Path("scripts/run-provider-live-smoke.py")
 
 
 def test_install_script_downloads_only_the_pinned_immutable_release() -> None:
@@ -68,3 +69,13 @@ def test_smoke_script_supports_offline_tests_and_explicit_shared_runtime_live_ch
     assert "live_repository_scope" in source
     assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
     assert "--help" not in source
+
+
+def test_shared_live_smoke_keeps_github_dispatch() -> None:
+    source = LIVE_SMOKE.read_text(encoding="utf-8")
+
+    assert "_github_shared_runtime_smoke" in source
+    assert '"github": _github_shared_runtime_smoke' in source
+    assert '"search_capabilities"' in source
+    assert '"execute_external_action"' in source
+    assert 'parser.add_argument("provider", nargs="?"' in source

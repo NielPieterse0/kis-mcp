@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "154-commissioning-smoke-compat",
+  "status": "active",
+  "branch": "change/154-commissioning-smoke-compat",
+  "worktree": ".work/worktrees/154-commissioning-smoke-compat",
+  "base": "main",
+  "outcome": "Restore documented shared-runtime GitHub and Supabase commissioning smokes while preserving the current no-argument Context7/Serena smoke.",
+  "owned_paths": [
+    "scripts/run-provider-live-smoke.py",
+    "tests/providers/supabase/test_supabase_artifacts.py",
+    "tests/providers/github/test_scripts.py",
+    ".work/changes/154-commissioning-smoke-compat/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "c762d6230230c74f8d22a79c0ff1d16752455c6b",
+    "local_tree": "e598e1bfd1062670159e6f5d09f6d25d465dc3d0",
+    "upstream_sha": "c762d6230230c74f8d22a79c0ff1d16752455c6b",
+    "upstream_tree": "e598e1bfd1062670159e6f5d09f6d25d465dc3d0",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-260",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 260,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

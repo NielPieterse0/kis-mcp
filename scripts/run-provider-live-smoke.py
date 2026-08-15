@@ -6,9 +6,11 @@ import hashlib
 import json
 import os
 import sys
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -16,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
+from kis_mcp.projects import load_project_registry_settings
 from kis_mcp.providers.context7 import load_context7_settings
 from kis_mcp.providers.serena import load_serena_settings
 from kis_mcp.providers.serena.adapter import (
@@ -24,6 +27,8 @@ from kis_mcp.providers.serena.adapter import (
 )
 from kis_mcp.providers.serena.memory import quarantine_serena_memory_delete
 from kis_mcp.quarantine import QuarantineService
+from kis_mcp.repositories import load_repository_settings
+from kis_mcp.server import build_server
 
 STATE = Path(r"C:\Projects\.kis-mcp")
 EXPECTED_CONTEXT7 = {"resolve-library-id", "query-docs"}
@@ -36,6 +41,16 @@ EXPECTED_SERENA = {
     "read_memory",
     "delete_memory",
 }
+GITHUB_REQUIRED_OPERATIONS = (
+    "github_get_me",
+    "github_get_file_contents",
+    "github_create_or_update_file",
+)
+SUPABASE_REQUIRED_OPERATIONS = (
+    "supabase_get_project_url",
+    "supabase_list_tables",
+    "supabase_apply_migration",
+)
 
 
 def _text(result: Any) -> str:
@@ -44,6 +59,69 @@ def _text(result: Any) -> str:
         for block in getattr(result, "content", ())
         if getattr(block, "text", None) is not None
     ).strip()
+
+
+def _result_mapping(result: Any) -> dict[str, Any]:
+    data = getattr(result, "data", None)
+    if isinstance(data, dict):
+        return dict(data)
+    structured = getattr(result, "structured_content", None)
+    if isinstance(structured, dict):
+        nested = structured.get("result")
+        if isinstance(nested, dict):
+            return dict(nested)
+        return dict(structured)
+    text = _text(result)
+    if not text:
+        return {}
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    return dict(payload) if isinstance(payload, dict) else {}
+
+
+def _provider_mounted(status: dict[str, Any], provider_id: str) -> bool:
+    providers = status.get("external_providers")
+    return isinstance(providers, list) and any(
+        isinstance(item, dict)
+        and item.get("provider_id") == provider_id
+        and item.get("mounted") is True
+        and item.get("state") == "mounted"
+        for item in providers
+    )
+
+
+async def _require_operation(client: Any, operation: str) -> None:
+    result = await client.call_tool(
+        "search_capabilities", {"query": operation, "limit": 20}
+    )
+    payload = _result_mapping(result)
+    operations = payload.get("operations")
+    match = next(
+        (
+            item
+            for item in operations or ()
+            if isinstance(item, dict) and item.get("operation_name") == operation
+        ),
+        None,
+    )
+    if not isinstance(match, dict) or match.get("eligible") is not True:
+        raise RuntimeError(f"Shared runtime operation is unavailable: {operation}")
+
+
+async def _external_call(
+    client: Any,
+    operation: str,
+    arguments: dict[str, Any],
+    *,
+    raise_on_error: bool = True,
+) -> Any:
+    return await client.call_tool(
+        "execute_external_action",
+        {"operation": operation, "arguments": arguments},
+        raise_on_error=raise_on_error,
+    )
 
 
 def _sha256(path: Path) -> str:
@@ -194,6 +272,76 @@ async def _serena_smoke() -> dict[str, Any]:
     }
 
 
+async def _github_shared_runtime_smoke(server: Any) -> dict[str, Any]:
+    repository = load_repository_settings()
+    coordinate = repository.github_repository.split("/", 1)
+    if len(coordinate) != 2 or not all(part.strip() for part in coordinate):
+        raise RuntimeError("Registered GitHub repository coordinate is invalid")
+    owner, repo = coordinate
+    async with Client(server, timeout=120, init_timeout=120) as client:
+        status = _result_mapping(await client.call_tool("kis_provider_status", {}))
+        if not _provider_mounted(status, "github-mcp"):
+            raise RuntimeError("GitHub MCP provider is not mounted in the shared runtime")
+        for operation in GITHUB_REQUIRED_OPERATIONS:
+            await _require_operation(client, operation)
+        await _external_call(client, "github_get_me", {})
+        await _external_call(
+            client,
+            "github_get_file_contents",
+            {"owner": owner, "repo": repo, "path": "README.md"},
+        )
+        rejected = await _external_call(
+            client,
+            "github_get_file_contents",
+            {"owner": "github", "repo": "github-mcp-server", "path": "README.md"},
+            raise_on_error=False,
+        )
+        if not getattr(rejected, "is_error", False):
+            raise RuntimeError("GitHub MCP repository scope was not enforced")
+    return {
+        "ready": True,
+        "mounted": True,
+        "surface": True,
+        "authentication": True,
+        "private_repository_read": True,
+        "repository_scope": True,
+    }
+
+
+async def _supabase_shared_runtime_smoke(server: Any) -> dict[str, Any]:
+    registry = load_project_registry_settings()
+    project_id = registry.default_project_id
+    if not project_id:
+        raise RuntimeError("Project registry has no default project")
+    project = registry.project(project_id)
+    if project is None:
+        raise RuntimeError("Default registered project could not be resolved")
+    if project.supabase is None:
+        raise RuntimeError("Default registered project has no Supabase binding")
+    project_ref = project.supabase.project_ref
+    async with Client(server, timeout=120, init_timeout=120) as client:
+        status = _result_mapping(await client.call_tool("kis_provider_status", {}))
+        if not _provider_mounted(status, "supabase"):
+            raise RuntimeError("Supabase MCP provider is not mounted in the shared runtime")
+        for operation in SUPABASE_REQUIRED_OPERATIONS:
+            await _require_operation(client, operation)
+        result = await _external_call(
+            client, "supabase_get_project_url", {"project_id": project_ref}
+        )
+        value = _result_mapping(result).get("url")
+        parsed = urlparse(value) if isinstance(value, str) else None
+        expected = f"{project_ref}.supabase.co".lower()
+        if parsed is None or parsed.scheme != "https" or (parsed.hostname or "").lower() != expected:
+            raise RuntimeError("Supabase MCP registered project read did not match the configured project")
+    return {
+        "ready": True,
+        "mounted": True,
+        "account_surface": True,
+        "authentication": True,
+        "registered_project_read": True,
+    }
+
+
 async def _run() -> dict[str, Any]:
     context7 = await _context7_smoke()
     serena = await _serena_smoke()
@@ -211,17 +359,31 @@ async def _run() -> dict[str, Any]:
     }
 
 
+SharedRunner = Callable[[Any], Awaitable[dict[str, Any]]]
+SHARED_RUNTIME_RUNNERS: dict[str, SharedRunner] = {
+    "github": _github_shared_runtime_smoke,
+    "supabase": _supabase_shared_runtime_smoke,
+}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("provider", nargs="?", choices=tuple(SHARED_RUNTIME_RUNNERS))
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    result = asyncio.run(_run())
+    if args.provider is None:
+        result = asyncio.run(_run())
+        passed = result["status"] == "passed"
+    else:
+        server = build_server()
+        result = asyncio.run(SHARED_RUNTIME_RUNNERS[args.provider](server))
+        passed = result.get("ready") is True and result.get("mounted") is True
     rendered = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output is not None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(rendered, encoding="utf-8")
     print(rendered, end="")
-    return 0 if result["status"] == "passed" else 1
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":
