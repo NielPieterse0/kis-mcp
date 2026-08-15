@@ -60,6 +60,52 @@ class ReservationRequest:
 
 
 @dataclass(frozen=True, slots=True)
+class ScopeRevisionRequest:
+    request_id: str
+    reservation_id: str
+    expected_authority_revision: int
+    expected_fence_token: int
+    add_owned_paths: tuple[str, ...] = ()
+    remove_owned_paths: tuple[str, ...] = ()
+    add_shared_paths: tuple[str, ...] = ()
+    remove_shared_paths: tuple[str, ...] = ()
+    add_dependencies: tuple[str, ...] = ()
+    remove_dependencies: tuple[str, ...] = ()
+    integration_owner: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.request_id.strip() or not self.reservation_id.strip():
+            raise ValueError("request_id and reservation_id are required")
+        if self.expected_authority_revision < 1 or self.expected_fence_token < 1:
+            raise ValueError("expected authority revision and fence token must be positive")
+        changed = False
+        for field_name, values in (
+            ("add_owned_paths", self.add_owned_paths),
+            ("remove_owned_paths", self.remove_owned_paths),
+            ("add_shared_paths", self.add_shared_paths),
+            ("remove_shared_paths", self.remove_shared_paths),
+            ("add_dependencies", self.add_dependencies),
+            ("remove_dependencies", self.remove_dependencies),
+        ):
+            if len(set(values)) != len(values) or any(not item.strip() for item in values):
+                raise ValueError(f"{field_name} must contain unique non-empty strings")
+            changed = changed or bool(values)
+        for add, remove, field_name in (
+            (self.add_owned_paths, self.remove_owned_paths, "owned_paths"),
+            (self.add_shared_paths, self.remove_shared_paths, "shared_paths"),
+            (self.add_dependencies, self.remove_dependencies, "dependencies"),
+        ):
+            if set(add) & set(remove):
+                raise ValueError(f"{field_name} cannot add and remove the same value")
+        if self.integration_owner is not None:
+            if not self.integration_owner.strip():
+                raise ValueError("integration_owner must be non-empty when supplied")
+            changed = True
+        if not changed:
+            raise ValueError("scope revision must change at least one authority field")
+
+
+@dataclass(frozen=True, slots=True)
 class ReservationResult:
     reservation: Mapping[str, Any]
     work_packet_identity: Mapping[str, Any]
@@ -93,4 +139,5 @@ __all__ = [
     "ReservationAdmissionError",
     "ReservationRequest",
     "ReservationResult",
+    "ScopeRevisionRequest",
 ]

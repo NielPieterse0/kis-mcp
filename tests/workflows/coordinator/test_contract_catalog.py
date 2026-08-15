@@ -45,14 +45,15 @@ def test_every_contract_is_strict_valid_draft_2020_12() -> None:
         assert schema["additionalProperties"] is False
 
 
-def test_slice_two_runtime_surface_is_limited_to_reservation_admission() -> None:
+def test_slice_three_runtime_surface_stops_before_planning_and_workers() -> None:
     package = ROOT / "src" / "kis_mcp" / "workflows" / "coordinator"
     assert package.is_dir()
     assert {path.name for path in package.glob("*.py")} == {
         "__init__.py",
         "adapters.py",
+        "authority.py",
         "models.py",
         "service.py",
     }
-    for deferred in ("lease", "planner", "worker", "reconciliation", "telemetry"):
+    for deferred in ("planner", "worker", "reconciliation", "telemetry"):
         assert not (package / f"{deferred}.py").exists()

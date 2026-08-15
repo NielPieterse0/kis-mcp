@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import uuid
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -92,6 +94,64 @@ class LocalGovernanceAdapter:
                 "Governed change creation result must be an object.",
             )
         return dict(payload)
+
+    def amend_change(self, request: Mapping[str, Any]) -> dict[str, Any]:
+        change_id = str(request.get("change_id", ""))
+        expected = request.get("expected_claim")
+        proposed = request.get("proposed_claim")
+        if not change_id or not isinstance(expected, Mapping) or not isinstance(proposed, Mapping):
+            raise ReservationAdmissionError(
+                "GOVERNED_SCOPE_AMEND_INVALID",
+                "Scope amendment requires change_id, expected_claim, and proposed_claim.",
+            )
+        scope_path = self._scope_path(change_id)
+        try:
+            payload = json.loads(scope_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ReservationAdmissionError(
+                "GOVERNED_SCOPE_READ_FAILED", f"Cannot read {scope_path}: {exc}"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise ReservationAdmissionError(
+                "GOVERNED_SCOPE_READ_FAILED", "Governed scope must be a JSON object."
+            )
+        for field in (
+            "outcome",
+            "owned_paths",
+            "shared_paths",
+            "excluded_paths",
+            "dependencies",
+            "integration_owner",
+        ):
+            if payload.get(field) != expected.get(field):
+                raise ReservationAdmissionError(
+                    "GOVERNED_SCOPE_CAS_CONFLICT",
+                    f"Governed scope field {field} changed before amendment.",
+                )
+        for field in ("owned_paths", "shared_paths", "dependencies", "integration_owner"):
+            payload[field] = proposed.get(field)
+
+        temporary = scope_path.with_name(f"{scope_path.name}.tmp-{uuid.uuid4().hex}")
+        temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8", newline="\n")
+        os.replace(temporary, scope_path)
+        return {"mode": "apply", "success": True, "scope_path": str(scope_path)}
+
+    def _scope_path(self, change_id: str) -> Path:
+        candidates = [
+            self._repository / ".work" / "changes" / change_id / "scope.json",
+            self._repository / ".work" / "worktrees" / change_id / ".work" / "changes" / change_id / "scope.json",
+        ]
+        if self._repository.parent.name == "worktrees":
+            candidates.append(
+                self._repository.parent / change_id / ".work" / "changes" / change_id / "scope.json"
+            )
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        raise ReservationAdmissionError(
+            "GOVERNED_SCOPE_NOT_FOUND",
+            f"Cannot locate governed scope for {change_id} from {self._repository}.",
+        )
 
     def _work_management_arguments(self, work: Mapping[str, Any]) -> list[str]:
         fields = (

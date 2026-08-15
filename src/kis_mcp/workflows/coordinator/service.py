@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -86,6 +87,14 @@ class ReservationService:
             reservation_id = f"res-{uuid.uuid4().hex}"
             lease_id = f"lease-{uuid.uuid4().hex}"
             candidate = self._candidate_claim(request, change_id)
+            component = _candidate_degraded_component(
+                candidate, _find_degraded_components(claims)
+            )
+            if component is not None:
+                raise ReservationAdmissionError(
+                    "DEGRADED_COMPONENT_INTERSECTION",
+                    f"Reservation intersects degraded component {component['component_id']}.",
+                )
             _validate_candidate(candidate, claims)
 
             event_root = self._event_root(reservation_id)
@@ -191,10 +200,11 @@ class ReservationService:
         for event in self._latest_journal_events():
             if event.get("state") not in _ACTIVE_JOURNAL_STATES:
                 continue
-            change_id = str(event.get("change_id", ""))
+            journal_claim = _claim_from_event(event)
+            change_id = str(journal_claim.get("change_id", ""))
             if not change_id or change_id in known:
                 continue
-            claims.append(_claim_from_event(event))
+            claims.append(journal_claim)
             known.add(change_id)
         return claims
 
@@ -249,7 +259,7 @@ class ReservationService:
             return []
         events: list[dict[str, Any]] = []
         for reservation_root in sorted(path for path in root.iterdir() if path.is_dir()):
-            candidates = sorted(reservation_root.glob("*.json"))
+            candidates = _sorted_journal_paths(reservation_root)
             if not candidates:
                 continue
             try:
@@ -441,12 +451,11 @@ class ReservationService:
     def _admission_lock(self) -> Iterable[None]:
         lock_path = self._state_root / "coordinator" / "admission.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with lock_path.open("xb") as initializer:
-                initializer.write(b"0")
-        except FileExistsError:
-            pass
-        with lock_path.open("r+b") as stream:
+        with lock_path.open("a+b") as stream:
+            stream.seek(0, os.SEEK_END)
+            if stream.tell() == 0:
+                stream.write(b"0")
+                stream.flush()
             stream.seek(0)
             _lock_file(stream)
             try:
@@ -494,17 +503,46 @@ def _bounded_error(exc: Exception) -> str:
     detail = str(exc).strip() or exc.__class__.__name__
     return detail[:1000]
 
+
+def _journal_ordinal(path: Path) -> int:
+    prefix, separator, _rest = path.name.partition("-")
+    if not separator:
+        raise ReservationAdmissionError(
+            "RESERVATION_JOURNAL_INVALID",
+            f"Journal event name has no ordinal separator: {path.name}",
+        )
+    try:
+        ordinal = int(prefix)
+    except ValueError as exc:
+        raise ReservationAdmissionError(
+            "RESERVATION_JOURNAL_INVALID",
+            f"Journal event name has an invalid ordinal: {path.name}",
+        ) from exc
+    if ordinal < 1:
+        raise ReservationAdmissionError(
+            "RESERVATION_JOURNAL_INVALID",
+            f"Journal event ordinal must be positive: {path.name}",
+        )
+    return ordinal
+
+
+def _sorted_journal_paths(root: Path) -> list[Path]:
+    return sorted(root.glob("*.json"), key=lambda path: (_journal_ordinal(path), path.name))
+
+
 def _claim_from_event(event: Mapping[str, Any]) -> dict[str, Any]:
-    change_id = str(event["change_id"])
+    reservation = event.get("reservation")
+    source = reservation if isinstance(reservation, Mapping) else event
+    change_id = str(source["change_id"])
     return {
         "change_id": change_id,
         "branch": f"change/{change_id}",
         "worktree": f".work/worktrees/{change_id}",
-        "outcome": event["outcome"],
-        "owned_paths": list(event.get("owned_paths", ())),
-        "shared_paths": list(event.get("shared_paths", ())),
-        "dependencies": list(event.get("dependencies", ())),
-        "integration_owner": event.get("integration_owner"),
+        "outcome": event.get("outcome", ""),
+        "owned_paths": list(source.get("owned_paths", ())),
+        "shared_paths": list(source.get("shared_paths", ())),
+        "dependencies": list(source.get("dependencies", ())),
+        "integration_owner": source.get("integration_owner"),
     }
 
 
@@ -544,6 +582,98 @@ def _validate_path_conflicts(
         for other in right_shared:
             if _overlaps(shared, other) and not _coordinated(left, right):
                 _raise("UNCOORDINATED_SHARED_PATH", shared[0])
+
+def _claim_conflict_paths(
+    left: Mapping[str, Any], right: Mapping[str, Any]
+) -> set[str]:
+    left_owned = [_path_claim(item) for item in left.get("owned_paths", ())]
+    left_shared = [_path_claim(item) for item in left.get("shared_paths", ())]
+    right_owned = [_path_claim(item) for item in right.get("owned_paths", ())]
+    right_shared = [_path_claim(item) for item in right.get("shared_paths", ())]
+    conflicts: set[str] = set()
+
+    for owned in left_owned:
+        for other in (*right_owned, *right_shared):
+            if _overlaps(owned, other):
+                conflicts.update((owned[0], other[0]))
+    for owned in right_owned:
+        for other in left_shared:
+            if _overlaps(owned, other):
+                conflicts.update((owned[0], other[0]))
+    if not _coordinated(left, right):
+        for shared in left_shared:
+            for other in right_shared:
+                if _overlaps(shared, other):
+                    conflicts.update((shared[0], other[0]))
+    return conflicts
+
+
+def _find_degraded_components(
+    claims: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    adjacency: dict[int, set[int]] = {}
+    edge_paths: dict[tuple[int, int], set[str]] = {}
+    for left_index in range(len(claims)):
+        for right_index in range(left_index + 1, len(claims)):
+            conflicts = _claim_conflict_paths(
+                claims[left_index], claims[right_index]
+            )
+            if not conflicts:
+                continue
+            adjacency.setdefault(left_index, set()).add(right_index)
+            adjacency.setdefault(right_index, set()).add(left_index)
+            edge_paths[(left_index, right_index)] = conflicts
+
+    components: list[dict[str, Any]] = []
+    visited: set[int] = set()
+    for start in sorted(adjacency):
+        if start in visited:
+            continue
+        pending = [start]
+        members: set[int] = set()
+        while pending:
+            current = pending.pop()
+            if current in members:
+                continue
+            members.add(current)
+            pending.extend(adjacency.get(current, ()))
+        visited.update(members)
+        affected: set[str] = set()
+        for (left_index, right_index), paths in edge_paths.items():
+            if left_index in members and right_index in members:
+                affected.update(paths)
+        change_ids = sorted(str(claims[index].get("change_id", "")) for index in members)
+        affected_paths = sorted(affected)
+        stable = json.dumps(
+            {"change_ids": change_ids, "affected_paths": affected_paths},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        components.append(
+            {
+                "component_id": f"cmp-{hashlib.sha256(stable.encode('utf-8')).hexdigest()[:16]}",
+                "change_ids": change_ids,
+                "affected_paths": affected_paths,
+                "reason": "conflicting active path claims",
+                "disjoint_admission": "allowed",
+            }
+        )
+    return sorted(components, key=lambda item: item["component_id"])
+
+
+def _candidate_degraded_component(
+    candidate: Mapping[str, Any], components: Sequence[Mapping[str, Any]]
+) -> Mapping[str, Any] | None:
+    candidate_paths = [
+        _path_claim(item)
+        for item in (*candidate.get("owned_paths", ()), *candidate.get("shared_paths", ()))
+    ]
+    for component in components:
+        affected = [_path_claim(item) for item in component.get("affected_paths", ())]
+        if any(_overlaps(candidate_path, path) for candidate_path in candidate_paths for path in affected):
+            return component
+    return None
+
 
 def _coordinated(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
     left_id = str(left.get("change_id", ""))

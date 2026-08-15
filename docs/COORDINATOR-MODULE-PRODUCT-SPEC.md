@@ -126,7 +126,7 @@ The example intentionally records this as one degraded conflict component. It do
 
 The target outcome is explicit: a disjoint reservation such as the narrow GitHub Project adapter change remains admissible while the 140/145 conflict component is degraded.
 
-These fixtures remain architecture acceptance evidence. Slice 2 now executes reservation admission against the same overlap/liveness semantics; it does not implement a general conflict-graph repair or recovery service.
+These fixtures remain architecture acceptance evidence. Slice 2 executes reservation admission, and Slice 3 now derives connected degraded components from current governed claims, blocks only intersecting reservations, and permits a globally valid scope amendment to repair an affected component. Public degraded-state projection remains #253.
 
 ## Planned implementation ownership
 
@@ -152,7 +152,7 @@ No implemented slice grants an exception to this dependency chain: the remaining
 
 Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
 
-## Cumulative implementation status through Slice 2
+## Cumulative implementation status through Slice 3
 
 Implemented by #247:
 
@@ -167,16 +167,25 @@ Implemented by #248 on the parent change branch:
 - deterministic duplicate/exclusive/shared claim admission checks;
 - append-only pending/reserved/aborted/degraded reservation evidence bounded by the declared project boundary;
 - exact-base capture and initial `authority_revision=1`, lease identity, and `fence_token=1` issuance;
-- configured Work Management claim/compensation ports inside the serialized transaction, with applied/Active/successful mutation evidence required before claim authority is accepted;
-- delegation of branch/worktree creation to the existing governed change workflow, followed by claim identity re-read;
-- schema validation proving successful responses conform to the Slice 1 reservation contract.
+- configured Work Management claim/compensation ports inside the serialized transaction;
+- delegation of branch/worktree creation to the existing governed change workflow, followed by claim identity re-read.
 
-Slice 2 exposes no public MCP coordinator tool and does not treat tool discovery or transport connectivity as authority. Before any public composition, every coordinator instance for the same repository must be wired to one canonical shared authority state root; separate roots would not provide global admission and are therefore not an allowed production topology.
+Implemented by #249 on the same parent branch:
+
+- compare-and-swap scope revision using exact current authority revision and fence evidence;
+- authoritative governed-scope amendment through an injected adapter plus exact post-mutation claim re-read before coordinator revision acceptance;
+- append-only authority transition evidence and restart recovery from durable reservation state plus current governed claims;
+- lease activation, heartbeat, expiry, reassignment, and exact holder/revision/lease/fence mutation-authority checks using an injected UTC clock;
+- monotonic authority/fence invalidation of stale holders after scope changes, expiry, or reassignment;
+- deterministic connected degraded conflict components that block intersecting reservations while preserving disjoint admission;
+- valid scope repair of an intersecting degraded claim when the resulting global claim set is conflict-free;
+- a Windows-safe shared admission-lock initialization path used by both reservation and authority transitions.
+
+Slices 2 and 3 expose no public MCP coordinator tool and do not treat tool discovery or transport connectivity as authority. Every coordinator instance for one repository must share the same canonical authority state root.
 
 Not yet implemented:
 
-- #249 CAS scope revisions, active lease/fence enforcement, expiry, reassignment, and recovery;
-- #250 dependency compilation, actual work-packet production, runtime resolution, or agent selection;
+- #250 dependency compilation, actual work-packet production, runtime/capability resolution, assignment keys, or agent selection;
 - #251 durable worker process/session lifecycle and MCP worker execution;
 - #252 reconciliation execution, verification derivation, integration queue, PR/merge, or cleanup coordination;
 - #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
