@@ -281,6 +281,56 @@ def test_inventory_accepts_list_field_values_and_result_objects() -> None:
     ]
 
 
+def test_inventory_preserves_empty_field_entries_as_none() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {
+            "fields": [
+                {"id": "F_OWNER", "name": "Execution Owner", "data_type": "text"},
+                {"id": "F_PRIORITY", "name": "Priority", "data_type": "single_select"},
+            ],
+            "pageInfo": page_info(False),
+        },
+        {
+            "items": [
+                {
+                    "id": "I_1",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Unclaimed issue",
+                        "number": 9,
+                        "state": "OPEN",
+                        "repository": "ExampleOwner/alpha",
+                    },
+                    "field_values": [
+                        {
+                            "id": "F_OWNER",
+                            "name": "Execution Owner",
+                            "data_type": "text",
+                        },
+                        {
+                            "id": "F_PRIORITY",
+                            "name": "Priority",
+                            "data_type": "single_select",
+                            "value": {"id": "O_HIGH", "name": "High"},
+                        },
+                    ],
+                }
+            ],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller).read_inventory(
+            binding(), field_names=("Execution Owner", "Priority")
+        )
+    )
+
+    values = {value.field_name: value.value for value in inventory.items[0].field_values}
+    assert values == {"Execution Owner": None, "Priority": "High"}
+
+
 def test_invalid_response_is_bounded_and_redacted() -> None:
     caller = FakeCaller({"project": {"id": "PVT_1"}})
 
