@@ -766,12 +766,19 @@ class WorkManagementService:
             raise ValueError(
                 "project schema manifest does not match configured portfolio"
             )
-        observed_fields = await reader(self._project_binding(project, binding))
+        project_binding = self._project_binding(project, binding)
+        observed_fields = await reader(project_binding)
+        views_reader = getattr(backend, "read_schema_views", None)
+        observed_views = (
+            None
+            if views_reader is None
+            else tuple(await views_reader(project_binding))
+        )
         return compare_project_schema(
             manifest,
             tuple(observed_fields),
             project_id=project.project_id,
-            views_observed=None,
+            views_observed=observed_views,
         )
 
     async def schema_plan(

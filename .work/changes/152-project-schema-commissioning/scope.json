@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "change_id": "152-project-schema-commissioning",
+  "status": "active",
+  "branch": "change/152-project-schema-commissioning",
+  "worktree": ".work/worktrees/152-project-schema-commissioning",
+  "base": "main",
+  "outcome": "Provision and verify the authoritative Work Management Project schema through one bounded registered-GitHub commissioning path, without arbitrary GraphQL or a second Project provider.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/providers/github/projects/schema_commissioning.py",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/work_management/service.py",
+    "src/kis_mcp/work_management/schema.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "settings/work-management/github-project-schema.json",
+    "tests/projects/test_github_exact.py",
+    "tests/providers/github/projects/test_schema_commissioning.py",
+    "tests/work_management/test_service.py",
+    "tests/capabilities/test_registered_commit_workflow.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/152-project-schema-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "migration",
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "a49fce4f789cbd1544273eae386a21b19e3bbaf9",
+    "local_tree": "a53f4d385294867eb22533c04a4f9f0f38a86c55",
+    "upstream_sha": "a49fce4f789cbd1544273eae386a21b19e3bbaf9",
+    "upstream_tree": "a53f4d385294867eb22533c04a4f9f0f38a86c55",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

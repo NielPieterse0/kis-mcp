@@ -10,7 +10,7 @@ from .contracts import PUBLIC_SCHEMA_VERSION
 
 _MANIFEST_KEYS = frozenset({"schema_version", "portfolio_id", "fields", "views"})
 _FIELD_KEYS = frozenset({"name", "type", "options"})
-_VIEW_KEYS = frozenset({"name", "purpose"})
+_VIEW_KEYS = frozenset({"name", "purpose", "layout"})
 
 
 def _text(value: Any, label: str) -> str:
@@ -61,13 +61,18 @@ class ProjectFieldSpec:
 class ProjectViewSpec:
     name: str
     purpose: str
+    layout: str = "table"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "name", _text(self.name, "view name"))
         object.__setattr__(self, "purpose", _text(self.purpose, "view purpose"))
+        layout = _text(self.layout, "view layout").casefold()
+        if layout not in {"table", "board", "roadmap"}:
+            raise ValueError("view layout must be table, board, or roadmap")
+        object.__setattr__(self, "layout", layout)
 
     def to_json_dict(self) -> dict[str, str]:
-        return {"name": self.name, "purpose": self.purpose}
+        return {"name": self.name, "purpose": self.purpose, "layout": self.layout}
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,8 +201,15 @@ def _field_spec(value: Any) -> ProjectFieldSpec:
 
 def _view_spec(value: Any) -> ProjectViewSpec:
     item = _object(value, "project view spec")
-    _exact_keys(item, _VIEW_KEYS, "project view spec")
-    return ProjectViewSpec(name=item["name"], purpose=item["purpose"])
+    unknown = sorted(set(item) - _VIEW_KEYS)
+    missing = sorted({"name", "purpose"} - set(item))
+    if unknown or missing:
+        raise ValueError(
+            "project view spec keys must include name and purpose and may include layout"
+        )
+    return ProjectViewSpec(
+        name=item["name"], purpose=item["purpose"], layout=item.get("layout", "table")
+    )
 
 
 def load_project_schema_manifest(path: Path | None = None) -> ProjectSchemaManifest:

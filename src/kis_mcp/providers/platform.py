@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from ..capabilities.contracts import CapabilityContribution, ReadinessSnapshot
 
-from ..config import RuntimeConfig
+from ..config import RuntimeConfig, load_runtime_config
 from ..repositories import RepositorySettings, SelectedRepositorySettings
 from .contracts import ProviderDescriptor, ProviderState
 from .context7 import register_context7_provider
@@ -19,6 +19,7 @@ from .dbhub import register_dbhub_provider
 from .dockerhub import register_dockerhub_provider
 from .github import GitHubProviderSettings, register_github_provider
 from .github.project_management import GitHubProjectManagementAdapter
+from .github.projects.schema_commissioning import GitHubProjectSchemaAwareBackend
 from .nvidia import (
     NvidiaSettings,
     disabled_nvidia_settings,
@@ -190,10 +191,17 @@ def build_platform_github_project_backend(
         for tool_name in capability.tool_names
         if tool_name in {"projects_get", "projects_list", "projects_write"}
     )
-    return GitHubProjectManagementAdapter(
+    delegate = GitHubProjectManagementAdapter(
         _NamespacedProviderToolCaller(server, "github"),
         bindings,
         available_tools=available_tools,
+    )
+    runtime = load_runtime_config()
+    return GitHubProjectSchemaAwareBackend(
+        delegate,
+        bindings,
+        gh_config_dir=Path(runtime.github_cli_config_dir),
+        cwd=Path(runtime.project_boundary),
     )
 
 

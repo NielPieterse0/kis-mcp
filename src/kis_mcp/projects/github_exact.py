@@ -13,6 +13,11 @@ from typing import Any, Literal
 from fastmcp.exceptions import ToolError
 
 from ..config import load_runtime_config
+from ..providers.github.projects.schema_commissioning import (
+    GitHubProjectSchemaClient,
+    ProjectSchemaTarget,
+)
+from ..work_management.schema import load_project_schema_manifest
 from .contracts import ProjectDefinition
 from .registry import ProjectRegistry
 from .settings import load_project_registry_settings
@@ -890,6 +895,67 @@ class RegisteredGitHubOperations:
             "recovery_sha": expected_sha,
         }
 
+    def commission_project_schema(
+        self,
+        *,
+        project_id: str,
+        project_binding_id: str,
+        approved: bool,
+    ) -> dict[str, object]:
+        self._require_approval(approved)
+        if not isinstance(project_binding_id, str) or not project_binding_id.strip():
+            raise ToolError(
+                "INVALID_REGISTERED_GITHUB_ARGUMENTS: project_binding_id must be a non-empty string"
+            )
+        project, _repository, _remote_url = self._target(project_id)
+        if project.github is None:
+            raise ToolError(f"GITHUB_BINDING_REQUIRED: {project_id}")
+        project_binding_id = project_binding_id.strip()
+        resource = next(
+            (
+                item
+                for item in project.github.projects
+                if item.binding_id == project_binding_id
+            ),
+            None,
+        )
+        if resource is None:
+            raise ToolError(
+                f"REGISTERED_GITHUB_PROJECT_REQUIRED: {project_id}/{project_binding_id}"
+            )
+        if self.gh_config_dir is None:
+            raise ToolError("REGISTERED_GITHUB_AUTH_STATE_REQUIRED: GH_CONFIG_DIR is not configured")
+        cwd = Path(project.local_root)
+        self._authenticate(cwd)
+        client = GitHubProjectSchemaClient(
+            gh_config_dir=self.gh_config_dir,
+            cwd=cwd,
+            runner=self.runner,
+        )
+        try:
+            result = client.commission(
+                ProjectSchemaTarget(
+                    owner=resource.owner,
+                    owner_type=resource.owner_type,
+                    project_number=resource.project_number,
+                ),
+                load_project_schema_manifest(),
+            )
+        except Exception as exc:
+            raise ToolError(
+                f"REGISTERED_GITHUB_PROJECT_SCHEMA_FAILED: {type(exc).__name__}: {exc}"
+            ) from exc
+        return {
+            "schema_version": 1,
+            "state": "ready",
+            "project_id": project.project_id,
+            "project_binding_id": resource.binding_id,
+            "owner": resource.owner,
+            "owner_type": resource.owner_type,
+            "project_number": resource.project_number,
+            **result,
+        }
+
 
 REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
     "kis_github_publish_registered_commit": {
@@ -961,6 +1027,16 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
         "required": ["project_id", "approved"],
         "additionalProperties": False,
     },
+    "kis_github_commission_registered_project_schema": {
+        "type": "object",
+        "properties": {
+            "project_id": {"type": "string"},
+            "project_binding_id": {"type": "string"},
+            "approved": {"type": "boolean"},
+        },
+        "required": ["project_id", "project_binding_id", "approved"],
+        "additionalProperties": False,
+    },
     "kis_github_merge_registered_pull_request": {
         "type": "object",
         "properties": {
@@ -1024,6 +1100,7 @@ def _validated_arguments(
         raise ToolError("APPROVAL_REQUIRED: approved must be true")
     for name in (
         "project_id",
+        "project_binding_id",
         "commit",
         "source_base",
         "branch",
@@ -1106,6 +1183,12 @@ def execute_registered_github_operation(
     if operation == "kis_github_configure_registered_repository":
         return service.configure_repository_landing_policy(
             project_id=values["project_id"],
+            approved=values["approved"],
+        )
+    if operation == "kis_github_commission_registered_project_schema":
+        return service.commission_project_schema(
+            project_id=values["project_id"],
+            project_binding_id=values["project_binding_id"],
             approved=values["approved"],
         )
     if operation == "kis_github_merge_registered_pull_request":

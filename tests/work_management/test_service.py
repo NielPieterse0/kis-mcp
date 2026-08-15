@@ -26,6 +26,7 @@ from kis_mcp.work_management import (
     WorkManagementUnavailable,
     create_review_evidence_manifest,
 )
+from kis_mcp.work_management.schema import load_project_schema_manifest
 
 
 def settings(
@@ -89,6 +90,10 @@ class Backend:
                 options=(ProjectFieldOption(option_id="ready", name="Ready"),),
             ),
         )
+
+    async def read_schema_views(self, project_binding):
+        self.bindings.append(project_binding)
+        return tuple(view.name for view in load_project_schema_manifest().views)
 
     async def apply_reconciliation(
         self,
@@ -297,6 +302,8 @@ def test_schema_status_uses_portfolio_manifest_for_managed_project() -> None:
 
     assert status.project_id == "alpha-project"
     assert status.portfolio_id == "default"
+    assert status.views_ready is True
+    assert status.unverified_views == ()
     assert "Effort" in status.missing_fields
     assert plan.project_id == "alpha-project"
     assert plan.portfolio_id == "default"
