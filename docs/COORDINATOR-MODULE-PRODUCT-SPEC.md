@@ -173,11 +173,12 @@ Implemented by #248 on the parent change branch:
 Implemented by #249 on the same parent branch:
 
 - compare-and-swap scope revision using exact current authority revision and fence evidence;
-- authoritative governed-scope amendment through an injected adapter plus exact post-mutation claim re-read before coordinator revision acceptance;
-- append-only authority transition evidence and restart recovery from durable reservation state plus current governed claims;
+- authoritative governed-scope amendment through an injected adapter plus exact post-mutation claim re-read before coordinator revision acceptance, with full CAS evidence for `outcome`, `excluded_paths`, and the mutable scope fields;
+- append-only authority transition evidence, persisted expected/proposed CAS endpoints, numeric journal ordering beyond three-digit event ordinals, and deterministic restart recovery from durable reservation state plus current governed claims;
 - lease activation, heartbeat, expiry, reassignment, and exact holder/revision/lease/fence mutation-authority checks using an injected UTC clock;
 - monotonic authority/fence invalidation of stale holders after scope changes, expiry, or reassignment;
 - deterministic connected degraded conflict components that block intersecting reservations while preserving disjoint admission;
+- rejection of semantically empty revisions and enforcement of explicit coordination before an owned-only reservation adds its first shared path;
 - valid scope repair of an intersecting degraded claim when the resulting global claim set is conflict-free;
 - a Windows-safe shared admission-lock initialization path used by both reservation and authority transitions.
 

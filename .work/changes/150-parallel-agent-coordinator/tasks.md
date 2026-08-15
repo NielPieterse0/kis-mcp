@@ -1,35 +1,39 @@
-# Tasks: Parallel Agent Coordinator — Slice 2 (#248)
+# Tasks: Parallel Agent Coordinator — Slice 3 (#249)
 
-## Slice 1 prerequisite
+## Prerequisites
 
-- [x] #247 architecture/contracts committed and handed off on the existing parent branch.
+- [x] #247 architecture/contracts completed and preserved.
+- [x] #248 atomic reservation admission completed and preserved.
+- [x] Parent branch reconciled onto verified current `main` `7d4391873b17064fcb1ce32c1dc3915a4b6a0cf4` with no coordinator-path conflicts.
+- [x] Repository authority and #241/#249 re-read; canonical `develop-code` and `develop-docs` procedures loaded.
+- [x] Strict `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253` sequencing preserved.
 
-## Slice 2 implementation
+## Slice 3 implementation
 
-- [x] Confirm #248 scope and preserve strict `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253` sequencing.
-- [x] Load the canonical `develop-code` skill and re-read repository authority.
-- [x] Add TDD race/admission tests and confirm the initial missing-package RED state.
-- [x] Implement atomic reservation admission with a cross-process mutex.
-- [x] Allocate unique human-facing sequences across active, historical, and consumed journal identities.
-- [x] Reject conflicting exclusive claims and uncoordinated shared claims before authority issuance.
-- [x] Preserve concurrent liveness for disjoint reservations.
-- [x] Couple configured Work Management claim metadata and compensation adapters into admission.
-- [x] Delegate governed branch/worktree creation to the existing change workflow and re-read the resulting claim.
-- [x] Return schema-valid reservation identity with exact base, authority revision, lease ID, and initial fence token.
-- [x] Enforce the declared project boundary for coordinator durable state.
+- [x] Add test-first CAS scope-revision concurrency coverage.
+- [x] Keep governed scope authoritative through exact observed-claim CAS and post-write re-read.
+- [x] Persist revision/lease/recovery transitions append-only.
+- [x] Implement lease activation and heartbeat with exact holder/revision/lease/fence checks.
+- [x] Implement expiry recovery and reassignment with monotonic authority revision/fence semantics.
+- [x] Reject stale mutation authority after scope revision, expiry, or reassignment.
+- [x] Derive stable connected degraded path-conflict components from current claims.
+- [x] Reject reservations intersecting degraded components while preserving disjoint admission.
+- [x] Permit valid scope repair that removes a degraded conflict.
+- [x] Preserve Slice 1/2 reservation behavior and harden the Windows admission-lock initialization race found by combined regression testing.
+- [x] Keep Slice 3 internal; add no planner, work packet, worker, reconciliation, telemetry, or public coordinator tool.
 
-## Remaining Slice 2 gates
+## Slice 3 gates
 
-- [x] Update long-lived module documentation for implemented Slice 2 behavior.
-- [x] Full coordinator and affected regression verification passes on the final diff.
-- [x] Required code-quality, architecture, and API-contract reviews have zero blocking findings after documented fallback/adjudication.
-- [x] Governed scope check, compilation, and `git diff --check` pass.
-- [x] Commit Slice 2 and record exact handoff evidence.
+- [x] Affected change-governance + full coordinator regression suite passes: 83/83.
+- [x] Lease and scope-revision outputs validate against existing Slice 1 contracts.
+- [x] Coordinator module documentation reconciled to implemented Slice 3 behavior.
+- [x] Ruff lint, Python compilation, governed scope check, and `git diff --check` pass on the final implementation diff.
+- [x] Required code-quality, architecture, and API-contract reviews have zero blocking findings after exact-diff fallback fixes/adjudication.
+- [x] Slice 3 implementation commit `530d18f4c7ae181cca0bdef6f879952bef8574d0` recorded; parent change remains active for #250.
 
 ## Explicitly deferred
 
-- #249 CAS scope mutation, lease enforcement, fencing lifecycle, expiry/reassignment, and recovery.
-- #250 dependency planning, work-packet production, runtime resolution, and agent selection.
+- #250 dependency planning, work-packet production, assignment keys, runtime/capability resolution, and agent selection.
 - #251 durable worker execution/retry/resume and MCP adapter behavior.
 - #252 handoff reconciliation, verification derivation, serialized integration, and landing.
 - #253 observability, evaluation, operator UX, Control Center integration, and commissioning.
