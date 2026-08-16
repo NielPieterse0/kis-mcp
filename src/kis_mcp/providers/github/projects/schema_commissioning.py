@@ -554,6 +554,8 @@ class GitHubProjectSchemaClient:
                     if not isinstance(value, dict):
                         return None, ("unverified:single_select_value",)
                     option_name = value.get("name")
+                    if isinstance(option_name, dict):
+                        option_name = option_name.get("raw")
                     if not isinstance(option_name, str) or not option_name.strip():
                         return None, ("unverified:single_select_name",)
                     values_by_name[field_key] = option_name.strip()
