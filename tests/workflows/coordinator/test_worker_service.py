@@ -307,6 +307,14 @@ def test_worker_execution_and_handoff_validate_strict_contracts() -> None:
         Draft202012Validator(_schema("worker-execution")).iter_errors(completed.to_json_dict())
     )
     assert execution_errors == []
+    legacy_execution = {
+        **completed.to_json_dict(),
+        "schema_version": 1,
+        "contract": "coordinator-worker-execution-v1",
+    }
+    assert list(
+        Draft202012Validator(_schema("worker-execution")).iter_errors(legacy_execution)
+    )
 
     handoff = WorkerLifecycle.handoff(
         completed,

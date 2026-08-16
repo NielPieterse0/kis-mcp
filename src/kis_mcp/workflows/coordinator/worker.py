@@ -221,8 +221,8 @@ class WorkerExecution:
         if self.last_event_id is not None:
             last_event = {"event_id": self.last_event_id, "digest": self.last_event_digest}
         return {
-            "schema_version": 1,
-            "contract": "coordinator-worker-execution-v1",
+            "schema_version": 2,
+            "contract": "coordinator-worker-execution-v2",
             "identity": self.identity.to_json_dict(),
             "state": self.state.value,
             "sequence": self.sequence,

@@ -9,8 +9,8 @@
     "progress_id", "result_id", "residual_state", "accepted_events", "last_event"
   ],
   "properties": {
-    "schema_version": {"const": 1},
-    "contract": {"const": "coordinator-worker-execution-v1"},
+    "schema_version": {"const": 2},
+    "contract": {"const": "coordinator-worker-execution-v2"},
     "identity": {"$ref": "#/$defs/identity"},
     "state": {"enum": ["pending", "running", "waiting_input", "completed", "failed", "cancelled", "recoverable"]},
     "sequence": {"type": "integer", "minimum": 0},
