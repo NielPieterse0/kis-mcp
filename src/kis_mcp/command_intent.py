@@ -232,6 +232,26 @@ _WRITE_CMDLETS = {
 }
 _SHELL_WRAPPERS = {"cmd", "powershell", "pwsh"}
 _MAX_NESTED_COMMAND_DEPTH = 4
+_CMD_ENV_EXPANSION = re.compile(r"%[^%\r\n]+%")
+_CMD_DELAYED_ENV_EXPANSION = re.compile(r"![^!\r\n]+!")
+_POWERSHELL_MUTATION_PROGRAMS = {
+    "add-content",
+    "copy-item",
+    "move-item",
+    "new-item",
+    "out-file",
+    "remove-item",
+    "set-content",
+    "tee-object",
+}
+_CMD_MUTATION_PROGRAMS = {"copy", "del", "erase", "md", "mkdir", "move", "rd", "rmdir", "xcopy"}
+_PATH_MUTATION_PROGRAMS = (
+    _DELETE_PROGRAMS
+    | _COPY_PROGRAMS
+    | _MOVE_PROGRAMS
+    | _CREATE_PROGRAMS
+    | _WRITE_CMDLETS
+)
 
 
 def _tokens(command: str) -> list[str]:
@@ -239,6 +259,59 @@ def _tokens(command: str) -> list[str]:
         return shlex.split(command, posix=False)
     except ValueError:
         return command.split()
+
+
+def _powershell_tokens(command: str) -> list[str]:
+    tokens: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    index = 0
+    while index < len(command):
+        character = command[index]
+
+        if quote == "single":
+            current.append(character)
+            if character == "'":
+                if index + 1 < len(command) and command[index + 1] == "'":
+                    current.append(command[index + 1])
+                    index += 2
+                    continue
+                quote = None
+            index += 1
+            continue
+
+        if character == "`":
+            current.append(character)
+            if index + 1 < len(command):
+                current.append(command[index + 1])
+                index += 2
+            else:
+                index += 1
+            continue
+
+        if quote == "double":
+            current.append(character)
+            if character == '"':
+                quote = None
+            index += 1
+            continue
+
+        if character.isspace():
+            if current:
+                tokens.append("".join(current))
+                current = []
+            index += 1
+            continue
+        if character == "'":
+            quote = "single"
+        elif character == '"':
+            quote = "double"
+        current.append(character)
+        index += 1
+
+    if current:
+        tokens.append("".join(current))
+    return tokens
 
 
 def _clean_token(token: str) -> str:
@@ -266,6 +339,26 @@ def _wrapped_command_payload(tokens: list[str]) -> str | None:
             payload = " ".join(arguments[index + 1 :]).strip()
             return payload or None
     return None
+
+
+def _cmd_delayed_expansion_override(tokens: list[str]) -> bool | None:
+    if not tokens or _program_name(tokens[0]) != "cmd":
+        return None
+    override: bool | None = None
+    for token in tokens[1:]:
+        switch = _strip_outer_quotes(token).casefold()
+        if switch in {"/c", "/k"}:
+            break
+        if switch == "/v:on":
+            override = True
+        elif switch == "/v:off":
+            override = False
+    return override
+
+
+def _cmd_delayed_expansion_state(tokens: list[str], inherited: bool) -> bool:
+    override = _cmd_delayed_expansion_override(tokens)
+    return inherited if override is None else override
 
 
 def _persistent_shell_payload(tokens: list[str]) -> tuple[str, str] | None:
@@ -537,16 +630,97 @@ def _network_intent(tokens: list[str], *, cwd: str) -> bool:
     return False
 
 
-def _resolve_path(value: str, *, cwd: str) -> str | None:
+def _mutation_shell(program: str, shell: str) -> str:
+    normalized = shell.casefold()
+    if normalized in {"cmd", "powershell"}:
+        return normalized
+    if program in _POWERSHELL_MUTATION_PROGRAMS:
+        return "powershell"
+    if program in _CMD_MUTATION_PROGRAMS:
+        return "cmd"
+    return normalized
+
+
+def _powershell_has_expansion(value: str) -> bool:
+    quote: str | None = None
+    index = 0
+    while index < len(value):
+        character = value[index]
+
+        if quote == "single":
+            if character == "'":
+                if index + 1 < len(value) and value[index + 1] == "'":
+                    index += 2
+                    continue
+                quote = None
+            index += 1
+            continue
+
+        if character == "`":
+            index += 2 if index + 1 < len(value) else 1
+            continue
+
+        if quote == "double":
+            if character == '"':
+                quote = None
+                index += 1
+                continue
+        else:
+            if character == "'":
+                quote = "single"
+                index += 1
+                continue
+            if character == '"':
+                quote = "double"
+                index += 1
+                continue
+
+        if character == "$" and index + 1 < len(value):
+            next_character = value[index + 1]
+            if (
+                next_character.isalnum()
+                or next_character in {"_", "?", "^", "$", "{", "("}
+            ):
+                return True
+        index += 1
+    return False
+
+
+def _has_shell_expansion(
+    value: str, *, shell: str, cmd_delayed_expansion: bool = False
+) -> bool:
+    normalized = shell.casefold()
+    raw = value.strip()
+    candidate = _strip_outer_quotes(raw)
+    if cmd_delayed_expansion and _CMD_DELAYED_ENV_EXPANSION.search(candidate):
+        return True
+    if normalized == "cmd":
+        return _CMD_ENV_EXPANSION.search(candidate) is not None
+    if normalized == "powershell":
+        return _powershell_has_expansion(raw)
+    return False
+
+
+def _resolve_mutation_target(
+    value: str,
+    *,
+    cwd: str,
+    shell: str,
+    cmd_delayed_expansion: bool = False,
+) -> tuple[str | None, str | None]:
     clean = _clean_token(value)
     if not clean or clean in {"-", "nul", "NUL"} or clean.startswith("&"):
-        return None
-    if any(marker in clean for marker in ("$env:", "%", "${", "$(")):
-        return None
+        return None, None
+    if _has_shell_expansion(
+        value,
+        shell=shell,
+        cmd_delayed_expansion=cmd_delayed_expansion,
+    ):
+        return None, clean
     try:
-        return normalize_windows_path(clean, base=cwd)
+        return normalize_windows_path(clean, base=cwd), None
     except PathValidationError:
-        return None
+        return None, clean
 
 
 def _non_option_values(tokens: Iterable[str]) -> list[str]:
@@ -589,13 +763,42 @@ def _positional_operands(
     return values
 
 
-def _redirection_paths(command: str, *, cwd: str, shell: str) -> list[str]:
+def _partition_mutation_targets(
+    values: Iterable[str],
+    *,
+    cwd: str,
+    shell: str,
+    cmd_delayed_expansion: bool = False,
+) -> tuple[list[str], list[str]]:
     paths: list[str] = []
-    for candidate in output_redirection_targets(command, shell=shell):
-        resolved = _resolve_path(candidate, cwd=cwd)
+    unresolved: list[str] = []
+    for value in values:
+        resolved, unresolved_target = _resolve_mutation_target(
+            value,
+            cwd=cwd,
+            shell=shell,
+            cmd_delayed_expansion=cmd_delayed_expansion,
+        )
         if resolved:
             paths.append(resolved)
-    return paths
+        elif unresolved_target:
+            unresolved.append(unresolved_target)
+    return list(dict.fromkeys(paths)), list(dict.fromkeys(unresolved))
+
+
+def _redirection_paths(
+    command: str,
+    *,
+    cwd: str,
+    shell: str,
+    cmd_delayed_expansion: bool = False,
+) -> tuple[list[str], list[str]]:
+    return _partition_mutation_targets(
+        output_redirection_targets(command, shell=shell),
+        cwd=cwd,
+        shell=shell,
+        cmd_delayed_expansion=cmd_delayed_expansion,
+    )
 
 
 def _git_option_key(value: str) -> str:
@@ -693,36 +896,64 @@ def _git_clean_is_unresolved_delete(tokens: list[str], *, cwd: str) -> bool:
     return force and not dry_run
 
 
-def _delete_paths(tokens: list[str], command: str, *, cwd: str) -> list[str]:
+def _delete_paths(
+    tokens: list[str],
+    command: str,
+    *,
+    cwd: str,
+    shell: str,
+    cmd_delayed_expansion: bool = False,
+) -> tuple[list[str], list[str]]:
     lower_command = command.casefold()
     if any(flag in lower_command for flag in ("--help", " -h", " /?", "-whatif")):
-        return []
+        return [], []
     if not tokens:
-        return []
+        return [], []
 
     program = _program_name(tokens[0])
     if program == "git" or program not in _DELETE_PROGRAMS:
-        return []
+        return [], []
 
     values = _non_option_values(tokens[1:])
-    resolved = [_resolve_path(value, cwd=cwd) for value in values]
-    return [value for value in resolved if value]
+    return _partition_mutation_targets(
+        values,
+        cwd=cwd,
+        shell=_mutation_shell(program, shell),
+        cmd_delayed_expansion=cmd_delayed_expansion,
+    )
 
 
 def _explicit_write_paths(
-    tokens: list[str], command: str, *, cwd: str, shell: str
-) -> list[str]:
-    paths = _redirection_paths(command, cwd=cwd, shell=shell)
+    tokens: list[str],
+    command: str,
+    *,
+    cwd: str,
+    shell: str,
+    cmd_delayed_expansion: bool = False,
+) -> tuple[list[str], list[str]]:
+    paths, unresolved = _redirection_paths(
+        command,
+        cwd=cwd,
+        shell=shell,
+        cmd_delayed_expansion=cmd_delayed_expansion,
+    )
     if not tokens:
-        return paths
+        return paths, unresolved
 
     program = _program_name(tokens[0])
 
     if program == "git":
         if _git_local_write_intent(tokens, cwd=cwd):
             invocation = parse_git_invocation(tokens, cwd=cwd)
-            paths.extend(invocation.mutation_paths or (invocation.cwd,))
-        return list(dict.fromkeys(paths))
+            resolved, unresolved_git = _partition_mutation_targets(
+                invocation.mutation_paths or (invocation.cwd,),
+                cwd=invocation.cwd,
+                shell=_mutation_shell(program, shell),
+                cmd_delayed_expansion=cmd_delayed_expansion,
+            )
+            paths.extend(resolved)
+            unresolved.extend(unresolved_git)
+        return list(dict.fromkeys(paths)), list(dict.fromkeys(unresolved))
 
     values = _non_option_values(tokens[1:])
     if program == "new-item":
@@ -761,62 +992,80 @@ def _explicit_write_paths(
             ),
         )
 
+    target_values: list[str] = []
     if program in _COPY_PROGRAMS and values:
-        resolved = _resolve_path(values[-1], cwd=cwd)
-        if resolved:
-            paths.append(resolved)
+        target_values.append(values[-1])
     elif program in _CREATE_PROGRAMS:
-        for value in values:
-            resolved = _resolve_path(value, cwd=cwd)
-            if resolved:
-                paths.append(resolved)
+        target_values.extend(values)
     elif program in _WRITE_CMDLETS:
         named_path_found = False
         for index, token in enumerate(tokens[1:], start=1):
             lower = _clean_token(token).casefold()
             if lower in {"-path", "-literalpath", "-filepath"} and index + 1 < len(tokens):
-                resolved = _resolve_path(tokens[index + 1], cwd=cwd)
-                if resolved:
-                    paths.append(resolved)
-                    named_path_found = True
+                target_values.append(tokens[index + 1])
+                named_path_found = True
         if not named_path_found and values:
-            resolved = _resolve_path(values[0], cwd=cwd)
-            if resolved:
-                paths.append(resolved)
+            target_values.append(values[0])
 
-    return list(dict.fromkeys(paths))
+    resolved, unresolved_targets = _partition_mutation_targets(
+        target_values,
+        cwd=cwd,
+        shell=_mutation_shell(program, shell),
+        cmd_delayed_expansion=cmd_delayed_expansion,
+    )
+    paths.extend(resolved)
+    unresolved.extend(unresolved_targets)
+    return list(dict.fromkeys(paths)), list(dict.fromkeys(unresolved))
 
 
-def _entry_paths(tokens: list[str], *, cwd: str) -> list[str]:
-    if not tokens or _program_name(tokens[0]) not in _MOVE_PROGRAMS:
-        return []
+def _entry_paths(
+    tokens: list[str],
+    *,
+    cwd: str,
+    shell: str,
+    cmd_delayed_expansion: bool = False,
+) -> tuple[list[str], list[str]]:
+    if not tokens:
+        return [], []
+    program = _program_name(tokens[0])
+    if program not in _MOVE_PROGRAMS:
+        return [], []
     values = _non_option_values(tokens[1:])
     if not values:
-        return []
-    paths: list[str] = []
-    for value in (values[0], values[-1]):
-        resolved = _resolve_path(value, cwd=cwd)
-        if resolved:
-            paths.append(resolved)
-    return list(dict.fromkeys(paths))
+        return [], []
+    return _partition_mutation_targets(
+        (values[0], values[-1]),
+        cwd=cwd,
+        shell=_mutation_shell(program, shell),
+        cmd_delayed_expansion=cmd_delayed_expansion,
+    )
 
 
 def _merge_effects(effects: Iterable[InvocationEffects]) -> InvocationEffects:
     write_paths: list[str] = []
     entry_paths: list[str] = []
     delete_paths: list[str] = []
+    unresolved_write_paths: list[str] = []
+    unresolved_entry_paths: list[str] = []
+    unresolved_delete_paths: list[str] = []
     unresolved_delete = False
     external_network = False
     for effect in effects:
         write_paths.extend(effect.write_paths)
         entry_paths.extend(effect.entry_paths)
         delete_paths.extend(effect.delete_paths)
+        unresolved_write_paths.extend(effect.unresolved_write_paths)
+        unresolved_entry_paths.extend(effect.unresolved_entry_paths)
+        unresolved_delete_paths.extend(effect.unresolved_delete_paths)
         unresolved_delete = unresolved_delete or effect.unresolved_delete
         external_network = external_network or effect.external_network
     return InvocationEffects(
         write_paths=tuple(dict.fromkeys(write_paths)),
         entry_paths=tuple(dict.fromkeys(entry_paths)),
         delete_paths=tuple(dict.fromkeys(delete_paths)),
+        unresolved_write_paths=tuple(dict.fromkeys(unresolved_write_paths)),
+        unresolved_entry_paths=tuple(dict.fromkeys(unresolved_entry_paths)),
+        unresolved_delete_paths=tuple(dict.fromkeys(unresolved_delete_paths)),
         unresolved_delete=unresolved_delete,
         external_network=external_network,
     )
@@ -835,19 +1084,47 @@ def _resolve_command_recursive(
     effects: list[InvocationEffects] = []
     for segment in segments:
         tokens = _tokens(segment.text)
+        program = _program_name(tokens[0]) if tokens else ""
+        if (
+            program in _PATH_MUTATION_PROGRAMS
+            and _mutation_shell(program, segment.shell) == "powershell"
+        ):
+            powershell_tokens = _powershell_tokens(segment.text)
+            if powershell_tokens:
+                tokens = powershell_tokens
+                program = _program_name(tokens[0])
+        direct_delayed_expansion = (
+            _cmd_delayed_expansion_state(tokens, state.cmd_delayed_expansion)
+            if program == "cmd"
+            else state.cmd_delayed_expansion
+        )
+        write_paths, unresolved_write_paths = _explicit_write_paths(
+            tokens,
+            segment.text,
+            cwd=segment.cwd,
+            shell=segment.shell,
+            cmd_delayed_expansion=direct_delayed_expansion,
+        )
+        entry_paths, unresolved_entry_paths = _entry_paths(
+            tokens,
+            cwd=segment.cwd,
+            shell=segment.shell,
+            cmd_delayed_expansion=direct_delayed_expansion,
+        )
+        delete_paths, unresolved_delete_paths = _delete_paths(
+            tokens,
+            segment.text,
+            cwd=segment.cwd,
+            shell=segment.shell,
+            cmd_delayed_expansion=direct_delayed_expansion,
+        )
         direct = InvocationEffects(
-            write_paths=tuple(
-                _explicit_write_paths(
-                    tokens,
-                    segment.text,
-                    cwd=segment.cwd,
-                    shell=segment.shell,
-                )
-            ),
-            entry_paths=tuple(_entry_paths(tokens, cwd=segment.cwd)),
-            delete_paths=tuple(
-                _delete_paths(tokens, segment.text, cwd=segment.cwd)
-            ),
+            write_paths=tuple(write_paths),
+            entry_paths=tuple(entry_paths),
+            delete_paths=tuple(delete_paths),
+            unresolved_write_paths=tuple(unresolved_write_paths),
+            unresolved_entry_paths=tuple(unresolved_entry_paths),
+            unresolved_delete_paths=tuple(unresolved_delete_paths),
             unresolved_delete=(
                 bool(tokens)
                 and _program_name(tokens[0]) == "git"
@@ -862,7 +1139,15 @@ def _resolve_command_recursive(
             continue
         wrapper = _program_name(tokens[0]) if tokens else ""
         nested_shell = "cmd" if wrapper == "cmd" else "powershell"
-        nested_state = ShellState(cwd=segment.cwd, shell=nested_shell)
+        nested_state = ShellState(
+            cwd=segment.cwd,
+            shell=nested_shell,
+            cmd_delayed_expansion=(
+                _cmd_delayed_expansion_state(tokens, state.cmd_delayed_expansion)
+                if wrapper == "cmd"
+                else state.cmd_delayed_expansion
+            ),
+        )
         nested, _nested_final = _resolve_command_recursive(
             payload,
             state=nested_state,
@@ -881,11 +1166,20 @@ def resolve_persistent_shell_startup_state(
 ) -> ShellState:
     """Return the final state of a statically recognized persistent shell."""
 
-    persistent = _persistent_shell_payload(_tokens(command))
+    tokens = _tokens(command)
+    persistent = _persistent_shell_payload(tokens)
     if persistent is None:
         return state
     nested_shell, payload = persistent
-    nested_state = ShellState(cwd=state.cwd, shell=nested_shell)
+    nested_state = ShellState(
+        cwd=state.cwd,
+        shell=nested_shell,
+        cmd_delayed_expansion=(
+            _cmd_delayed_expansion_state(tokens, state.cmd_delayed_expansion)
+            if nested_shell == "cmd"
+            else state.cmd_delayed_expansion
+        ),
+    )
     if not payload:
         return nested_state
     _effects, final_state = resolve_command_effects_with_state(
@@ -913,6 +1207,7 @@ def resolve_command_effects_with_state(
         shell=state.shell,
         directory_stack=state.directory_stack,
         terminated=state.terminated,
+        cmd_delayed_expansion=state.cmd_delayed_expansion,
     )
     return _resolve_command_recursive(command, state=normalized_state, depth=0)
 
