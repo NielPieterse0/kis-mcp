@@ -1,0 +1,53 @@
+{
+  "schema_version": 4,
+  "change_id": "176-housekeeping-reconciliation-readiness",
+  "status": "active",
+  "branch": "change/176-housekeeping-reconciliation-readiness",
+  "worktree": ".work/worktrees/176-housekeeping-reconciliation-readiness",
+  "base": "main",
+  "outcome": "Add provider-neutral deterministic housekeeping runner contracts plus Work Management reconciliation and backlog readiness runners with preview-first bounded apply planning.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping/**",
+    "tests/housekeeping/**",
+    "scripts/housekeeping.py",
+    ".work/changes/176-housekeeping-reconciliation-readiness/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/execution/**",
+    "src/kis_mcp/workflows/verification/**",
+    "settings/execution-runners.settings.json",
+    "contracts/execution/**",
+    "scripts/runner/**",
+    "tests/execution/**",
+    "tests/workflows/verification/**",
+    "docs/PLATFORM-CONCEPT.md",
+    ".work/changes/174-disposable-windows-execution-foundation/**",
+    ".github/workflows/**",
+    "SPEC.md",
+    ".work/changes/150-parallel-agent-coordinator/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "9adf1ca26a6a96a173605a7e5dd5c11216d6ec0e",
+    "local_tree": "99b7653a39b65d2afc5d40ae01c4690221902093",
+    "upstream_sha": "9adf1ca26a6a96a173605a7e5dd5c11216d6ec0e",
+    "upstream_tree": "99b7653a39b65d2afc5d40ae01c4690221902093",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-325",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 325,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
