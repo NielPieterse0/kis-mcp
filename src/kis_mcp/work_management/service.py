@@ -84,6 +84,8 @@ class WorkManagementUnavailable(RuntimeError):
 
 EvidenceStoreFactory = Callable[[ManagedProject, EvidenceSettings], ReviewEvidenceStore]
 
+_EXACT_TARGET_ITEM_LIMIT = 1000
+
 
 def _normalized_project_choice(value: object) -> str | None:
     if not isinstance(value, str) or not value.strip():
@@ -306,7 +308,7 @@ class WorkManagementService:
         issue_number: int,
         *,
         extra_fields: tuple[str, ...] = (),
-        item_limit: int = 100,
+        item_limit: int = _EXACT_TARGET_ITEM_LIMIT,
     ) -> tuple[ProjectInventory, ProjectItem, CommandPlaneSettings]:
         settings = self._command_settings()
         fields = tuple(
@@ -318,6 +320,10 @@ class WorkManagementService:
             item_limit=item_limit,
         )
         item = find_issue_item(inventory, repository, issue_number)
+        if inventory.truncated:
+            raise ValueError(
+                "exact-target truncated Project inventory remains incomplete after bounded resolution scan"
+            )
         return inventory, item, settings
 
     async def _reconcile_issue_fields(
