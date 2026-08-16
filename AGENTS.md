@@ -20,7 +20,7 @@ Applicable authorities keep this precedence:
 3. `SPEC.md` — current implemented product architecture and boundaries.
 4. `docs/PLATFORM-CONCEPT.md` — approved target architecture only.
 5. `policy/kis-mcp.policy.json` — machine-readable hard-rule declaration.
-6. `docs/OPERATIONS.md` — installation, startup, commissioning, verification, troubleshooting, and recovery.
+6. `docs/OPERATIONS.md` — canonical operator entry/routing; linked `docs/operations/**` runbooks hold scoped installation, startup, commissioning, verification, troubleshooting, and recovery procedures.
 
 Read `AGENTS.md` and the active `.work/changes/<change-id>/` record for every governed repository change. Then load only the additional owners applicable to the task or affected paths. A lower authority never overrides a higher applicable authority.
 
@@ -29,7 +29,7 @@ Read `AGENTS.md` and the active `.work/changes/<change-id>/` record for every go
 | Trust boundary, policy enforcement, HR semantics | `docs/TRUST-MODEL.md` and applicable policy/contracts/tests |
 | Current product behavior or architecture | Relevant `SPEC.md` section and any durable module product spec |
 | Target/future architecture or platform direction | `docs/PLATFORM-CONCEPT.md` |
-| Installation, startup, deployment, commissioning, recovery, operator workflow | Relevant `docs/OPERATIONS.md` section |
+| Installation, startup, deployment, commissioning, recovery, operator workflow | `docs/OPERATIONS.md` index plus only the linked `docs/operations/**` runbook needed for the task |
 | Machine-enforceable value or interface | Applicable JSON, schema, contract, source, and tests |
 | Historical decision or prior engineering evidence | `docs/development/**` only when investigation requires it |
 
@@ -46,7 +46,7 @@ One governed fact has one canonical owner. Non-owning documents may summarize fo
 | Current implemented product architecture/status | `SPEC.md` |
 | Approved target architecture | `docs/PLATFORM-CONCEPT.md` |
 | Machine-readable hard rules | `policy/kis-mcp.policy.json` |
-| Operator procedure and live commissioning guidance | `docs/OPERATIONS.md` |
+| Operator procedure and live commissioning guidance | `docs/OPERATIONS.md` entry/index with scoped `docs/operations/**` runbooks |
 | Human orientation/navigation | `README.md` |
 | Durable module contract | applicable `docs/*-MODULE-PRODUCT-SPEC.md` |
 | Active change scope, plan, tasks, evidence | `.work/changes/<change-id>/` |

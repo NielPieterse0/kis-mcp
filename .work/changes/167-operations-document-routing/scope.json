@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "167-operations-document-routing",
+  "status": "active",
+  "branch": "change/167-operations-document-routing",
+  "worktree": ".work/worktrees/167-operations-document-routing",
+  "base": "main",
+  "outcome": "Reduce default operator-document context by turning docs/OPERATIONS.md into a canonical index with scoped runbooks while preserving all operational guidance and authority.",
+  "owned_paths": [
+    "AGENTS.md",
+    "docs/OPERATIONS.md",
+    "docs/operations/**",
+    ".work/changes/167-operations-document-routing/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "03c677d0f59d6da504a12912dce073db42116db5",
+    "local_tree": "2c4d38a3278350c38137ed063e56461814d57997",
+    "upstream_sha": "03c677d0f59d6da504a12912dce073db42116db5",
+    "upstream_tree": "2c4d38a3278350c38137ed063e56461814d57997",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
