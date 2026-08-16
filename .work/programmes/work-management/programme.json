@@ -7,8 +7,8 @@
     "working_spec":  ".work/programmes/work-management/target-spec.md",
     "roadmap":  ".work/programmes/work-management/roadmap.md",
     "initial_backend":  "github",
-    "current_change":  "162-work-management-view-readback",
-    "commissioning_state":  "semantic_view_commissioning_reopened_issue_270",
+    "current_change":  "166-work-management-view-filter-invariant",
+    "commissioning_state":  "view_filter_invariant_correction_pending_live_acceptance",
     "dependencies":  [
                          "047-capability-composition-and-tool-experience"
                      ],
