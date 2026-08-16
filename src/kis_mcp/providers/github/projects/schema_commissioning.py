@@ -494,23 +494,44 @@ class GitHubProjectSchemaClient:
         items = self._included_saved_view_items(str(getattr(result, "stdout", "")))
         if items is None:
             return None, ()
+        required_by_name = {field.name.casefold(): field for field, _ in requirements}
         mismatches: list[str] = []
         for item in items:
             raw_fields = item.get("fields")
             if not isinstance(raw_fields, list):
                 return None, ()
             values_by_name: dict[str, str] = {}
+            seen_field_names: set[str] = set()
             for raw_field in raw_fields:
                 if not isinstance(raw_field, dict):
                     return None, ()
                 field_name = raw_field.get("name")
                 if not isinstance(field_name, str) or not field_name.strip():
+                    return None, ()
+                field_key = field_name.casefold()
+                field = required_by_name.get(field_key)
+                if field is None:
                     continue
+                if field_key in seen_field_names:
+                    return None, ()
+                seen_field_names.add(field_key)
                 value = raw_field.get("value")
-                if isinstance(value, dict):
-                    value = value.get("name")
-                if value is not None:
-                    values_by_name[field_name.casefold()] = str(value).strip()
+                if value is None:
+                    continue
+                if field.kind is ProjectFieldKind.SINGLE_SELECT:
+                    if not isinstance(value, dict):
+                        return None, ()
+                    option_name = value.get("name")
+                    if not isinstance(option_name, str) or not option_name.strip():
+                        return None, ()
+                    values_by_name[field_key] = option_name.strip()
+                    continue
+                if field.kind in {ProjectFieldKind.TEXT, ProjectFieldKind.DATE}:
+                    if not isinstance(value, str):
+                        return None, ()
+                    values_by_name[field_key] = value.strip()
+                    continue
+                return None, ()
             for field, allowed in requirements:
                 observed_value = values_by_name.get(field.name.casefold())
                 if observed_value is None or observed_value.casefold() not in allowed:
