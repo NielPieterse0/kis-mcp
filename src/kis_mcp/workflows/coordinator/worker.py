@@ -151,6 +151,58 @@ class WorkerExecution:
     last_event_id: str | None = None
     last_event_digest: str | None = None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.identity, ExecutionIdentity):
+            raise ValueError("identity must be an ExecutionIdentity")
+        if not isinstance(self.state, WorkerExecutionState):
+            raise ValueError("state must be a WorkerExecutionState")
+        if isinstance(self.sequence, bool) or not isinstance(self.sequence, int) or self.sequence < 0:
+            raise ValueError("sequence must be a non-negative integer")
+        if not isinstance(self.observed_at, str) or not self.observed_at.strip():
+            raise ValueError("observed_at must be a timezone-aware date-time")
+        try:
+            observed = datetime.fromisoformat(self.observed_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("observed_at must be a timezone-aware date-time") from exc
+        if observed.tzinfo is None or observed.utcoffset() is None:
+            raise ValueError("observed_at must be a timezone-aware date-time")
+        for label, value in (("progress_id", self.progress_id), ("result_id", self.result_id)):
+            if value is not None:
+                _require_non_empty(value, label)
+        residual = tuple(self.residual_state)
+        _unique_strings(residual, "residual_state")
+        object.__setattr__(self, "residual_state", residual)
+        accepted = tuple(tuple(item) for item in self.accepted_events)
+        event_ids: set[str] = set()
+        for item in accepted:
+            if len(item) != 2:
+                raise ValueError("accepted_events entries must contain event_id and digest")
+            event_id, digest = item
+            _require_non_empty(event_id, "accepted event_id")
+            if event_id in event_ids:
+                raise ValueError("accepted_events event_id values must be unique")
+            event_ids.add(event_id)
+            if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise ValueError("accepted_events digest must be a lowercase SHA-256 digest")
+        object.__setattr__(self, "accepted_events", accepted)
+        if self.sequence != len(accepted):
+            raise ValueError("sequence must equal the accepted_events count")
+        if (self.last_event_id is None) != (self.last_event_digest is None):
+            raise ValueError("last_event id and digest must both be present or both be absent")
+        if accepted:
+            if (self.last_event_id, self.last_event_digest) != accepted[-1]:
+                raise ValueError("last_event must match the most recently accepted event")
+        elif self.last_event_id is not None:
+            raise ValueError("last_event requires accepted_events evidence")
+        if self.state is WorkerExecutionState.COMPLETED and self.result_id is None:
+            raise ValueError("result_id is required for completed state")
+        if self.state in {
+            WorkerExecutionState.FAILED,
+            WorkerExecutionState.CANCELLED,
+            WorkerExecutionState.RECOVERABLE,
+        } and not residual:
+            raise ValueError("residual_state is required for failed, cancelled, or recoverable state")
+
     @classmethod
     def pending(cls, identity: ExecutionIdentity, *, observed_at: datetime) -> WorkerExecution:
         return cls(
@@ -233,8 +285,8 @@ class WorkerLifecycle:
         status = _handoff_status(execution.state)
         identity = execution.identity
         return {
-            "schema_version": 1,
-            "contract": "coordinator-worker-handoff-v1",
+            "schema_version": 2,
+            "contract": "coordinator-worker-handoff-v2",
             "handoff_id": handoff_id,
             "execution_id": identity.execution_id,
             "attempt_id": identity.attempt_id,
@@ -316,8 +368,8 @@ class McpWorkerAdapter:
         packet_id = _packet_identity(packet)
         self._require_runtime_binding(packet)
         authority = _packet_authority(packet)
-        observed = self._assert_authority(authority)
-        if _authority_projection(observed) != authority:
+        observed_authority = self._observed_authority(authority)
+        if observed_authority != authority:
             raise ReservationAdmissionError(
                 "WORKER_AUTHORITY_CHANGED",
                 "Current mutation authority no longer matches the work packet.",
@@ -325,8 +377,12 @@ class McpWorkerAdapter:
         tools = tuple(await client.list_tools())
         names: list[str] = []
         admitted: list[Any] = []
+        admitted_by_name: dict[str, Any] = {}
         for tool in tools:
-            name = _tool_name(tool)
+            try:
+                name = _tool_name(tool)
+            except ValueError as exc:
+                raise ReservationAdmissionError("WORKER_TOOL_DISCOVERY_INVALID", str(exc)) from exc
             if name in names:
                 raise ReservationAdmissionError(
                     "WORKER_TOOL_DISCOVERY_INVALID",
@@ -335,7 +391,8 @@ class McpWorkerAdapter:
             names.append(name)
             if self._admit_tool(packet, tool):
                 admitted.append(tool)
-        self._allowed_tools = {_tool_name(tool): tool for tool in admitted}
+                admitted_by_name[name] = tool
+        self._allowed_tools = admitted_by_name
         self._packet_id = packet_id
         self._packet_digest = _packet_digest(packet)
         return tuple(admitted)
@@ -350,9 +407,12 @@ class McpWorkerAdapter:
         result_id: str,
     ) -> dict[str, Any]:
         client = self._require_client()
-        _require_non_empty(name, "tool name")
-        _require_non_empty(progress_id, "progress_id")
-        _require_non_empty(result_id, "result_id")
+        try:
+            _require_non_empty(name, "tool name")
+            _require_non_empty(progress_id, "progress_id")
+            _require_non_empty(result_id, "result_id")
+        except ValueError as exc:
+            raise ReservationAdmissionError("WORKER_INVOCATION_INVALID", str(exc)) from exc
         packet_id = _packet_identity(packet)
         self._require_runtime_binding(packet)
         if (
@@ -375,8 +435,8 @@ class McpWorkerAdapter:
         tool = self._allowed_tools[name]
         dispatch_arguments, classification_arguments = _snapshot_tool_arguments(arguments)
         if self._is_mutating(name, classification_arguments, tool):
-            observed = self._assert_authority(authority)
-            if _authority_projection(observed) != authority:
+            observed_authority = self._observed_authority(authority)
+            if observed_authority != authority:
                 raise ReservationAdmissionError(
                     "WORKER_AUTHORITY_CHANGED",
                     "Current mutation authority no longer matches the work packet.",
@@ -413,13 +473,26 @@ class McpWorkerAdapter:
             )
         return self._client
 
+    def _observed_authority(self, authority: Mapping[str, Any]) -> dict[str, Any]:
+        try:
+            observed = self._assert_authority(authority)
+            if not isinstance(observed, Mapping):
+                raise ValueError("authority callback must return an authority object")
+            return _authority_projection(observed)
+        except ValueError as exc:
+            raise ReservationAdmissionError("WORKER_AUTHORITY_INVALID", str(exc)) from exc
+
     def _require_runtime_binding(self, packet: Mapping[str, Any]) -> None:
         packet_binding = packet.get("runtime_binding")
         if not isinstance(packet_binding, Mapping):
             raise ReservationAdmissionError(
                 "WORKER_PACKET_INVALID", "Work packet runtime binding is required."
             )
-        if self._runtime_binding != _runtime_binding_ref(packet_binding):
+        try:
+            packet_binding_ref = _runtime_binding_ref(packet_binding)
+        except ValueError as exc:
+            raise ReservationAdmissionError("WORKER_PACKET_INVALID", str(exc)) from exc
+        if self._runtime_binding != packet_binding_ref:
             raise ReservationAdmissionError(
                 "WORKER_RUNTIME_BINDING_MISMATCH",
                 "Connected MCP runtime does not match the work packet binding.",
@@ -430,13 +503,16 @@ def _packet_identity(packet: Mapping[str, Any]) -> str:
     packet_id = packet.get("packet_id")
     task_id = packet.get("task_id")
     capabilities = packet.get("required_capabilities")
-    _require_non_empty(packet_id, "packet_id")
-    _require_non_empty(task_id, "task_id")
-    if not isinstance(capabilities, Sequence) or isinstance(capabilities, (str, bytes, bytearray)):
-        raise ReservationAdmissionError(
-            "WORKER_PACKET_INVALID", "required_capabilities must be an array."
-        )
-    _unique_strings(capabilities, "required_capabilities")
+    try:
+        _require_non_empty(packet_id, "packet_id")
+        _require_non_empty(task_id, "task_id")
+        if not isinstance(capabilities, Sequence) or isinstance(
+            capabilities, (str, bytes, bytearray)
+        ):
+            raise ValueError("required_capabilities must be an array")
+        _unique_strings(capabilities, "required_capabilities")
+    except ValueError as exc:
+        raise ReservationAdmissionError("WORKER_PACKET_INVALID", str(exc)) from exc
     _packet_authority(packet)
     return str(packet_id)
 
@@ -455,7 +531,10 @@ def _packet_authority(packet: Mapping[str, Any]) -> dict[str, Any]:
     authority = packet.get("authority")
     if not isinstance(authority, Mapping):
         raise ReservationAdmissionError("WORKER_PACKET_INVALID", "Work packet authority is required.")
-    return _authority_projection(authority)
+    try:
+        return _authority_projection(authority)
+    except ValueError as exc:
+        raise ReservationAdmissionError("WORKER_PACKET_INVALID", str(exc)) from exc
 
 
 def _authority_projection(value: Mapping[str, Any]) -> dict[str, Any]:

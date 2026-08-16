@@ -11,8 +11,8 @@
     "residual_state", "status", "observed_at"
   ],
   "properties": {
-    "schema_version": {"const": 1},
-    "contract": {"const": "coordinator-worker-handoff-v1"},
+    "schema_version": {"const": 2},
+    "contract": {"const": "coordinator-worker-handoff-v2"},
     "handoff_id": {"$ref": "#/$defs/nonEmpty"},
     "execution_id": {"$ref": "#/$defs/nonEmpty"},
     "attempt_id": {"$ref": "#/$defs/nonEmpty"},

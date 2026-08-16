@@ -179,8 +179,8 @@ class WorkPacketService:
             )
         issued_at = _timestamp(self._clock())
         packet = {
-            "schema_version": 1,
-            "contract": "coordinator-work-packet-v1",
+            "schema_version": 2,
+            "contract": "coordinator-work-packet-v2",
             "packet_id": packet_id,
             "work_id": request.work_id,
             "project_id": request.project_id,

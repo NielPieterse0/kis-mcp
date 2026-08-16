@@ -12,8 +12,8 @@
     "issued_at"
   ],
   "properties": {
-    "schema_version": {"const": 1},
-    "contract": {"const": "coordinator-work-packet-v1"},
+    "schema_version": {"const": 2},
+    "contract": {"const": "coordinator-work-packet-v2"},
     "packet_id": {"$ref": "#/$defs/nonEmpty"},
     "work_id": {"$ref": "#/$defs/nonEmpty"},
     "project_id": {"$ref": "#/$defs/nonEmpty"},

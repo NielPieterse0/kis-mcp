@@ -634,3 +634,90 @@ def test_mcp_adapter_closes_original_context_manager_when_enter_returns_client()
     assert manager.entered == 1
     assert manager.exited == 1
     assert entered.exited == 0
+
+
+def test_adapter_boundary_validation_uses_typed_errors() -> None:
+    async def discover(packet: dict[str, object]) -> None:
+        adapter = McpWorkerAdapter(
+            client_factory=lambda _binding: FakeClient(),
+            admit_tool=lambda _packet, _tool: True,
+            assert_authority=lambda authority: authority,
+            is_mutating=lambda _name, _arguments, _tool: False,
+        )
+        await adapter.connect(_binding())
+        await adapter.discover(packet)
+
+    bad_packet_id = _packet()
+    bad_packet_id["packet_id"] = ""
+    with pytest.raises(ReservationAdmissionError, match="WORKER_PACKET_INVALID"):
+        asyncio.run(discover(bad_packet_id))
+
+    bad_authority = _packet()
+    bad_authority["authority"] = {
+        "reservation_id": "res-150",
+        "authority_revision": 0,
+        "lease_id": "lease-150",
+        "fence_token": 4,
+    }
+    with pytest.raises(ReservationAdmissionError, match="WORKER_PACKET_INVALID"):
+        asyncio.run(discover(bad_authority))
+
+    bad_binding = _packet()
+    bad_binding["runtime_binding"] = {"binding_id": "kis-dev", "binding_fingerprint": "bad"}
+    with pytest.raises(ReservationAdmissionError, match="WORKER_PACKET_INVALID"):
+        asyncio.run(discover(bad_binding))
+
+    async def discover_with_bad_authority_callback() -> None:
+        adapter = McpWorkerAdapter(
+            client_factory=lambda _binding: FakeClient(),
+            admit_tool=lambda _packet, _tool: True,
+            assert_authority=lambda _authority: None,  # type: ignore[arg-type,return-value]
+            is_mutating=lambda _name, _arguments, _tool: False,
+        )
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+
+    with pytest.raises(ReservationAdmissionError, match="WORKER_AUTHORITY_INVALID"):
+        asyncio.run(discover_with_bad_authority_callback())
+
+
+def test_invoke_boundary_validation_uses_typed_errors() -> None:
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: FakeClient(),
+        admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda _name, _arguments, _tool: False,
+    )
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.invoke(
+            "read_file", {}, packet=_packet(), progress_id="", result_id="typed-result"
+        )
+
+    with pytest.raises(ReservationAdmissionError, match="WORKER_INVOCATION_INVALID"):
+        asyncio.run(scenario())
+
+
+def test_worker_execution_rejects_schema_invalid_direct_construction() -> None:
+    base = {
+        "identity": _identity(),
+        "state": WorkerExecutionState.RUNNING,
+        "sequence": 1,
+        "observed_at": "2026-08-16T02:55:00Z",
+        "accepted_events": (("start", DIGEST),),
+        "last_event_id": "start",
+        "last_event_digest": DIGEST,
+    }
+
+    with pytest.raises(ValueError, match="sequence"):
+        WorkerExecution(**{**base, "sequence": -1})
+    with pytest.raises(ValueError, match="observed_at"):
+        WorkerExecution(**{**base, "observed_at": "not-a-timestamp"})
+    with pytest.raises(ValueError, match="result_id"):
+        WorkerExecution(**{**base, "state": WorkerExecutionState.COMPLETED})
+    with pytest.raises(ValueError, match="residual_state"):
+        WorkerExecution(**{**base, "state": WorkerExecutionState.FAILED})
+    with pytest.raises(ValueError, match="last_event"):
+        WorkerExecution(**{**base, "last_event_digest": None})

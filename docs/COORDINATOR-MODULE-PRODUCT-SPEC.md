@@ -197,8 +197,8 @@ Implemented by the current #251 checkpoint on the same parent branch:
 
 - a strict location-independent `worker-execution` contract covering packet/task/assignment/reservation/fence/runtime/attempt correlation, lifecycle state, progress/result IDs, residual state, and accepted-event identity evidence;
 - deterministic worker transitions for `pending`, `running`, `waiting_input`, `completed`, `failed`, `cancelled`, and `recoverable`, including idempotent replay of any accepted exact event and stale/conflicting event rejection;
-- worker-handoff correlation expanded with execution, attempt, task, assignment generation, and result identity without performing #252 reconciliation or assignment-key consumption;
-- work packets now retain `task_id` and `required_capabilities` so Slice 5 tool exposure can remain tied to the bounded planner task;
+- `coordinator-worker-handoff-v2` expands handoff correlation with execution, attempt, task, assignment generation, and result identity without performing #252 reconciliation or assignment-key consumption; the v2 identity makes the stricter required-field contract explicit rather than silently redefining v1;
+- `coordinator-work-packet-v2` adds `task_id` and `required_capabilities` so Slice 5 tool exposure can remain tied to the bounded planner task; earlier v1 packet evidence remains version-distinct;
 - an internal ephemeral MCP worker adapter that recomputes the exact runtime-binding fingerprint before connection, validates current reservation authority before tool exposure, binds filtered discovery to the exact packet snapshot, classifies mutation from tool metadata plus concrete arguments, re-checks authority immediately before mutating calls, normalizes results to bounded JSON-compatible values, records progress/result correlation, and clears exposure on reconnect;
 - reconnect, discovery, and transport session state remain non-authorizing and are not persisted as ownership authority.
 

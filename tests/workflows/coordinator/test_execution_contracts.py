@@ -21,8 +21,8 @@ def _errors(name: str, payload: dict[str, object]) -> list[object]:
 
 def test_worker_handoff_can_report_only_worker_completion() -> None:
     payload = {
-        "schema_version": 1,
-        "contract": "coordinator-worker-handoff-v1",
+        "schema_version": 2,
+        "contract": "coordinator-worker-handoff-v2",
         "handoff_id": "handoff-1",
         "execution_id": "execution-1",
         "attempt_id": "attempt-1",
@@ -48,6 +48,8 @@ def test_worker_handoff_can_report_only_worker_completion() -> None:
         "observed_at": "2026-08-14T19:50:00Z",
     }
     assert _errors("worker-handoff", payload) == []
+    legacy = {**payload, "schema_version": 1, "contract": "coordinator-worker-handoff-v1"}
+    assert _errors("worker-handoff", legacy)
     payload["runtime_binding"].pop("binding_fingerprint")
     assert _errors("worker-handoff", payload)
     payload["runtime_binding"]["binding_fingerprint"] = "d" * 64
@@ -57,8 +59,8 @@ def test_worker_handoff_can_report_only_worker_completion() -> None:
 
 def test_work_packet_freezes_authority_and_runtime_identity() -> None:
     payload = {
-        "schema_version": 1,
-        "contract": "coordinator-work-packet-v1",
+        "schema_version": 2,
+        "contract": "coordinator-work-packet-v2",
         "packet_id": "packet-247-1",
         "work_id": "issue-247",
         "project_id": "kis-mcp",
@@ -91,6 +93,8 @@ def test_work_packet_freezes_authority_and_runtime_identity() -> None:
         "issued_at": "2026-08-14T19:45:00Z",
     }
     assert _errors("work-packet", payload) == []
+    legacy = {**payload, "schema_version": 1, "contract": "coordinator-work-packet-v1"}
+    assert _errors("work-packet", legacy)
     payload["authority"].pop("fence_token")
     assert _errors("work-packet", payload)
 
