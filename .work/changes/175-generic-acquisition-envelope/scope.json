@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "175-generic-acquisition-envelope",
+  "status": "active",
+  "branch": "change/175-generic-acquisition-envelope",
+  "worktree": ".work/worktrees/175-generic-acquisition-envelope",
+  "base": "main",
+  "outcome": "Complete the KIS authorization side of the generic governed external-acquisition envelope for Commodity using the landed import-isolate v3 profile contract without widening ordinary Work network authority.",
+  "owned_paths": [
+    "contracts/external-acquisition/**",
+    "settings/external-acquisition.settings.json",
+    "src/kis_mcp/acquisition/**",
+    "tests/acquisition/**",
+    "tests/capabilities/test_registered_acquisition_dispatch.py",
+    "docs/EXTERNAL-ACQUISITION-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/175-generic-acquisition-envelope/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "public_contract",
+    "secrets",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "1365d84de30360b880f95bc5c51101ddeab9006c",
+    "local_tree": "443a77461e5dabdb53cdf0a904c135ea0b8d8baa",
+    "upstream_sha": "1365d84de30360b880f95bc5c51101ddeab9006c",
+    "upstream_tree": "443a77461e5dabdb53cdf0a904c135ea0b8d8baa",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  }
+}

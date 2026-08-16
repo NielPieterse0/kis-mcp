@@ -1,19 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kis-mcp.local/schemas/external-acquisition-settings-v1.json",
+  "$id": "https://kis-mcp.local/schemas/external-acquisition-settings-v2.json",
   "title": "KIS External Acquisition Authorization Settings",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "provider", "limits", "authorizations"],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "provider": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["project_id", "script_relative_path"],
+      "required": ["project_id", "script_relative_path", "profile_policy_relative_path"],
       "properties": {
         "project_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
-        "script_relative_path": {"type": "string", "minLength": 1, "maxLength": 256}
+        "script_relative_path": {"type": "string", "minLength": 1, "maxLength": 256},
+        "profile_policy_relative_path": {"type": "string", "minLength": 1, "maxLength": 256}
       }
     },
     "limits": {
@@ -41,7 +42,7 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["profile_id", "approval_required", "recipe_directory", "recipe_id_prefix", "allowed_parameter_keys"],
+              "required": ["profile_id", "approval_required", "recipe_directory", "recipe_id_prefix", "allowed_parameter_keys", "request_schema_version", "provider_profile_schema_version", "provider_profile_sha256"],
               "properties": {
                 "profile_id": {"type": "string", "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"},
                 "approval_required": {"const": true},
@@ -52,7 +53,10 @@
                   "uniqueItems": true,
                   "maxItems": 64,
                   "items": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"}
-                }
+                },
+                "request_schema_version": {"enum": [1, 2]},
+                "provider_profile_schema_version": {"enum": [1, 2, 3]},
+                "provider_profile_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
               }
             }
           }
