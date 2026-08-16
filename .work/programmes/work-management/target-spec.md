@@ -6,8 +6,8 @@
 |---|---|
 | Product | `kis-mcp` Platform |
 | Capability | Provider-neutral multi-project work management and review evidence |
-| Change | `057-work-management-automation` |
-| Status | P0-P5 implementation complete; saved-view commissioning reopened under #270 until semantic and behavioral readiness is proven live |
+| Change | `168-work-management-authority-currentness` |
+| Status | P0-P5 implementation and the current saved-view commissioning tranche are complete; live readiness remains dynamic runtime evidence |
 | Date | 2026-08-16 |
 | Current implementation | Provider-neutral P0-P5 identity, command lifecycle, inventory, intake, governance, traceability, review evidence, deterministic reconciliation, portfolio status, a bounded 25-field GitHub Project schema commissioner, declared semantics for all 12 saved views, behavioral saved-view verification, fixed-shape CLI/CI, and task-level platform composition |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
@@ -792,7 +792,7 @@ Child implementation slices remain under `.work/changes/<change-id>/` and use in
 
 ### Commissioning state
 
-Change `058-work-management-commissioning` established the registered shared Project #1 binding. Later Work Management slices enabled bounded reconciliation and command-plane operations; changes 152 and 155 added the registered schema commissioner, provisioned the canonical fields/options/views, corrected empty Project field normalization, and established the 25-field command plane. Change 157 closes the remaining view-readiness defect by making each of the 12 saved views an executable semantic contract rather than a name/layout shell.
+Change `058-work-management-commissioning` established the registered shared Project #1 binding. Later Work Management slices enabled bounded reconciliation and command-plane operations; changes 152 and 155 added the registered schema commissioner, provisioned the canonical fields/options/views, corrected empty Project field normalization, and established the 25-field command plane. Change 157 made each of the 12 saved views an executable semantic contract rather than a name/layout shell; change 162 added bounded behavioral saved-view readback and fail-closed unverified diagnostics; change 166 completed the correction by requiring every canonical view to constrain `Status` to current command-plane lifecycle values and by recommissioning all 12 views to zero mismatch/unverified state. Evidence-backed legacy lifecycle reconciliation moved only records with authoritative disposition evidence; ambiguous legacy `Todo` backlog remains unmanaged historical state and is excluded by canonical view filters.
 
 Current live readiness is deliberately **not** frozen as a success claim in this programme document. `project_management_schema_status` is the runtime authority for the current Project observation and must compare fields, options, view layouts, filters, visible fields, sort/group configuration, and board vertical grouping against the checked-in manifest. `project_management_schema_plan` must be empty after successful commissioning. The bounded registered-Project commissioner may create missing manifest elements and repair only API-supported view semantics; unsupported semantic drift remains explicit rather than being reported as ready. Dated final live evidence belongs in the closing issue/change record.
 
