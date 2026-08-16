@@ -661,23 +661,29 @@ def _json_safe(value: object, *, depth: int = 0, budget: list[int]) -> Any:
             raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
         return value
     if isinstance(value, str):
-        budget[1] += len(value.encode("utf-8"))
-        if budget[1] > _MAX_TOOL_RESULT_BYTES:
-            raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
+        _consume_text_budget(value, budget)
         return value
     if type(value) is dict:
         result: dict[str, Any] = {}
         for key, item in value.items():
             if not isinstance(key, str):
                 raise ValueError("result object keys must be strings")
-            budget[1] += len(key.encode("utf-8"))
-            if budget[1] > _MAX_TOOL_RESULT_BYTES:
-                raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
+            _consume_text_budget(key, budget)
             result[key] = _json_safe(item, depth=depth + 1, budget=budget)
         return result
     if type(value) in {list, tuple}:
         return [_json_safe(item, depth=depth + 1, budget=budget) for item in value]
     raise TypeError(f"unsupported MCP result type: {type(value).__name__}")
+
+
+def _consume_text_budget(value: str, budget: list[int]) -> None:
+    remaining = _MAX_TOOL_RESULT_BYTES - budget[1]
+    if len(value) > remaining:
+        raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
+    encoded_length = len(value.encode("utf-8"))
+    if encoded_length > remaining:
+        raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
+    budget[1] += encoded_length
 
 
 def _tool_name(tool: Any) -> str:

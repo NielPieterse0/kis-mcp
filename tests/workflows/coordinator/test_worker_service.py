@@ -574,3 +574,30 @@ def test_result_normalization_rejects_custom_sequence_without_iterating_it() -> 
     with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_INVALID"):
         asyncio.run(scenario())
     assert result.reads == 0
+
+
+def test_result_normalization_rejects_oversized_text_before_encoding() -> None:
+    class GuardedString(str):
+        def encode(self, *args: object, **kwargs: object) -> bytes:
+            raise AssertionError("oversized text must be rejected before encoding")
+
+    async def invoke_with(result: object) -> None:
+        adapter = McpWorkerAdapter(
+            client_factory=lambda _binding: FakeClient(result=result),
+            admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+            assert_authority=lambda authority: authority,
+            is_mutating=lambda _name, _arguments, _tool: False,
+        )
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.invoke(
+            "read_file", {}, packet=_packet(), progress_id="text-p", result_id="text-r"
+        )
+
+    huge = GuardedString("é" * 70_000)
+    with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
+        asyncio.run(invoke_with(huge))
+
+    huge_key = GuardedString("k" * 70_000)
+    with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
+        asyncio.run(invoke_with({huge_key: "value"}))
