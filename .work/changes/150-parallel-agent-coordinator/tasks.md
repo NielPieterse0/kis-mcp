@@ -23,18 +23,23 @@
 - [x] Restore ordered execution state after restart and preserve idempotent persisted resume/retry.
 - [x] Persist write-ahead mutation receipts so completed mutation retries reuse the stored result and uncertain in-flight work is not executed twice.
 - [x] Keep durable result/effect evidence tied to execution/attempt, reservation/revision/lease/fence, runtime binding, tool arguments, progress, and result identity.
+- [x] Serialize conflicting lifecycle updates with the existing cross-platform OS file-lock primitive and make mutation receipt claims single-winner through exclusive file creation.
+- [x] Fsync durable snapshots/receipts before atomic replacement/dispatch evidence is relied upon.
+- [x] Keep `WorkerExecutionStore` internal rather than expanding the coordinator package API.
 - [x] Keep MCP reconnect/discovery/session objects ephemeral and non-authorizing.
 
 ## Slice 5 gates
 
-- [x] Focused worker persistence/lifecycle/MCP tests pass (**23/23**).
-- [x] Full coordinator regression suite passes (**81/81** before final documentation-only reconciliation).
+- [x] Focused worker persistence/lifecycle/MCP tests pass (**26/26**).
+- [x] Full coordinator regression suite passes (**84/84**).
 - [x] Strict coordinator schemas validate emitted Slice 5 values through the coordinator regression suite.
-- [x] Ruff and Python compilation pass on the implementation state.
-- [ ] Final governed change check and `git diff --check` on the complete #251 diff.
-- [ ] Final specialist review programme: code quality, architecture, API/contracts, persistence/recovery.
-- [ ] Final review findings, if any, resolved and corrective ranges re-reviewed.
-- [ ] Final #251 commit frozen for canonical exact-head GitHub Actions verification.
+- [x] Ruff and Python compilation pass on the final implementation state.
+- [x] Governed change check and `git diff --check` pass on the final implementation state.
+- [x] Code-quality corrective review `7423a83` reports zero findings.
+- [x] API/contracts corrective review `7423a83` reports zero findings.
+- [x] Architecture corrective review `7423a83` completed with no blocking defect; its only action was repository-wide verification that no package-level `WorkerExecutionStore` consumers remained, and that search returned zero matches.
+- [x] Persistence/recovery review findings were resolved: explicit receipt identity validation, contention tests, fsynced durable writes, and internal-only store exposure were added. Later compatibility concerns were disproven by repository evidence: receipt v1/store are new in unmerged #251, every receipt builder already writes `execution_id`/`result_id`, and no package-level store imports exist.
+- [x] Final documentation/review evidence prepared for freeze; exact-head local verification is rerun after commit without further modification.
 
 ## Landing stop
 

@@ -55,7 +55,7 @@
 ### Task 5: Documentation, review, verification, and handoff
 
 - [x] Update the coordinator product spec with only actually implemented Slice 5 behavior.
-- [ ] Run focused Slice 5 tests, full coordinator regression tests, compilation, Ruff, governed change check, and `git diff --check` on the final diff.
-- [ ] Run required code-quality, architecture, API-contract, and persistence/recovery review gates on the final Slice 5 diff.
-- [ ] Resolve any blocking #251-scoped findings and commit the final locally verified result.
-- [ ] Freeze #251 for canonical exact-head GitHub Actions verification/merge once the disposable Windows runner is available; do not merge beforehand.
+- [x] Run focused Slice 5 tests, full coordinator regression tests, compilation, Ruff, governed change check, and `git diff --check` on the final implementation diff.
+- [x] Run required code-quality, architecture, API-contract, and persistence/recovery review gates; resolve actionable #251 findings and document evidence-disproved compatibility concerns.
+- [x] Resolve blocking #251-scoped findings in corrective commit `7423a83` and rerun focused/full local verification.
+- [x] Prepare the final documentation/review evidence for freeze; after committing, rerun exact-head local checks and queue the frozen head for canonical GitHub Actions verification/merge once the disposable Windows runner is available; do not merge beforehand.
