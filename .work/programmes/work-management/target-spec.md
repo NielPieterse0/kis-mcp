@@ -7,9 +7,9 @@
 | Product | `kis-mcp` Platform |
 | Capability | Provider-neutral multi-project work management and review evidence |
 | Change | `057-work-management-automation` |
-| Status | P0-P5 implemented; commissioning remains configuration-dependent |
-| Date | 2026-08-07 |
-| Current implementation | Provider-neutral P0-P5 identity, lifecycle, inventory, intake, governance, traceability, review evidence, atomic persistence, deterministic reconciliation, portfolio status, bounded GitHub Project mutation, fixed-shape CLI/CI, and task-level platform composition implemented |
+| Status | P0-P5 implemented; canonical 25-field / 12-view semantics are machine-managed and live readiness is runtime evidence |
+| Date | 2026-08-16 |
+| Current implementation | Provider-neutral P0-P5 identity, command lifecycle, inventory, intake, governance, traceability, review evidence, deterministic reconciliation, portfolio status, a bounded 25-field GitHub Project schema commissioner, executable semantics for all 12 saved views, fixed-shape CLI/CI, and task-level platform composition |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
 | Initial backend | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
 | Applicability | Multiple managed repositories and projects |
@@ -120,33 +120,42 @@ A draft Project item MAY capture an idea before issue creation. KIS MUST convert
 
 ### 6.2 Core lifecycle
 
+Work command state and implementation delivery stage are separate axes. `Status` records operator command state:
+
 ```text
-Inbox -> Triage -> Proposed -> Approved -> Active -> Review -> Verification -> Documentation -> Done
+Inbox -> Triage -> Proposed -> Approved -> Ready -> Active -> Done
 ```
 
-Alternative states are `Blocked`, `On Hold`, `Deferred`, `Rejected`, and `Superseded`.
+Alternative Work states are `Blocked`, `On Hold`, `Deferred`, `Rejected`, and `Superseded`. Implementation progress is projected independently through `Delivery Stage` (`None`, `Change Created`, `Implementing`, `PR Open`, `Review`, `CI Pending`, `CI Failed`, `CI Passed`, `Merged`, `Documentation`, `Commissioning`, `Complete`). Verification evidence is projected through `Verification`; neither delivery nor verification state replaces Work command authority.
 
-Each transition MUST have a declared source state, target state, actor, prerequisites, and side effects. Configuration MAY disable a transition, but configuration MUST NOT invent an HR policy decision.
+Each Work-state transition MUST have a declared source state, target state, actor, prerequisites, and side effects. Configuration MAY disable a transition, but configuration MUST NOT invent an HR policy decision.
 
 ### 6.3 Core fields
 
-The baseline SHOULD use fewer than 25 Project fields and MUST remain below GitHub's current 50-field Project limit.
+The canonical operational projection uses exactly 25 managed fields and MUST remain below GitHub's Project field limit. Additional GitHub built-ins or historical unmanaged fields do not become KIS command authority.
 
 | Field | Type | Required for |
 |---|---|---|
-| Status | Single select | Every managed record |
-| Record Type | Single select | Every managed record |
+| Status | Single select | Work command state |
+| Record Type | Single select | Typed managed records |
 | Priority | Single select | Executable work |
-| Project ID | Text or single select | Every managed record |
-| Repository | Text | Records linked to a repository |
-| Module | Single select | Work linked to a product module |
-| Change ID | Text | Specification and implementation slices |
-| Origin | Single select | Records created from operator intake, review, verification, or implementation |
+| Effort | Single select | Queue planning |
+| Delivery Stage | Single select | Implementation progress |
+| Execution Owner | Text | Conflict-safe execution claims |
+| Blocked By | Text | Observable dependency evidence |
+| Documentation Impact | Single select | Documentation lifecycle |
+| Complexity | Single select | Repository change classification projection |
+| Risk Triggers | Text | Repository change risk projection |
+| Project ID | Text | Stable managed-project identity |
+| Repository | Repository | Source repository identity |
+| Module | Text | Product/module routing |
+| Change ID | Text | Governed change identity |
+| Origin | Single select | Intake/review/verification/implementation provenance |
 | Disposition | Single select | Findings, risks, decisions, and assumptions |
-| Verification | Single select | Executable work and findings |
+| Verification | Single select | Verification evidence state |
 | Severity | Single select | Findings and risks |
 | Confidence | Single select | Findings and assumptions |
-| Review Trigger | Text or date | Holds, deferments, and assumptions |
+| Review Trigger | Text | Holds, deferments, and assumptions |
 | Target Date | Date | Planned work |
 | Iteration | Iteration | Optional delivery cadence |
 | Source Review | Text | Records extracted from a review |
@@ -169,6 +178,8 @@ Repository labels SHOULD classify stable secondary dimensions such as `module:*`
 10. `10 Verification` — work awaiting or failing verification.
 11. `11 Documentation and Closeout` — records awaiting documentation reconciliation or final closeout.
 12. `12 Completed` — closed records retained for history.
+
+The checked-in `settings/work-management/github-project-schema.json` owns each view's executable layout, filter, visible-field order, sort/group configuration, and board vertical grouping. A named view shell is not sufficient commissioning evidence. `project_management_schema_status` MUST report semantic drift when an observed canonical view differs on any declared dimension, and the bounded registered-Project commissioner MAY repair only API-supported view semantics without exposing arbitrary API access or a delete/recreate path.
 
 ## 7. Intake and triage
 
@@ -708,7 +719,7 @@ The initial bootstrap SHOULD:
 - **PM-REQ-054**: Every specification and implementation slice MUST classify documentation impact at creation.
 - **PM-REQ-055**: Merge readiness MUST include pre-merge documentation completion or an explicit no-impact decision.
 - **PM-REQ-056**: A merged change MUST remain open for post-merge documentation reconciliation and closeout until the configured documentation milestone is satisfied.
-- **PM-REQ-057**: Every newly governed specification or implementation slice MUST initialize a durable Work Management record before its branch/worktree is created, and the change scope MUST retain stable evidence of that initialized record without requiring provider access during local governance validation.
+- **PM-REQ-057 — superseded by current repository authority**: Work Management identity SHOULD be initialized or reconciled for tracked work, but provider availability or prior Project registration MUST NOT be a prerequisite for establishing authoritative local governed-change scope. `.work/changes` remains independently authoritative for change definition; any Work Management identity retained in scope is operational linkage and may be projected after local change creation.
 
 ## 22. Acceptance scenarios
 
@@ -724,7 +735,7 @@ The initial bootstrap SHOULD:
 10. **Given** a completed and merged change, **when** closeout finishes, **then** its issue, Project item, PR, verification, merge commit, and closeout record remain traceable.
 11. **Given** two configured repositories, **when** portfolio status is requested, **then** records remain attributable to their stable project identities and can be filtered per project.
 12. **Given** a merged pull request with documentation impact, **when** merge completes, **then** the work item enters `Documentation` and cannot become `Done` until post-merge reconciliation is recorded.
-13. **Given** a new governed slice, **when** its worktree is requested, **then** creation fails unless the operator or governing workflow already initialized its durable Work Management record and supplies that stable identity to change governance.
+13. **Given** Work Management is unavailable or the source record has not yet been projected, **when** a governed local change is created from a clean authoritative base, **then** local change authority remains valid and its Work Management linkage can be reconciled later without provider access being a governance prerequisite.
 
 ## 23. Delivery sequence
 
@@ -748,7 +759,7 @@ Before each implementation phase, a modularity assessment MUST evaluate the prop
 |---|---|---|
 | Project and repository state drift | Idempotent reconciliation and immutable artifact links | Rebuild Project projections from Git and issues |
 | Duplicate records | Stable IDs and idempotency keys | Merge or close duplicates without deleting history |
-| Excessive field/schema complexity | Baseline under 25 fields and modular feature flags | Disable optional fields and views |
+| Excessive field/schema complexity | Canonical projection fixed at 25 managed fields with strict manifest validation and modular feature flags | Reconcile from the manifest; disable optional feature use without deleting historical Project data |
 | Provider tool contract changes | Exact version pin, capability detection, contract tests | Disable affected workflows and retain read-only status |
 | Automation overwrites operator edits | Optimistic concurrency and conflict reporting | Reapply operator state from issue history |
 | Paid feature assumptions | Plan capability detection and explicit fallbacks | Downgrade gate to advisory with residual-risk record |
@@ -781,16 +792,23 @@ Child implementation slices remain under `.work/changes/<change-id>/` and use in
 
 ### Commissioning state
 
-Change `058-work-management-commissioning` replaces the stale unbound commissioning state with the repository-routed `NielPieterse0` user Project `#1` and enables work-management composition in read-only mode. Fresh `kis-op` evidence on 2026-08-07 proved the authenticated runtime can read private Project `KIS Work Management`, its `Status` field with `Todo`, `In Progress`, and `Done`, and a complete empty item inventory without mutation. The change also enforces `reconciliation=read_only` and `review_import=read_only` before their mutation side effects; all automation remains disabled. Final composed `project_management_inventory` evidence remains pending until the exact change head is merged and the runtime is restarted against the merged configuration. Mutation enablement, Project schema repair, and write-side Project item identifiers remain separate future commissioning work.
+Change `058-work-management-commissioning` established the registered shared Project #1 binding. Later Work Management slices enabled bounded reconciliation and command-plane operations; changes 152 and 155 added the registered schema commissioner, provisioned the canonical fields/options/views, corrected empty Project field normalization, and established the 25-field command plane. Change 157 closes the remaining view-readiness defect by making each of the 12 saved views an executable semantic contract rather than a name/layout shell.
+
+Current live readiness is deliberately **not** frozen as a success claim in this programme document. `project_management_schema_status` is the runtime authority for the current Project observation and must compare fields, options, view layouts, filters, visible fields, sort/group configuration, and board vertical grouping against the checked-in manifest. `project_management_schema_plan` must be empty after successful commissioning. The bounded registered-Project commissioner may create missing manifest elements and repair only API-supported view semantics; unsupported semantic drift remains explicit rather than being reported as ready. Dated final live evidence belongs in the closing issue/change record.
+
+`reconciliation` and programme status are enabled; `intake` and `review_import` remain read-only, and all native/custom automation flags remain disabled unless separately commissioned. Those feature choices are not schema-readiness defects and do not alter the Work authority model.
 
 ## 27. External product sources
 
-External product facts were verified on 2026-08-06 against:
+External product facts relevant to the current semantic-view contract were reverified on 2026-08-16 against:
 
 - GitHub Projects overview: <https://docs.github.com/en/issues/planning-and-tracking-with-projects/learning-about-projects/about-projects>
 - GitHub Project fields and limits: <https://docs.github.com/en/issues/planning-and-tracking-with-projects/understanding-fields>
 - GitHub Issues, sub-issues, and dependencies: <https://docs.github.com/en/issues/tracking-your-work-with-issues/learning-about-issues/about-issues>
 - GitHub Project API automation: <https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-api-to-manage-projects>
+- GitHub Project filtering: <https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project/filtering-projects>
+- GitHub Project views REST API: <https://docs.github.com/en/rest/projects/views?apiVersion=2026-03-10>
+- GitHub Projects GraphQL reference: <https://docs.github.com/en/graphql/reference/projects>
 - GitHub Project automation: <https://docs.github.com/enterprise-cloud@latest/issues/planning-and-tracking-with-projects/automating-your-project>
 - GitHub repository ruleset availability: <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets>
 - Official GitHub MCP server: <https://github.com/github/github-mcp-server>
