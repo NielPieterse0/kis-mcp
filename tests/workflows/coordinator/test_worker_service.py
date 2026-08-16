@@ -307,6 +307,15 @@ def test_worker_execution_and_handoff_validate_strict_contracts() -> None:
         Draft202012Validator(_schema("worker-execution")).iter_errors(completed.to_json_dict())
     )
     assert execution_errors == []
+    execution_payload = completed.to_json_dict()
+    assert execution_payload["accepted_events"] == {
+        "start-contract": completed.accepted_events[0][1],
+        "complete-contract": completed.accepted_events[1][1],
+    }
+    invalid_ledger = {**execution_payload, "accepted_events": []}
+    assert list(
+        Draft202012Validator(_schema("worker-execution")).iter_errors(invalid_ledger)
+    )
     legacy_execution = {
         **completed.to_json_dict(),
         "schema_version": 1,

@@ -230,10 +230,9 @@ class WorkerExecution:
             "progress_id": self.progress_id,
             "result_id": self.result_id,
             "residual_state": list(self.residual_state),
-            "accepted_events": [
-                {"event_id": event_id, "digest": digest}
-                for event_id, digest in self.accepted_events
-            ],
+            "accepted_events": {
+                event_id: digest for event_id, digest in self.accepted_events
+            },
             "last_event": last_event,
         }
 

@@ -19,7 +19,9 @@
     "result_id": {"type": ["string", "null"], "minLength": 1},
     "residual_state": {"$ref": "#/$defs/strings"},
     "accepted_events": {
-      "type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/eventRef"}
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/nonEmpty"},
+      "additionalProperties": {"$ref": "#/$defs/digest"}
     },
     "last_event": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/eventRef"}]}
   },
