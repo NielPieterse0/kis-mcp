@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from kis_mcp.work_management.backend import (
     ProjectBinding,
@@ -41,6 +42,8 @@ _CUSTOM_KIND = {
     ProjectFieldKind.ITERATION: "ITERATION",
 }
 _VIEW_LAYOUT = {"table": "TABLE_LAYOUT", "board": "BOARD_LAYOUT", "roadmap": "ROADMAP_LAYOUT"}
+_VIEW_ITEMS_PER_PAGE = 100
+_MAX_VIEW_ITEM_PAGES = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -417,32 +420,45 @@ class GitHubProjectSchemaClient:
         return tuple(requirements)
 
     @staticmethod
-    def _included_saved_view_items(stdout: str) -> tuple[dict[str, Any], ...] | None:
+    def _included_saved_view_page(
+        stdout: str,
+    ) -> tuple[tuple[dict[str, Any], ...] | None, str | None, str | None]:
         if not isinstance(stdout, str) or not stdout.strip():
-            return None
+            return None, None, "empty_response"
         parts = re.split(r"\r?\n\r?\n", stdout, maxsplit=1)
         if len(parts) != 2 or not parts[0].lstrip().startswith("HTTP/"):
-            return None
+            return None, None, "malformed_http"
         headers, body = parts
-        if any(
-            line.casefold().startswith("link:") and 'rel="next"' in line.casefold()
-            for line in headers.splitlines()
-        ):
-            return None
+        next_cursor: str | None = None
+        for line in headers.splitlines():
+            if not line.casefold().startswith("link:"):
+                continue
+            for link in line.partition(":")[2].split(","):
+                if 'rel="next"' not in link.casefold():
+                    continue
+                match = re.search(r"<([^>]+)>", link)
+                if match is None:
+                    return None, None, "pagination_link"
+                cursors = parse_qs(urlparse(match.group(1)).query).get("after", [])
+                if len(cursors) != 1 or not cursors[0].strip():
+                    return None, None, "pagination_cursor"
+                if next_cursor is not None:
+                    return None, None, "pagination_link"
+                next_cursor = cursors[0].strip()
         if not body.strip():
-            return None
+            return None, None, "empty_body"
         try:
             document = json.loads(body)
         except json.JSONDecodeError:
-            return None
+            return None, None, "malformed_json"
         if not isinstance(document, list):
-            return None
+            return None, None, "response_shape"
         items: list[dict[str, Any]] = []
         for item in document:
             if not isinstance(item, dict):
-                return None
+                return None, None, "item_shape"
             items.append(item)
-        return tuple(items)
+        return tuple(items), next_cursor, None
 
     def _verify_saved_view_behavior(
         self,
@@ -454,11 +470,11 @@ class GitHubProjectSchemaClient:
     ) -> tuple[bool | None, tuple[str, ...]]:
         requirements = self._filter_requirements(snapshot, expected_filter)
         if requirements is None:
-            return None, ()
+            return None, ("unverified:filter_grammar",)
         if not requirements:
             return True, ()
         if any(field.database_id is None for field, _ in requirements):
-            return None, ()
+            return None, ("unverified:field_database_id",)
         if target.owner_type == "user":
             endpoint = (
                 f"/users/{target.owner}/projectsV2/{target.project_number}/"
@@ -470,7 +486,7 @@ class GitHubProjectSchemaClient:
                 f"views/{view.view_number}/items"
             )
         database_ids = tuple(int(field.database_id) for field, _ in requirements)
-        args = (
+        base_args = (
             "gh",
             "api",
             "--hostname",
@@ -484,54 +500,70 @@ class GitHubProjectSchemaClient:
             "--include",
             endpoint,
             "-f",
-            "per_page=100",
+            f"per_page={_VIEW_ITEMS_PER_PAGE}",
             "-f",
             "fields=" + ",".join(str(value) for value in database_ids),
         )
-        result = self._runner(args, self._cwd, self._environment())
-        if getattr(result, "returncode", 1) != 0:
-            return None, ()
-        items = self._included_saved_view_items(str(getattr(result, "stdout", "")))
-        if items is None:
-            return None, ()
+        items: list[dict[str, Any]] = []
+        seen_cursors: set[str] = set()
+        after: str | None = None
+        for page_number in range(_MAX_VIEW_ITEM_PAGES):
+            args = base_args if after is None else (*base_args, "-f", f"after={after}")
+            result = self._runner(args, self._cwd, self._environment())
+            if getattr(result, "returncode", 1) != 0:
+                return None, ("unverified:api_error",)
+            page_items, next_cursor, reason = self._included_saved_view_page(
+                str(getattr(result, "stdout", ""))
+            )
+            if reason is not None or page_items is None:
+                return None, (f"unverified:{reason or 'response'}",)
+            items.extend(page_items)
+            if next_cursor is None:
+                break
+            if next_cursor in seen_cursors:
+                return None, ("unverified:pagination_cycle",)
+            if page_number + 1 >= _MAX_VIEW_ITEM_PAGES:
+                return None, ("unverified:pagination_limit",)
+            seen_cursors.add(next_cursor)
+            after = next_cursor
         required_by_name = {field.name.casefold(): field for field, _ in requirements}
         mismatches: list[str] = []
         for item in items:
             raw_fields = item.get("fields")
             if not isinstance(raw_fields, list):
-                return None, ()
+                return None, ("unverified:item_fields",)
             values_by_name: dict[str, str] = {}
             seen_field_names: set[str] = set()
             for raw_field in raw_fields:
                 if not isinstance(raw_field, dict):
-                    return None, ()
+                    return None, ("unverified:field_entry",)
                 field_name = raw_field.get("name")
                 if not isinstance(field_name, str) or not field_name.strip():
-                    return None, ()
+                    return None, ("unverified:field_name",)
                 field_key = field_name.casefold()
                 field = required_by_name.get(field_key)
                 if field is None:
                     continue
                 if field_key in seen_field_names:
-                    return None, ()
+                    return None, ("unverified:duplicate_required_field",)
                 seen_field_names.add(field_key)
                 value = raw_field.get("value")
                 if value is None:
                     continue
                 if field.kind is ProjectFieldKind.SINGLE_SELECT:
                     if not isinstance(value, dict):
-                        return None, ()
+                        return None, ("unverified:single_select_value",)
                     option_name = value.get("name")
                     if not isinstance(option_name, str) or not option_name.strip():
-                        return None, ()
+                        return None, ("unverified:single_select_name",)
                     values_by_name[field_key] = option_name.strip()
                     continue
                 if field.kind in {ProjectFieldKind.TEXT, ProjectFieldKind.DATE}:
                     if not isinstance(value, str):
-                        return None, ()
+                        return None, ("unverified:scalar_value",)
                     values_by_name[field_key] = value.strip()
                     continue
-                return None, ()
+                return None, ("unverified:unsupported_field_kind",)
             for field, allowed in requirements:
                 observed_value = values_by_name.get(field.name.casefold())
                 if observed_value is None or observed_value.casefold() not in allowed:
@@ -922,7 +954,17 @@ class GitHubProjectSchemaClient:
                 views_observed=observations,
             )
         if not status.ready:
-            details = [*status.unverified_views, *status.view_mismatches]
+            observations_by_name = {
+                observation.name.casefold(): observation for observation in observations
+            }
+            details: list[str] = []
+            for name in status.unverified_views:
+                observation = observations_by_name.get(name.casefold())
+                reasons = () if observation is None else observation.behavior_mismatches
+                details.append(
+                    name if not reasons else f"{name}[{';'.join(reasons)}]"
+                )
+            details.extend(status.view_mismatches)
             suffix = f": {', '.join(details)}" if details else ""
             raise RuntimeError(
                 "GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: canonical schema remained incomplete"
