@@ -11,6 +11,7 @@ if TYPE_CHECKING:
 
 from ..config import RuntimeConfig, load_runtime_config
 from ..repositories import RepositorySettings, SelectedRepositorySettings
+from ..work_management.schema import load_project_schema_manifest
 from .contracts import ProviderDescriptor, ProviderState
 from .context7 import register_context7_provider
 from .control_center import register_control_center_provider
@@ -200,6 +201,7 @@ def build_platform_github_project_backend(
     return GitHubProjectSchemaAwareBackend(
         delegate,
         bindings,
+        manifest=load_project_schema_manifest(),
         gh_config_dir=Path(runtime.github_cli_config_dir),
         cwd=Path(runtime.project_boundary),
     )

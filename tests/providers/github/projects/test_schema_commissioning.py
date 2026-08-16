@@ -80,6 +80,7 @@ def _snapshot(
 
     view = {
         "id": "view-id",
+        "number": 1,
         "name": "01 Inbox",
         "layout": "TABLE_LAYOUT",
         "filter": view_filter,
@@ -141,6 +142,170 @@ def _client(runner: QueueRunner) -> GitHubProjectSchemaClient:
         runner=runner,
     )
 
+
+def _view_items(*, status: str) -> list[dict[str, object]]:
+    return [
+        {
+            "id": 17,
+            "fields": [
+                {
+                    "id": 1001,
+                    "name": "Status",
+                    "data_type": "single_select",
+                    "value": {"name": status},
+                }
+            ],
+        }
+    ]
+
+
+def _included_view_items(
+    items: list[dict[str, object]] | None = None,
+    *,
+    has_next: bool = False,
+) -> str:
+    headers = ["HTTP/2 200 OK", "content-type: application/json"]
+    if has_next:
+        headers.append(
+            'link: <https://api.github.com/example?after=cursor>; rel="next"'
+        )
+    return "\r\n".join(headers) + "\r\n\r\n" + json.dumps(items or [])
+
+
+def test_read_views_rejects_false_green_saved_filter_behavior() -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=_included_view_items(_view_items(status="Todo"))),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is False
+    assert views[0].behavior_mismatches == ("Status:Todo",)
+    assert "/users/NielPieterse0/projectsV2/1/views/1/items" in runner.calls[1][0]
+    assert "fields=1001" in runner.calls[1][0]
+
+
+@pytest.mark.parametrize("stdout", ["", "[]", "HTTP/2 200 OK\r\n\r\n"])
+def test_read_views_marks_incomplete_saved_view_response_unverified(stdout: str) -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=stdout),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == ()
+
+
+def test_read_views_marks_saved_view_api_failure_unverified() -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(returncode=1, stderr="temporary provider failure"),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == ()
+
+
+def test_read_views_ignores_noncanonical_filtered_views() -> None:
+    payload = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    views = payload["data"]["user"]["projectV2"]["views"]["nodes"]
+    extra = json.loads(json.dumps(views[0]))
+    extra.update(
+        {
+            "id": "extra-view-id",
+            "number": 2,
+            "name": "Operator Scratch",
+            "filter": "status:Todo",
+        }
+    )
+    views.append(extra)
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(payload)),
+            Result(stdout=_included_view_items()),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    observed = _client(runner).read_views(target, _manifest())
+
+    assert [view.name for view in observed] == ["01 Inbox"]
+    assert len(runner.calls) == 2
+    assert "/views/1/items" in str(runner.calls[1][0])
+    assert "/views/2/items" not in str(runner.calls)
+
+
+def test_read_views_marks_more_than_one_page_unverified() -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=_included_view_items(has_next=True)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert "--paginate" not in runner.calls[1][0]
+    assert "--include" in runner.calls[1][0]
+
+
 def test_commission_preserves_existing_option_ids_and_verifies_final_state() -> None:
     runner = QueueRunner(
         (
@@ -159,6 +324,7 @@ def test_commission_preserves_existing_option_ids_and_verifies_final_state() -> 
                     )
                 )
             ),
+            Result(stdout=_included_view_items()),
         )
     )
     target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
@@ -169,6 +335,9 @@ def test_commission_preserves_existing_option_ids_and_verifies_final_state() -> 
     assert result["created_fields"] == ["Priority"]
     assert result["updated_fields"] == ["Status"]
     assert result["created_views"] == ["01 Inbox"]
+    assert result["view_behavior"] == [
+        {"name": "01 Inbox", "verified": True, "mismatches": []}
+    ]
     queries = [call[0][-1].removeprefix("query=") for call in runner.calls]
     update = next(query for query in queries if "updateProjectV2Field" in query)
     assert 'id: "todo-id"' in update
@@ -199,11 +368,12 @@ def test_read_views_returns_semantic_observations() -> None:
                     )
                 )
             ),
+            Result(stdout=_included_view_items()),
         )
     )
     target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
 
-    views = _client(runner).read_views(target)
+    views = _client(runner).read_views(target, _manifest())
 
     assert len(views) == 1
     assert views[0].name == "01 Inbox"
@@ -213,6 +383,8 @@ def test_read_views_returns_semantic_observations() -> None:
     assert views[0].sort_by == ()
     assert views[0].group_by == ()
     assert views[0].vertical_group_by == ()
+    assert views[0].behavior_verified is True
+    assert views[0].behavior_mismatches == ()
 
 
 def test_commission_updates_existing_view_filter_and_visible_fields_in_place() -> None:
@@ -239,6 +411,7 @@ def test_commission_updates_existing_view_filter_and_visible_fields_in_place() -
                     )
                 )
             ),
+            Result(stdout=_included_view_items()),
         )
     )
     target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
@@ -253,6 +426,102 @@ def test_commission_updates_existing_view_filter_and_visible_fields_in_place() -
     assert 'filter: "status:Ready"' in update
     assert 'visibleFieldIds: ["status-id", "priority-id"]' in update
     assert "deleteProjectV2View" not in update
+
+
+def test_commission_updates_existing_view_layout_in_place() -> None:
+    drifted = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    drifted["data"]["user"]["projectV2"]["views"]["nodes"][0]["layout"] = "BOARD_LAYOUT"
+    corrected = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(drifted)),
+            Result(),
+            Result(stdout=json.dumps(corrected)),
+            Result(stdout=_included_view_items()),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    result = _client(runner).commission(target, _manifest())
+
+    assert result["ready"] is True
+    queries = [call[0][-1].removeprefix("query=") for call in runner.calls]
+    update = next(query for query in queries if "updateProjectV2View" in query)
+    assert "layout: TABLE_LAYOUT" in update
+
+
+def test_commission_reapplies_matching_filter_when_saved_view_behavior_is_wrong() -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items(_view_items(status="Todo"))),
+            Result(),
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items()),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    result = _client(runner).commission(target, _manifest())
+
+    assert result["ready"] is True
+    assert result["updated_views"] == ["01 Inbox"]
+    queries = [
+        call[0][-1].removeprefix("query=")
+        for call in runner.calls
+        if call[0][-1].startswith("query=")
+    ]
+    repair = next(query for query in queries if "updateProjectV2View" in query)
+    assert 'filter: "status:Ready"' in repair
+
+
+def test_commission_fails_when_saved_view_behavior_remains_wrong_after_repair() -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    wrong_items = _included_view_items(_view_items(status="Todo"))
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=wrong_items),
+            Result(),
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=wrong_items),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    with pytest.raises(RuntimeError, match="01 Inbox:behavior"):
+        _client(runner).commission(target, _manifest())
+
+    repairs = [
+        call
+        for call in runner.calls
+        if call[0][-1].startswith("query=")
+        and "updateProjectV2View" in call[0][-1]
+    ]
+    assert len(repairs) == 1
 
 
 def test_commission_creates_missing_view_with_fixed_rest_semantics() -> None:
@@ -270,6 +539,7 @@ def test_commission_creates_missing_view_with_fixed_rest_semantics() -> None:
                     )
                 )
             ),
+            Result(stdout=_included_view_items()),
         )
     )
     target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
@@ -297,7 +567,12 @@ def test_commission_preflights_all_view_refusals_before_any_mutation() -> None:
     )
     views = payload["data"]["user"]["projectV2"]["views"]["nodes"]
     second = json.loads(json.dumps(views[0]))
-    second.update({"id": "view-id-2", "name": "02 Programme Table", "layout": "BOARD_LAYOUT"})
+    second.update({"id": "view-id-2", "number": 2, "name": "02 Programme Table"})
+    second["filter"] = ""
+    second["groupByFields"] = {
+        "nodes": [{"__typename": "ProjectV2Field", "id": "status-id", "name": "Status"}],
+        "pageInfo": {"hasNextPage": False},
+    }
     views.append(second)
     manifest = ProjectSchemaManifest(
         portfolio_id="default",
@@ -315,7 +590,7 @@ def test_commission_preflights_all_view_refusals_before_any_mutation() -> None:
     runner = QueueRunner((Result(stdout=json.dumps(payload)),))
     target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
 
-    with pytest.raises(ValueError, match="view layout mismatch for 02 Programme Table"):
+    with pytest.raises(ValueError, match="not safely mutable: group_by"):
         _client(runner).commission(target, manifest)
 
     assert len(runner.calls) == 1

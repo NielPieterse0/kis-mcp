@@ -7,9 +7,9 @@
 | Product | `kis-mcp` Platform |
 | Capability | Provider-neutral multi-project work management and review evidence |
 | Change | `057-work-management-automation` |
-| Status | P0-P5 implemented; canonical 25-field / 12-view semantics are machine-managed and live readiness is runtime evidence |
+| Status | P0-P5 implementation complete; saved-view commissioning reopened under #270 until semantic and behavioral readiness is proven live |
 | Date | 2026-08-16 |
-| Current implementation | Provider-neutral P0-P5 identity, command lifecycle, inventory, intake, governance, traceability, review evidence, deterministic reconciliation, portfolio status, a bounded 25-field GitHub Project schema commissioner, executable semantics for all 12 saved views, fixed-shape CLI/CI, and task-level platform composition |
+| Current implementation | Provider-neutral P0-P5 identity, command lifecycle, inventory, intake, governance, traceability, review evidence, deterministic reconciliation, portfolio status, a bounded 25-field GitHub Project schema commissioner, declared semantics for all 12 saved views, behavioral saved-view verification, fixed-shape CLI/CI, and task-level platform composition |
 | Runtime dependency | Change `047-capability-composition-and-tool-experience` |
 | Initial backend | GitHub Issues, Projects, Pull Requests, Actions, and official GitHub MCP server |
 | Applicability | Multiple managed repositories and projects |
@@ -179,7 +179,7 @@ Repository labels SHOULD classify stable secondary dimensions such as `module:*`
 11. `11 Documentation and Closeout` — records awaiting documentation reconciliation or final closeout.
 12. `12 Completed` — closed records retained for history.
 
-The checked-in `settings/work-management/github-project-schema.json` owns each view's executable layout, filter, visible-field order, sort/group configuration, and board vertical grouping. A named view shell is not sufficient commissioning evidence. `project_management_schema_status` MUST report semantic drift when an observed canonical view differs on any declared dimension, and the bounded registered-Project commissioner MAY repair only API-supported view semantics without exposing arbitrary API access or a delete/recreate path.
+The checked-in `settings/work-management/github-project-schema.json` owns each view's executable layout, filter, visible-field order, sort/group configuration, and board vertical grouping. A named view shell is not sufficient commissioning evidence. `project_management_schema_status` MUST report semantic drift when an observed canonical view differs on any declared dimension and MUST require bounded behavioral evidence that filtered saved views return only matching records. The bounded registered-Project commissioner MAY repair only API-supported view semantics without exposing arbitrary API access or a delete/recreate path. Under the current GitHub contract, missing views can be created with complete semantics and existing views can be updated in place for layout, filter, and visible fields; sort, group, and vertical-group configuration are observable but not exposed by the current view-update input, so drift in those dimensions remains explicit and unready.
 
 ## 7. Intake and triage
 

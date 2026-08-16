@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "162-work-management-view-readback",
+  "status": "active",
+  "branch": "change/162-work-management-view-readback",
+  "worktree": ".work/worktrees/162-work-management-view-readback",
+  "base": "main",
+  "outcome": "Repair live GitHub Project view semantic readback and commissioning so #270 cannot report ready until all 12 saved views actually match the canonical manifest.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/schema_commissioning.py",
+    "src/kis_mcp/providers/platform.py",
+    "src/kis_mcp/work_management/schema.py",
+    "tests/providers/github/projects/test_schema_commissioning.py",
+    "tests/work_management/test_schema.py",
+    "tests/work_management/test_service.py",
+    ".work/programmes/work-management/**",
+    ".work/changes/162-work-management-view-readback/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "migration",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "0c91e1011f3649c206d845a7f1880c5cc595579d",
+    "local_tree": "31acb48909229cff61a6d33c17d19347f2b696c7",
+    "upstream_sha": "0c91e1011f3649c206d845a7f1880c5cc595579d",
+    "upstream_tree": "31acb48909229cff61a6d33c17d19347f2b696c7",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
