@@ -111,5 +111,40 @@ def test_supporting_template_does_not_alias_entrypoint(skills_config, make_skill
     make_skill("alpha-skill")
     server = _server(SkillCatalogue(skills_config))
 
-    with pytest.raises(Exception, match="canonical entrypoint resource URI"):
+    with pytest.raises(Exception, match="SKILLS_RESOURCE_URI_INVALID"):
         _read(server, "skill:///alpha-skill/resource?path=SKILL.md")
+
+
+def test_fastmcp_preserves_unsafe_path_error(skills_config, make_skill) -> None:
+    make_skill("alpha-skill")
+    server = _server(SkillCatalogue(skills_config))
+
+    with pytest.raises(Exception, match="SKILLS_PATH_UNSAFE"):
+        _read(server, "skill:///alpha-skill/resource?path=..%2Foutside.md")
+
+
+def test_fastmcp_reports_missing_post_snapshot_resource_as_stale(
+    skills_config, make_skill
+) -> None:
+    root = make_skill("alpha-skill", extra_files={"references/note.md": "present\n"})
+    server = _server(SkillCatalogue(skills_config))
+    (root / "references" / "note.md").unlink()
+
+    with pytest.raises(Exception, match="SKILLS_RESOURCE_STALE"):
+        _read(server, "skill:///alpha-skill/resource?path=references%2Fnote.md")
+
+
+def test_fastmcp_preserves_link_rejection(
+    skills_config, make_skill, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    make_skill("alpha-skill", extra_files={"references/note.md": "present\n"})
+    catalogue = SkillCatalogue(skills_config)
+
+    def reject_link(*_args) -> None:
+        raise SkillsError("SKILLS_LINK_REJECTED", "linked resource rejected")
+
+    monkeypatch.setattr(catalogue.source_reader, "assert_safe_chain", reject_link)
+    server = _server(catalogue)
+
+    with pytest.raises(Exception, match="SKILLS_LINK_REJECTED"):
+        _read(server, "skill:///alpha-skill/resource?path=references%2Fnote.md")

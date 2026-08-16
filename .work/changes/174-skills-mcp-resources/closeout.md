@@ -7,16 +7,16 @@
 - Updated the durable Skills module product specification.
 
 ## Validation evidence
-- Focused checks: 16/16 passed across `test_resources.py`, Skills architecture, and gateway composition.
+- Focused checks: 19/19 passed across `test_resources.py`, Skills architecture, and gateway composition.
 - Governed check: `scripts/change-workflow.ps1 check` passed with only declared paths.
 - Diff scope check: `git diff --check` passed.
 - Canonical exact-head repository verification remains a pull-request/CI gate.
 
 ## Review
 - Architecture review: clean; no findings.
-- API-contract review: one medium diagnostic-classification finding in resource revalidation.
-- Resolution: preserve `SKILLS_PATH_UNSAFE` / `SKILLS_LINK_REJECTED`; map missing/drift to `SKILLS_RESOURCE_STALE`; affected tests reran 16/16 green.
-- Repeat review transport returned `AGENT_REVIEW_FAILED:EvidenceError`; no approval is inferred from that failed attempt.
+- API-contract review: one medium diagnostic-classification finding in resource revalidation; fixed by preserving path/link codes and mapping missing/drift to `SKILLS_RESOURCE_STALE`.
+- Final Codex API re-review: no implementation defect; one low public-boundary test-coverage finding.
+- Resolution: added FastMCP-level assertions for unsafe paths, missing/stale resources, link rejection, and canonical-entrypoint alias rejection; focused tests reran 19/19 green.
 
 ## Git and merge
 - Branch: `change/174-skills-mcp-resources`
