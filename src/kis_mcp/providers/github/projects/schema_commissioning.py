@@ -18,6 +18,7 @@ from kis_mcp.work_management.backend import (
 )
 from kis_mcp.work_management.schema import (
     ProjectSchemaManifest,
+    ProjectViewObservation,
     compare_project_schema,
 )
 
@@ -77,6 +78,7 @@ class _Option:
 @dataclass(frozen=True, slots=True)
 class _Field:
     field_id: str
+    database_id: int | None
     name: str
     kind: ProjectFieldKind
     options: tuple[_Option, ...] = ()
@@ -87,11 +89,30 @@ class _View:
     view_id: str
     name: str
     layout: str
+    filter: str = ""
+    visible_fields: tuple[str, ...] = ()
+    sort_by: tuple[tuple[str, str], ...] = ()
+    group_by: tuple[str, ...] = ()
+    vertical_group_by: tuple[str, ...] = ()
+
+    def observation(self) -> ProjectViewObservation:
+        return ProjectViewObservation(
+            name=self.name,
+            layout=self.layout.removesuffix("_LAYOUT").casefold(),
+            filter=self.filter,
+            visible_fields=(
+                () if self.layout == "ROADMAP_LAYOUT" else self.visible_fields
+            ),
+            sort_by=self.sort_by,
+            group_by=self.group_by,
+            vertical_group_by=self.vertical_group_by,
+        )
 
 
 @dataclass(frozen=True, slots=True)
 class _Snapshot:
     project_id: str
+    owner_database_id: int | None
     fields: tuple[_Field, ...]
     views: tuple[_View, ...]
 
@@ -124,6 +145,29 @@ def _required(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{label} was missing")
     return value.strip()
+
+
+def _connection_nodes(value: Any, label: str) -> list[Any]:
+    if not isinstance(value, dict):
+        raise RuntimeError(f"GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: {label} was missing")
+    page_info = value.get("pageInfo")
+    if not isinstance(page_info, dict):
+        raise RuntimeError(f"GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: {label} pageInfo was missing")
+    if page_info.get("hasNextPage"):
+        raise RuntimeError(f"GITHUB_PROJECT_SCHEMA_INCOMPLETE: {label} exceeded 100 entries")
+    nodes = value.get("nodes")
+    if not isinstance(nodes, list):
+        raise RuntimeError(f"GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: {label} nodes were missing")
+    return nodes
+
+
+def _field_names(value: Any, label: str) -> tuple[str, ...]:
+    names: list[str] = []
+    for item in _connection_nodes(value, label):
+        if not isinstance(item, dict):
+            raise RuntimeError(f"GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: {label} field was invalid")
+        names.append(_required(item.get("name"), f"{label} field name"))
+    return tuple(names)
 
 
 class GitHubProjectSchemaClient:
@@ -170,12 +214,13 @@ class GitHubProjectSchemaClient:
         owner_field = "user" if target.owner_type == "user" else "organization"
         return f'''query {{
   {owner_field}(login: {_quoted(target.owner)}) {{
+    databaseId
     projectV2(number: {target.project_number}) {{
       id
       fields(first: 100) {{
         nodes {{
           __typename
-          ... on ProjectV2FieldCommon {{ id name dataType }}
+          ... on ProjectV2FieldCommon {{ id databaseId name dataType }}
           ... on ProjectV2SingleSelectField {{
             options {{ id name color description }}
           }}
@@ -183,7 +228,45 @@ class GitHubProjectSchemaClient:
         pageInfo {{ hasNextPage }}
       }}
       views(first: 100) {{
-        nodes {{ id name layout }}
+        nodes {{
+          id
+          name
+          layout
+          filter
+          configuration {{
+            visibleFields(first: 100) {{
+              nodes {{
+                __typename
+                ... on ProjectV2FieldCommon {{ id name }}
+              }}
+              pageInfo {{ hasNextPage }}
+            }}
+          }}
+          sortByFields(first: 100) {{
+            nodes {{
+              direction
+              field {{
+                __typename
+                ... on ProjectV2FieldCommon {{ id name }}
+              }}
+            }}
+            pageInfo {{ hasNextPage }}
+          }}
+          groupByFields(first: 100) {{
+            nodes {{
+              __typename
+              ... on ProjectV2FieldCommon {{ id name }}
+            }}
+            pageInfo {{ hasNextPage }}
+          }}
+          verticalGroupByFields(first: 100) {{
+            nodes {{
+              __typename
+              ... on ProjectV2FieldCommon {{ id name }}
+            }}
+            pageInfo {{ hasNextPage }}
+          }}
+        }}
         pageInfo {{ hasNextPage }}
       }}
     }}
@@ -198,16 +281,8 @@ class GitHubProjectSchemaClient:
         project = owner.get("projectV2") if isinstance(owner, dict) else None
         if not isinstance(project, dict):
             raise RuntimeError("GITHUB_PROJECT_SCHEMA_NOT_FOUND: registered Project was not found")
-        fields_source = project.get("fields")
-        views_source = project.get("views")
-        if not isinstance(fields_source, dict) or not isinstance(views_source, dict):
-            raise RuntimeError("GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: field/view inventory was missing")
-        if fields_source.get("pageInfo", {}).get("hasNextPage") or views_source.get("pageInfo", {}).get("hasNextPage"):
-            raise RuntimeError("GITHUB_PROJECT_SCHEMA_INCOMPLETE: bounded inventory exceeded 100 entries")
-        raw_fields = fields_source.get("nodes")
-        raw_views = views_source.get("nodes")
-        if not isinstance(raw_fields, list) or not isinstance(raw_views, list):
-            raise RuntimeError("GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: field/view nodes were missing")
+        raw_fields = _connection_nodes(project.get("fields"), "Project fields")
+        raw_views = _connection_nodes(project.get("views"), "Project views")
 
         fields: list[_Field] = []
         for item in raw_fields:
@@ -230,9 +305,13 @@ class GitHubProjectSchemaClient:
                             description=str(option.get("description", "")),
                         )
                     )
+            database_id = item.get("databaseId")
+            if isinstance(database_id, bool) or not isinstance(database_id, int):
+                database_id = None
             fields.append(
                 _Field(
                     field_id=_required(item.get("id"), "field id"),
+                    database_id=database_id,
                     name=_required(item.get("name"), "field name"),
                     kind=kind,
                     options=tuple(options),
@@ -242,22 +321,55 @@ class GitHubProjectSchemaClient:
         for item in raw_views:
             if not isinstance(item, dict):
                 raise RuntimeError("GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: view was not an object")
+            configuration = item.get("configuration")
+            if not isinstance(configuration, dict):
+                raise RuntimeError(
+                    "GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: view configuration was missing"
+                )
+            sort_by: list[tuple[str, str]] = []
+            for sort_item in _connection_nodes(item.get("sortByFields"), "view sort config"):
+                if not isinstance(sort_item, dict) or not isinstance(sort_item.get("field"), dict):
+                    raise RuntimeError(
+                        "GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: view sort entry was invalid"
+                    )
+                sort_by.append(
+                    (
+                        _required(sort_item["field"].get("name"), "view sort field name"),
+                        _required(sort_item.get("direction"), "view sort direction").casefold(),
+                    )
+                )
             views.append(
                 _View(
                     view_id=_required(item.get("id"), "view id"),
                     name=_required(item.get("name"), "view name"),
                     layout=_required(item.get("layout"), "view layout"),
+                    filter=str(item.get("filter") or "").strip(),
+                    visible_fields=_field_names(
+                        configuration.get("visibleFields"), "view visible fields"
+                    ),
+                    sort_by=tuple(sort_by),
+                    group_by=_field_names(item.get("groupByFields"), "view group config"),
+                    vertical_group_by=_field_names(
+                        item.get("verticalGroupByFields"), "view vertical group config"
+                    ),
                 )
             )
+        owner_database_id = owner.get("databaseId") if isinstance(owner, dict) else None
+        if isinstance(owner_database_id, bool) or not isinstance(owner_database_id, int):
+            owner_database_id = None
         return _Snapshot(
             project_id=_required(project.get("id"), "project id"),
+            owner_database_id=owner_database_id,
             fields=tuple(fields),
             views=tuple(views),
         )
 
-    def read_views(self, target: ProjectSchemaTarget) -> tuple[str, ...]:
+    def read_views(self, target: ProjectSchemaTarget) -> tuple[ProjectViewObservation, ...]:
         return tuple(
-            sorted((view.name for view in self.read_snapshot(target).views), key=str.casefold)
+            sorted(
+                (view.observation() for view in self.read_snapshot(target).views),
+                key=lambda view: view.name.casefold(),
+            )
         )
 
     @staticmethod
@@ -315,13 +427,101 @@ class GitHubProjectSchemaClient:
             + "}) { clientMutationId } }"
         )
 
-    def _create_view(self, project_id: str, view_spec) -> None:
-        layout = _VIEW_LAYOUT[view_spec.layout]
-        self._graphql(
-            "mutation { createProjectV2View(input: {"
-            f"projectId: {_quoted(project_id)}, name: {_quoted(view_spec.name)}, layout: {layout}"
-            "}) { clientMutationId } }"
+    @staticmethod
+    def _view_field_ids(snapshot: _Snapshot, names: tuple[str, ...]) -> tuple[str, ...]:
+        by_name = {field.name.casefold(): field.field_id for field in snapshot.fields}
+        missing = tuple(name for name in names if name.casefold() not in by_name)
+        if missing:
+            raise ValueError(
+                "view configuration references unavailable Project fields: "
+                + ", ".join(missing)
+            )
+        return tuple(by_name[name.casefold()] for name in names)
+
+    @staticmethod
+    def _view_database_ids(snapshot: _Snapshot, names: tuple[str, ...]) -> tuple[int, ...]:
+        by_name = {field.name.casefold(): field.database_id for field in snapshot.fields}
+        missing = tuple(
+            name
+            for name in names
+            if name.casefold() not in by_name or by_name[name.casefold()] is None
         )
+        if missing:
+            raise ValueError(
+                "view configuration requires Project database field IDs: "
+                + ", ".join(missing)
+            )
+        return tuple(int(by_name[name.casefold()]) for name in names)
+
+    def _update_view(self, snapshot: _Snapshot, actual: _View, expected) -> None:
+        observed = actual.observation()
+        parts = [f"viewId: {_quoted(actual.view_id)}"]
+        if observed.filter != expected.filter:
+            parts.append(f"filter: {_quoted(expected.filter)}")
+        if observed.visible_fields != expected.visible_fields:
+            field_ids = self._view_field_ids(snapshot, expected.visible_fields)
+            values = ", ".join(_quoted(value) for value in field_ids)
+            parts.append(f"configuration: {{visibleFieldIds: [{values}]}}")
+        if len(parts) == 1:
+            return
+        self._graphql(
+            "mutation { updateProjectV2View(input: {"
+            + ", ".join(parts)
+            + "}) { clientMutationId } }"
+        )
+
+    def _create_view(
+        self,
+        target: ProjectSchemaTarget,
+        snapshot: _Snapshot,
+        view_spec,
+    ) -> None:
+        if target.owner_type == "user":
+            if snapshot.owner_database_id is None:
+                raise RuntimeError(
+                    "GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: user database ID was unavailable"
+                )
+            endpoint = (
+                f"/users/{snapshot.owner_database_id}/projectsV2/"
+                f"{target.project_number}/views"
+            )
+        else:
+            endpoint = f"/orgs/{target.owner}/projectsV2/{target.project_number}/views"
+        args: list[str] = [
+            "gh",
+            "api",
+            "--hostname",
+            "github.com",
+            "--method",
+            "POST",
+            "-H",
+            "X-GitHub-Api-Version: 2026-03-10",
+            "-H",
+            "Accept: application/vnd.github+json",
+            endpoint,
+            "-f",
+            f"name={view_spec.name}",
+            "-f",
+            f"layout={view_spec.layout}",
+            "-f",
+            f"filter={view_spec.filter}",
+        ]
+        for database_id in self._view_database_ids(snapshot, view_spec.visible_fields):
+            args.extend(("-F", f"visible_fields[]={database_id}"))
+        for field_name, direction in view_spec.sort_by:
+            database_id = self._view_database_ids(snapshot, (field_name,))[0]
+            args.extend(("-F", f"sort_by[][0]={database_id}"))
+            args.extend(("-f", f"sort_by[][1]={direction}"))
+        for database_id in self._view_database_ids(snapshot, view_spec.group_by):
+            args.extend(("-F", f"group_by[]={database_id}"))
+        for database_id in self._view_database_ids(snapshot, view_spec.vertical_group_by):
+            args.extend(("-F", f"vertical_group_by[]={database_id}"))
+        result = self._runner(tuple(args), self._cwd, self._environment())
+        if getattr(result, "returncode", 1) != 0:
+            stderr = str(getattr(result, "stderr", "")).strip()
+            raise RuntimeError(
+                f"GITHUB_PROJECT_SCHEMA_API_FAILED: {stderr or 'gh api view create failed'}"
+            )
 
     def commission(
         self,
@@ -338,26 +538,115 @@ class GitHubProjectSchemaClient:
                     f"{actual.kind.value}->{expected.kind.value}"
                 )
 
+        available_view_fields = set(actual_by_name)
+        available_view_fields.update(field.name.casefold() for field in manifest.fields)
+        initial_views_by_name = {view.name.casefold(): view for view in snapshot.views}
+        for expected in manifest.views:
+            referenced_fields = (
+                *expected.visible_fields,
+                *(field_name for field_name, _ in expected.sort_by),
+                *expected.group_by,
+                *expected.vertical_group_by,
+            )
+            unavailable = tuple(
+                field_name
+                for field_name in referenced_fields
+                if field_name.casefold() not in available_view_fields
+            )
+            if unavailable:
+                raise ValueError(
+                    f"view configuration references unavailable Project fields for {expected.name}: "
+                    + ", ".join(unavailable)
+                )
+            actual = initial_views_by_name.get(expected.name.casefold())
+            if actual is None:
+                if target.owner_type == "user" and snapshot.owner_database_id is None:
+                    raise ValueError(
+                        f"missing view {expected.name} requires the registered user database ID"
+                    )
+                existing_fields = {
+                    field.name.casefold(): field for field in snapshot.fields
+                }
+                missing_database_ids = tuple(
+                    field_name
+                    for field_name in referenced_fields
+                    if (
+                        (field := existing_fields.get(field_name.casefold())) is not None
+                        and field.database_id is None
+                    )
+                )
+                if missing_database_ids:
+                    raise ValueError(
+                        f"missing view {expected.name} requires Project database field IDs: "
+                        + ", ".join(missing_database_ids)
+                    )
+                continue
+            expected_layout = _VIEW_LAYOUT[expected.layout]
+            if actual.layout != expected_layout:
+                raise ValueError(
+                    f"view layout mismatch for {expected.name}: {actual.layout}->{expected_layout}"
+                )
+            observed = actual.observation()
+            unsupported = []
+            if observed.sort_by != expected.sort_by:
+                unsupported.append("sort_by")
+            if observed.group_by != expected.group_by:
+                unsupported.append("group_by")
+            if observed.vertical_group_by != expected.vertical_group_by:
+                unsupported.append("vertical_group_by")
+            if unsupported:
+                raise ValueError(
+                    f"view configuration mismatch for {expected.name} is not safely mutable: "
+                    + ", ".join(unsupported)
+                )
+
         created_fields: list[str] = []
-        updated_fields: list[str] = []
         for expected in manifest.fields:
             actual = actual_by_name.get(expected.name.casefold())
             if actual is None:
                 self._create_field(snapshot.project_id, expected)
                 created_fields.append(expected.name)
+
+        if created_fields:
+            snapshot = self.read_snapshot(target)
+            actual_by_name = {field.name.casefold(): field for field in snapshot.fields}
+            for expected in manifest.fields:
+                actual = actual_by_name.get(expected.name.casefold())
+                if actual is None or actual.kind is not expected.kind:
+                    raise RuntimeError(
+                        f"GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: field not ready after creation: {expected.name}"
+                    )
+
+        views_by_name = {view.name.casefold(): view for view in snapshot.views}
+        for expected in manifest.views:
+            if expected.name.casefold() in views_by_name:
                 continue
+            referenced_fields = (
+                *expected.visible_fields,
+                *(field_name for field_name, _ in expected.sort_by),
+                *expected.group_by,
+                *expected.vertical_group_by,
+            )
+            self._view_database_ids(snapshot, referenced_fields)
+
+        updated_fields: list[str] = []
+        for expected in manifest.fields:
+            actual = actual_by_name.get(expected.name.casefold())
+            if actual is None:
+                raise RuntimeError(
+                    f"GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: field unavailable before option update: {expected.name}"
+                )
             if expected.kind is ProjectFieldKind.SINGLE_SELECT:
                 available = {option.name.casefold() for option in actual.options}
                 if any(option.casefold() not in available for option in expected.options):
                     self._update_select_options(actual, expected.options)
                     updated_fields.append(expected.name)
-
-        views_by_name = {view.name.casefold(): view for view in snapshot.views}
         created_views: list[str] = []
+        updated_views: list[str] = []
         for expected in manifest.views:
             actual = views_by_name.get(expected.name.casefold())
             if actual is None:
-                self._create_view(snapshot.project_id, expected)
+                self._create_view(target, snapshot, expected)
                 created_views.append(expected.name)
                 continue
             expected_layout = _VIEW_LAYOUT[expected.layout]
@@ -365,6 +654,25 @@ class GitHubProjectSchemaClient:
                 raise ValueError(
                     f"view layout mismatch for {expected.name}: {actual.layout}->{expected_layout}"
                 )
+            observed = actual.observation()
+            unsupported = []
+            if observed.sort_by != expected.sort_by:
+                unsupported.append("sort_by")
+            if observed.group_by != expected.group_by:
+                unsupported.append("group_by")
+            if observed.vertical_group_by != expected.vertical_group_by:
+                unsupported.append("vertical_group_by")
+            if unsupported:
+                raise ValueError(
+                    f"view configuration mismatch for {expected.name} is not safely mutable: "
+                    + ", ".join(unsupported)
+                )
+            if (
+                observed.filter != expected.filter
+                or observed.visible_fields != expected.visible_fields
+            ):
+                self._update_view(snapshot, actual, expected)
+                updated_views.append(expected.name)
 
         final = self.read_snapshot(target)
         final_views = {view.name.casefold(): view for view in final.views}
@@ -378,11 +686,14 @@ class GitHubProjectSchemaClient:
             manifest,
             final.work_fields(),
             project_id="registered-project",
-            views_observed=tuple(view.name for view in final.views),
+            views_observed=tuple(view.observation() for view in final.views),
         )
         if not status.ready:
+            details = [*status.unverified_views, *status.view_mismatches]
+            suffix = f": {', '.join(details)}" if details else ""
             raise RuntimeError(
                 "GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: canonical schema remained incomplete"
+                + suffix
             )
         return {
             "ready": True,
@@ -390,6 +701,7 @@ class GitHubProjectSchemaClient:
             "created_fields": created_fields,
             "updated_fields": updated_fields,
             "created_views": created_views,
+            "updated_views": updated_views,
             "field_count": len(final.fields),
             "view_count": len(final.views),
         }
@@ -427,7 +739,9 @@ class GitHubProjectSchemaAwareBackend:
     async def read_schema_fields(self, project_binding):
         return await self._delegate.read_schema_fields(project_binding)
 
-    async def read_schema_views(self, project_binding) -> tuple[str, ...]:
+    async def read_schema_views(
+        self, project_binding
+    ) -> tuple[ProjectViewObservation, ...]:
         if not isinstance(project_binding, ProjectBinding):
             raise ValueError("project_binding must be a ProjectBinding")
         configured = self._bindings.get(project_binding.managed_project_id)

@@ -4,8 +4,8 @@
 
 The shared Work Management portfolio uses GitHub user Project `NielPieterse0/#1`, titled `KIS Work Management`.
 
-- managed project IDs: `kis-mcp`, `chatgpt-skill`, `commodity`, `college`
-- repositories: `NielPieterse0/kis-mcp`, `NielPieterse0/chatgpt-skill`, `NielPieterse0/commodity`, `NielPieterse0/college`
+- managed project IDs: `kis-mcp`, `chatgpt-skill`, `commodity`, `college`, `import-isolate`
+- repositories: `NielPieterse0/kis-mcp`, `NielPieterse0/chatgpt-skill`, `NielPieterse0/commodity`, `NielPieterse0/college`, `NielPieterse0/import-isolate`
 - Work Management binding: `github-default`
 - Project coordinate owner: `kis-mcp` registry entry with binding ID `work-management`
 - Project owner type: `user`
@@ -15,31 +15,27 @@ The Project coordinate is registered once because the central registry requires 
 
 ## Desired schema
 
-`settings/work-management/github-project-schema.json` is the current repository-owned desired projection. It contains 20 approved core fields and 12 approved saved views. Change 117 adds `Complexity` and `Risk Triggers` so Work Management projects the same two-axis classification as the authoritative local change record.
+`settings/work-management/github-project-schema.json` is the current repository-owned desired projection. It contains **25 managed fields and 12 saved views**. Work command state is held in `Status`; implementation progress is separate in `Delivery Stage`; exact verification evidence is separate in `Verification`. The canonical `Status` options are:
 
-The desired `Status` options are:
+`Inbox`, `Triage`, `Proposed`, `Approved`, `Ready`, `Active`, `Blocked`, `On Hold`, `Deferred`, `Rejected`, `Superseded`, and `Done`.
 
-`Inbox`, `Triage`, `Proposed`, `Approved`, `Active`, `Review`, `Verification`, `Documentation`, `Done`, `Blocked`, `On Hold`, `Deferred`, `Rejected`, and `Superseded`.
+Each saved view now carries executable semantics in the manifest: layout, filter, visible-field order, sort/group configuration, and board vertical grouping. A view name or layout alone is insufficient readiness evidence. `project_management_schema_status(project_id)` compares live fields/options and the full observable view semantics against the manifest; semantic mismatches make `views_ready=false`. `project_management_schema_plan(project_id)` reports missing or mismatched elements and must be empty after successful commissioning.
 
-`project_management_schema_status(project_id)` compares live field inventory against that manifest. Saved-view observability is reported separately because the approved connector does not expose saved-view inventory.
+## Bounded schema and view commissioning
 
-## Live state checked 2026-08-13
+The normal official GitHub MCP surface continues to own Project/item reads and bounded item-field mutation. Schema/view provisioning is isolated to the approval-gated registered-Project commissioner. That operation resolves only the central-registry Project binding and checked-in manifest, preserves existing single-select option IDs, creates only missing manifest fields/views, updates existing view filter/visible-field configuration in place where GitHub exposes a safe mutation, refuses incompatible field/layout or unsupported saved-view semantic drift, and re-reads the Project before success.
 
-Project #1 is reachable. Its live field inventory contains GitHub built-ins plus `Status`; the live `Status` options remain `Todo`, `In Progress`, and `Done`. The pre-117 runtime schema check reported 16 custom fields not yet provisioned and 12 views not yet verified. After the 20-field manifest is active, `Complexity` and `Risk Triggers` add two further desired fields to that drift.
-
-The approved GitHub MCP Project write surface can add/update Project items and create an iteration field. It does **not** expose bounded operations for generic custom-field creation, single-select option-schema changes, saved-view creation, or native Project-workflow configuration.
-
-No direct GitHub GraphQL/network fallback is used. The iteration-field primitive is also left unused because the approved programme makes iteration cadence optional, no cadence is configured, and the current bounded provider surface exposes no delete-field recovery operation.
-
-Therefore change 110 commissions the complete repository-side schema/drift and lifecycle integration while recording the remaining live schema/view provisioning as an explicit provider/UI gap. The exact evidence is retained in `.work/changes/110-work-management-documentation-completion/commissioning.json`.
+The commissioner exposes no caller-supplied GraphQL/REST path, query, token, schema definition, delete operation, or destructive type conversion. Missing views are created through a fixed current GitHub Project-view endpoint with manifest-owned semantics; existing views are never deleted/recreated to force a match. Live readiness is not frozen in this document: use the runtime `project_management_schema_status` and schema plan as current evidence, with dated acceptance retained in the closing issue/change record.
 
 ## Supervised operating mode
 
-`features.reconciliation` is `enabled`; `intake` and `review_import` remain `read_only`; `programme_status` remains `enabled`; every custom/native automation flag remains `false`.
+`features.reconciliation` is `enabled`; `intake` and `review_import` remain `read_only`; `programme_status` remains `enabled`; every custom/native automation flag remains `false`. Those feature choices are intentional and separate from schema/view readiness.
 
-Remote item mutation remains explicit: `project_management_reconcile` requires preview review, `apply=true`, and a non-empty idempotency key. No delete/archive operation or unrestricted GraphQL surface is added.
+Remote item mutation remains explicit: `project_management_reconcile` requires preview review, `apply=true`, and a non-empty idempotency key. No delete/archive operation or unrestricted API surface is added. Actionable task/specification intake classifies documentation impact; pre-merge readiness and post-merge documentation reconciliation continue through their bounded Work Management operations.
 
-Actionable task/specification intake must classify documentation impact. Before merge use `project_management_merge_readiness`. After an exact merged PR, use `project_management_documentation_reconcile` to create `documentation_reconciliation_due`; keep required work in `Documentation` until the same operation records `post_merge_complete` at an exact completion revision.
+## Historical commissioning evidence
+
+The sections below preserve earlier commissioning milestones. They are historical evidence only and do not override the current 25-field / semantic-12-view contract above.
 
 ## Earlier 085 write evidence
 
@@ -51,7 +47,7 @@ That evidence proves bounded item mutation compatibility only. It does not prove
 
 On 2026-08-13, bounded reconciliation added the recent governed slices and residual work to Project #1: change 113 issue #138 (`In Progress`), change 110 issue #139 (`Done`), change 111 issue #140 (`Done`), and existing audit change 112 issue #141 (`In Progress`). Separate `Todo` records track rich Project commissioning (#142), provider commissioning-status persistence (#143), Docker Hub search compatibility (#144), and the pinned dependency advisory risk (#145). A fresh bounded inventory returned all eight records.
 
-Because the rich fields are not yet provisioned, record type/change ID/authority metadata is carried by the source records and repository change artifacts rather than falsely represented as live Project fields.
+At that 2026-08-13 checkpoint, the rich fields were not yet provisioned, so record type/change ID/authority metadata remained in source records and repository change artifacts rather than being falsely represented as live Project fields.
 
 ## Change 115 multi-repository onboarding
 
@@ -59,14 +55,8 @@ On 2026-08-13, change 115 extended the shared `github-default` Work Management b
 
 ## Change 117 classification projection
 
-Change 117 expands the repository-owned target from 18 to 20 fields by adding `Complexity` and `Risk Triggers`. `SPEC-117` / issue #157 is captured in Project #1 and remains `In Progress` under the operator hold. The approved connector can update that existing `Status` field but still cannot provision the two new generic custom fields, so the classification remains authoritative in the local change record until the Project schema is commissioned through a supported bounded surface or supervised UI.
+At the change 117 checkpoint, the repository-owned target expanded from 18 to 20 fields by adding `Complexity` and `Risk Triggers`; `SPEC-117` / issue #157 was then held `In Progress`. The provider at that time could update the existing `Status` field but could not provision those generic custom fields. This limitation was later superseded by changes 152/155 and the 25-field commissioned contract.
 
-## Close the remaining external gap
+## Historical change 113 gap plan — superseded
 
-Change 113 has operator approval for a supervised GitHub UI commissioning procedure because the bounded connector still lacks these schema/view mutations:
-
-1. provision the missing fields and exact Status options from the manifest;
-2. create the 12 named views from the programme specification;
-3. leave all automation disabled unless each rule is separately commissioned;
-4. re-run `project_management_schema_status` and retain the exact result;
-5. update current operations/specification evidence only after live drift is zero and view configuration is independently verified.
+Change 113 originally required a supervised GitHub UI procedure because the then-approved connector could not provision the target fields/views. Changes 152/155 replaced that gap with the bounded registered-Project commissioner, and change 157 adds semantic saved-view readiness. This old UI plan is retained only as historical evidence; current commissioning uses the checked-in manifest plus the bounded commissioner and runtime schema status/plan.

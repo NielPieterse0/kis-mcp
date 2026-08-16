@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "157-work-management-view-semantics",
+  "status": "active",
+  "branch": "change/157-work-management-view-semantics",
+  "worktree": ".work/worktrees/157-work-management-view-semantics",
+  "base": "main",
+  "outcome": "Complete Work Management commissioning by making all 12 Project views semantically configured and readiness-verifiable.",
+  "owned_paths": [
+    "settings/work-management/github-project-schema.json",
+    "src/kis_mcp/work_management/schema.py",
+    "src/kis_mcp/work_management/service.py",
+    "src/kis_mcp/work_management/__init__.py",
+    "src/kis_mcp/providers/github/projects/schema_commissioning.py",
+    "tests/work_management/test_schema.py",
+    "tests/work_management/test_service.py",
+    "tests/providers/github/projects/test_schema_commissioning.py",
+    ".work/programmes/work-management/**",
+    "docs/development/github-project-onboarding/commissioning.md",
+    ".work/changes/157-work-management-view-semantics/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "migration",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "7bd2080ab961661ba889aa60682eaa0f2406cf7d",
+    "local_tree": "10674008cce3db4ae4651341be2bc1dc2f863f0f",
+    "upstream_sha": "7bd2080ab961661ba889aa60682eaa0f2406cf7d",
+    "upstream_tree": "10674008cce3db4ae4651341be2bc1dc2f863f0f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-270",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 270,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress"
+  }
+}

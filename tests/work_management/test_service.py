@@ -26,7 +26,7 @@ from kis_mcp.work_management import (
     WorkManagementUnavailable,
     create_review_evidence_manifest,
 )
-from kis_mcp.work_management.schema import load_project_schema_manifest
+from kis_mcp.work_management.schema import ProjectViewObservation, load_project_schema_manifest
 
 
 def settings(
@@ -93,7 +93,18 @@ class Backend:
 
     async def read_schema_views(self, project_binding):
         self.bindings.append(project_binding)
-        return tuple(view.name for view in load_project_schema_manifest().views)
+        return tuple(
+            ProjectViewObservation(
+                name=view.name,
+                layout=view.layout,
+                filter=view.filter,
+                visible_fields=view.visible_fields,
+                sort_by=view.sort_by,
+                group_by=view.group_by,
+                vertical_group_by=view.vertical_group_by,
+            )
+            for view in load_project_schema_manifest().views
+        )
 
     async def apply_reconciliation(
         self,
@@ -308,3 +319,31 @@ def test_schema_status_uses_portfolio_manifest_for_managed_project() -> None:
     assert plan.project_id == "alpha-project"
     assert plan.portfolio_id == "default"
     assert plan.automatic_ready is False
+
+
+def test_schema_status_rejects_semantic_view_drift() -> None:
+    class DriftBackend(Backend):
+        async def read_schema_views(self, project_binding):
+            views = list(await super().read_schema_views(project_binding))
+            first = views[0]
+            views[0] = ProjectViewObservation(
+                name=first.name,
+                layout=first.layout,
+                filter="",
+                visible_fields=first.visible_fields,
+                sort_by=first.sort_by,
+                group_by=first.group_by,
+                vertical_group_by=first.vertical_group_by,
+            )
+            return tuple(views)
+
+    service = WorkManagementService(settings(), {"github": DriftBackend()})
+
+    status = asyncio.run(service.schema_status("alpha-project"))
+    plan = asyncio.run(service.schema_plan("alpha-project"))
+
+    assert status.views_ready is False
+    assert status.view_mismatches == ("01 Inbox:filter",)
+    assert ("update_view", "01 Inbox:filter") in {
+        (action.kind, action.target) for action in plan.actions
+    }
