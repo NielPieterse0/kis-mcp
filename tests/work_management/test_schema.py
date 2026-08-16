@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from pathlib import Path
 
 import pytest
@@ -53,9 +54,103 @@ def test_manifest_matches_approved_programme_shape() -> None:
     assert manifest.views[2].name == "03 Delivery Board"
     assert manifest.views[2].vertical_group_by == ("Status",)
     assert manifest.views[7].filter == 'status:"On Hold",Deferred'
-    assert manifest.views[10].filter == "delivery-stage:Documentation,Commissioning"
+    assert manifest.views[10].filter == (
+        "delivery-stage:Documentation,Commissioning "
+        'status:Inbox,Triage,Proposed,Approved,Ready,Active,Blocked,"On Hold",'
+        "Deferred,Rejected,Superseded,Done"
+    )
     assert manifest.views[-1].name == "12 Completed"
     assert manifest.views[-1].filter == "status:Done"
+
+
+def test_manifest_views_require_explicit_canonical_status_filters() -> None:
+    manifest = load_project_schema_manifest(SCHEMA_PATH)
+    canonical = {value.casefold() for value in manifest.field("Status").options}
+
+    for view in manifest.views:
+        status_tokens = [
+            token.partition(":")[2]
+            for token in shlex.split(view.filter, posix=True)
+            if token.partition(":")[0].casefold() == "status"
+        ]
+        assert len(status_tokens) == 1, view.name
+        values = {
+            value.strip().casefold()
+            for value in status_tokens[0].split(",")
+            if value.strip()
+        }
+        assert values
+        assert values <= canonical, view.name
+        assert not {"todo", "in progress"} & values, view.name
+
+
+@pytest.mark.parametrize(
+    ("filter_text", "message"),
+    (
+        ("record-type:Task", "exactly one status qualifier"),
+        ("status:Inbox status:Done", "exactly one status qualifier"),
+        ("status:", "malformed status values"),
+        ("status:,Inbox", "malformed status values"),
+        ("status:Inbox,", "malformed status values"),
+        ("status:Inbox,,Done", "malformed status values"),
+        ("status:Inbox,Inbox", "duplicate status values"),
+        ('status:"On Hold', "invalid canonical view filter"),
+        ("status:Todo", "non-canonical status values"),
+        ('status:"In Progress"', "non-canonical status values"),
+    ),
+)
+def test_manifest_rejects_missing_or_legacy_status_filters(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    filter_text: str,
+    message: str,
+) -> None:
+    document = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    document["views"][0]["filter"] = filter_text
+    path = tmp_path / "schema.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    monkeypatch.setattr(schema_module, "_default_project_schema_path", lambda: path)
+
+    with pytest.raises(ValueError, match=message):
+        load_project_schema_manifest(path)
+
+
+def test_canonical_manifest_requires_status_field(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    document["fields"] = [field for field in document["fields"] if field["name"] != "Status"]
+    path = tmp_path / "schema.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    monkeypatch.setattr(schema_module, "_default_project_schema_path", lambda: path)
+
+    with pytest.raises(ValueError, match="canonical project schema requires a Status field"):
+        load_project_schema_manifest(path)
+
+
+def test_canonical_manifest_requires_exactly_twelve_views(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    document["views"] = document["views"][:-1]
+    path = tmp_path / "schema.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    monkeypatch.setattr(schema_module, "_default_project_schema_path", lambda: path)
+
+    with pytest.raises(ValueError, match="canonical project schema requires exactly 12 views"):
+        load_project_schema_manifest(path)
+
+
+def test_explicit_alternate_twelve_view_manifest_remains_generic(tmp_path: Path) -> None:
+    document = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    document["fields"] = [field for field in document["fields"] if field["name"] != "Status"]
+    path = tmp_path / "alternate-schema.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    manifest = load_project_schema_manifest(path)
+
+    assert manifest.portfolio_id == "default"
+    assert len(manifest.views) == 12
 
 
 def test_schema_comparison_reports_field_and_view_drift_deterministically() -> None:

@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "166-work-management-view-filter-invariant",
+  "status": "active",
+  "branch": "change/166-work-management-view-filter-invariant",
+  "worktree": ".work/worktrees/166-work-management-view-filter-invariant",
+  "base": "main",
+  "outcome": "Correct the canonical Work Management view manifest so every canonical view excludes legacy Todo/In Progress lifecycle states, enforce the invariant in manifest validation/tests, reconcile programme closeout metadata, and recommission all 12 live views.",
+  "owned_paths": [
+    "settings/work-management/github-project-schema.json",
+    "src/kis_mcp/work_management/schema.py",
+    "tests/work_management/test_schema.py",
+    ".work/programmes/work-management/programme.json",
+    ".work/programmes/work-management/roadmap.md",
+    ".work/changes/166-work-management-view-filter-invariant/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "migration",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "03c677d0f59d6da504a12912dce073db42116db5",
+    "local_tree": "2c4d38a3278350c38137ed063e56461814d57997",
+    "upstream_sha": "03c677d0f59d6da504a12912dce073db42116db5",
+    "upstream_tree": "2c4d38a3278350c38137ed063e56461814d57997",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-270",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 270,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}

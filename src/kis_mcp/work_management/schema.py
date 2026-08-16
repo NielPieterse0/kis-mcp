@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -327,13 +328,55 @@ def _view_spec(value: Any) -> ProjectViewSpec:
     )
 
 
-def load_project_schema_manifest(path: Path | None = None) -> ProjectSchemaManifest:
-    target = path or (
+def _default_project_schema_path() -> Path:
+    return (
         Path(__file__).resolve().parents[3]
         / "settings"
         / "work-management"
         / "github-project-schema.json"
     )
+
+
+def _validate_canonical_view_status_filters(manifest: ProjectSchemaManifest) -> None:
+    if manifest.portfolio_id.casefold() != "default":
+        raise ValueError("canonical project schema portfolio_id must be default")
+    if len(manifest.views) != 12:
+        raise ValueError("canonical project schema requires exactly 12 views")
+    try:
+        status_field = manifest.field("Status")
+    except KeyError as exc:
+        raise ValueError("canonical project schema requires a Status field") from exc
+    if status_field.kind is not ProjectFieldKind.SINGLE_SELECT or not status_field.options:
+        raise ValueError("canonical Status field must be a non-empty single_select")
+    canonical = {value.casefold() for value in status_field.options}
+
+    for view in manifest.views:
+        try:
+            tokens = shlex.split(view.filter, posix=True)
+        except ValueError as exc:
+            raise ValueError(f"invalid canonical view filter: {view.name}") from exc
+        status_tokens = [
+            token.partition(":")[2]
+            for token in tokens
+            if token.partition(":")[0].casefold() == "status"
+        ]
+        if len(status_tokens) != 1:
+            raise ValueError(
+                f"canonical view must declare exactly one status qualifier: {view.name}"
+            )
+        raw_values = [value.strip() for value in status_tokens[0].split(",")]
+        if not raw_values or any(not value for value in raw_values):
+            raise ValueError(f"canonical view has malformed status values: {view.name}")
+        values = [value.casefold() for value in raw_values]
+        if len(set(values)) != len(values):
+            raise ValueError(f"canonical view has duplicate status values: {view.name}")
+        if not set(values) <= canonical:
+            raise ValueError(f"canonical view uses non-canonical status values: {view.name}")
+
+
+def load_project_schema_manifest(path: Path | None = None) -> ProjectSchemaManifest:
+    canonical_target = _default_project_schema_path()
+    target = path or canonical_target
     document = json.loads(target.read_text(encoding="utf-8"))
     root = _object(document, "project schema manifest")
     _exact_keys(root, _MANIFEST_KEYS, "project schema manifest")
@@ -343,12 +386,15 @@ def load_project_schema_manifest(path: Path | None = None) -> ProjectSchemaManif
     views = root["views"]
     if not isinstance(fields, list) or not isinstance(views, list):
         raise ValueError("project schema fields and views must be arrays")
-    return ProjectSchemaManifest(
+    manifest = ProjectSchemaManifest(
         schema_version=root["schema_version"],
         portfolio_id=root["portfolio_id"],
         fields=tuple(_field_spec(item) for item in fields),
         views=tuple(_view_spec(item) for item in views),
     )
+    if target.resolve(strict=False) == canonical_target.resolve(strict=False):
+        _validate_canonical_view_status_filters(manifest)
+    return manifest
 
 
 def compare_project_schema(
