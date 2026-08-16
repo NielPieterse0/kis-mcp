@@ -147,6 +147,7 @@ class WorkerExecution:
     progress_id: str | None = None
     result_id: str | None = None
     residual_state: tuple[str, ...] = ()
+    accepted_events: tuple[tuple[str, str], ...] = ()
     last_event_id: str | None = None
     last_event_digest: str | None = None
 
@@ -173,6 +174,10 @@ class WorkerExecution:
             "progress_id": self.progress_id,
             "result_id": self.result_id,
             "residual_state": list(self.residual_state),
+            "accepted_events": [
+                {"event_id": event_id, "digest": digest}
+                for event_id, digest in self.accepted_events
+            ],
             "last_event": last_event,
         }
 
@@ -181,8 +186,9 @@ class WorkerLifecycle:
     @staticmethod
     def transition(execution: WorkerExecution, event: ExecutionEvent) -> WorkerExecution:
         digest = event.digest()
-        if execution.last_event_id == event.event_id:
-            if execution.last_event_digest == digest:
+        accepted = dict(execution.accepted_events)
+        if event.event_id in accepted:
+            if accepted[event.event_id] == digest:
                 return execution
             raise ReservationAdmissionError(
                 "WORKER_EVENT_CONFLICT",
@@ -207,6 +213,7 @@ class WorkerLifecycle:
             progress_id=event.progress_id,
             result_id=event.result_id,
             residual_state=event.residual_state,
+            accepted_events=execution.accepted_events + ((event.event_id, digest),),
             last_event_id=event.event_id,
             last_event_digest=digest,
         )
@@ -259,7 +266,9 @@ class McpWorkerClient(Protocol):
 ClientFactory = Callable[[Mapping[str, Any]], McpWorkerClient]
 AdmitTool = Callable[[Mapping[str, Any], Any], bool]
 AssertAuthority = Callable[[Mapping[str, Any]], Mapping[str, Any]]
-IsMutating = Callable[[str], bool]
+IsMutating = Callable[[str, Mapping[str, Any], Any], bool]
+
+_MAX_TOOL_RESULT_BYTES = 64 * 1024
 
 
 class McpWorkerAdapter:
@@ -276,23 +285,21 @@ class McpWorkerAdapter:
         self._assert_authority = assert_authority
         self._is_mutating = is_mutating
         self._client: McpWorkerClient | None = None
-        self._allowed_tools: frozenset[str] | None = None
+        self._allowed_tools: dict[str, Any] | None = None
         self._packet_id: str | None = None
+        self._packet_digest: str | None = None
         self._runtime_binding: dict[str, str] | None = None
 
     async def connect(self, runtime_binding: Mapping[str, Any]) -> None:
         if self._client is not None:
             raise ReservationAdmissionError("WORKER_TRANSPORT_ALREADY_CONNECTED", "MCP worker transport is already connected.")
-        if runtime_binding.get("grants_mutation_authority") is not False:
-            raise ReservationAdmissionError(
-                "WORKER_RUNTIME_AUTHORITY_CONFLICT",
-                "MCP runtime binding must be explicitly non-authorizing.",
-            )
-        binding_ref = _runtime_binding_ref(runtime_binding)
-        client = self._client_factory(dict(runtime_binding))
+        verified_binding = _verify_runtime_binding(runtime_binding)
+        binding_ref = _runtime_binding_ref(verified_binding)
+        client = self._client_factory(verified_binding)
         self._client = await client.__aenter__()
         self._allowed_tools = None
         self._packet_id = None
+        self._packet_digest = None
         self._runtime_binding = binding_ref
 
     async def discover(self, packet: Mapping[str, Any]) -> tuple[Any, ...]:
@@ -319,8 +326,9 @@ class McpWorkerAdapter:
             names.append(name)
             if self._admit_tool(packet, tool):
                 admitted.append(tool)
-        self._allowed_tools = frozenset(_tool_name(tool) for tool in admitted)
+        self._allowed_tools = {_tool_name(tool): tool for tool in admitted}
         self._packet_id = packet_id
+        self._packet_digest = _packet_digest(packet)
         return tuple(admitted)
 
     async def invoke(
@@ -338,27 +346,32 @@ class McpWorkerAdapter:
         _require_non_empty(result_id, "result_id")
         packet_id = _packet_identity(packet)
         self._require_runtime_binding(packet)
-        if self._allowed_tools is None or self._packet_id is None:
+        if (
+            self._allowed_tools is None
+            or self._packet_id is None
+            or self._packet_digest is None
+        ):
             raise ReservationAdmissionError(
                 "WORKER_TOOL_DISCOVERY_REQUIRED",
                 "MCP tools must be discovered and filtered before invocation.",
             )
-        if packet_id != self._packet_id:
+        if packet_id != self._packet_id or _packet_digest(packet) != self._packet_digest:
             raise ReservationAdmissionError(
                 "WORKER_PACKET_MISMATCH",
-                "MCP tool exposure was produced for a different work packet.",
+                "MCP tool exposure was produced for a different work packet snapshot.",
             )
         if name not in self._allowed_tools:
             raise ReservationAdmissionError("WORKER_TOOL_NOT_ALLOWED", f"Tool {name} is not admitted by the work packet.")
         authority = _packet_authority(packet)
-        if self._is_mutating(name):
+        tool = self._allowed_tools[name]
+        if self._is_mutating(name, arguments, tool):
             observed = self._assert_authority(authority)
             if _authority_projection(observed) != authority:
                 raise ReservationAdmissionError(
                     "WORKER_AUTHORITY_CHANGED",
                     "Current mutation authority no longer matches the work packet.",
                 )
-        result = await client.call_tool(name, dict(arguments))
+        result = _normalize_tool_result(await client.call_tool(name, dict(arguments)))
         return {
             "packet_id": packet_id,
             "task_id": str(packet["task_id"]),
@@ -377,6 +390,7 @@ class McpWorkerAdapter:
         self._client = None
         self._allowed_tools = None
         self._packet_id = None
+        self._packet_digest = None
         self._runtime_binding = None
         if client is not None:
             await client.__aexit__(None, None, None)
@@ -416,6 +430,16 @@ def _packet_identity(packet: Mapping[str, Any]) -> str:
     return str(packet_id)
 
 
+def _packet_digest(packet: Mapping[str, Any]) -> str:
+    try:
+        payload = _canonical(dict(packet))
+    except (TypeError, ValueError) as exc:
+        raise ReservationAdmissionError(
+            "WORKER_PACKET_INVALID", "Work packet must be canonically JSON-serializable."
+        ) from exc
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def _packet_authority(packet: Mapping[str, Any]) -> dict[str, Any]:
     authority = packet.get("authority")
     if not isinstance(authority, Mapping):
@@ -434,6 +458,93 @@ def _authority_projection(value: Mapping[str, Any]) -> dict[str, Any]:
         _require_positive_int(item, field)
         projected[field] = item
     return projected
+
+
+def _verify_runtime_binding(value: Mapping[str, Any]) -> dict[str, Any]:
+    required = {
+        "schema_version", "contract", "binding_id", "binding_fingerprint",
+        "worker_id", "worker_revision", "runtime_id", "runtime_revision",
+        "tool_id", "tool_revision", "protocol", "interface", "endpoint",
+        "binding", "transport", "capabilities", "observed_at",
+        "grants_mutation_authority",
+    }
+    if set(value) != required:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID",
+            "Runtime binding must match the strict coordinator runtime-binding contract.",
+        )
+    if value.get("schema_version") != 1 or value.get("contract") != "coordinator-runtime-binding-v1":
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding contract identity is invalid."
+        )
+    normalized: dict[str, Any] = {
+        "schema_version": 1,
+        "contract": "coordinator-runtime-binding-v1",
+    }
+    for field in (
+        "binding_id", "worker_id", "worker_revision", "runtime_id", "tool_id",
+        "tool_revision", "protocol", "interface", "endpoint", "binding", "observed_at",
+    ):
+        item = value.get(field)
+        if not isinstance(item, str) or not item.strip():
+            raise ReservationAdmissionError(
+                "WORKER_RUNTIME_BINDING_INVALID", f"Runtime binding {field} is invalid."
+            )
+        normalized[field] = item
+    runtime_revision = value.get("runtime_revision")
+    if not isinstance(runtime_revision, str) or re.fullmatch(r"[0-9a-f]{40}", runtime_revision) is None:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "runtime_revision must be an exact Git SHA."
+        )
+    normalized["runtime_revision"] = runtime_revision
+    transport = value.get("transport")
+    if transport not in {"mcp", "a2a", "local-process", "other"}:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding transport is invalid."
+        )
+    normalized["transport"] = transport
+    raw_capabilities = value.get("capabilities")
+    if not isinstance(raw_capabilities, Sequence) or isinstance(
+        raw_capabilities, (str, bytes, bytearray)
+    ):
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding capabilities must be an array."
+        )
+    capabilities = _unique_strings(raw_capabilities, "runtime binding capabilities")
+    if capabilities != sorted(capabilities):
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding capabilities must be canonical."
+        )
+    normalized["capabilities"] = capabilities
+    observed_at = normalized["observed_at"]
+    try:
+        parsed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding observed_at is invalid."
+        ) from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding observed_at must be timezone-aware."
+        )
+    if value.get("grants_mutation_authority") is not False:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_AUTHORITY_CONFLICT",
+            "MCP runtime binding must be explicitly non-authorizing.",
+        )
+    normalized["grants_mutation_authority"] = False
+    fingerprint = value.get("binding_fingerprint")
+    if not isinstance(fingerprint, str) or re.fullmatch(r"[0-9a-f]{64}", fingerprint) is None:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID", "Runtime binding fingerprint is invalid."
+        )
+    expected = hashlib.sha256(_canonical(normalized).encode("utf-8")).hexdigest()
+    if fingerprint != expected:
+        raise ReservationAdmissionError(
+            "WORKER_RUNTIME_BINDING_INVALID",
+            "Runtime binding fingerprint does not match its concrete binding evidence.",
+        )
+    return {**normalized, "binding_fingerprint": fingerprint}
 
 
 def _runtime_binding_ref(value: Mapping[str, Any]) -> dict[str, str]:
@@ -477,6 +588,48 @@ def _evidence(values: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
     return result
 
 
+def _normalize_tool_result(value: object) -> Any:
+    candidate = value
+    model_dump = getattr(candidate, "model_dump", None)
+    if callable(model_dump):
+        try:
+            candidate = model_dump(mode="json")
+        except (TypeError, ValueError) as exc:
+            raise ReservationAdmissionError(
+                "WORKER_RESULT_INVALID", "MCP result model could not be normalized."
+            ) from exc
+    try:
+        normalized = _json_safe(candidate)
+        encoded = _canonical(normalized).encode("utf-8")
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise ReservationAdmissionError(
+            "WORKER_RESULT_INVALID", "MCP result is not a bounded JSON-compatible value."
+        ) from exc
+    if len(encoded) > _MAX_TOOL_RESULT_BYTES:
+        raise ReservationAdmissionError(
+            "WORKER_RESULT_TOO_LARGE",
+            f"Normalized MCP result exceeds {_MAX_TOOL_RESULT_BYTES} bytes.",
+        )
+    return normalized
+
+
+def _json_safe(value: object, *, depth: int = 0) -> Any:
+    if depth > 20:
+        raise ValueError("result nesting is too deep")
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
+    if isinstance(value, Mapping):
+        result: dict[str, Any] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise ValueError("result object keys must be strings")
+            result[key] = _json_safe(item, depth=depth + 1)
+        return result
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_json_safe(item, depth=depth + 1) for item in value]
+    raise TypeError(f"unsupported MCP result type: {type(value).__name__}")
+
+
 def _tool_name(tool: Any) -> str:
     name = tool.get("name") if isinstance(tool, Mapping) else getattr(tool, "name", None)
     _require_non_empty(name, "tool name")
@@ -508,7 +661,9 @@ def _timestamp(value: datetime) -> str:
 
 
 def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
 
 
 __all__ = [

@@ -195,11 +195,11 @@ Implemented by #250 on the same parent branch:
 
 Implemented by the current #251 checkpoint on the same parent branch:
 
-- a strict location-independent `worker-execution` contract covering packet/task/assignment/reservation/fence/runtime/attempt correlation, lifecycle state, progress/result IDs, residual state, and idempotent event identity;
-- deterministic worker transitions for `pending`, `running`, `waiting_input`, `completed`, `failed`, `cancelled`, and `recoverable`, including exact-duplicate idempotence and stale/conflicting event rejection;
+- a strict location-independent `worker-execution` contract covering packet/task/assignment/reservation/fence/runtime/attempt correlation, lifecycle state, progress/result IDs, residual state, and accepted-event identity evidence;
+- deterministic worker transitions for `pending`, `running`, `waiting_input`, `completed`, `failed`, `cancelled`, and `recoverable`, including idempotent replay of any accepted exact event and stale/conflicting event rejection;
 - worker-handoff correlation expanded with execution, attempt, task, assignment generation, and result identity without performing #252 reconciliation or assignment-key consumption;
 - work packets now retain `task_id` and `required_capabilities` so Slice 5 tool exposure can remain tied to the bounded planner task;
-- an internal ephemeral MCP worker adapter that validates the exact runtime-binding fingerprint and current reservation authority before tool exposure, filters discovered tools through injected packet policy, re-checks authority immediately before mutating calls, records progress/result correlation, and clears exposure on reconnect;
+- an internal ephemeral MCP worker adapter that recomputes the exact runtime-binding fingerprint before connection, validates current reservation authority before tool exposure, binds filtered discovery to the exact packet snapshot, classifies mutation from tool metadata plus concrete arguments, re-checks authority immediately before mutating calls, normalizes results to bounded JSON-compatible values, records progress/result correlation, and clears exposure on reconnect;
 - reconnect, discovery, and transport session state remain non-authorizing and are not persisted as ownership authority.
 
 Slices 2 through the current Slice 5 checkpoint expose no public MCP coordinator tool. Transport discovery/connectivity never grants authority.

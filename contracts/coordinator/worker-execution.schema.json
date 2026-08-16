@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema_version", "contract", "identity", "state", "sequence", "observed_at",
-    "progress_id", "result_id", "residual_state", "last_event"
+    "progress_id", "result_id", "residual_state", "accepted_events", "last_event"
   ],
   "properties": {
     "schema_version": {"const": 1},
@@ -18,6 +18,9 @@
     "progress_id": {"type": ["string", "null"], "minLength": 1},
     "result_id": {"type": ["string", "null"], "minLength": 1},
     "residual_state": {"$ref": "#/$defs/strings"},
+    "accepted_events": {
+      "type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/eventRef"}
+    },
     "last_event": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/eventRef"}]}
   },
   "$defs": {

@@ -25,7 +25,7 @@
 ## Slice 5 gates
 
 - [x] Focused Slice 5 tests pass.
-- [x] Full coordinator regression suite passes (**65/65** after final adapter tightening).
+- [x] Full coordinator regression suite passes (**70/70** after specialist-review corrections).
 - [x] Strict coordinator schemas validate emitted Slice 5 values.
 - [x] Ruff, Python compilation, governed scope check, and `git diff --check` pass.
 - [ ] Required code-quality, architecture, API-contract, and persistence/recovery reviews have zero blocking findings for implemented scope. **Working-tree review failed closed on KIS source fingerprint evidence; rerun against immutable checkpoint commit.**

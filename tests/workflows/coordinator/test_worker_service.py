@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -127,10 +128,11 @@ def test_failure_and_cancellation_require_deterministic_residual_state() -> None
 
 
 class FakeClient:
-    def __init__(self) -> None:
+    def __init__(self, *, result: object | None = None) -> None:
         self.entered = 0
         self.exited = 0
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.result = result
 
     async def __aenter__(self) -> FakeClient:
         self.entered += 1
@@ -148,10 +150,13 @@ class FakeClient:
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> object:
         self.calls.append((name, arguments))
+        if self.result is not None:
+            return self.result
         return {"ok": True, "name": name}
 
 
 def _packet() -> dict[str, object]:
+    binding = _binding()
     return {
         "packet_id": "packet-alpha",
         "task_id": "alpha",
@@ -162,16 +167,41 @@ def _packet() -> dict[str, object]:
             "lease_id": "lease-150",
             "fence_token": 4,
         },
-        "runtime_binding": {"binding_id": "kis-dev", "binding_fingerprint": DIGEST},
+        "runtime_binding": {
+            "binding_id": binding["binding_id"],
+            "binding_fingerprint": binding["binding_fingerprint"],
+        },
     }
 
 
-def _binding() -> dict[str, object]:
-    return {
+def _binding(**overrides: object) -> dict[str, object]:
+    binding: dict[str, object] = {
+        "schema_version": 1,
+        "contract": "coordinator-runtime-binding-v1",
         "binding_id": "kis-dev",
-        "binding_fingerprint": DIGEST,
+        "worker_id": "implementer",
+        "worker_revision": "develop-code@10ab0e84",
+        "runtime_id": "kis-dev",
+        "runtime_revision": SHA,
+        "tool_id": "codex-cli",
+        "tool_revision": "0.147.0",
+        "protocol": "mcp",
+        "interface": "reviewable-worker-v1",
+        "endpoint": "127.0.0.1:8011/mcp",
+        "binding": "development",
+        "transport": "mcp",
+        "capabilities": ["filesystem.read", "filesystem.write"],
+        "observed_at": "2026-08-16T02:55:00Z",
         "grants_mutation_authority": False,
     }
+    binding.update(overrides)
+    fingerprint_input = dict(binding)
+    fingerprint_input.pop("binding_fingerprint", None)
+    canonical = json.dumps(
+        fingerprint_input, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    binding["binding_fingerprint"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return binding
 
 
 def test_mcp_adapter_filters_before_invocation_and_rechecks_mutation_authority() -> None:
@@ -191,7 +221,7 @@ def test_mcp_adapter_filters_before_invocation_and_rechecks_mutation_authority()
         client_factory=lambda _binding: client,
         admit_tool=admit_tool,
         assert_authority=assert_authority,
-        is_mutating=lambda name: name == "write_file",
+        is_mutating=lambda name, _arguments, _tool: name == "write_file",
     )
 
     async def scenario() -> None:
@@ -242,7 +272,7 @@ def test_reconnect_is_transport_only_and_requires_rediscovery() -> None:
         client_factory=lambda _binding: clients.pop(0),
         admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
         assert_authority=assert_authority,
-        is_mutating=lambda _name: False,
+        is_mutating=lambda _name, _arguments, _tool: False,
     )
 
     async def scenario() -> None:
@@ -299,7 +329,7 @@ def test_mcp_adapter_rejects_packet_bound_to_different_runtime() -> None:
         client_factory=lambda _binding: FakeClient(),
         admit_tool=lambda _packet, _tool: True,
         assert_authority=lambda authority: authority,
-        is_mutating=lambda _name: False,
+        is_mutating=lambda _name, _arguments, _tool: False,
     )
     packet = _packet()
     packet["runtime_binding"] = {
@@ -314,3 +344,140 @@ def test_mcp_adapter_rejects_packet_bound_to_different_runtime() -> None:
         await adapter.close()
 
     asyncio.run(scenario())
+
+
+def test_worker_lifecycle_replays_any_accepted_event_idempotently() -> None:
+    pending = WorkerExecution.pending(_identity(), observed_at=NOW)
+    start = _event("history-start", WorkerExecutionState.RUNNING)
+    running = WorkerLifecycle.transition(pending, start)
+    waiting = WorkerLifecycle.transition(
+        running,
+        _event(
+            "history-wait",
+            WorkerExecutionState.WAITING_INPUT,
+            expected_sequence=1,
+            progress_id="progress-wait",
+        ),
+    )
+
+    assert WorkerLifecycle.transition(waiting, start) == waiting
+
+    conflicting = _event(
+        "history-start",
+        WorkerExecutionState.RUNNING,
+        progress_id="different-progress",
+    )
+    with pytest.raises(ReservationAdmissionError, match="WORKER_EVENT_CONFLICT"):
+        WorkerLifecycle.transition(waiting, conflicting)
+
+
+def test_mcp_adapter_rejects_tampered_runtime_binding_fingerprint() -> None:
+    binding = _binding()
+    binding["endpoint"] = "127.0.0.1:9999/mcp"
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: FakeClient(),
+        admit_tool=lambda _packet, _tool: True,
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda _name, _arguments, _tool: False,
+    )
+
+    async def scenario() -> None:
+        with pytest.raises(ReservationAdmissionError, match="WORKER_RUNTIME_BINDING_INVALID"):
+            await adapter.connect(binding)
+
+    asyncio.run(scenario())
+
+
+def test_mcp_adapter_binds_exposure_to_exact_packet_snapshot() -> None:
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: FakeClient(),
+        admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda _name, _arguments, _tool: False,
+    )
+    packet = _packet()
+    changed_packet = _packet()
+    changed_packet["task_id"] = "different-task"
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        await adapter.discover(packet)
+        with pytest.raises(ReservationAdmissionError, match="WORKER_PACKET_MISMATCH"):
+            await adapter.invoke(
+                "read_file",
+                {},
+                packet=changed_packet,
+                progress_id="packet-progress",
+                result_id="packet-result",
+            )
+        await adapter.close()
+
+    asyncio.run(scenario())
+
+
+def test_mcp_adapter_classifies_mutation_from_arguments_and_tool_metadata() -> None:
+    checks = 0
+
+    def assert_authority(authority: Mapping[str, Any]) -> Mapping[str, Any]:
+        nonlocal checks
+        checks += 1
+        return authority
+
+    def is_mutating(name: str, arguments: Mapping[str, Any], tool: object) -> bool:
+        assert tool["name"] == name  # type: ignore[index]
+        return name == "write_file" and not bool(arguments.get("dry_run"))
+
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: FakeClient(),
+        admit_tool=lambda _packet, tool: tool["name"] == "write_file",  # type: ignore[index]
+        assert_authority=assert_authority,
+        is_mutating=is_mutating,
+    )
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        assert checks == 1
+        await adapter.invoke(
+            "write_file",
+            {"dry_run": True},
+            packet=_packet(),
+            progress_id="dry-progress",
+            result_id="dry-result",
+        )
+        assert checks == 1
+        await adapter.invoke(
+            "write_file",
+            {"dry_run": False},
+            packet=_packet(),
+            progress_id="write-progress",
+            result_id="write-result",
+        )
+        assert checks == 2
+        await adapter.close()
+
+    asyncio.run(scenario())
+
+
+def test_mcp_adapter_rejects_unbounded_or_nonserializable_results() -> None:
+    async def invoke_with(result: object) -> None:
+        adapter = McpWorkerAdapter(
+            client_factory=lambda _binding: FakeClient(result=result),
+            admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+            assert_authority=lambda authority: authority,
+            is_mutating=lambda _name, _arguments, _tool: False,
+        )
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.invoke(
+            "read_file",
+            {},
+            packet=_packet(),
+            progress_id="result-progress",
+            result_id="result-id",
+        )
+
+    with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_INVALID"):
+        asyncio.run(invoke_with(object()))
+    with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
+        asyncio.run(invoke_with("x" * 70_000))
