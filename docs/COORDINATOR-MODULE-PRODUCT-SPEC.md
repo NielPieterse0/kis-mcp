@@ -153,7 +153,7 @@ No implemented slice grants an exception to this dependency chain: the remaining
 
 Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
 
-## Cumulative implementation status through the Slice 5 dependency checkpoint
+## Cumulative implementation status through Slice 5
 
 Implemented by #247:
 
@@ -193,25 +193,26 @@ Implemented by #250 on the same parent branch:
 - stable packet identity plus generation-1 opaque assignment-key issuance, with only the SHA-256 key digest retained in durable coordinator evidence;
 - generated packet/runtime-binding state constrained to the configured coordinator state root inside the project boundary.
 
-Implemented by the current #251 checkpoint on the same parent branch:
+Implemented by #251 on the same parent branch:
 
-- `coordinator-worker-execution-v2`, a strict location-independent execution contract covering packet/task/assignment/reservation/fence/runtime/attempt correlation, lifecycle state, progress/result IDs, residual state, and accepted-event identity evidence; v2 makes the required accepted-event ledger explicit rather than silently redefining the earlier v1 shape;
+- `coordinator-worker-execution-v2`, a strict location-independent execution contract covering packet/task/assignment/reservation/fence/runtime/attempt correlation, lifecycle state, progress/result IDs, residual state, and accepted-event identity evidence;
 - deterministic worker transitions for `pending`, `running`, `waiting_input`, `completed`, `failed`, `cancelled`, and `recoverable`, including idempotent replay of any accepted exact event and stale/conflicting event rejection;
-- `coordinator-worker-handoff-v2` expands handoff correlation with execution, attempt, task, assignment generation, and result identity without performing #252 reconciliation or assignment-key consumption; the v2 identity makes the stricter required-field contract explicit rather than silently redefining v1;
-- `coordinator-work-packet-v2` adds `task_id` and `required_capabilities` so Slice 5 tool exposure can remain tied to the bounded planner task; earlier v1 packet evidence remains version-distinct;
-- an internal ephemeral MCP worker adapter that recomputes the exact runtime-binding fingerprint before connection, validates current reservation authority before tool exposure, binds filtered discovery to the exact packet snapshot, classifies mutation from tool metadata plus concrete arguments, re-checks authority immediately before mutating calls, normalizes results to bounded JSON-compatible values, records progress/result correlation, and clears exposure on reconnect;
-- reconnect, discovery, and transport session state remain non-authorizing and are not persisted as ownership authority.
+- `coordinator-worker-handoff-v2` execution/attempt/task/result correlation without performing #252 reconciliation or assignment-key consumption;
+- `coordinator-work-packet-v2` task/capability correlation so tool exposure remains tied to the bounded planner task;
+- an internal ephemeral MCP worker adapter that validates the exact runtime binding, filters discovery to the exact work packet, classifies mutation from tool metadata plus concrete arguments, re-checks current reservation/revision/lease/fence authority immediately before mutation, normalizes bounded results, and clears exposure on reconnect;
+- a durable `WorkerExecutionStore` that consumes landed #278 directly: `StateOwnershipClass.DURABLE_EVIDENCE`, `StateNamespaceRequest`, `StateNamespaceResolver`, and `derive_change_source_id(change_id)` determine the only execution-evidence namespace; #251 defines no alternate state root or source naming convention;
+- restart restoration of ordered accepted-event history, preserving deterministic sequence/conflict checks and idempotent persisted resume/retry;
+- durable mutation receipts keyed to execution/result identity and fingerprinted over execution/attempt, reservation/revision/lease/fence authority, runtime binding, tool, arguments, progress, and result identifiers;
+- a write-ahead mutation receipt before MCP dispatch: a completed receipt returns the previously normalized result without re-executing the mutation, while an `in_flight` receipt after interruption fails closed for explicit reconciliation rather than risking duplicate mutation;
+- per-execution cross-process serialization around lifecycle snapshot transitions so conflicting same-sequence updates cannot silently overwrite one another;
+- structured adapter results retain execution/attempt, exact authority facts, runtime binding, packet/task, progress, and result correlation when durable execution identity is supplied;
+- reconnect, discovery, and transport session state remain ephemeral and non-authorizing; durable evidence never creates, renews, or supersedes #248/#249 mutation authority.
 
-Slices 2 through the current Slice 5 checkpoint expose no public MCP coordinator tool. Transport discovery/connectivity never grants authority.
-
-Blocked remainder of #251:
-
-- durable worker execution journal/store, restart restoration, idempotent persisted resume/retry, and assignment-key reassignment persistence must consume #278's typed `durable-evidence` ownership class and deterministic namespace resolver;
-- #278 is currently active as `163-state-ownership-namespace`, but its reusable resolver implementation is not yet available, so #251 deliberately does not create a substitute persistence root.
+Slices 2 through 5 expose no public MCP coordinator tool. Transport discovery/connectivity never grants authority.
 
 Not yet implemented:
 
-- #252 handoff/assignment-key reconciliation, verification derivation, integration queue, PR/merge, or cleanup coordination;
+- #252 handoff/assignment-key reconciliation, verification derivation, integration serialization/landing coordination, or cleanup coordination;
 - #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
 
-Any current-product claim for the blocked/remainder behaviors must wait for their owning dependency/slice and fresh verification evidence.
+#251 implementation is locally complete on the parent change branch, but it is not landed product behavior until canonical exact-head GitHub Actions evidence is available and the governed change is merged.

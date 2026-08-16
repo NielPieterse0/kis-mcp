@@ -1,15 +1,17 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Mapping, Sequence
 
 import pytest
 from jsonschema import Draft202012Validator
 
+from kis_mcp.state import StateOwnershipClass
 from kis_mcp.workflows.coordinator import (
     ExecutionEvent,
     ExecutionIdentity,
@@ -17,6 +19,7 @@ from kis_mcp.workflows.coordinator import (
     ReservationAdmissionError,
     WorkerExecution,
     WorkerExecutionState,
+    WorkerExecutionStore,
     WorkerLifecycle,
 )
 
@@ -46,6 +49,14 @@ def _identity() -> ExecutionIdentity:
         runtime_binding={"binding_id": "kis-dev", "binding_fingerprint": DIGEST},
         attempt_id="attempt-1",
     )
+
+
+def _identity_for_packet() -> ExecutionIdentity:
+    packet_binding = _packet()["runtime_binding"]
+    assert isinstance(packet_binding, Mapping)
+    base = _identity().to_json_dict()
+    base["runtime_binding"] = dict(packet_binding)
+    return ExecutionIdentity.from_json_dict(base)
 
 
 def _event(event_id: str, state: WorkerExecutionState, **overrides: object) -> ExecutionEvent:
@@ -611,7 +622,7 @@ def test_result_normalization_rejects_oversized_text_before_encoding() -> None:
             "read_file", {}, packet=_packet(), progress_id="text-p", result_id="text-r"
         )
 
-    huge = GuardedString("é" * 70_000)
+    huge = GuardedString("Ã©" * 70_000)
     with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
         asyncio.run(invoke_with(huge))
 
@@ -740,3 +751,185 @@ def test_worker_execution_rejects_schema_invalid_direct_construction() -> None:
         WorkerExecution(**{**base, "residual_state": "abc"})  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="last_event"):
         WorkerExecution(**{**base, "last_event_digest": None})
+
+
+class FakeNamespaceResolver:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.requests: list[object] = []
+
+    def resolve(self, request: object) -> object:
+        self.requests.append(request)
+        return SimpleNamespace(path=str(self.root), relative_path="test/evidence")
+
+
+def test_worker_execution_store_uses_278_namespace_and_recovers_idempotently(tmp_path: Path) -> None:
+    resolver = FakeNamespaceResolver(tmp_path / "resolved")
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=resolver,  # type: ignore[arg-type]
+    )
+    request = resolver.requests[0]
+    assert request.ownership is StateOwnershipClass.DURABLE_EVIDENCE  # type: ignore[attr-defined]
+    assert request.state_key == "coordinator-worker-executions"  # type: ignore[attr-defined]
+    assert dict(request.identities) == {  # type: ignore[attr-defined]
+        "project_id": "kis-mcp",
+        "source_id": "change-150-parallel-agent-coordinator",
+    }
+    running = store.apply(
+        _identity(),
+        _event("persist-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+    )
+    recoverable = store.apply(
+        _identity(),
+        _event(
+            "persist-recoverable",
+            WorkerExecutionState.RECOVERABLE,
+            expected_sequence=1,
+            residual_state=("transport disconnected",),
+        ),
+        initial_observed_at=NOW,
+    )
+    assert recoverable.sequence == 2
+
+    restarted = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(tmp_path / "resolved"),  # type: ignore[arg-type]
+    )
+    resumed_event = _event(
+        "persist-resume", WorkerExecutionState.RUNNING, expected_sequence=2
+    )
+    resumed = restarted.apply(_identity(), resumed_event, initial_observed_at=NOW)
+    duplicate = restarted.apply(_identity(), resumed_event, initial_observed_at=NOW)
+    assert running.identity == resumed.identity
+    assert resumed == duplicate
+
+
+def test_durable_mutation_retry_reuses_completed_receipt_after_restart(tmp_path: Path) -> None:
+    root = tmp_path / "resolved"
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    running = store.apply(
+        _identity_for_packet(),
+        _event("mutation-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+    )
+    first_client = FakeClient()
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: first_client,
+        admit_tool=lambda _packet, tool: tool["name"] == "write_file",  # type: ignore[index]
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda name, _arguments, _tool: name == "write_file",
+        execution_store=store,
+    )
+
+    async def first_run() -> dict[str, Any]:
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        result = await adapter.invoke(
+            "write_file",
+            {"path": "x", "content": "y"},
+            packet=_packet(),
+            progress_id="mutation-progress",
+            result_id="mutation-result",
+            execution=running,
+        )
+        await adapter.close()
+        return result
+
+    first = asyncio.run(first_run())
+    assert first["execution_id"] == running.identity.execution_id
+    assert first_client.calls == [("write_file", {"path": "x", "content": "y"})]
+
+    restarted_store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    restored = restarted_store.load(running.identity.execution_id)
+    assert restored == running
+    second_client = FakeClient()
+    restarted_adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: second_client,
+        admit_tool=lambda _packet, tool: tool["name"] == "write_file",  # type: ignore[index]
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda name, _arguments, _tool: name == "write_file",
+        execution_store=restarted_store,
+    )
+
+    async def retry_after_restart() -> dict[str, Any]:
+        await restarted_adapter.connect(_binding())
+        await restarted_adapter.discover(_packet())
+        result = await restarted_adapter.invoke(
+            "write_file",
+            {"path": "x", "content": "y"},
+            packet=_packet(),
+            progress_id="mutation-progress",
+            result_id="mutation-result",
+            execution=restored,
+        )
+        await restarted_adapter.close()
+        return result
+
+    second = asyncio.run(retry_after_restart())
+    assert second == first
+    assert second_client.calls == []
+
+
+def test_inflight_mutation_is_not_reexecuted_after_restart(tmp_path: Path) -> None:
+    root = tmp_path / "resolved"
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    running = store.apply(
+        _identity_for_packet(),
+        _event("uncertain-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+    )
+    store.begin_mutation(
+        running,
+        tool_name="write_file",
+        arguments={"path": "x", "content": "y"},
+        progress_id="uncertain-progress",
+        result_id="uncertain-result",
+    )
+    restarted = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    client = FakeClient()
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: client,
+        admit_tool=lambda _packet, tool: tool["name"] == "write_file",  # type: ignore[index]
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda name, _arguments, _tool: name == "write_file",
+        execution_store=restarted,
+    )
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        with pytest.raises(
+            ReservationAdmissionError, match="WORKER_MUTATION_RECONCILIATION_REQUIRED"
+        ):
+            await adapter.invoke(
+                "write_file",
+                {"path": "x", "content": "y"},
+                packet=_packet(),
+                progress_id="uncertain-progress",
+                result_id="uncertain-result",
+                execution=running,
+            )
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert client.calls == []

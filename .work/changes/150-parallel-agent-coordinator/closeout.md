@@ -1,53 +1,61 @@
-# Closeout / Handoff: Parallel Agent Coordinator — Slice 5 dependency checkpoint
+# Closeout / Handoff: Parallel Agent Coordinator — Slice 5 (#251)
 
 - **Change**: `150-parallel-agent-coordinator`
 - **Parent issue**: #241
 - **Current slice**: #251
-- **Status**: **PARTIAL / DEPENDENCY-BLOCKED — DO NOT CLOSE #251**
+- **Status**: **IMPLEMENTATION COMPLETE LOCALLY / REVIEW + CANONICAL CI LANDING GATES REMAIN**
 
-## Checkpoint outcome
+## Outcome
 
-The parent coordinator branch was reconciled onto `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` with merge `93b341e` before Slice 5 implementation. After concurrent #270 landed, it was refreshed again onto current `main` `e238067169a272e3cb3c6284264653557ba7306b` with merge `3084e56`; the coordinator worktree is now 0 behind current `main`.
+#251 is implemented inside the existing parent coordinator worktree. The branch was reconciled with current `main` after #278 landed; no #278 implementation was authored in this lane.
 
-The location-independent portion of #251 is implemented:
+Implemented Slice 5 behavior:
 
-- strict `coordinator-worker-execution-v2` lifecycle/correlation contract with an event-ID-keyed accepted-event ledger;
-- deterministic worker transitions with stale/conflicting event rejection and idempotent replay of any accepted exact event;
-- `coordinator-work-packet-v2` task/capability correlation required by bounded tool exposure;
-- `coordinator-worker-handoff-v2` execution/attempt/task/result correlation without #252 reconciliation;
-- ephemeral MCP adapter for connect/discover/filter/invoke/cleanup/reconnect;
-- exact runtime-binding validation plus active reservation assertion before filtered exposure;
-- immediate current authority re-check before mutating invocation;
-- reconnect clears prior exposure and never creates mutation authority.
+- strict `coordinator-worker-execution-v2`, work-packet v2, and worker-handoff v2 correlation contracts;
+- deterministic worker lifecycle with exact-event idempotence and stale/conflicting transition rejection;
+- ephemeral MCP connect/discover/filter/invoke/cleanup/reconnect with exact runtime-binding validation and bounded result normalization;
+- current reservation/revision/lease/fence assertion before filtered exposure and immediately before mutating dispatch;
+- durable `WorkerExecutionStore` placed only through landed #278 `DURABLE_EVIDENCE` resolution using project identity plus `derive_change_source_id(change_id)`;
+- ordered lifecycle restoration after process restart and persisted idempotent resume/retry;
+- per-execution cross-process serialization for durable lifecycle transitions;
+- write-ahead durable mutation receipts tied to execution/attempt, reservation/revision/lease/fence, runtime binding, tool/arguments, progress, and result identity;
+- completed mutation retries return the prior durable normalized result without re-dispatch; interruption after write-ahead receipt leaves `in_flight` evidence and fails closed for explicit reconciliation rather than replaying uncertain mutation work;
+- structured adapter results retain execution/attempt and authority/runtime correlation;
+- MCP reconnect/discovery remains transport-only and never creates or restores mutation authority.
 
-No #251 durable-state location or ownership model was invented.
+No #252 reconciliation/integration behavior and no #253 observability/commissioning behavior was implemented.
 
-## Dependency stop
+## Local verification candidate
 
-#278 owns the reusable typed state-ownership and namespace contract required for new coordinator durable execution state. Its active change is `163-state-ownership-namespace`, but at this checkpoint its task record still shows the resolver/module implementation outstanding.
+Latest complete local verification before immutable specialist review:
 
-Therefore these #251 acceptance items remain intentionally blocked:
+- focused worker lifecycle/MCP/persistence suite: **23/23 passed**;
+- full coordinator regression suite: **81/81 passed**;
+- Python `compileall` on `src/kis_mcp/workflows/coordinator`: **passed**;
+- Ruff on coordinator source/tests: **passed**;
+- `git diff --check`: **passed**;
+- `scripts/change-workflow.ps1 check`: **passed**, reporting only parent coordinator-owned paths.
 
-- durable worker execution journal/store beneath the #278 `durable-evidence` namespace;
-- restart restoration/reconciliation;
-- persisted idempotent resume/retry and duplicate-completed-mutation protection;
-- durable reassignment/attempt state that consumes the #278 namespace contract.
+The final immutable specialist reviews and any required corrective verification are recorded below after the candidate commit is created.
 
-Do not advance to #252 until #278 is available and the remainder of #251 is implemented and verified.
+## Review programme
 
-## Verification at checkpoint
+Pending immutable final-range reviews:
 
-- Focused Slice 5 + affected contract/planner set: **23/23 passed** before final adapter tightening.
-- Full coordinator suite after API-contract corrections: **78/78 passed**.
-- Ruff on coordinator source/tests: **passed**.
-- Python `compileall` on coordinator package: **passed**.
-- `scripts/change-workflow.ps1 check`: **passed**, with only parent change-owned paths reported.
-- The initial dirty-worktree review failed closed on `CHANGE_SOURCE_FINGERPRINT_UNAVAILABLE`; reviews were therefore rerun only against immutable commit/range fingerprints.
-- Code-quality review findings were fixed forward; the final corrective code-quality reviews report zero findings.
-- Architecture review of the corrective range reports zero findings and explicitly confirms the #278 persistence/namespace boundary remains intact.
-- Final API-contract review of `b22e9d8..2ec02d4` reports zero findings after explicit v2 contract identities and structural event-ID uniqueness were added.
-- After the final `main` reconciliation (`3084e56`), the 78-test coordinator suite and all static/scope checks were rerun successfully.
+- code quality;
+- architecture;
+- API/contracts;
+- persistence/recovery.
 
-## Lane boundary
+Blocking findings, if any, must be resolved inside #251 scope and the corrected range re-reviewed before final freeze.
 
-No #270 or #278 implementation was authored in this lane; the already-merged #270 changes entered only through reconciliation with current `main`. No #252, #253, stale PR #282, or unrelated implementation work was performed.
+## Landing constraint
+
+#251 is not eligible to merge from local evidence alone. Repository policy requires provider-native GitHub Actions canonical verification for the exact frozen head. That evidence is currently unavailable because the disposable Windows Actions runner work has not yet been commissioned.
+
+Therefore:
+
+- do not merge #251;
+- do not waive or simulate exact-head CI;
+- keep the final reviewed local commit frozen for publication/CI/merge once the Windows runner is available;
+- do not begin #252 from this lane.

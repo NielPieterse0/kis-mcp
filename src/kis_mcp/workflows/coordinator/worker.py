@@ -2,12 +2,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from types import MappingProxyType
-from typing import Any, Callable, Mapping, Protocol, Sequence
+from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence
+
+from kis_mcp.state import (
+    StateNamespaceRequest,
+    StateNamespaceResolver,
+    StateOwnershipClass,
+    derive_change_source_id,
+)
 
 from .models import ReservationAdmissionError
 
@@ -91,6 +101,28 @@ class ExecutionIdentity:
             "runtime_binding": dict(self.runtime_binding),
             "attempt_id": self.attempt_id,
         }
+
+    @classmethod
+    def from_json_dict(cls, value: Mapping[str, Any]) -> ExecutionIdentity:
+        try:
+            runtime_binding = value["runtime_binding"]
+            if not isinstance(runtime_binding, Mapping):
+                raise ValueError("runtime_binding must be an object")
+            return cls(
+                execution_id=value["execution_id"],
+                packet_id=value["packet_id"],
+                task_id=value["task_id"],
+                assignment_generation=value["assignment_generation"],
+                reservation_id=value["reservation_id"],
+                authority_revision=value["authority_revision"],
+                lease_id=value["lease_id"],
+                fence_token=value["fence_token"],
+                worker_id=value["worker_id"],
+                runtime_binding=runtime_binding,
+                attempt_id=value["attempt_id"],
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("worker execution identity payload is invalid") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -236,6 +268,34 @@ class WorkerExecution:
             "last_event": last_event,
         }
 
+    @classmethod
+    def from_json_dict(cls, value: Mapping[str, Any]) -> WorkerExecution:
+        try:
+            if value.get("schema_version") != 2 or value.get("contract") != "coordinator-worker-execution-v2":
+                raise ValueError("worker execution contract identity is invalid")
+            identity_value = value["identity"]
+            accepted_value = value["accepted_events"]
+            if not isinstance(identity_value, Mapping) or not isinstance(accepted_value, Mapping):
+                raise ValueError("worker execution durable payload is invalid")
+            last_event = value.get("last_event")
+            if last_event is not None and not isinstance(last_event, Mapping):
+                raise ValueError("last_event must be an object or null")
+            accepted = tuple((str(event_id), str(digest)) for event_id, digest in accepted_value.items())
+            return cls(
+                identity=ExecutionIdentity.from_json_dict(identity_value),
+                state=WorkerExecutionState(value["state"]),
+                sequence=value["sequence"],
+                observed_at=value["observed_at"],
+                progress_id=value.get("progress_id"),
+                result_id=value.get("result_id"),
+                residual_state=tuple(value.get("residual_state", ())),
+                accepted_events=accepted,
+                last_event_id=(str(last_event["event_id"]) if last_event is not None else None),
+                last_event_digest=(str(last_event["digest"]) if last_event is not None else None),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("worker execution durable payload is invalid") from exc
+
 
 class WorkerLifecycle:
     @staticmethod
@@ -311,6 +371,280 @@ class WorkerLifecycle:
         }
 
 
+class WorkerExecutionStore:
+    STATE_KEY = "coordinator-worker-executions"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        change_id: str,
+        namespace_resolver: StateNamespaceResolver | None = None,
+    ) -> None:
+        resolver = namespace_resolver or StateNamespaceResolver()
+        namespace = resolver.resolve(
+            StateNamespaceRequest(
+                ownership=StateOwnershipClass.DURABLE_EVIDENCE,
+                state_key=self.STATE_KEY,
+                identities={
+                    "project_id": project_id,
+                    "source_id": derive_change_source_id(change_id),
+                },
+            )
+        )
+        self.namespace = namespace
+        self._root = Path(namespace.path)
+
+    def load(self, execution_id: str) -> WorkerExecution | None:
+        _require_non_empty(execution_id, "execution_id")
+        path = self._execution_path(execution_id)
+        if not path.is_file():
+            return None
+        payload = _read_json_object(path, "WORKER_EXECUTION_STORE_INVALID")
+        if payload.get("schema_version") != 1 or payload.get("contract") != "coordinator-worker-execution-record-v1":
+            raise ReservationAdmissionError(
+                "WORKER_EXECUTION_STORE_INVALID",
+                "Durable worker execution record contract identity is invalid.",
+            )
+        execution_value = payload.get("execution")
+        accepted_order = payload.get("accepted_event_order")
+        if not isinstance(execution_value, Mapping) or not isinstance(accepted_order, list):
+            raise ReservationAdmissionError(
+                "WORKER_EXECUTION_STORE_INVALID", "Durable worker execution is missing."
+            )
+        accepted_value = execution_value.get("accepted_events")
+        if not isinstance(accepted_value, Mapping):
+            raise ReservationAdmissionError(
+                "WORKER_EXECUTION_STORE_INVALID", "Durable accepted-event ledger is invalid."
+            )
+        try:
+            order = _unique_strings(accepted_order, "accepted_event_order")
+        except ValueError as exc:
+            raise ReservationAdmissionError("WORKER_EXECUTION_STORE_INVALID", str(exc)) from exc
+        if set(order) != set(accepted_value) or len(order) != len(accepted_value):
+            raise ReservationAdmissionError(
+                "WORKER_EXECUTION_STORE_INVALID",
+                "Durable accepted-event order does not match the execution ledger.",
+            )
+        ordered_execution = dict(execution_value)
+        ordered_execution["accepted_events"] = {
+            event_id: accepted_value[event_id] for event_id in order
+        }
+        try:
+            execution = WorkerExecution.from_json_dict(ordered_execution)
+        except ValueError as exc:
+            raise ReservationAdmissionError("WORKER_EXECUTION_STORE_INVALID", str(exc)) from exc
+        if execution.identity.execution_id != execution_id:
+            raise ReservationAdmissionError(
+                "WORKER_EXECUTION_STORE_INVALID",
+                "Durable worker execution identity does not match its storage key.",
+            )
+        return execution
+
+    def apply(
+        self,
+        identity: ExecutionIdentity,
+        event: ExecutionEvent,
+        *,
+        initial_observed_at: datetime,
+    ) -> WorkerExecution:
+        with self._execution_lock(identity.execution_id):
+            current = self.load(identity.execution_id)
+            if current is None:
+                current = WorkerExecution.pending(identity, observed_at=initial_observed_at)
+            elif current.identity != identity:
+                raise ReservationAdmissionError(
+                    "WORKER_EXECUTION_IDENTITY_CONFLICT",
+                    "Durable execution identity changed across restart/retry.",
+                )
+            updated = WorkerLifecycle.transition(current, event)
+            return self._save_locked(updated)
+
+    def save(self, execution: WorkerExecution) -> WorkerExecution:
+        with self._execution_lock(execution.identity.execution_id):
+            return self._save_locked(execution)
+
+    def _save_locked(self, execution: WorkerExecution) -> WorkerExecution:
+        path = self._execution_path(execution.identity.execution_id)
+        existing = self.load(execution.identity.execution_id)
+        if existing is not None:
+            if existing == execution:
+                return existing
+            if existing.identity != execution.identity:
+                raise ReservationAdmissionError(
+                    "WORKER_EXECUTION_IDENTITY_CONFLICT",
+                    "Durable execution identity cannot be replaced.",
+                )
+            if existing.sequence > execution.sequence:
+                raise ReservationAdmissionError(
+                    "STALE_WORKER_EXECUTION",
+                    "A newer durable worker execution already exists.",
+                )
+            if existing.sequence == execution.sequence:
+                raise ReservationAdmissionError(
+                    "WORKER_EXECUTION_STORE_CONFLICT",
+                    "Durable worker execution sequence has conflicting content.",
+                )
+            if execution.accepted_events[: existing.sequence] != existing.accepted_events:
+                raise ReservationAdmissionError(
+                    "WORKER_EXECUTION_STORE_CONFLICT",
+                    "Durable worker execution history diverged from the stored journal.",
+                )
+        payload = {
+            "schema_version": 1,
+            "contract": "coordinator-worker-execution-record-v1",
+            "accepted_event_order": [event_id for event_id, _digest in execution.accepted_events],
+            "execution": execution.to_json_dict(),
+        }
+        _write_json_atomic(path, payload)
+        return execution
+
+    def begin_mutation(
+        self,
+        execution: WorkerExecution,
+        *,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+        progress_id: str,
+        result_id: str,
+    ) -> dict[str, Any] | None:
+        fingerprint, record = self._mutation_identity(
+            execution,
+            tool_name=tool_name,
+            arguments=arguments,
+            progress_id=progress_id,
+            result_id=result_id,
+        )
+        path = self._mutation_path(execution.identity.execution_id, result_id)
+        if path.is_file():
+            existing = _read_json_object(path, "WORKER_MUTATION_RECEIPT_INVALID")
+            self._validate_mutation_record(existing, fingerprint)
+            if existing.get("status") == "completed":
+                return existing
+            raise ReservationAdmissionError(
+                "WORKER_MUTATION_RECONCILIATION_REQUIRED",
+                "A prior mutating dispatch has uncertain completion and will not be replayed automatically.",
+            )
+        if execution.state in _TERMINAL_STATES:
+            raise ReservationAdmissionError(
+                "WORKER_EXECUTION_TERMINAL",
+                "Terminal worker execution cannot dispatch new mutation work.",
+            )
+        try:
+            _write_json_once(path, {**record, "status": "in_flight"})
+        except FileExistsError:
+            existing = _read_json_object(path, "WORKER_MUTATION_RECEIPT_INVALID")
+            self._validate_mutation_record(existing, fingerprint)
+            if existing.get("status") == "completed":
+                return existing
+            raise ReservationAdmissionError(
+                "WORKER_MUTATION_RECONCILIATION_REQUIRED",
+                "A concurrent or prior mutating dispatch already owns this durable result identity.",
+            )
+        return None
+
+    def complete_mutation(
+        self,
+        execution: WorkerExecution,
+        *,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+        progress_id: str,
+        result_id: str,
+        result: Any,
+    ) -> dict[str, Any]:
+        fingerprint, record = self._mutation_identity(
+            execution,
+            tool_name=tool_name,
+            arguments=arguments,
+            progress_id=progress_id,
+            result_id=result_id,
+        )
+        path = self._mutation_path(execution.identity.execution_id, result_id)
+        existing = _read_json_object(path, "WORKER_MUTATION_RECEIPT_INVALID")
+        self._validate_mutation_record(existing, fingerprint)
+        if existing.get("status") == "completed":
+            return existing
+        completed = {**record, "status": "completed", "result": result}
+        _write_json_atomic(path, completed)
+        return completed
+
+    def _mutation_identity(
+        self,
+        execution: WorkerExecution,
+        *,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+        progress_id: str,
+        result_id: str,
+    ) -> tuple[str, dict[str, Any]]:
+        _require_non_empty(tool_name, "tool_name")
+        _require_non_empty(progress_id, "progress_id")
+        _require_non_empty(result_id, "result_id")
+        canonical_arguments = _canonical(dict(arguments))
+        identity = execution.identity.to_json_dict()
+        authority = {
+            "reservation_id": execution.identity.reservation_id,
+            "authority_revision": execution.identity.authority_revision,
+            "lease_id": execution.identity.lease_id,
+            "fence_token": execution.identity.fence_token,
+        }
+        stable = {
+            "execution_id": execution.identity.execution_id,
+            "attempt_id": execution.identity.attempt_id,
+            "tool_name": tool_name,
+            "arguments_sha256": hashlib.sha256(canonical_arguments.encode("utf-8")).hexdigest(),
+            "progress_id": progress_id,
+            "result_id": result_id,
+            "identity": identity,
+            "authority": authority,
+        }
+        fingerprint = hashlib.sha256(_canonical(stable).encode("utf-8")).hexdigest()
+        return fingerprint, {
+            "schema_version": 1,
+            "contract": "coordinator-worker-mutation-receipt-v1",
+            "fingerprint": fingerprint,
+            **stable,
+        }
+
+    def _validate_mutation_record(self, value: Mapping[str, Any], fingerprint: str) -> None:
+        if (
+            value.get("schema_version") != 1
+            or value.get("contract") != "coordinator-worker-mutation-receipt-v1"
+            or value.get("fingerprint") != fingerprint
+            or value.get("status") not in {"in_flight", "completed"}
+        ):
+            raise ReservationAdmissionError(
+                "WORKER_MUTATION_RECEIPT_CONFLICT",
+                "Durable mutation result identity conflicts with existing evidence.",
+            )
+
+    @contextmanager
+    def _execution_lock(self, execution_id: str) -> Iterable[None]:
+        key = hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
+        lock_path = self._root / "locks" / f"{key}.lock"
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with lock_path.open("a+b") as stream:
+            stream.seek(0, os.SEEK_END)
+            if stream.tell() == 0:
+                stream.write(b"0")
+                stream.flush()
+            stream.seek(0)
+            _lock_file(stream)
+            try:
+                yield
+            finally:
+                _unlock_file(stream)
+
+    def _execution_path(self, execution_id: str) -> Path:
+        key = hashlib.sha256(execution_id.encode("utf-8")).hexdigest()
+        return self._root / "executions" / f"{key}.json"
+
+    def _mutation_path(self, execution_id: str, result_id: str) -> Path:
+        key = hashlib.sha256(f"{execution_id}\0{result_id}".encode("utf-8")).hexdigest()
+        return self._root / "mutations" / f"{key}.json"
+
+
 class McpWorkerClient(Protocol):
     async def __aenter__(self) -> McpWorkerClient: ...
     async def __aexit__(self, *args: object) -> None: ...
@@ -340,11 +674,13 @@ class McpWorkerAdapter:
         admit_tool: AdmitTool,
         assert_authority: AssertAuthority,
         is_mutating: IsMutating,
+        execution_store: WorkerExecutionStore | None = None,
     ) -> None:
         self._client_factory = client_factory
         self._admit_tool = admit_tool
         self._assert_authority = assert_authority
         self._is_mutating = is_mutating
+        self._execution_store = execution_store
         self._client_manager: McpWorkerClient | None = None
         self._client: McpWorkerClient | None = None
         self._allowed_tools: dict[str, Any] | None = None
@@ -408,6 +744,7 @@ class McpWorkerAdapter:
         packet: Mapping[str, Any],
         progress_id: str,
         result_id: str,
+        execution: WorkerExecution | None = None,
     ) -> dict[str, Any]:
         client = self._require_client()
         try:
@@ -435,24 +772,60 @@ class McpWorkerAdapter:
         if name not in self._allowed_tools:
             raise ReservationAdmissionError("WORKER_TOOL_NOT_ALLOWED", f"Tool {name} is not admitted by the work packet.")
         authority = _packet_authority(packet)
+        if execution is not None:
+            _validate_execution_packet(execution, packet, authority)
         tool = self._allowed_tools[name]
         dispatch_arguments, classification_arguments = _snapshot_tool_arguments(arguments)
-        if self._is_mutating(name, classification_arguments, tool):
+        mutating = self._is_mutating(name, classification_arguments, tool)
+        durable_execution = execution
+        if mutating:
             observed_authority = self._observed_authority(authority)
             if observed_authority != authority:
                 raise ReservationAdmissionError(
                     "WORKER_AUTHORITY_CHANGED",
                     "Current mutation authority no longer matches the work packet.",
                 )
+            if self._execution_store is not None:
+                if execution is None:
+                    raise ReservationAdmissionError(
+                        "WORKER_EXECUTION_REQUIRED",
+                        "Durable mutating invocation requires worker execution identity.",
+                    )
+                stored = self._execution_store.load(execution.identity.execution_id)
+                if stored is None:
+                    raise ReservationAdmissionError(
+                        "WORKER_EXECUTION_NOT_DURABLE",
+                        "Mutating invocation requires a persisted worker execution.",
+                    )
+                if stored != execution:
+                    raise ReservationAdmissionError(
+                        "STALE_WORKER_EXECUTION",
+                        "Mutating invocation must use the current durable worker execution.",
+                    )
+                durable_execution = stored
+                receipt = self._execution_store.begin_mutation(
+                    stored,
+                    tool_name=name,
+                    arguments=dispatch_arguments,
+                    progress_id=progress_id,
+                    result_id=result_id,
+                )
+                if receipt is not None:
+                    return _invocation_payload(
+                        packet, name, progress_id, result_id, receipt.get("result"), stored
+                    )
         result = _normalize_tool_result(await client.call_tool(name, dispatch_arguments))
-        return {
-            "packet_id": packet_id,
-            "task_id": str(packet["task_id"]),
-            "tool_name": name,
-            "progress_id": progress_id,
-            "result_id": result_id,
-            "result": result,
-        }
+        if mutating and self._execution_store is not None and durable_execution is not None:
+            receipt = self._execution_store.complete_mutation(
+                durable_execution,
+                tool_name=name,
+                arguments=dispatch_arguments,
+                progress_id=progress_id,
+                result_id=result_id,
+                result=result,
+            )
+            result = receipt["result"]
+        return _invocation_payload(packet, name, progress_id, result_id, result, execution)
 
     async def reconnect(self, runtime_binding: Mapping[str, Any]) -> None:
         await self.close()
@@ -500,6 +873,127 @@ class McpWorkerAdapter:
                 "WORKER_RUNTIME_BINDING_MISMATCH",
                 "Connected MCP runtime does not match the work packet binding.",
             )
+
+
+def _validate_execution_packet(
+    execution: WorkerExecution,
+    packet: Mapping[str, Any],
+    authority: Mapping[str, Any],
+) -> None:
+    identity = execution.identity
+    expected_authority = {
+        "reservation_id": identity.reservation_id,
+        "authority_revision": identity.authority_revision,
+        "lease_id": identity.lease_id,
+        "fence_token": identity.fence_token,
+    }
+    packet_binding = packet.get("runtime_binding")
+    if not isinstance(packet_binding, Mapping):
+        raise ReservationAdmissionError("WORKER_PACKET_INVALID", "Work packet runtime binding is required.")
+    try:
+        packet_binding_ref = _runtime_binding_ref(packet_binding)
+    except ValueError as exc:
+        raise ReservationAdmissionError("WORKER_PACKET_INVALID", str(exc)) from exc
+    if (
+        identity.packet_id != packet.get("packet_id")
+        or identity.task_id != packet.get("task_id")
+        or expected_authority != dict(authority)
+        or dict(identity.runtime_binding) != packet_binding_ref
+    ):
+        raise ReservationAdmissionError(
+            "WORKER_EXECUTION_PACKET_MISMATCH",
+            "Worker execution identity does not match the exact work packet authority/binding.",
+        )
+    assignment = packet.get("assignment")
+    if isinstance(assignment, Mapping) and assignment.get("generation") != identity.assignment_generation:
+        raise ReservationAdmissionError(
+            "WORKER_EXECUTION_PACKET_MISMATCH",
+            "Worker execution assignment generation does not match the work packet.",
+        )
+
+
+def _invocation_payload(
+    packet: Mapping[str, Any],
+    name: str,
+    progress_id: str,
+    result_id: str,
+    result: Any,
+    execution: WorkerExecution | None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "packet_id": str(packet["packet_id"]),
+        "task_id": str(packet["task_id"]),
+        "tool_name": name,
+        "progress_id": progress_id,
+        "result_id": result_id,
+        "result": result,
+    }
+    if execution is not None:
+        identity = execution.identity
+        payload.update(
+            {
+                "execution_id": identity.execution_id,
+                "attempt_id": identity.attempt_id,
+                "authority": {
+                    "reservation_id": identity.reservation_id,
+                    "authority_revision": identity.authority_revision,
+                    "lease_id": identity.lease_id,
+                    "fence_token": identity.fence_token,
+                },
+                "runtime_binding": dict(identity.runtime_binding),
+            }
+        )
+    return payload
+
+
+def _lock_file(stream: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_file(stream: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        stream.seek(0)
+        msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _read_json_object(path: Path, error_code: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ReservationAdmissionError(error_code, f"Cannot read durable worker state: {exc}"[:1000]) from exc
+    if not isinstance(value, dict):
+        raise ReservationAdmissionError(error_code, "Durable worker state must be a JSON object.")
+    return value
+
+
+def _write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(
+        f"{path.name}.tmp-{os.getpid()}-{hashlib.sha256(os.urandom(16)).hexdigest()[:12]}"
+    )
+    temporary.write_text(_canonical(dict(value)) + "\n", encoding="utf-8", newline="\n")
+    os.replace(temporary, path)
+
+
+def _write_json_once(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x", encoding="utf-8", newline="\n") as stream:
+        stream.write(_canonical(dict(value)) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
 
 
 def _packet_identity(packet: Mapping[str, Any]) -> str:
@@ -819,5 +1313,6 @@ __all__ = [
     "McpWorkerClient",
     "WorkerExecution",
     "WorkerExecutionState",
+    "WorkerExecutionStore",
     "WorkerLifecycle",
 ]

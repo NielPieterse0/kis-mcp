@@ -1,7 +1,7 @@
 # Change Specification: Parallel Agent Coordinator
 
 - **Change ID**: `150-parallel-agent-coordinator`
-- **Status**: Slice 5 (#251) active — #278 persistence dependency unresolved
+- **Status**: Slice 5 (#251) implementation complete locally — exact-head canonical CI/merge pending
 - **Complexity**: `large`
 - **Risk triggers**: `architecture_boundary`, `public_contract`, `persistent_state`
 
@@ -16,7 +16,7 @@ Build the KIS-native coordinator as one governed #241 change. Slices #247-#250 e
 - Slice 3 reservation/lease/fence state remains the sole mutation-authority plane.
 - Runtime/MCP discovery and connectivity remain ephemeral advisory execution state.
 - Slice sequencing remains strict: `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253`.
-- #278 owns durable state class identity and namespace resolution. #251 consumes that contract when available; it MUST NOT duplicate it.
+- #278 owns durable state class identity and namespace resolution. #251 consumes the landed typed ownership/resolver/source-identity APIs directly and MUST NOT duplicate them.
 
 ## Slice 5 requirements
 
@@ -39,7 +39,7 @@ Build the KIS-native coordinator as one governed #241 change. Slices #247-#250 e
 4. Runtime reconnect/list-tools operations cannot grant mutation authority and do not mutate durable execution state by themselves.
 5. A mutating invocation re-checks current reservation/revision/lease/fence authority immediately before dispatch.
 6. Completed/failed/cancelled outcomes produce deterministic structured result/handoff facts suitable for #252 without claiming reconciliation.
-7. Persistence/restart tests use the #278 resolver contract rather than a caller-invented path root. Until that contract exists, persistence implementation and restart acceptance remain blocked rather than approximated.
+7. Persistence/restart tests prove the #278 `DURABLE_EVIDENCE` resolver/source-identity contract is used, ordered execution state restores after restart, completed mutation retries reuse durable results, and uncertain in-flight mutation work is not replayed automatically.
 8. Existing #247-#250 coordinator tests remain green.
 
 ## Risks and recovery
@@ -47,7 +47,7 @@ Build the KIS-native coordinator as one governed #241 change. Slices #247-#250 e
 - Existing Slice 2-4 generated-state locations are historical implementation facts and are not precedent for new #251 durable state placement after #277/#278 architecture approval.
 - Transport clients/sessions are process-local and reconstructible. Durable records may retain correlation identifiers but never live transport objects.
 - Mutation safety depends on Slice 3 authority checks, not MCP connectivity or discovered tool metadata.
-- #278 is a hard dependency only for the persistence/restart portion; location-independent contracts and ephemeral adapter behavior may proceed first.
+- #278 was the persistence/restart dependency and is now satisfied by the landed ownership/namespace module; future coordinator state must continue consuming that canonical module rather than reintroducing local placement rules.
 
 ## Out of scope
 
