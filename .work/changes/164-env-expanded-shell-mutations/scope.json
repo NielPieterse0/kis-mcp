@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "164-env-expanded-shell-mutations",
+  "status": "active",
+  "branch": "change/164-env-expanded-shell-mutations",
+  "worktree": ".work/worktrees/164-env-expanded-shell-mutations",
+  "base": "main",
+  "outcome": "Fail closed structurally when a syntactically definite shell mutation target cannot be resolved safely, including environment and subexpression expansion, without misclassifying uncertainty as HR-001/HR-003.",
+  "owned_paths": [
+    "src/kis_mcp/models.py",
+    "src/kis_mcp/command_intent.py",
+    "src/kis_mcp/policy.py",
+    "src/kis_mcp/shell_parser.py",
+    "tests/test_policy.py",
+    "tests/test_process_state.py",
+    "tests/test_p1_command_hardening.py",
+    "tests/test_middleware.py",
+    "tests/test_shell_parser.py",
+    ".work/changes/164-env-expanded-shell-mutations/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "9d23a2026c04f30c0a963d315d12af6bee7ce1df",
+    "local_tree": "304bbfbae162809b1cfb75c3e09fea5230ccff82",
+    "upstream_sha": "9d23a2026c04f30c0a963d315d12af6bee7ce1df",
+    "upstream_tree": "304bbfbae162809b1cfb75c3e09fea5230ccff82",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-288",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 288,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

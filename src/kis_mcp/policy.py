@@ -39,7 +39,11 @@ class ThreeRulePolicy:
     def evaluate(self, effects: InvocationEffects) -> PolicyDecision:
         external_paths: list[str] = []
         valid_delete_paths: list[str] = []
-        unresolved_delete_paths: list[str] = []
+        unresolved_mutation_paths: list[str] = [
+            *effects.unresolved_write_paths,
+            *effects.unresolved_entry_paths,
+            *effects.unresolved_delete_paths,
+        ]
 
         for path in effects.write_paths:
             try:
@@ -49,8 +53,9 @@ class ThreeRulePolicy:
                     follow_final=True,
                 )
             except PathValidationError:
-                # Failure to resolve a declared write target does not prove HR-001.
-                # The provider remains responsible for its ordinary structural error.
+                # A syntactically identified write target that cannot be validated is
+                # a structural invocation error, not evidence of HR-001.
+                unresolved_mutation_paths.append(path)
                 continue
             if not is_within_windows_boundary(
                 effective, boundary=self.project_boundary
@@ -65,7 +70,9 @@ class ThreeRulePolicy:
                     follow_final=False,
                 )
             except PathValidationError:
-                # As with content writes, uncertainty is not proof of an external effect.
+                # The entry mutation is definite even when its path cannot be bounded;
+                # reject it structurally without attributing HR-001.
+                unresolved_mutation_paths.append(path)
                 continue
             if not is_within_windows_boundary(
                 effective, boundary=self.project_boundary
@@ -81,7 +88,7 @@ class ThreeRulePolicy:
                 )
                 normalized = normalize_windows_path(path, base=self.project_boundary)
             except PathValidationError:
-                unresolved_delete_paths.append(path)
+                unresolved_mutation_paths.append(path)
                 continue
             if not is_within_windows_boundary(
                 effective, boundary=self.project_boundary
@@ -89,6 +96,17 @@ class ThreeRulePolicy:
                 external_paths.append(effective)
             else:
                 valid_delete_paths.append(normalized)
+
+        if unresolved_mutation_paths:
+            return PolicyDecision(
+                kind=DecisionKind.BLOCK,
+                code="INVALID_INVOCATION_PATH",
+                message=(
+                    "A definite mutation target could not be resolved into a path that "
+                    "can be validated safely against the project boundary."
+                ),
+                paths=tuple(dict.fromkeys(unresolved_mutation_paths)),
+            )
 
         if external_paths:
             return PolicyDecision(
@@ -100,17 +118,6 @@ class ThreeRulePolicy:
                     f"boundary {self.project_boundary}."
                 ),
                 paths=tuple(dict.fromkeys(external_paths)),
-            )
-
-        if unresolved_delete_paths:
-            return PolicyDecision(
-                kind=DecisionKind.BLOCK,
-                code="INVALID_INVOCATION_PATH",
-                message=(
-                    "The delete target could not be resolved into a path that can be "
-                    "moved safely to quarantine."
-                ),
-                paths=tuple(dict.fromkeys(unresolved_delete_paths)),
             )
 
         if effects.external_network:
