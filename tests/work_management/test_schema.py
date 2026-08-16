@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import kis_mcp.work_management.schema as schema_module
 from kis_mcp.work_management import (
     ProjectField,
@@ -184,6 +186,44 @@ def test_schema_comparison_rejects_view_semantic_drift() -> None:
     plan = plan_project_schema_repair(status, manifest)
     assert [(action.kind, action.target) for action in plan.actions] == [
         ("update_view", "01 Inbox:filter")
+    ]
+
+
+@pytest.mark.parametrize("behavior_verified", [0, 1])
+def test_view_observation_rejects_integer_behavior_flags(behavior_verified: int) -> None:
+    with pytest.raises(ValueError, match="behavior_verified"):
+        schema_module.ProjectViewObservation(
+            name="01 Inbox",
+            layout="table",
+            filter="status:Inbox",
+            behavior_verified=behavior_verified,
+        )
+
+
+def test_schema_comparison_rejects_unverified_saved_view_behavior() -> None:
+    manifest = schema_module.ProjectSchemaManifest(
+        portfolio_id="default",
+        fields=(),
+        views=(schema_module.ProjectViewSpec("01 Inbox", "Inbox", filter="status:Inbox"),),
+    )
+    observed = (
+        schema_module.ProjectViewObservation(
+            name="01 Inbox",
+            layout="table",
+            filter="status:Inbox",
+            behavior_verified=False,
+            behavior_mismatches=("Status:Todo",),
+        ),
+    )
+
+    status = compare_project_schema(manifest, (), project_id="kis-mcp", views_observed=observed)
+    plan = plan_project_schema_repair(status, manifest)
+
+    assert status.views_ready is False
+    assert status.unverified_views == ()
+    assert status.view_mismatches == ("01 Inbox:behavior",)
+    assert [(action.kind, action.target, action.disposition) for action in plan.actions] == [
+        ("update_view", "01 Inbox:behavior", "provider_gap")
     ]
 
 
