@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "change_id": "163-state-ownership-namespace",
+  "status": "active",
+  "branch": "change/163-state-ownership-namespace",
+  "worktree": ".work/worktrees/163-state-ownership-namespace",
+  "base": "main",
+  "outcome": "Implement #278 typed KIS state ownership classes and deterministic namespace resolver without migrating consumers",
+  "owned_paths": [
+    "src/kis_mcp/state/**",
+    "contracts/state/**",
+    "tests/state/**",
+    "docs/STATE-OWNERSHIP-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/163-state-ownership-namespace/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "cf17056b2a10d7111be4e87f91cfbffc4645e925",
+    "local_tree": "f90b1331e6678b12529e342f559b9e87cd0e2e9b",
+    "upstream_sha": "cf17056b2a10d7111be4e87f91cfbffc4645e925",
+    "upstream_tree": "f90b1331e6678b12529e342f559b9e87cd0e2e9b",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
