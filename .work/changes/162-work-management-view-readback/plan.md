@@ -54,7 +54,7 @@
 
 - [x] Run focused provider/work-management tests and Ruff.
 - [x] Run `scripts/change-workflow.ps1 check` and `git diff --check`.
-- [ ] Run required medium/risk specialist reviews and resolve findings.
+- [x] Run required medium/risk specialist reviews and resolve findings.
 - [ ] Commit and prepare an exact-head PR; require GitHub Actions success.
 - [ ] Merge, refresh main, and restart/rebind a runtime to the landed revision.
 - [ ] Rerun bounded Project commissioning and behavioral acceptance for all 12 views.

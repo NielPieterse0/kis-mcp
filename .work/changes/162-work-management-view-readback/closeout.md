@@ -11,26 +11,31 @@
 
 ## Validation evidence
 
-- Focused checks: `pytest tests/providers/github/projects/test_schema_commissioning.py tests/work_management/test_schema.py tests/work_management/test_service.py -q` passed.
-- Affected checks: `pytest tests/providers/github/projects tests/work_management -q` passed.
+- Focused/composition checks: 45 passed across schema commissioning, Work Management schema/service, platform composition, and import isolation.
+- Broad affected checks: 256 passed across GitHub Project commissioning, Work Management, registered-GitHub exact operations, platform composition, and import isolation.
 - Ruff: changed production/test files passed via the installed Ruff executable.
+- Python compilation: changed production modules passed `py_compile`.
 - Repository verification: pending exact-head GitHub Actions after PR creation.
 - Diff scope check: `git diff --check` passed; `scripts/change-workflow.ps1 check` passed with all changed paths inside `scope.json`.
 
 ## Review
 
-- Required reviews: `code-quality` and `api-contracts`.
-- Findings: pending exact-source specialist review.
-- Resolutions: pending.
+- Required exact-commit `code-quality` review on `865b778`: completed with zero blocking/high/medium findings.
+- Required exact-commit `api-contracts` review on `865b778`: completed with zero blocking/high/medium findings.
+- Earlier review findings for blank response acceptance, unbounded pagination, permissive parsing, integer behavior flags, non-canonical view probing, and implicit default-manifest selection were fixed and regression-covered before the exact-commit reviews.
+- One earlier NVIDIA filter-tokenization finding was rejected because GitHub Project filter grammar uses whitespace between qualifiers and commas between multiple values of the same qualifier; the implementation follows that contract.
 
 ## Git and merge
 
 - Branch: `change/162-work-management-view-readback`
 - Worktree: `.work/worktrees/162-work-management-view-readback`
-- Commit:
-- Pull request or merge:
-- Cleanup:
+- Reviewed implementation commit: `865b778fa69f8fef508f4b19f42f0508bb10f7e6`.
+- Pull request / exact-head Actions / merge: pending.
+- Cleanup: pending verified merge and live recommissioning.
 
 ## Residual items
 
--
+- Publish the reviewed implementation plus this evidence reconciliation through the governed PR path.
+- Restart/rebind a runtime to the landed revision and rerun all 12 semantic/behavioral saved-view checks.
+- Reconcile evidence-backed legacy `Todo` / `In Progress` records without blind status mapping.
+- Close #270 and return the programme to completed only after the live Project passes final acceptance.
