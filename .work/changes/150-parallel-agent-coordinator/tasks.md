@@ -6,9 +6,9 @@
 - [x] #248 atomic reservation admission completed and preserved.
 - [x] #249 scope-revision/lease/fence authority lifecycle completed and preserved.
 - [x] #250 deterministic planning/runtime binding/work packets completed and preserved.
-- [x] Parent branch reconciled onto verified `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` via merge `93b341e`.
+- [x] Parent branch reconciled first onto `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` (`93b341e`), then refreshed after concurrent #270 landed and reconciled onto current `main` `e238067169a272e3cb3c6284264653557ba7306b` via merge `3084e56`.
 - [x] #241/#251 re-read; canonical `develop-code`, `develop-docs`, and `mcp-development` procedures loaded.
-- [x] #278 re-read and confirmed open; no local ownership/namespace implementation is currently available.
+- [x] #278 re-read and confirmed active in `163-state-ownership-namespace`; its task record still has the resolver/module implementation outstanding, so no consumable ownership/namespace API is available yet.
 - [x] Strict `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253` sequencing preserved.
 
 ## Slice 5 implementation
@@ -28,7 +28,7 @@
 - [x] Full coordinator regression suite passes (**78/78** after API-contract corrections).
 - [x] Strict coordinator schemas validate emitted Slice 5 values.
 - [x] Ruff, Python compilation, governed scope check, and `git diff --check` pass.
-- [ ] Required code-quality, architecture, API-contract, and persistence/recovery reviews have zero blocking findings for implemented scope. **Working-tree review failed closed on KIS source fingerprint evidence; rerun against immutable checkpoint commit.**
+- [x] Required reviews are clean for implemented scope: code-quality corrective commits have zero findings; architecture corrective range has zero findings and confirms the #278 persistence boundary; final API-contract corrective range `b22e9d8..2ec02d4` has zero findings. Persistence/restart implementation itself remains blocked on #278 and is not claimed complete.
 
 ## Explicit stop/dependency
 

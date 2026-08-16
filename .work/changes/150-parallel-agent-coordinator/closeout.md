@@ -7,14 +7,14 @@
 
 ## Checkpoint outcome
 
-The parent coordinator branch was reconciled onto verified `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` with merge commit `93b341e` before Slice 5 implementation.
+The parent coordinator branch was reconciled onto `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` with merge `93b341e` before Slice 5 implementation. After concurrent #270 landed, it was refreshed again onto current `main` `e238067169a272e3cb3c6284264653557ba7306b` with merge `3084e56`; the coordinator worktree is now 0 behind current `main`.
 
 The location-independent portion of #251 is implemented:
 
-- strict `worker-execution` lifecycle/correlation contract;
-- deterministic worker transitions with stale/conflicting event rejection and exact-duplicate idempotence;
-- packet task/capability correlation required by bounded tool exposure;
-- worker-handoff execution/attempt/task/result correlation without #252 reconciliation;
+- strict `coordinator-worker-execution-v2` lifecycle/correlation contract with an event-ID-keyed accepted-event ledger;
+- deterministic worker transitions with stale/conflicting event rejection and idempotent replay of any accepted exact event;
+- `coordinator-work-packet-v2` task/capability correlation required by bounded tool exposure;
+- `coordinator-worker-handoff-v2` execution/attempt/task/result correlation without #252 reconciliation;
 - ephemeral MCP adapter for connect/discover/filter/invoke/cleanup/reconnect;
 - exact runtime-binding validation plus active reservation assertion before filtered exposure;
 - immediate current authority re-check before mutating invocation;
@@ -42,10 +42,12 @@ Do not advance to #252 until #278 is available and the remainder of #251 is impl
 - Ruff on coordinator source/tests: **passed**.
 - Python `compileall` on coordinator package: **passed**.
 - `scripts/change-workflow.ps1 check`: **passed**, with only parent change-owned paths reported.
-- KIS working-tree inspector enumerated the 13 current Slice 5 files correctly but returned `CHANGE_SOURCE_FINGERPRINT_UNAVAILABLE`; working-tree specialist review therefore failed closed with `EvidenceError` rather than reviewing untrusted source identity.
-
-Final immutable-commit specialist reviews are required after the checkpoint commit. If they produce blocking findings, fix forward and re-verify the replacement exact commit.
+- The initial dirty-worktree review failed closed on `CHANGE_SOURCE_FINGERPRINT_UNAVAILABLE`; reviews were therefore rerun only against immutable commit/range fingerprints.
+- Code-quality review findings were fixed forward; the final corrective code-quality reviews report zero findings.
+- Architecture review of the corrective range reports zero findings and explicitly confirms the #278 persistence/namespace boundary remains intact.
+- Final API-contract review of `b22e9d8..2ec02d4` reports zero findings after explicit v2 contract identities and structural event-ID uniqueness were added.
+- After the final `main` reconciliation (`3084e56`), the 78-test coordinator suite and all static/scope checks were rerun successfully.
 
 ## Lane boundary
 
-No #270, #278 implementation, #252, #253, Work Management, stale PR #282, or unrelated repository work was modified in this lane.
+No #270 or #278 implementation was authored in this lane; the already-merged #270 changes entered only through reconciliation with current `main`. No #252, #253, stale PR #282, or unrelated implementation work was performed.
