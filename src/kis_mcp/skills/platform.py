@@ -15,6 +15,7 @@ from ..capabilities.settings import CapabilitySettings, load_capability_settings
 from ..runtime_observability import get_runtime_observability
 from .metadata import enrich_skill_card
 from .models import SkillCard
+from .resources import register_skill_resources
 from .service import SkillsService
 from .telemetry import SkillTelemetryStore
 from .tools import register_skills_tools
@@ -94,6 +95,7 @@ def register_platform_skills(server, *, state_root: Path | str | None = None):
     service = register_skills_tools(server, telemetry=telemetry)
     if not isinstance(service, SkillsService):
         return service, ()
+    register_skill_resources(server, service.catalogue)
     response = service._list_catalogue_skills(
         limit=service.catalogue.config.limits.list_max_limit
     )

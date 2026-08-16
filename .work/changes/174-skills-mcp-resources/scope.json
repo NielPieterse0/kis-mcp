@@ -1,0 +1,36 @@
+{
+  "schema_version": 4,
+  "change_id": "174-skills-mcp-resources",
+  "status": "active",
+  "branch": "change/174-skills-mcp-resources",
+  "worktree": ".work/worktrees/174-skills-mcp-resources",
+  "base": "main",
+  "outcome": "Expose the canonical shared Skills catalogue as a read-only progressive-disclosure MCP resource surface with deterministic skill:/// identities and exact canonical bytes.",
+  "owned_paths": [
+    "src/kis_mcp/skills/resources.py",
+    "src/kis_mcp/skills/catalogue.py",
+    "src/kis_mcp/skills/platform.py",
+    "tests/skills/test_resources.py",
+    "tests/skills/test_architecture.py",
+    "docs/SKILLS-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/174-skills-mcp-resources/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "1365d84de30360b880f95bc5c51101ddeab9006c",
+    "local_tree": "443a77461e5dabdb53cdf0a904c135ea0b8d8baa",
+    "upstream_sha": "1365d84de30360b880f95bc5c51101ddeab9006c",
+    "upstream_tree": "443a77461e5dabdb53cdf0a904c135ea0b8d8baa",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  }
+}
