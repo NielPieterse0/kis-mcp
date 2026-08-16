@@ -24,19 +24,19 @@ function Get-RepositoryStateFingerprint {
         [string]$GitExecutable
     )
 
-    $Head = @(& $GitExecutable -C $RepositoryPath rev-parse HEAD 2>&1)
+    $Head = @(& $GitExecutable -C $RepositoryPath rev-parse HEAD 2>$null)
     if ($LASTEXITCODE -ne 0) {
         throw 'CODEX_CLI_GIT_HEAD_FAILED'
     }
-    $Status = @(& $GitExecutable -C $RepositoryPath status --porcelain=v1 --untracked-files=all 2>&1)
+    $Status = @(& $GitExecutable -C $RepositoryPath status --porcelain=v1 --untracked-files=all 2>$null)
     if ($LASTEXITCODE -ne 0) {
         throw 'CODEX_CLI_GIT_STATUS_FAILED'
     }
-    $Diff = @(& $GitExecutable -C $RepositoryPath diff --no-ext-diff --binary HEAD -- 2>&1)
+    $Diff = @(& $GitExecutable -C $RepositoryPath diff --no-ext-diff --binary HEAD -- 2>$null)
     if ($LASTEXITCODE -ne 0) {
         throw 'CODEX_CLI_GIT_DIFF_FAILED'
     }
-    $Untracked = @(& $GitExecutable -C $RepositoryPath ls-files --others --exclude-standard 2>&1)
+    $Untracked = @(& $GitExecutable -C $RepositoryPath ls-files --others --exclude-standard 2>$null)
     if ($LASTEXITCODE -ne 0) {
         throw 'CODEX_CLI_GIT_UNTRACKED_FAILED'
     }
