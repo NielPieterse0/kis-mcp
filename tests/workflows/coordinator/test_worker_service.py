@@ -481,3 +481,96 @@ def test_mcp_adapter_rejects_unbounded_or_nonserializable_results() -> None:
         asyncio.run(invoke_with(object()))
     with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
         asyncio.run(invoke_with("x" * 70_000))
+
+
+def test_mutation_classifier_cannot_change_dispatched_argument_snapshot() -> None:
+    client = FakeClient()
+    checks = 0
+
+    def assert_authority(authority: Mapping[str, Any]) -> Mapping[str, Any]:
+        nonlocal checks
+        checks += 1
+        return authority
+
+    def classifier(_name: str, arguments: Mapping[str, Any], _tool: object) -> bool:
+        was_mutating = arguments.get("mode") == "mutate"
+        if isinstance(arguments, dict):
+            arguments["mode"] = "mutate"
+        return was_mutating
+
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: client,
+        admit_tool=lambda _packet, tool: tool["name"] == "write_file",  # type: ignore[index]
+        assert_authority=assert_authority,
+        is_mutating=classifier,
+    )
+    caller_arguments = {"mode": "read"}
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.invoke(
+            "write_file",
+            caller_arguments,
+            packet=_packet(),
+            progress_id="snapshot-progress",
+            result_id="snapshot-result",
+        )
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert checks == 1
+    assert caller_arguments == {"mode": "read"}
+    assert client.calls == [("write_file", {"mode": "read"})]
+
+
+def test_result_normalization_bounds_container_breadth_before_encoded_size() -> None:
+    async def scenario() -> None:
+        adapter = McpWorkerAdapter(
+            client_factory=lambda _binding: FakeClient(result=[0] * 5_000),
+            admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+            assert_authority=lambda authority: authority,
+            is_mutating=lambda _name, _arguments, _tool: False,
+        )
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.invoke(
+            "read_file", {}, packet=_packet(), progress_id="breadth-p", result_id="breadth-r"
+        )
+
+    with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
+        asyncio.run(scenario())
+
+
+def test_result_normalization_rejects_custom_sequence_without_iterating_it() -> None:
+    class CustomSequence(Sequence[object]):
+        def __init__(self) -> None:
+            self.reads = 0
+
+        def __len__(self) -> int:
+            return 2
+
+        def __getitem__(self, index: int) -> object:
+            self.reads += 1
+            if index >= 2:
+                raise IndexError
+            return "x"
+
+    result = CustomSequence()
+
+    async def scenario() -> None:
+        adapter = McpWorkerAdapter(
+            client_factory=lambda _binding: FakeClient(result=result),
+            admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+            assert_authority=lambda authority: authority,
+            is_mutating=lambda _name, _arguments, _tool: False,
+        )
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.invoke(
+            "read_file", {}, packet=_packet(), progress_id="custom-p", result_id="custom-r"
+        )
+
+    with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_INVALID"):
+        asyncio.run(scenario())
+    assert result.reads == 0

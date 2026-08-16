@@ -269,6 +269,12 @@ AssertAuthority = Callable[[Mapping[str, Any]], Mapping[str, Any]]
 IsMutating = Callable[[str, Mapping[str, Any], Any], bool]
 
 _MAX_TOOL_RESULT_BYTES = 64 * 1024
+_MAX_TOOL_RESULT_ITEMS = 4_096
+_MAX_TOOL_ARGUMENT_BYTES = 64 * 1024
+
+
+class _ResultTooLarge(ValueError):
+    pass
 
 
 class McpWorkerAdapter:
@@ -364,14 +370,15 @@ class McpWorkerAdapter:
             raise ReservationAdmissionError("WORKER_TOOL_NOT_ALLOWED", f"Tool {name} is not admitted by the work packet.")
         authority = _packet_authority(packet)
         tool = self._allowed_tools[name]
-        if self._is_mutating(name, arguments, tool):
+        dispatch_arguments, classification_arguments = _snapshot_tool_arguments(arguments)
+        if self._is_mutating(name, classification_arguments, tool):
             observed = self._assert_authority(authority)
             if _authority_projection(observed) != authority:
                 raise ReservationAdmissionError(
                     "WORKER_AUTHORITY_CHANGED",
                     "Current mutation authority no longer matches the work packet.",
                 )
-        result = _normalize_tool_result(await client.call_tool(name, dict(arguments)))
+        result = _normalize_tool_result(await client.call_tool(name, dispatch_arguments))
         return {
             "packet_id": packet_id,
             "task_id": str(packet["task_id"]),
@@ -588,6 +595,29 @@ def _evidence(values: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
     return result
 
 
+def _snapshot_tool_arguments(
+    arguments: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    try:
+        canonical = _canonical(dict(arguments))
+    except (TypeError, ValueError, RecursionError) as exc:
+        raise ReservationAdmissionError(
+            "WORKER_ARGUMENTS_INVALID", "MCP tool arguments must be JSON-compatible."
+        ) from exc
+    if len(canonical.encode("utf-8")) > _MAX_TOOL_ARGUMENT_BYTES:
+        raise ReservationAdmissionError(
+            "WORKER_ARGUMENTS_TOO_LARGE",
+            f"MCP tool arguments exceed {_MAX_TOOL_ARGUMENT_BYTES} bytes.",
+        )
+    dispatch = json.loads(canonical)
+    classify = json.loads(canonical)
+    if not isinstance(dispatch, dict) or not isinstance(classify, dict):
+        raise ReservationAdmissionError(
+            "WORKER_ARGUMENTS_INVALID", "MCP tool arguments must be an object."
+        )
+    return dispatch, classify
+
+
 def _normalize_tool_result(value: object) -> Any:
     candidate = value
     model_dump = getattr(candidate, "model_dump", None)
@@ -598,9 +628,15 @@ def _normalize_tool_result(value: object) -> Any:
             raise ReservationAdmissionError(
                 "WORKER_RESULT_INVALID", "MCP result model could not be normalized."
             ) from exc
+    budget = [0, 0]
     try:
-        normalized = _json_safe(candidate)
+        normalized = _json_safe(candidate, budget=budget)
         encoded = _canonical(normalized).encode("utf-8")
+    except _ResultTooLarge as exc:
+        raise ReservationAdmissionError(
+            "WORKER_RESULT_TOO_LARGE",
+            f"Normalized MCP result exceeds the bounded result budget: {exc}",
+        ) from exc
     except (TypeError, ValueError, RecursionError) as exc:
         raise ReservationAdmissionError(
             "WORKER_RESULT_INVALID", "MCP result is not a bounded JSON-compatible value."
@@ -613,20 +649,34 @@ def _normalize_tool_result(value: object) -> Any:
     return normalized
 
 
-def _json_safe(value: object, *, depth: int = 0) -> Any:
+def _json_safe(value: object, *, depth: int = 0, budget: list[int]) -> Any:
     if depth > 20:
         raise ValueError("result nesting is too deep")
-    if value is None or isinstance(value, (str, bool, int, float)):
+    budget[0] += 1
+    if budget[0] > _MAX_TOOL_RESULT_ITEMS:
+        raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_ITEMS} values")
+    if value is None or isinstance(value, (bool, int, float)):
+        budget[1] += 32
+        if budget[1] > _MAX_TOOL_RESULT_BYTES:
+            raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
         return value
-    if isinstance(value, Mapping):
+    if isinstance(value, str):
+        budget[1] += len(value.encode("utf-8"))
+        if budget[1] > _MAX_TOOL_RESULT_BYTES:
+            raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
+        return value
+    if type(value) is dict:
         result: dict[str, Any] = {}
         for key, item in value.items():
             if not isinstance(key, str):
                 raise ValueError("result object keys must be strings")
-            result[key] = _json_safe(item, depth=depth + 1)
+            budget[1] += len(key.encode("utf-8"))
+            if budget[1] > _MAX_TOOL_RESULT_BYTES:
+                raise _ResultTooLarge(f"more than {_MAX_TOOL_RESULT_BYTES} estimated bytes")
+            result[key] = _json_safe(item, depth=depth + 1, budget=budget)
         return result
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return [_json_safe(item, depth=depth + 1) for item in value]
+    if type(value) in {list, tuple}:
+        return [_json_safe(item, depth=depth + 1, budget=budget) for item in value]
     raise TypeError(f"unsupported MCP result type: {type(value).__name__}")
 
 

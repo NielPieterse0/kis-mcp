@@ -38,7 +38,7 @@ Do not advance to #252 until #278 is available and the remainder of #251 is impl
 ## Verification at checkpoint
 
 - Focused Slice 5 + affected contract/planner set: **23/23 passed** before final adapter tightening.
-- Full coordinator suite after specialist-review corrections: **70/70 passed**.
+- Full coordinator suite after second specialist-review corrections: **73/73 passed**.
 - Ruff on coordinator source/tests: **passed**.
 - Python `compileall` on coordinator package: **passed**.
 - `scripts/change-workflow.ps1 check`: **passed**, with only parent change-owned paths reported.
