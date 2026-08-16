@@ -4,37 +4,36 @@
 
 - Corrected canonical views `04`, `05`, `06`, `09`, `10`, and `11` so every one of the 12 view filters explicitly constrains `Status` to current command-plane lifecycle values.
 - Kept purpose-specific lifecycle subsets narrow where required; `05 Specification Slices` begins at `Proposed`, while broad historical/specialist views enumerate all canonical statuses.
-- Added load-time validation for the canonical default 12-view manifest: `Status` must exist as a non-empty single-select, every view must contain exactly one `status:` qualifier, and status values must be non-empty, unique, well-formed, and canonical.
-- Preserved generic smaller manifest fixtures without a `Status` field.
-- Reconciled programme metadata to identify change 166 as pending live acceptance instead of retaining stale change-162/#270-reopened wording.
+- Added fail-closed validation for the configured canonical manifest: exactly 12 views, a non-empty current `Status` single-select, exactly one `status:` qualifier per view, and non-empty, unique, canonical status values.
+- Preserved explicitly supplied alternate manifests as generic parser inputs.
 
-## Validation evidence
+## Local verification and review
 
-- Red regression: the new all-12 lifecycle-filter test failed first on `04 Roadmap`, proving the previous manifest omitted a Status constraint.
-- Focused schema tests: 14/14 passed after the initial correction.
-- Final affected suite after review fixes: 243/243 passed across `tests/work_management` and `tests/providers/github/projects/test_schema_commissioning.py`.
-- Ruff: changed Python/test files pass.
-- Python compilation: `src/kis_mcp/work_management/schema.py` passes.
-- `git diff --check`: passed.
-- `pwsh -NoProfile -File scripts/change-workflow.ps1 check`: passed; all changed paths are inside change 166 ownership.
+- Red regression failed first on `04 Roadmap`, proving the previous manifest omitted a Status constraint.
+- Final affected suite: **243/243 passed** across `tests/work_management` and `tests/providers/github/projects/test_schema_commissioning.py`.
+- Ruff, Python compilation, `git diff --check`, and `scripts/change-workflow.ps1 check` passed.
+- Initial reviews found and drove fixes for premature programme completion state, permissive empty status-list parsing, missing canonical `Status` handling, and an incidental `default + 12 views` discriminator.
+- Final full-range code-quality and API-contract reviews on `03c677d…bd1386f` completed with zero findings.
 
-## Review
+## Delivery evidence
 
-- Initial code-quality review found premature programme completion metadata (high) and permissive empty status-list parsing (medium); both were corrected.
-- Initial API-contract review found ambiguous Status-less canonical handling (medium); it was corrected.
-- The first immutable commit API review then found that `default + 12 views` was an incidental discriminator (medium). Canonical validation is now selected by the configured canonical manifest path, requires exactly 12 views plus `Status`, and explicit alternate manifests retain generic behavior.
-- Final full-range re-reviews remain required after the corrective commit.
+- Final local source: `bd1386fe93cfc0719029d0fae69536a24eef5412`.
+- Registered tree-equivalent review head: `fa9a5e67fed548ca3c311200f057abc763f50623`.
+- PR #301 passed Canonical Verification run `31934864345` / `Verify exact head` on that exact head.
+- PR #301 merged as `1e51544b4d4e43ad90f890bfbb622f18c45519c7`.
+## Live commissioning evidence
 
-## Git and merge
+- Fresh `kis-dev` server instance `ec259d1d62f44cd7ac0344a5f07deb55` ran source revision `1e51544b4d4e43ad90f890bfbb622f18c45519c7`.
+- Pre-repair status correctly returned `ready=false`, `views_ready=false`, filter mismatches for `04`, `05`, `06`, `09`, `10`, and `11`, and `12 Completed` behaviorally unverified.
+- The bounded registered-Project commissioner updated exactly those six existing views in place, created no views, and re-read all 12 canonical views as `verified=true` with zero mismatches.
+- Independent post-repair status returned `ready=true`, `fields_ready=true`, `views_ready=true`, with no missing, unverified, or mismatched views.
+- Independent schema plan returned `ready=true`, `automatic_ready=true`, `actions=[]`, `unverified_views=[]`.
+- Current legacy-state read contains zero `In Progress` items. Seventeen remaining `Todo` records are ambiguous backlog and were intentionally not bulk-remapped without lifecycle evidence; canonical filters exclude legacy values.
+- #270 and #142 carry the final dated acceptance evidence. The #270 Project item is `Done` / `Complete` / `Passed` with Change ID `166-work-management-view-filter-invariant` and Authority Revision `1e51544b4d4e43ad90f890bfbb622f18c45519c7`.
 
-- Branch: `change/166-work-management-view-filter-invariant`.
-- Worktree: `.work/worktrees/166-work-management-view-filter-invariant`.
-- Commit / PR / exact-head Actions / merge: pending immutable commit review and publication.
-- Cleanup: pending verified merge and live recommissioning.
+## Cleanup
 
-## Residual acceptance gates
-
-- Review the immutable final commit, then publish and merge only that exact head after provider-native exact-head Actions succeeds.
-- Run the corrected manifest on a landed/restarted KIS runtime; require all 12 saved views behaviorally verified, zero view mismatches/unverified views, and an empty schema plan.
-- Reconcile only evidence-backed legacy lifecycle drift; do not bulk-map ambiguous `Todo` backlog.
-- Replace the temporary pending programme state with the stable dynamic-readiness state, reconcile #270/#142 evidence, and clean the change only after live acceptance.
+- Remote review branch `change/166-work-management-view-filter-invariant` was deleted only at exact head `fa9a5e67fed548ca3c311200f057abc763f50623`.
+- Local cleanup completed as `tree_equivalent_reachable`; branch/worktree were removed non-forcibly.
+- Recovery ref `refs/kis-recovery/cleanup/166-work-management-view-filter-invariant` preserves original local head `bd1386fe93cfc0719029d0fae69536a24eef5412`.
+- This historical record is reconciled into current programme/root authority by change `159-work-management-authority-reconcile`.
