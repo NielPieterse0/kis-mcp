@@ -305,3 +305,173 @@ def test_completion_unknown_external_failure_is_conservatively_non_retryable() -
     assert error.stage == "publication"
     assert error.retryable is False
     assert error.completed_steps == ("verification",)
+
+
+def test_completion_success_exposes_stable_operation_identity_and_stage_timings() -> None:
+    first = _run(Invoker())
+    service = CompletionCoordinator(Invoker(), lambda project_id: r"C:\Projects\college")
+    second = asyncio.run(service.prepare(
+        project_id="college",
+        commit=COMMIT,
+        source_base=SOURCE_BASE,
+        branch="feature/example",
+        expected_remote_branch=None,
+        expected_remote_default=DEFAULT,
+        title="Review exact change",
+        body="Ready for review.",
+        approved=True,
+        deadline_ms=60_000,
+    ))
+
+    assert first.operation_state == "applied"
+    assert str(first.operation_id).startswith("prp-")
+    assert first.operation_id == second.operation_id
+    assert first.elapsed_ms >= 0
+    assert set(first.stage_timings_ms) == {"verification", "publication", "pull_request"}
+
+
+class ReconcileInvoker:
+    def __init__(self, *, publication_state: str, pull_request_state: str = "not_started") -> None:
+        self.publication_state = publication_state
+        self.pull_request_state = pull_request_state
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        self.calls.append((tool_name, arguments))
+        if tool_name == "execute_change_workflow":
+            return {
+                "contract": "change-execution-result-v2",
+                "status": "passed",
+                "source_fingerprint": "c" * 64,
+            }
+        operation = arguments["operation"]
+        inner = arguments["arguments"]
+        assert inner["status_only"] is True
+        if operation == "kis_github_reconcile_registered_commit":
+            if self.publication_state == "applied":
+                return {
+                    "state": "published",
+                    "operation_state": "applied",
+                    "operation_id": "rgm-publication",
+                    "branch": inner["branch"],
+                    "source_commit_sha": COMMIT,
+                    "commit_sha": PUBLISHED,
+                    "base_relation": "tree_equivalent",
+                }
+            return {
+                "state": self.publication_state,
+                "operation_state": self.publication_state,
+                "operation_id": "rgm-publication",
+                "branch": inner["branch"],
+                "source_commit_sha": COMMIT,
+            }
+        if operation == "kis_github_create_registered_pull_request":
+            if self.pull_request_state == "applied":
+                return {
+                    "state": "open",
+                    "operation_state": "applied",
+                    "operation_id": "rgm-pr",
+                    "pull_number": 9,
+                    "branch": inner["branch"],
+                    "head_sha": PUBLISHED,
+                    "base_branch": "main",
+                    "url": "https://github.com/example/repo/pull/9",
+                }
+            return {
+                "state": self.pull_request_state,
+                "operation_state": self.pull_request_state,
+                "operation_id": "rgm-pr",
+                "branch": inner["branch"],
+                "head_sha": PUBLISHED,
+            }
+        raise AssertionError(operation)
+
+
+def test_completion_reconcile_only_reports_not_started_without_rerunning_verification() -> None:
+    invoker = ReconcileInvoker(publication_state="not_started")
+    service = CompletionCoordinator(invoker, lambda project_id: r"C:\Projects\college")
+
+    receipt = asyncio.run(service.prepare(
+        project_id="college",
+        commit=COMMIT,
+        source_base=SOURCE_BASE,
+        branch="feature/example",
+        expected_remote_branch=None,
+        expected_remote_default=DEFAULT,
+        title="Review exact change",
+        body="Ready for review.",
+        approved=True,
+        reconcile_only=True,
+        deadline_ms=60_000,
+    ))
+
+    assert receipt.operation_state == "not_started"
+    assert receipt.stage == "publication"
+    assert receipt.completed_steps == ()
+    assert [name for name, _ in invoker.calls] == ["execute_external_action"]
+
+
+def test_completion_reconcile_only_reports_partial_publication_as_in_progress() -> None:
+    invoker = ReconcileInvoker(publication_state="applied", pull_request_state="not_started")
+    service = CompletionCoordinator(invoker, lambda project_id: r"C:\Projects\college")
+
+    receipt = asyncio.run(service.prepare(
+        project_id="college",
+        commit=COMMIT,
+        source_base=SOURCE_BASE,
+        branch="feature/example",
+        expected_remote_branch=None,
+        expected_remote_default=DEFAULT,
+        title="Review exact change",
+        body="Ready for review.",
+        approved=True,
+        reconcile_only=True,
+        deadline_ms=60_000,
+    ))
+
+    assert receipt.operation_state == "in_progress"
+    assert receipt.completed_steps == ("publication",)
+    assert [name for name, _ in invoker.calls] == [
+        "execute_external_action",
+        "execute_change_workflow",
+        "execute_external_action",
+    ]
+
+
+class SlowVerificationInvoker:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        self.calls.append(tool_name)
+        if tool_name == "execute_change_workflow":
+            await asyncio.sleep(0.05)
+            return {"contract": "change-execution-result-v2", "status": "passed"}
+        raise AssertionError("external mutation must not start after verification deadline")
+
+
+def test_completion_total_deadline_expires_before_mutation_with_conclusive_not_started_state() -> None:
+    invoker = SlowVerificationInvoker()
+    service = CompletionCoordinator(invoker, lambda project_id: r"C:\Projects\college")
+
+    with pytest.raises(CompletionInvocationError) as raised:
+        asyncio.run(service.prepare(
+            project_id="college",
+            commit=COMMIT,
+            source_base=SOURCE_BASE,
+            branch="feature/example",
+            expected_remote_branch=None,
+            expected_remote_default=DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=True,
+            deadline_ms=10,
+        ))
+
+    error = raised.value
+    assert error.operation_state == "not_started"
+    assert str(error.operation_id).startswith("prp-")
+    assert error.stage == "verification"
+    assert error.elapsed_ms >= 0
+    assert "verification" in error.stage_timings_ms
+    assert invoker.calls == ["execute_change_workflow"]

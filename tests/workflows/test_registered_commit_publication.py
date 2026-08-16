@@ -39,6 +39,8 @@ class QueueRunner:
         args: Sequence[str],
         cwd: Path,
         env: Mapping[str, str],
+        *,
+        timeout_seconds: float | None = None,
     ) -> Result:
         self.calls.append((tuple(args), cwd, dict(env)))
         if not self.results:
@@ -62,6 +64,29 @@ def registry(*, github: bool = True) -> ProjectRegistry:
             ),
         ),
     )
+
+
+def pr_api_pages(
+    *,
+    number: int = 7,
+    head: str = TARGET,
+    base: str = "main",
+    title: str = "Review exact change",
+    body: str = "Ready for review.",
+    state: str = "open",
+    draft: bool = False,
+) -> str:
+    item = {
+        "number": number,
+        "html_url": f"https://github.com/nielpieterse0/college/pull/{number}",
+        "title": title,
+        "body": body,
+        "head": {"sha": head},
+        "base": {"ref": base},
+        "state": state,
+        "draft": draft,
+    }
+    return json.dumps([[item]]) + "\n"
 
 
 def test_kis_github_cli_state_uses_explicit_project_state_directory() -> None:
@@ -129,16 +154,17 @@ def test_publish_existing_commit_uses_exact_lease_and_verifies_remote_sha(
         approved=True,
     )
 
-    assert result == {
-        "schema_version": 1,
-        "state": "published",
-        "project_id": "college",
-        "repository": "nielpieterse0/college",
-        "branch": "feature/example",
-        "commit_sha": TARGET,
-        "previous_remote_sha": BASE,
-        "publication_semantics": "exact_git_object",
-    }
+    assert result["schema_version"] == 1
+    assert result["state"] == "published"
+    assert result["operation_state"] == "applied"
+    assert str(result["operation_id"]).startswith("rgm-")
+    assert result["elapsed_ms"] >= 0
+    assert result["project_id"] == "college"
+    assert result["repository"] == "nielpieterse0/college"
+    assert result["branch"] == "feature/example"
+    assert result["commit_sha"] == TARGET
+    assert result["previous_remote_sha"] == BASE
+    assert result["publication_semantics"] == "exact_git_object"
     commands = [call[0] for call in runner.calls]
     assert commands[0] == ("git", "check-ref-format", "--branch", "feature/example")
     assert commands[1] == (
@@ -649,7 +675,7 @@ def test_create_registered_pull_request_recovers_exact_existing_open_pr() -> Non
         Result(stdout=f"ref: {default_ref}\tHEAD\n"),
         Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
         Result(stdout=f"{TARGET}\t{target_ref}\n"),
-        Result(stdout=f'[{json.dumps({"number": 7, "url": url, "title": "Review exact change", "body": "Ready for review.", "headRefOid": TARGET, "baseRefName": "main", "state": "OPEN", "isDraft": False})}]\n'),
+        Result(stdout=pr_api_pages(number=7)),
     ))
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
@@ -680,7 +706,7 @@ def test_create_registered_pull_request_rejects_conflicting_existing_open_pr() -
         Result(stdout=f"ref: {default_ref}\tHEAD\n"),
         Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
         Result(stdout=f"{TARGET}\t{target_ref}\n"),
-        Result(stdout=f'[{json.dumps({"number": 7, "headRefOid": OTHER, "baseRefName": "main", "state": "OPEN", "isDraft": False})}]\n'),
+        Result(stdout=pr_api_pages(number=7, head=OTHER)),
     ))
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
@@ -710,7 +736,7 @@ def test_create_registered_pull_request_does_not_recreate_exact_terminal_pr(
         Result(stdout=f"ref: {default_ref}\tHEAD\n"),
         Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
         Result(stdout=f"{TARGET}\t{target_ref}\n"),
-        Result(stdout=f'[{json.dumps({"number": 7, "url": "https://github.com/nielpieterse0/college/pull/7", "title": "Review exact change", "body": "Ready for review.", "headRefOid": TARGET, "baseRefName": "main", "state": terminal_state, "isDraft": False})}]\n'),
+        Result(stdout=pr_api_pages(number=7, state=terminal_state.lower())),
     ))
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
@@ -737,9 +763,9 @@ def test_create_registered_pull_request_verifies_exact_open_pr() -> None:
         Result(stdout=f"ref: {default_ref}\tHEAD\n"),
         Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
         Result(stdout=f"{TARGET}\t{target_ref}\n"),
-        Result(stdout="[]\n"),
+        Result(stdout="[[]]\n"),
         Result(stdout="https://github.com/nielpieterse0/college/pull/9\n"),
-        Result(stdout='{"number":9,"url":"https://github.com/nielpieterse0/college/pull/9","headRefOid":"1111111111111111111111111111111111111111","baseRefName":"main","state":"OPEN","isDraft":false}\n'),
+        Result(stdout='{"number":9,"url":"https://github.com/nielpieterse0/college/pull/9","title":"Review exact change","body":"Ready for review.","headRefOid":"1111111111111111111111111111111111111111","baseRefName":"main","state":"OPEN","isDraft":false}\n'),
     ))
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
@@ -827,21 +853,23 @@ def test_create_registered_pull_request_rejects_unverified_created_head() -> Non
         Result(stdout=f"ref: {default_ref}\tHEAD\n"),
         Result(stdout=f"{REMOTE_DEFAULT}\t{default_ref}\n"),
         Result(stdout=f"{TARGET}\t{target_ref}\n"),
-        Result(stdout="[]\n"),
+        Result(stdout="[[]]\n"),
         Result(stdout="https://github.com/nielpieterse0/college/pull/9\n"),
-        Result(stdout='{"number":9,"url":"https://github.com/nielpieterse0/college/pull/9","headRefOid":"3333333333333333333333333333333333333333","baseRefName":"main","state":"OPEN","isDraft":false}\n'),
+        Result(stdout='{"number":9,"url":"https://github.com/nielpieterse0/college/pull/9","title":"Review exact change","body":"Ready for review.","headRefOid":"3333333333333333333333333333333333333333","baseRefName":"main","state":"OPEN","isDraft":false}\n'),
+        Result(stdout=pr_api_pages(number=9, head=OTHER)),
     ))
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
-    with pytest.raises(ToolError, match="PULL_REQUEST_CREATE_NOT_VERIFIED"):
-        operations.create_pull_request(
-            project_id="college",
-            branch="feature/example",
-            expected_head=TARGET,
-            expected_remote_default=REMOTE_DEFAULT,
-            title="Review exact change",
-            body="Ready for review.",
-            approved=True,
-        )
+    result = operations.create_pull_request(
+        project_id="college",
+        branch="feature/example",
+        expected_head=TARGET,
+        expected_remote_default=REMOTE_DEFAULT,
+        title="Review exact change",
+        body="Ready for review.",
+        approved=True,
+    )
 
+    assert result["state"] == "failed"
+    assert result["operation_state"] == "failed"
     assert runner.results == []
