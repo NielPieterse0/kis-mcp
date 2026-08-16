@@ -246,6 +246,14 @@ def test_read_views_marks_incomplete_saved_view_response_unverified(
             "unverified:single_select_name",
         ),
         (
+            {"id": 1001, "name": "Status", "value": {"name": {"raw": 42}}},
+            "unverified:single_select_name",
+        ),
+        (
+            {"id": 1001, "name": "Status", "value": {"name": {"html": "Ready"}}},
+            "unverified:single_select_name",
+        ),
+        (
             {"id": 1001, "name": "Status", "value": ["Ready"]},
             "unverified:single_select_value",
         ),
@@ -285,6 +293,34 @@ def test_read_views_ignores_well_formed_unrelated_saved_view_fields() -> None:
     fields = [
         {"id": 2001, "name": "Unrelated", "value": "extra"},
         {"id": 1001, "name": "Status", "value": {"name": "Ready"}},
+    ]
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items([{"id": 17, "fields": fields}])),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is True
+    assert views[0].behavior_mismatches == ()
+
+
+def test_read_views_accepts_rest_single_select_raw_name_shape() -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    fields = [
+        {
+            "id": 1001,
+            "name": "Status",
+            "value": {"name": {"html": "Ready", "raw": "Ready"}},
+        }
     ]
     runner = QueueRunner(
         (

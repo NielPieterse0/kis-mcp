@@ -57,8 +57,11 @@
 - [x] Land malformed/duplicate-field evidence hardening through authoritative-branch PR #295.
 - [x] Reproduce post-merge acceptance failure on the landed runtime: seven views remained unverified with no semantic contradiction; `12 Completed` was confirmed pagination-limited.
 - [x] Add red→green bounded pagination and diagnostic regressions; focused provider tests and affected Work Management tests passed in the interrupted same-lane work.
-- [ ] Run exact-head CI and final review on the reconstructed pagination/diagnostic tranche.
-- [ ] Merge the final exact head and restart/rebind runtime to the landed revision.
+- [x] Run exact-head CI and merge the pagination/diagnostic tranche through PR #296.
+- [x] Recommission exact merged runtime `9d23a20…`; seven views remained unverified with `unverified:single_select_name`.
+- [x] Add red→green REST-shape compatibility for nested single-select option names (`name.raw`) while retaining fail-closed malformed evidence.
+- [ ] Run exact-head CI and final review on the REST-shape compatibility delta.
+- [ ] Merge the exact reviewed head and restart/rebind runtime to the landed revision.
 - [ ] Rerun bounded Project commissioning and behavioral acceptance for all 12 views using the new reason codes if any view remains unverified.
 - [ ] Reconcile only evidence-backed legacy `Todo` / `In Progress` operational drift without blind mapping.
 - [ ] Record final #270/#142 evidence, close #270 only if live acceptance is green, and safely clean the change.

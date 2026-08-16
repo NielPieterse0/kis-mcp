@@ -15,16 +15,18 @@
 - PR #293 merged the initial behavioral saved-view readback and fail-closed readiness implementation as merge commit `e238067169a272e3cb3c6284264653557ba7306b`.
 - PR #295 merged the exact-evidence hardening on the authoritative `change/162-work-management-view-readback` branch as merge commit `2def20627a2d54e7ab08ddc2f74c477440c888a7`.
 - Fresh post-merge commissioning on `2def206…` removed false contradictions but still reported seven canonical views unverified. `12 Completed` was confirmed to exceed the first 100 saved-view items; the remaining failures required explicit diagnostic reason codes rather than speculative mutation.
-- The final pagination/diagnostic tranche was developed under the same Lane A scope. Focused pagination tests were observed red before implementation and green after implementation; the full provider file and affected Work Management tests were green in the interrupted same-lane session before publication reconstruction.
+- The pagination/diagnostic tranche passed Canonical Verification #187 on exact PR #296 head `ec18772f…` and merged to `main` as `9d23a2026c04f30c0a963d315d12af6bee7ce1df`.
+- Fresh `kis-dev` commissioning on exact merged runtime `9d23a20…` still failed seven views with bounded reason `unverified:single_select_name`. The live REST payload shape nests a single-select option name under `name.raw`; the compatibility delta accepts that nonblank raw string while preserving fail-closed handling for malformed nested names.
 
 ## Validation evidence
 
 - Earlier implementation tranche: focused/composition checks and broad affected verification passed before PR #293/#295 publication; their exact-head Canonical Verification runs passed before merge.
 - Final pagination regressions: explicit cursor-follow and cursor-cycle cases were red before implementation and green after implementation in the same change worktree.
-- Final provider regression file: green after updating diagnostic expectations in the same change worktree.
-- Final affected provider + Work Management test set: green in the same change worktree before interruption.
-- Exact reconstructed GitHub head CI: pending.
-- Final live 12-view commissioning: pending merge and runtime restart/rebind.
+- PR #296 exact-head Canonical Verification #187 passed before merge.
+- REST-shape regression was red before the compatibility change and green after it; provider regression file passes 28 tests and affected Work Management schema/service tests pass 19 tests.
+- `git diff --check`, Python compilation, and `scripts/change-workflow.ps1 check` pass for the current compatibility delta.
+- Independent exact-working-tree Codex code-quality review completed with no findings and complete evidence for the two production/test files; final exact-commit review/CI remains required after evidence reconciliation.
+- Final live 12-view commissioning remains pending merge and runtime restart/rebind of the compatibility delta.
 
 ## Review
 
