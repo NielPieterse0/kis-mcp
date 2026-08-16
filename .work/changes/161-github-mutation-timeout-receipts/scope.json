@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "161-github-mutation-timeout-receipts",
+  "status": "active",
+  "branch": "change/161-github-mutation-timeout-receipts",
+  "worktree": ".work/worktrees/161-github-mutation-timeout-receipts",
+  "base": "main",
+  "outcome": "Make registered GitHub delivery publication and PR preparation timeout-safe with deterministic stateless operation receipts and authority reconciliation.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/workflows/completion/contracts.py",
+    "src/kis_mcp/workflows/completion/service.py",
+    "src/kis_mcp/workflows/completion/tools.py",
+    "tests/projects/test_github_exact.py",
+    "tests/capabilities/test_registered_commit_workflow.py",
+    "tests/workflows/completion/test_completion_service.py",
+    "tests/workflows/completion/test_completion_tools.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    "docs/OPERATIONS.md",
+    ".work/changes/161-github-mutation-timeout-receipts/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "785840c7b496e505b7b6ee6766e7594f14d632ce",
+    "local_tree": "5fe92211f8f5262a5a31251ef699846fe6c356fa",
+    "upstream_sha": "785840c7b496e505b7b6ee6766e7594f14d632ce",
+    "upstream_tree": "5fe92211f8f5262a5a31251ef699846fe6c356fa",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-274",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 274,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress"
+  }
+}

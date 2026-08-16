@@ -69,6 +69,26 @@ def test_capability_control_declares_virtual_exact_github_operations() -> None:
         assert "approved" in operation.input_schema["required"]
 
 
+def test_pre_review_registered_github_operations_expose_timeout_recovery_controls() -> None:
+    contribution = capability_control_contribution()
+    operations = {item.name: item for item in contribution.operations}
+
+    for name in {
+        "kis_github_publish_registered_commit",
+        "kis_github_reconcile_registered_commit",
+        "kis_github_create_registered_pull_request",
+    }:
+        properties = operations[name].input_schema["properties"]
+        assert properties["status_only"]["type"] == "boolean"
+        assert properties["deadline_ms"] == {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300000,
+        }
+        assert "status_only" not in operations[name].input_schema["required"]
+        assert "deadline_ms" not in operations[name].input_schema["required"]
+
+
 def test_runtime_surface_preserves_capability_control_virtual_operations() -> None:
     contribution = capability_control_contribution()
     augmented = augment_with_runtime_surface((contribution,), (), {})

@@ -27,6 +27,10 @@ class Service:
             execution={"contract": "change-execution-result-v2", "status": "passed"},
             publication={"state": "published", "source_commit_sha": kwargs["commit"], "commit_sha": "d" * 40},
             pull_request={"state": "open", "pull_number": 9, "head_sha": "d" * 40},
+            operation_id="prp-" + "f" * 64,
+            operation_state="applied",
+            elapsed_ms=3,
+            stage_timings_ms={"verification": 1, "publication": 1, "pull_request": 1},
         )
 
 
@@ -58,6 +62,8 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
         "review_model",
         "documentation_impact",
         "residual_state",
+        "deadline_ms",
+        "reconcile_only",
     }
     for forbidden in (
         "command", "tool_name", "operation", "repository", "remote_url",
