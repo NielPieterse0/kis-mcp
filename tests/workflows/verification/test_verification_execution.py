@@ -214,7 +214,7 @@ def test_textual_process_pid_polling_respects_original_timeout(
 ) -> None:
     clock = iter((10.0, 10.01, 10.03, 10.03))
     monkeypatch.setattr(
-        "kis_mcp.workflows.verification.execution.time.perf_counter",
+        "kis_mcp.execution.process.time.perf_counter",
         lambda: next(clock),
     )
     runner = _Runner(
