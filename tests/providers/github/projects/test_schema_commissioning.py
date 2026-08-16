@@ -200,10 +200,76 @@ def test_read_views_rejects_false_green_saved_filter_behavior() -> None:
 
 
 @pytest.mark.parametrize(
+    "items",
+    [
+        [],
+        _view_items(status="Ready"),
+        [
+            *_view_items(status="Ready"),
+            {"id": 18, "fields": _view_items(status="Ready")[0]["fields"]},
+        ],
+    ],
+)
+def test_read_views_accepts_complete_body_only_saved_view_response(
+    items: list[dict[str, object]],
+) -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=json.dumps(items)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is True
+    assert views[0].behavior_mismatches == ()
+
+
+def test_read_views_rejects_body_only_page_without_pagination_completeness() -> None:
+    items = [
+        {"id": item_id, "fields": _view_items(status="Ready")[0]["fields"]}
+        for item_id in range(100)
+    ]
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=json.dumps(items)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == ("unverified:pagination_evidence",)
+
+
+@pytest.mark.parametrize(
     ("stdout", "reason"),
     [
         ("", "unverified:empty_response"),
-        ("[]", "unverified:malformed_http"),
+        ("{}", "unverified:malformed_http"),
+        ("[", "unverified:malformed_json"),
         ("HTTP/2 200 OK\r\n\r\n", "unverified:empty_body"),
     ],
 )

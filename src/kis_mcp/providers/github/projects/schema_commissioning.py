@@ -426,9 +426,14 @@ class GitHubProjectSchemaClient:
         if not isinstance(stdout, str) or not stdout.strip():
             return None, None, "empty_response"
         parts = re.split(r"\r?\n\r?\n", stdout, maxsplit=1)
-        if len(parts) != 2 or not parts[0].lstrip().startswith("HTTP/"):
-            return None, None, "malformed_http"
-        headers, body = parts
+        body_only = len(parts) != 2 or not parts[0].lstrip().startswith("HTTP/")
+        if body_only:
+            if not stdout.lstrip().startswith("["):
+                return None, None, "malformed_http"
+            headers = ""
+            body = stdout
+        else:
+            headers, body = parts
         next_cursor: str | None = None
         for line in headers.splitlines():
             if not line.casefold().startswith("link:"):
@@ -458,6 +463,8 @@ class GitHubProjectSchemaClient:
             if not isinstance(item, dict):
                 return None, None, "item_shape"
             items.append(item)
+        if body_only and len(items) >= _VIEW_ITEMS_PER_PAGE:
+            return None, None, "pagination_evidence"
         return tuple(items), next_cursor, None
 
     def _verify_saved_view_behavior(
