@@ -1,0 +1,28 @@
+{
+  "schema_version": 4,
+  "change_id": "168-work-management-authority-currentness",
+  "status": "active",
+  "branch": "change/168-work-management-authority-currentness",
+  "worktree": ".work/worktrees/168-work-management-authority-currentness",
+  "base": "main",
+  "outcome": "Reconcile the Work Management programme authority with completed change 166 and current live commissioning evidence without changing runtime behavior.",
+  "owned_paths": [
+    ".work/programmes/work-management/target-spec.md",
+    ".work/changes/168-work-management-authority-currentness/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "0996956503a998d0948070fac7faac148fbcc70c",
+    "local_tree": "7c6ecdb5cea193e0cd3d0cd8b83b393bdcbd3258",
+    "upstream_sha": "0996956503a998d0948070fac7faac148fbcc70c",
+    "upstream_tree": "7c6ecdb5cea193e0cd3d0cd8b83b393bdcbd3258",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  }
+}
