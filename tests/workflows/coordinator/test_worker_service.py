@@ -719,5 +719,7 @@ def test_worker_execution_rejects_schema_invalid_direct_construction() -> None:
         WorkerExecution(**{**base, "state": WorkerExecutionState.COMPLETED})
     with pytest.raises(ValueError, match="residual_state"):
         WorkerExecution(**{**base, "state": WorkerExecutionState.FAILED})
+    with pytest.raises(ValueError, match="residual_state"):
+        WorkerExecution(**{**base, "residual_state": "abc"})  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="last_event"):
         WorkerExecution(**{**base, "last_event_digest": None})

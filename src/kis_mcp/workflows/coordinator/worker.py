@@ -169,6 +169,10 @@ class WorkerExecution:
         for label, value in (("progress_id", self.progress_id), ("result_id", self.result_id)):
             if value is not None:
                 _require_non_empty(value, label)
+        if not isinstance(self.residual_state, Sequence) or isinstance(
+            self.residual_state, (str, bytes, bytearray)
+        ):
+            raise ValueError("residual_state must be an array of strings")
         residual = tuple(self.residual_state)
         _unique_strings(residual, "residual_state")
         object.__setattr__(self, "residual_state", residual)
