@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "170-workflow-import-cycle",
+  "status": "active",
+  "branch": "change/170-workflow-import-cycle",
+  "worktree": ".work/worktrees/170-workflow-import-cycle",
+  "base": "origin/main",
+  "outcome": "Eliminate the deterministic tools-first circular import in the workflow package while preserving the public workflow_descriptors export and existing runtime contracts.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/__init__.py",
+    "tests/workflows/test_import_order.py",
+    ".work/changes/170-workflow-import-cycle/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "f917101db714f0f158774659e00bbe8b6d0d4d3e",
+    "local_tree": "fb7a70e53fd15e5a515b2090cc72ab0d0f2657a1",
+    "upstream_sha": "f917101db714f0f158774659e00bbe8b6d0d4d3e",
+    "upstream_tree": "fb7a70e53fd15e5a515b2090cc72ab0d0f2657a1",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "registered_github_refresh",
+    "relation": "same_sha"
+  }
+}
