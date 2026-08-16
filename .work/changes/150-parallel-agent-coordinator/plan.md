@@ -1,54 +1,59 @@
-# Parallel Agent Coordinator Slice 4 Implementation Plan
+# Parallel Agent Coordinator Slice 5 Implementation Plan
 
-> Execute #250 inside the existing `150-parallel-agent-coordinator` worktree. Preserve #247-#249 and do not begin #251.
+> Execute #251 inside existing `150-parallel-agent-coordinator`. Consume #278 for new durable state placement; do not invent ownership/namespace semantics.
 
-**Goal:** Compile authoritative task inputs into deterministic parallel work, then issue bounded self-sufficient work packets with exact advisory runtime/capability identity while preserving Slice 3 as the sole mutation-authority source.
+**Goal:** Add deterministic worker lifecycle semantics and an ephemeral MCP worker adapter, then bind restart-safe persistence to #278 when its contract becomes available.
 
-**Architecture:** Add one internal planner module. `PlannerService` is read-only and validates task/dependency/path topology before emitting a canonical DAG, ready frontier, hotspots, and concurrency recommendation. `WorkPacketService` resolves exact runtime candidates, freezes Slice 3 authority into packets, issues an opaque assignment key, and persists only bounded packet/assignment evidence beneath the coordinator state root.
+**Architecture:** Keep three layers distinct. `WorkerExecution` models location-independent lifecycle and correlation facts. `McpWorkerAdapter` owns process-local connection/discovery/filter/invoke/reconnect behavior and requires injected authority/tool-policy checks. Durable storage is a separate adapter whose namespace must be supplied by #278; no path resolver is implemented in this slice before that dependency exists.
 
-**Development level:** Complex. #250 revises strict coordinator contracts and crosses planning, generated-state, capability-discovery, and mutation-authority boundaries. The operator assignment plus #241/#250 provide the approved product/architecture direction.
+**Development level:** Complex. #251 crosses public contracts, mutation-authority enforcement, MCP transport, retry/idempotence, and persistent-state recovery. The user assignment plus #241/#251/#278 establish the approved architecture and dependency boundary.
 
 ## Constraints
 
 - Stay inside parent coordinator-owned paths.
 - Preserve HR-001 / HR-002 / HR-003 exactly.
-- Preserve #248 reservation and #249 scope/lease/fence semantics unchanged.
-- Registry/catalog/runtime evidence is advisory and never grants mutation authority.
-- Do not add public MCP coordinator tools in this slice.
-- Do not implement #251 workers, #252 reconciliation/integration, or #253 telemetry/commissioning.
-- Do not push, open a PR, merge, clean up, or restart runtimes for this slice.
+- Preserve #248/#249 reservation, lease, revision, and fence semantics as the only mutation authority.
+- MCP/runtime discovery remains advisory and non-authorizing.
+- New durable state location/ownership MUST come from #278.
+- Do not implement #252 or #253 behavior.
+- Do not push, open/merge a PR, clean up, or restart runtimes unless separately assigned.
 
-### Task 1: Slice 4 RED tests and contract refinement
+### Task 1: Slice 5 contracts and RED tests
 
-**Requirements:** REQ-250-01 through REQ-250-10.
+**Requirements:** REQ-251-01 through REQ-251-10.
 
-- [x] Add RED tests for deterministic DAG production, cycles/endpoints, ownership/hotspot validation, runtime resolution, packet completeness, stable packet identity, and assignment-key storage.
-- [x] Refine `dependency-dag`, `runtime-binding`, and `work-packet` v1 schemas for Slice 4-owned behavior while preserving strict closed contracts.
+- [ ] Add RED tests for lifecycle transitions, idempotent duplicate/stale events, correlation IDs, tool filtering, authority re-check, reconnect non-authority, and structured result facts.
+- [ ] Add/revise strict coordinator schemas needed for Slice 5 execution and handoff correlation.
+- [ ] Lock the #278 dependency with a test/contract boundary that forbids an implicit local persistence root.
 
-### Task 2: Deterministic planner
+### Task 2: Location-independent execution lifecycle
 
-**Requirements:** REQ-250-01 through REQ-250-04, REQ-250-09.
+**Requirements:** REQ-251-01 through REQ-251-03, REQ-251-07.
 
-- [x] Add validated planner task/request models with deterministic normalized inputs.
-- [x] Validate dependency endpoints, self-dependencies, dependency cycles, combined execution cycles, exclusive overlaps, and shared-hotspot ownership.
-- [x] Emit canonical nodes/edges, ready frontier, hotspot evidence, and deterministic recommended concurrency.
+- [ ] Implement immutable execution identity/record models and deterministic legal transition rules.
+- [ ] Make exact duplicate events idempotent and conflicting/stale attempts typed failures.
+- [ ] Produce structured completion/failure/cancellation facts without consuming assignment keys or reconciling handoffs.
 
-### Task 3: Runtime binding and work-packet issuance
+### Task 3: Ephemeral MCP worker adapter
 
-**Requirements:** REQ-250-05 through REQ-250-08.
+**Requirements:** REQ-251-04 through REQ-251-07, REQ-251-09.
 
-- [x] Resolve exact worker/runtime/tool/protocol/interface/endpoint/binding evidence from injected discovery candidates.
-- [x] Reject candidates that do not satisfy required capabilities or that claim mutation authority.
-- [x] Compute and validate immutable runtime-binding fingerprints.
-- [x] Issue schema-valid work packets with frozen Slice 3 authority and required handoff fields.
-- [x] Derive reassignment-stable packet IDs, issue generation-1 opaque assignment keys, and persist only assignment-key digests.
+- [ ] Implement injected async MCP transport lifecycle: connect, discover, filter, invoke, progress/result normalization, cleanup, reconnect.
+- [ ] Enforce filtered tool names at both discovery and invocation boundaries.
+- [ ] Re-check current Slice 3 authority before mutating invocation; transport reconnect alone never calls an authority mutation.
 
-### Task 4: Documentation, review, verification, and handoff
+### Task 4: #278 persistence integration
 
-**Requirements:** REQ-250-01 through REQ-250-10.
+**Requirements:** REQ-251-08, REQ-251-09.
 
-- [x] Update the coordinator module product spec with cumulative Slice 4 implementation status and strict #251+ boundaries.
-- [x] Run focused Slice 4 tests plus the full coordinator regression suite and impact-selected affected tests.
-- [x] Run Python compilation, Ruff lint, `git diff --check`, and governed scope check on the final implementation diff.
-- [x] Perform required `code-quality`, `architecture`, and `api-contracts` reviews and resolve blocking findings; retain automated reviewer timeouts as non-pass evidence and use exact-diff fallback.
-- [x] Commit Slice 4 implementation on the existing parent branch and record exact handoff evidence. Leave the parent governed change active for #251.
+- [ ] Re-read #278 implementation once available and consume its exact ownership enum/resolver API.
+- [ ] Implement durable execution journal/store only beneath the #278-resolved durable-evidence namespace.
+- [ ] Add restart/recovery and idempotent resume/retry tests proving completed mutation work is not duplicated.
+- [ ] STOP at this task while #278 is unavailable; do not substitute the prior caller-supplied `state_root` convention.
+
+### Task 5: Documentation, review, verification, and handoff
+
+- [ ] Update the coordinator product spec with only actually implemented Slice 5 behavior and explicit residual dependency.
+- [ ] Run focused Slice 5 tests, full coordinator regression tests, compilation, Ruff, scope check, and `git diff --check`.
+- [ ] Run required code-quality, architecture, API-contract, and persistence/recovery review gates on the current diff.
+- [ ] Commit only verified #251 work. Keep #251 open if Task 4 remains dependency-blocked.

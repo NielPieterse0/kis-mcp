@@ -1,40 +1,37 @@
-# Tasks: Parallel Agent Coordinator — Slice 4 (#250)
+# Tasks: Parallel Agent Coordinator — Slice 5 (#251)
 
 ## Prerequisites
 
 - [x] #247 architecture/contracts completed and preserved.
 - [x] #248 atomic reservation admission completed and preserved.
 - [x] #249 scope-revision/lease/fence authority lifecycle completed and preserved.
-- [x] Slice 4 started from parent handoff `aa369eb` on verified `main` `7d4391873b17064fcb1ce32c1dc3915a4b6a0cf4`.
-- [x] Repository authority and #241/#250 re-read; canonical `develop-code`, `develop-docs`, and review procedures loaded.
+- [x] #250 deterministic planning/runtime binding/work packets completed and preserved.
+- [x] Parent branch reconciled onto verified `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` via merge `93b341e`.
+- [x] #241/#251 re-read; canonical `develop-code`, `develop-docs`, and `mcp-development` procedures loaded.
+- [x] #278 re-read and confirmed open; no local ownership/namespace implementation is currently available.
 - [x] Strict `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253` sequencing preserved.
 
-## Slice 4 implementation
+## Slice 5 implementation
 
-- [x] Add test-first deterministic DAG planning with dependency endpoint/cycle validation.
-- [x] Reject unresolved exclusive ownership and ambiguous shared-hotspot integration ownership.
-- [x] Derive ready frontier from the complete dependency + integration DAG and reject combined execution cycles.
-- [x] Emit explicit integration hotspots and bounded deterministic concurrency recommendations.
-- [x] Keep planning read-only and independent of mutation authority.
-- [x] Resolve exact advisory worker/runtime/tool/protocol/interface/endpoint/binding evidence from injected capability discovery.
-- [x] Structurally prohibit runtime discovery from granting mutation authority.
-- [x] Issue self-sufficient work packets with frozen reservation/revision/lease/fence authority, exact base, scope, acceptance, verification, runtime-binding reference, and handoff requirements.
-- [x] Keep packet IDs stable across lease/fence/runtime reassignment evidence while issuing one generation-1 opaque assignment key.
-- [x] Persist only the assignment-key SHA-256 digest plus bounded packet evidence; plaintext assignment keys are not durable state.
-- [x] Keep Slice 4 internal; no worker lifecycle, reconciliation, integration, telemetry, public MCP tool, PR, or landing behavior added.
+- [x] Add strict worker-execution lifecycle/correlation contract.
+- [x] Add deterministic location-independent worker execution transition model.
+- [x] Add idempotent duplicate/stale event handling.
+- [x] Add ephemeral MCP connect/discover/filter/invoke/cleanup/reconnect adapter.
+- [x] Enforce current reservation authority before filtered exposure and immediately before mutating invocation.
+- [x] Extend worker-handoff correlation without implementing #252 reconciliation.
+- [ ] Consume #278 durable-evidence namespace resolver for persistent execution journal/store. **Blocked: #278 resolver not implemented yet.**
+- [ ] Add restart/recovery and resume/retry behavior after #278 contract is available. **Blocked by #278.**
 
-## Slice 4 gates
+## Slice 5 gates
 
-- [x] Final affected regression set passes: 104/104 across change-governance, full coordinator, and impact-selected planner/model/schema tests.
-- [x] `dependency-dag`, `runtime-binding`, and `work-packet` emitted values validate against their revised strict v1 schemas.
-- [x] Required packet handoff fields exactly match the existing `worker-handoff` required contract minus schema metadata; that #251-owned schema was not modified.
-- [x] Ruff lint, Python compilation, governed scope check, and `git diff --check` pass on the final implementation diff.
-- [x] Required code-quality, architecture, and API-contract reviews have zero blocking findings after fixes and exact-diff fallback adjudication.
-- [x] Slice 4 implementation commit `913de89466e8b0da5de5a7cf2b55a7b46198a520` recorded; parent change remains active and #251 is not started.
+- [x] Focused Slice 5 tests pass.
+- [x] Full coordinator regression suite passes (**65/65** after final adapter tightening).
+- [x] Strict coordinator schemas validate emitted Slice 5 values.
+- [x] Ruff, Python compilation, governed scope check, and `git diff --check` pass.
+- [ ] Required code-quality, architecture, API-contract, and persistence/recovery reviews have zero blocking findings for implemented scope. **Working-tree review failed closed on KIS source fingerprint evidence; rerun against immutable checkpoint commit.**
 
-## Explicitly deferred
+## Explicit stop/dependency
 
-- Refresh/reconcile the parent branch onto current `main` before any eventual PR/landing; `main` advanced to `7bd2080ab961661ba889aa60682eaa0f2406cf7d` after change 154 landed.
-- #251 durable worker execution, retry/resume, assignment-key lifecycle beyond initial issuance, and MCP worker adapter behavior.
-- #252 handoff/assignment-key reconciliation, verification derivation, serialized integration, and landing.
-- #253 observability, evaluation, operator UX, Control Center integration, and commissioning.
+- #278 owns typed state ownership and deterministic namespace resolution.
+- Do not create a new #251 persistence root or duplicate #278 ownership classes while that contract is unavailable.
+- If location-independent lifecycle/MCP work is complete first, stop with #251 open at the persistence/restart dependency rather than crossing lanes.

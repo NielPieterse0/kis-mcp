@@ -25,18 +25,23 @@ Clock = Callable[[], datetime]
 _REQUIRED_HANDOFF_FIELDS = tuple(
     sorted(
         (
+            "assignment_generation",
+            "attempt_id",
             "authority_revision",
             "changed_paths",
             "evidence",
             "exact_head",
+            "execution_id",
             "fence_token",
             "handoff_id",
             "observed_at",
             "packet_id",
             "reservation_id",
             "residual_state",
+            "result_id",
             "runtime_binding",
             "status",
+            "task_id",
             "worker_id",
         )
     )
@@ -144,6 +149,7 @@ class WorkPacketService:
             "slice_id": request.slice_id,
             "task_id": task.task_id,
             "outcome": task.outcome,
+            "required_capabilities": sorted(task.required_capabilities),
             "scope": {
                 "owned_paths": sorted(task.owned_paths),
                 "shared_paths": sorted(task.shared_paths),
@@ -180,7 +186,9 @@ class WorkPacketService:
             "project_id": request.project_id,
             "change_id": request.change_id,
             "slice_id": request.slice_id,
+            "task_id": task.task_id,
             "outcome": task.outcome,
+            "required_capabilities": stable_identity["required_capabilities"],
             "scope": stable_identity["scope"],
             "dependencies": stable_identity["dependencies"],
             "acceptance_checks": stable_identity["acceptance_checks"],

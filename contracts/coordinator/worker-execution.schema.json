@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/worker-execution.schema.json",
+  "title": "Coordinator Worker Execution",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "identity", "state", "sequence", "observed_at",
+    "progress_id", "result_id", "residual_state", "last_event"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-worker-execution-v1"},
+    "identity": {"$ref": "#/$defs/identity"},
+    "state": {"enum": ["pending", "running", "waiting_input", "completed", "failed", "cancelled", "recoverable"]},
+    "sequence": {"type": "integer", "minimum": 0},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "progress_id": {"type": ["string", "null"], "minLength": 1},
+    "result_id": {"type": ["string", "null"], "minLength": 1},
+    "residual_state": {"$ref": "#/$defs/strings"},
+    "last_event": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/eventRef"}]}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "strings": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/nonEmpty"}},
+    "runtimeBindingReference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["binding_id", "binding_fingerprint"],
+      "properties": {
+        "binding_id": {"$ref": "#/$defs/nonEmpty"},
+        "binding_fingerprint": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "execution_id", "packet_id", "task_id", "assignment_generation", "reservation_id",
+        "authority_revision", "lease_id", "fence_token", "worker_id", "runtime_binding", "attempt_id"
+      ],
+      "properties": {
+        "execution_id": {"$ref": "#/$defs/nonEmpty"},
+        "packet_id": {"$ref": "#/$defs/nonEmpty"},
+        "task_id": {"$ref": "#/$defs/nonEmpty"},
+        "assignment_generation": {"type": "integer", "minimum": 1},
+        "reservation_id": {"$ref": "#/$defs/nonEmpty"},
+        "authority_revision": {"type": "integer", "minimum": 1},
+        "lease_id": {"$ref": "#/$defs/nonEmpty"},
+        "fence_token": {"type": "integer", "minimum": 1},
+        "worker_id": {"$ref": "#/$defs/nonEmpty"},
+        "runtime_binding": {"$ref": "#/$defs/runtimeBindingReference"},
+        "attempt_id": {"$ref": "#/$defs/nonEmpty"}
+      }
+    },
+    "eventRef": {
+      "type": "object", "additionalProperties": false,
+      "required": ["event_id", "digest"],
+      "properties": {
+        "event_id": {"$ref": "#/$defs/nonEmpty"},
+        "digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "completed"}}},
+      "then": {"properties": {"result_id": {"type": "string", "minLength": 1}}}
+    },
+    {
+      "if": {"properties": {"state": {"enum": ["failed", "cancelled", "recoverable"]}}},
+      "then": {"properties": {"residual_state": {"minItems": 1}}}
+    }
+  ]
+}

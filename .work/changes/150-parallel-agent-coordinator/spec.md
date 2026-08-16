@@ -1,58 +1,57 @@
 # Change Specification: Parallel Agent Coordinator
 
 - **Change ID**: `150-parallel-agent-coordinator`
-- **Status**: Slice 4 (#250) complete — parent change remains active
+- **Status**: Slice 5 (#251) active — #278 persistence dependency unresolved
 - **Complexity**: `large`
-- **Risk triggers**: `architecture_boundary`, `public_contract`
+- **Risk triggers**: `architecture_boundary`, `public_contract`, `persistent_state`
 
 ## Outcome
 
-Build the KIS-native coordinator as one governed #241 change. Slices #247-#249 established contracts, atomic reservation admission, and revision-safe mutation authority. Slice 4 (#250) adds deterministic read-only planning, bounded work-packet issuance, opaque assignment-key evidence, and exact runtime/capability binding without entering worker execution.
+Build the KIS-native coordinator as one governed #241 change. Slices #247-#250 established contracts, reservation/fencing authority, deterministic planning, runtime binding, and bounded work packets. Slice 5 adds durable-execution semantics and an MCP worker adapter, but new persistence MUST consume #278 state ownership/namespace authority rather than inventing a coordinator-local location scheme.
 
 ## Authority and scope
 
-- Authoritative sources: `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, #241, and #250.
+- Authoritative sources: `AGENTS.md`, `docs/TRUST-MODEL.md`, `SPEC.md`, `docs/PLATFORM-CONCEPT.md`, #241, #251, and #278.
 - Owned implementation paths remain the parent coordinator contracts/runtime/tests/module spec/change record.
-- Governed scope and Slice 3 reservation/lease/fence state remain mutation authority.
-- Registry/catalog discovery is advisory evidence only and MUST NOT create or refresh authority.
+- Slice 3 reservation/lease/fence state remains the sole mutation-authority plane.
+- Runtime/MCP discovery and connectivity remain ephemeral advisory execution state.
 - Slice sequencing remains strict: `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253`.
+- #278 owns durable state class identity and namespace resolution. #251 consumes that contract when available; it MUST NOT duplicate it.
 
-## Slice 4 requirements
+## Slice 5 requirements
 
-- **REQ-250-01**: Planner output MUST be deterministic for the same authoritative task, scope, dependency, and base inputs; planning MUST NOT require mutation authority.
-- **REQ-250-02**: Planning MUST validate dependency endpoints and cycles before producing a dependency DAG.
-- **REQ-250-03**: Planning MUST reject unresolved exclusive ownership and shared hotspots without exactly one integration owner.
-- **REQ-250-04**: Planner output MUST expose the ready frontier, integration hotspots, sequencing edges, and bounded recommended concurrency.
-- **REQ-250-05**: Work packets MUST freeze outcome, scope, dependencies, acceptance checks, exact base, reservation/revision/lease/fence identity, runtime binding, verification requirement IDs, and required handoff fields.
-- **REQ-250-06**: Initial packet issuance MUST create a stable packet identity plus one opaque assignment key and persist only the key digest as durable authority evidence.
-- **REQ-250-07**: Runtime/capability resolution MUST deterministically select an exact worker/runtime/tool/protocol/interface/endpoint/binding identity that satisfies required capabilities.
-- **REQ-250-08**: Runtime binding evidence MUST state `grants_mutation_authority=false`; discovery candidates cannot bypass reservation authority.
-- **REQ-250-09**: Canonical shared files SHOULD be represented as explicit integration hotspots rather than ambiguous concurrent exclusive ownership.
-- **REQ-250-10**: Slice 4 remains internal. It MUST NOT implement #251 worker lifecycle/execution, #252 reconciliation/integration, or #253 observability/commissioning.
+- **REQ-251-01**: Worker lifecycle MUST model `pending`, `running`, `waiting_input`, `completed`, `failed`, `cancelled`, and `recoverable` states with deterministic transitions.
+- **REQ-251-02**: Execution identity MUST correlate packet, assignment generation, reservation revision/fence, runtime binding, attempt, progress, and result identifiers without treating transport/session IDs as authority.
+- **REQ-251-03**: Duplicate/stale lifecycle events MUST be idempotent when byte-equivalent or rejected deterministically when they conflict.
+- **REQ-251-04**: MCP connection, discovery, reconnect, and cleanup MUST be ephemeral and MUST NOT create, refresh, transfer, or recover mutation authority.
+- **REQ-251-05**: Tool exposure and invocation MUST be filtered before model execution against the bounded work packet/capability policy and re-check active reservation authority before mutating execution.
+- **REQ-251-06**: MCP adapter behavior MUST cover connect/discover/filter/invoke/progress/result/cleanup/reconnect through injected transport interfaces, with bounded normalized results.
+- **REQ-251-07**: Worker result/handoff MUST correlate to the exact execution, reservation revision/fence, runtime-binding fingerprint, exact head, changed paths, evidence, and deterministic residual state.
+- **REQ-251-08**: Restart/recovery persistence MUST store only durable execution facts and MUST use #278's typed durable-evidence ownership class and deterministic namespace resolver.
+- **REQ-251-09**: Recreated runtime/MCP connections after restoration MUST re-establish transport only; mutation execution requires the same current Slice 3 authority assertion.
+- **REQ-251-10**: Slice 5 MUST NOT implement #252 handoff reconciliation/key consumption/integration or #253 observability/commissioning.
 
 ## Acceptance
 
-1. Repeating a plan with identical inputs produces byte-equivalent canonical DAG data.
-2. Cycles, missing dependency endpoints, duplicate task IDs, and unresolved path ownership are rejected deterministically.
-3. Independent ready leaves are visible together; hotspot overlap reduces recommended concurrency.
-4. Every shared hotspot records one integration owner and all participating tasks.
-5. Issued packets validate against the work-packet schema and contain all execution/handoff facts needed without chat context.
-6. Packet IDs are stable for the same frozen work identity; assignment keys are opaque and durable state retains only their digest.
-7. Runtime bindings validate against the runtime-binding schema and freeze exact worker/runtime/tool/protocol/interface/endpoint/binding evidence.
-8. A discovery candidate that claims mutation authority is rejected; reservation/lease/fence authority remains unchanged.
-9. Existing #247-#249 coordinator tests remain green.
-10. No worker execution, reconciliation, integration, telemetry, public coordinator MCP surface, or landing behavior is added.
+1. Lifecycle state and transition contracts reject invalid/stale transitions deterministically and accept exact duplicate observations idempotently.
+2. Execution records contain stable packet/reservation/runtime correlation and explicit attempt/progress/result identifiers without making session identity authoritative.
+3. MCP tool discovery is filtered before execution; a tool not admitted by the packet/capability policy cannot be invoked through the adapter.
+4. Runtime reconnect/list-tools operations cannot grant mutation authority and do not mutate durable execution state by themselves.
+5. A mutating invocation re-checks current reservation/revision/lease/fence authority immediately before dispatch.
+6. Completed/failed/cancelled outcomes produce deterministic structured result/handoff facts suitable for #252 without claiming reconciliation.
+7. Persistence/restart tests use the #278 resolver contract rather than a caller-invented path root. Until that contract exists, persistence implementation and restart acceptance remain blocked rather than approximated.
+8. Existing #247-#250 coordinator tests remain green.
 
 ## Risks and recovery
 
-- Planning and runtime selection remain pure/read-only over supplied authoritative evidence; only packet issuance writes bounded generated coordinator state.
-- Packet durable state stores assignment-key hashes, not plaintext keys. A lost plaintext key requires later reassignment rather than recovery from storage.
-- Stable packet identity is derived from logical work, exact base, scope, acceptance, and verification inputs; lease/fence/runtime changes do not rename the packet, and assignment generation remains separate.
-- Runtime discovery freshness is caller-supplied evidence. The resolver validates exact identity and capabilities but does not infer authority from connectivity.
+- Existing Slice 2-4 generated-state locations are historical implementation facts and are not precedent for new #251 durable state placement after #277/#278 architecture approval.
+- Transport clients/sessions are process-local and reconstructible. Durable records may retain correlation identifiers but never live transport objects.
+- Mutation safety depends on Slice 3 authority checks, not MCP connectivity or discovered tool metadata.
+- #278 is a hard dependency only for the persistence/restart portion; location-independent contracts and ephemeral adapter behavior may proceed first.
 
 ## Out of scope
 
-- Durable worker lifecycle, retry/resume, MCP worker execution, or transport session ownership (#251).
-- Handoff reconciliation, assignment-key consumption, verification derivation, serialized integration, PR/merge, or cleanup automation (#252).
-- Coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or commissioning (#253).
-- Changes to HR-001, HR-002, HR-003, Work Management implementation, or repository change-governance scripts.
+- Implementing, modifying, or pre-empting #278 state ownership classes/namespace resolution.
+- #252 assignment-key consumption, handoff reconciliation, verification derivation, integration serialization, PR/merge, or cleanup automation.
+- #253 telemetry, Control Center projection, operator UX, effectiveness evaluation, or commissioning.
+- Work Management view commissioning, GitHub mutation receipt work, source-isolation work, or other active lanes.

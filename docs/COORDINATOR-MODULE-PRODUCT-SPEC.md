@@ -72,7 +72,7 @@ The authoritative coordinator lifecycle distinguishes these states:
 
 ## Executable contract ownership
 
-Slice 1 owns strict Draft 2020-12 schemas beneath `contracts/coordinator/`:
+Slice 1 introduced ten strict Draft 2020-12 schemas beneath `contracts/coordinator/`. Slice 5 adds the location-independent `worker-execution` contract through the same governed #241 change:
 
 | Contract | Purpose | Behavioral owner |
 |---|---|---|
@@ -82,8 +82,9 @@ Slice 1 owns strict Draft 2020-12 schemas beneath `contracts/coordinator/`:
 | `scope-revision` | Compare-and-swap inputs for explicit scope changes. | #249 |
 | `dependency-dag` | Candidate dependency graph and shared-hotspot ownership; Slice 1 cannot self-assert graph verification. | #250 validates endpoints/cycles and produces planner evidence. |
 | `runtime-binding` | Canonical exact runtime/tool/transport identity with mutation authority fixed false. | #250 produces/revises; #251 consumes its immutable reference. |
-| `work-packet` | Bounded worker assignment with frozen authority and immutable reference to the canonical runtime binding. | #250 |
-| `worker-handoff` | Exact worker output/evidence and residual state. | #251 |
+| `work-packet` | Bounded worker assignment with frozen authority, task/capability correlation, and immutable reference to the canonical runtime binding. | #250/#251 |
+| `worker-execution` | Location-independent worker lifecycle, authority/runtime correlation, idempotent event identity, and progress/result identifiers. | #251 |
+| `worker-handoff` | Exact worker output/evidence, execution/attempt/result correlation, and residual state. | #251 |
 | `verification-requirements` | Scope/risk-derived gate requirements without pass claims. | #252 |
 | `reconciliation-result` | Deterministic handoff validation and integration disposition. | #252 |
 
@@ -152,7 +153,7 @@ No implemented slice grants an exception to this dependency chain: the remaining
 
 Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
 
-## Cumulative implementation status through Slice 4
+## Cumulative implementation status through the Slice 5 dependency checkpoint
 
 Implemented by #247:
 
@@ -192,12 +193,25 @@ Implemented by #250 on the same parent branch:
 - stable packet identity plus generation-1 opaque assignment-key issuance, with only the SHA-256 key digest retained in durable coordinator evidence;
 - generated packet/runtime-binding state constrained to the configured coordinator state root inside the project boundary.
 
-Slices 2 through 4 expose no public MCP coordinator tool and do not treat tool discovery or transport connectivity as authority. Every coordinator instance for one repository must share the same canonical authority state root.
+Implemented by the current #251 checkpoint on the same parent branch:
+
+- a strict location-independent `worker-execution` contract covering packet/task/assignment/reservation/fence/runtime/attempt correlation, lifecycle state, progress/result IDs, residual state, and idempotent event identity;
+- deterministic worker transitions for `pending`, `running`, `waiting_input`, `completed`, `failed`, `cancelled`, and `recoverable`, including exact-duplicate idempotence and stale/conflicting event rejection;
+- worker-handoff correlation expanded with execution, attempt, task, assignment generation, and result identity without performing #252 reconciliation or assignment-key consumption;
+- work packets now retain `task_id` and `required_capabilities` so Slice 5 tool exposure can remain tied to the bounded planner task;
+- an internal ephemeral MCP worker adapter that validates the exact runtime-binding fingerprint and current reservation authority before tool exposure, filters discovered tools through injected packet policy, re-checks authority immediately before mutating calls, records progress/result correlation, and clears exposure on reconnect;
+- reconnect, discovery, and transport session state remain non-authorizing and are not persisted as ownership authority.
+
+Slices 2 through the current Slice 5 checkpoint expose no public MCP coordinator tool. Transport discovery/connectivity never grants authority.
+
+Blocked remainder of #251:
+
+- durable worker execution journal/store, restart restoration, idempotent persisted resume/retry, and assignment-key reassignment persistence must consume #278's typed `durable-evidence` ownership class and deterministic namespace resolver;
+- #278 is currently active as `163-state-ownership-namespace`, but its reusable resolver implementation is not yet available, so #251 deliberately does not create a substitute persistence root.
 
 Not yet implemented:
 
-- #251 durable worker process/session lifecycle, retry/resume, assignment-key reassignment semantics, and MCP worker execution;
 - #252 handoff/assignment-key reconciliation, verification derivation, integration queue, PR/merge, or cleanup coordination;
 - #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
 
-Any current-product claim for those remaining behaviors must wait for its owning later slice and fresh verification evidence.
+Any current-product claim for the blocked/remainder behaviors must wait for their owning dependency/slice and fresh verification evidence.

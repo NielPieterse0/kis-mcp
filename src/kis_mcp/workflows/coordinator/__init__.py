@@ -10,10 +10,21 @@ from .models import (
 )
 from .planner import PlannerService, WorkPacketService
 from .service import ReservationService
+from .worker import (
+    ExecutionEvent,
+    ExecutionIdentity,
+    McpWorkerAdapter,
+    WorkerExecution,
+    WorkerExecutionState,
+    WorkerLifecycle,
+)
 
 __all__ = [
     "AuthorityService",
+    "ExecutionEvent",
+    "ExecutionIdentity",
     "LocalGovernanceAdapter",
+    "McpWorkerAdapter",
     "PlannerRequest",
     "PlannerService",
     "PlannerTask",
@@ -22,5 +33,8 @@ __all__ = [
     "ReservationResult",
     "ReservationService",
     "ScopeRevisionRequest",
+    "WorkerExecution",
+    "WorkerExecutionState",
+    "WorkerLifecycle",
     "WorkPacketService",
 ]

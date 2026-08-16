@@ -6,8 +6,8 @@
   "additionalProperties": false,
   "required": [
     "schema_version", "contract", "packet_id", "work_id", "project_id",
-    "change_id", "slice_id", "outcome", "scope", "dependencies",
-    "acceptance_checks", "exact_base", "authority", "runtime_binding",
+    "change_id", "slice_id", "task_id", "outcome", "required_capabilities",
+    "scope", "dependencies", "acceptance_checks", "exact_base", "authority", "runtime_binding",
     "verification_requirement_ids", "required_handoff_fields", "assignment",
     "issued_at"
   ],
@@ -19,7 +19,9 @@
     "project_id": {"$ref": "#/$defs/nonEmpty"},
     "change_id": {"$ref": "#/$defs/nonEmpty"},
     "slice_id": {"$ref": "#/$defs/nonEmpty"},
+    "task_id": {"$ref": "#/$defs/nonEmpty"},
     "outcome": {"$ref": "#/$defs/nonEmpty"},
+    "required_capabilities": {"$ref": "#/$defs/strings"},
     "scope": {"$ref": "#/$defs/scope"},
     "dependencies": {"$ref": "#/$defs/strings"},
     "acceptance_checks": {"$ref": "#/$defs/nonEmptyStrings"},

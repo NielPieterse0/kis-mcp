@@ -18,6 +18,7 @@ EXPECTED_CONTRACTS = (
     "scope-revision",
     "verification-requirements",
     "work-packet",
+    "worker-execution",
     "worker-handoff",
 )
 
@@ -28,7 +29,7 @@ def _schema(name: str) -> dict[str, object]:
     )
 
 
-def test_contract_directory_exposes_exact_slice_one_contracts() -> None:
+def test_contract_directory_exposes_exact_current_contracts() -> None:
     names = tuple(sorted(path.stem.removesuffix(".schema") for path in CONTRACT_ROOT.glob("*.schema.json")))
     assert names == EXPECTED_CONTRACTS
 
@@ -45,7 +46,7 @@ def test_every_contract_is_strict_valid_draft_2020_12() -> None:
         assert schema["additionalProperties"] is False
 
 
-def test_slice_four_runtime_surface_stops_before_workers_and_reconciliation() -> None:
+def test_slice_five_runtime_surface_stops_before_reconciliation_and_telemetry() -> None:
     package = ROOT / "src" / "kis_mcp" / "workflows" / "coordinator"
     assert package.is_dir()
     assert {path.name for path in package.glob("*.py")} == {
@@ -55,6 +56,7 @@ def test_slice_four_runtime_surface_stops_before_workers_and_reconciliation() ->
         "models.py",
         "planner.py",
         "service.py",
+        "worker.py",
     }
-    for deferred in ("worker", "reconciliation", "telemetry"):
+    for deferred in ("reconciliation", "telemetry"):
         assert not (package / f"{deferred}.py").exists()

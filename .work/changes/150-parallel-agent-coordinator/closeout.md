@@ -1,65 +1,51 @@
-# Closeout: Parallel Agent Coordinator — Slice 4 (#250)
+# Closeout / Handoff: Parallel Agent Coordinator — Slice 5 dependency checkpoint
 
-## Starting evidence
+- **Change**: `150-parallel-agent-coordinator`
+- **Parent issue**: #241
+- **Current slice**: #251
+- **Status**: **PARTIAL / DEPENDENCY-BLOCKED — DO NOT CLOSE #251**
 
-- Existing parent branch: `change/150-parallel-agent-coordinator`.
-- Slice 4 started from Slice 3 handoff `aa369eb` on authoritative `main` `7d4391873b17064fcb1ce32c1dc3915a4b6a0cf4`.
-- #247, #248, and #249 implementation/handoff history was preserved unchanged.
-- Slice 4 implementation commit: `913de89466e8b0da5de5a7cf2b55a7b46198a520`.
-- During Slice 4, `main` advanced to `7bd2080ab961661ba889aa60682eaa0f2406cf7d` when change 154 landed; the parent branch is therefore `2 behind / 7 ahead` before this handoff record and must refresh before eventual PR/landing.
-- Parent governed change remains active; #251 is explicitly not started by this slice.
+## Checkpoint outcome
 
-## Implemented scope
+The parent coordinator branch was reconciled onto verified `main` `cf17056b2a10d7111be4e87f91cfbffc4645e925` with merge commit `93b341e` before Slice 5 implementation.
 
-- Added internal `PlannerService` with deterministic normalized task inputs and no mutation-authority requirement.
-- Added dependency endpoint/self/cycle checks plus combined dependency/integration execution-cycle rejection.
-- Added deterministic owned/shared path topology validation, exact shared-hotspot integration ownership, ready-frontier derivation, sequencing edges, and bounded concurrency recommendation.
-- Revised the strict `coordinator-dependency-dag-v1` contract for validated planner output, ready frontier, integration hotspots, and concurrency evidence.
-- Added exact advisory runtime/capability resolution through injected discovery candidates with worker/runtime/tool/protocol/interface/endpoint/binding/version/revision evidence and immutable binding fingerprints.
-- Revised `coordinator-runtime-binding-v1` so discovered bindings are structurally non-authorizing through `grants_mutation_authority=false`.
-- Added `WorkPacketService` initial issuance with exact base, frozen Slice 3 reservation/revision/lease/fence authority, scope, dependencies, acceptance checks, verification IDs, runtime-binding reference, and required handoff fields.
-- Kept work-packet IDs stable across lease/fence/runtime reassignment evidence while keeping assignment generation separate.
-- Issued one generation-1 opaque assignment key and persisted only its SHA-256 digest with bounded durable packet evidence; plaintext assignment keys are returned to the caller but not written to coordinator state.
-- Kept required handoff fields aligned to the existing `worker-handoff` schema without modifying that #251-owned contract.
-- Added no worker lifecycle/execution, handoff reconciliation, integration/landing, telemetry, public coordinator MCP tool, or commissioning behavior.
+The location-independent portion of #251 is implemented:
 
-## Verification evidence
+- strict `worker-execution` lifecycle/correlation contract;
+- deterministic worker transitions with stale/conflicting event rejection and exact-duplicate idempotence;
+- packet task/capability correlation required by bounded tool exposure;
+- worker-handoff execution/attempt/task/result correlation without #252 reconciliation;
+- ephemeral MCP adapter for connect/discover/filter/invoke/cleanup/reconnect;
+- exact runtime-binding validation plus active reservation assertion before filtered exposure;
+- immediate current authority re-check before mutating invocation;
+- reconnect clears prior exposure and never creates mutation authority.
 
-- TDD RED: the new Slice 4 planner tests initially failed during collection because `PlannerRequest`/planner runtime behavior did not yet exist.
-- Focused Slice 4 final tests: `9/9` passed.
-- Final affected regression set: `104/104` passed across `tests/test_change_governance.py`, the full `tests/workflows/coordinator` suite, and impact-selected `tests/discover/test_plan_change.py`, `tests/skills/test_models.py`, and `tests/work_management/test_schema_plan.py`.
-- One earlier broad run hit a transient `PermissionError` in unchanged Slice 3 `ReservationService._admission_lock`; the isolated regression immediately passed and the subsequent complete 104-test affected run passed. No #250 change was made to `service.py`.
-- Revised `dependency-dag`, `runtime-binding`, and `work-packet` schemas validate emitted Slice 4 values; all ten coordinator schemas remain strict Draft 2020-12 contracts.
-- Ruff lint: passed for coordinator source/tests.
-- Python compilation: passed with `C:\Projects\.kis-mcp\python-env\Scripts\python.exe`.
-- `git diff --check`: passed.
-- Governed `change-workflow.ps1 check`: passed for the cumulative parent change.
-- A direct full-repository `scripts/verify.ps1` attempt exceeded the tool execution window; no full-repository verification pass is claimed.
+No #251 durable-state location or ownership model was invented.
 
-## Review gate
+## Dependency stop
 
-Required by schema-v4 risk classification: `code-quality`, `architecture`, `api-contracts`.
+#278 owns the reusable typed state-ownership and namespace contract required for new coordinator durable execution state. Its active change is `163-state-ownership-namespace`, but at this checkpoint its task record still shows the resolver/module implementation outstanding.
 
-- The first automated code-quality review completed and found one medium-confidence determinism defect: frozen `PlannerRequest` objects still referenced caller-mutable mappings. Planner inputs now snapshot mutable base/sequence evidence; the regression is covered.
-- Subsequent automated code-quality re-review plus architecture and API-contract specialist calls timed out before usable final evidence. Those timeouts are retained as non-pass evidence rather than converted into passes.
-- Code-quality exact-diff fallback additionally hardened runtime candidate shape/capability validation and verified durable assignment state contains only the key digest. Final result: zero blocking findings.
-- Architecture exact-diff fallback found and fixed three cross-slice defects: planning incorrectly required mutation authority, packet identity incorrectly included volatile authority/runtime evidence, and integration edges did not constrain the ready frontier or combined-cycle check. Final result: zero blocking findings.
-- API-contract exact-diff fallback aligned the packet handoff requirements exactly with the existing `worker-handoff` required fields, preserved immutable runtime-binding references, and verified the three revised strict schemas against runtime outputs. No #251-owned worker-handoff schema change was made. Final result: zero blocking findings.
+Therefore these #251 acceptance items remain intentionally blocked:
 
-## Recovery and residual risk
+- durable worker execution journal/store beneath the #278 `durable-evidence` namespace;
+- restart restoration/reconciliation;
+- persisted idempotent resume/retry and duplicate-completed-mutation protection;
+- durable reassignment/attempt state that consumes the #278 namespace contract.
 
-- Planning and capability discovery remain advisory/read-only; neither can grant, renew, transfer, or recover mutation authority.
-- Packet issuance requires caller-supplied Slice 3 reservation/revision/lease/fence authority and freezes that evidence into the packet.
-- Packet ID is content-stable for the logical work/base/scope/acceptance/verification identity; lease, fence, runtime binding, assignment key, and issuance time do not rename it.
-- Only initial assignment-key generation is implemented. Key consumption, expiry/revocation/reassignment behavior belongs to later worker/reconciliation slices.
-- The earlier unchanged Windows admission-lock transient remains outside #250 scope; the final affected regression run passed without changing Slice 3 code.
-- The full repository verifier timeout remains an unclosed verification gap for this handoff; focused/affected verification is complete and green.
+Do not advance to #252 until #278 is available and the remainder of #251 is implemented and verified.
 
-## Integration boundary
+## Verification at checkpoint
 
-- Slice 4 is committed only on the existing parent branch.
-- No #251 worker process/session lifecycle, retry/resume, MCP worker execution, or assignment-key continuation was started.
-- No #252 reconciliation/integration/PR/merge/cleanup behavior and no #253 telemetry/commissioning behavior was started.
-- No push, pull request, merge, cleanup, or runtime restart is part of this Slice 4 handoff.
-- Current `main` includes landed change 154 at `7bd2080ab961661ba889aa60682eaa0f2406cf7d`; the parent branch must refresh/reconcile onto that or later authoritative `main` before any eventual PR/landing.
-- The parent governed change remains active for the next explicitly assigned slice; this lane stops here and does not start #251.
+- Focused Slice 5 + affected contract/planner set: **23/23 passed** before final adapter tightening.
+- Full coordinator suite after final tightening: **65/65 passed**.
+- Ruff on coordinator source/tests: **passed**.
+- Python `compileall` on coordinator package: **passed**.
+- `scripts/change-workflow.ps1 check`: **passed**, with only parent change-owned paths reported.
+- KIS working-tree inspector enumerated the 13 current Slice 5 files correctly but returned `CHANGE_SOURCE_FINGERPRINT_UNAVAILABLE`; working-tree specialist review therefore failed closed with `EvidenceError` rather than reviewing untrusted source identity.
+
+Final immutable-commit specialist reviews are required after the checkpoint commit. If they produce blocking findings, fix forward and re-verify the replacement exact commit.
+
+## Lane boundary
+
+No #270, #278 implementation, #252, #253, Work Management, stale PR #282, or unrelated repository work was modified in this lane.
