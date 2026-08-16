@@ -518,7 +518,12 @@ class WorkerExecutionStore:
         path = self._mutation_path(execution.identity.execution_id, result_id)
         if path.is_file():
             existing = _read_json_object(path, "WORKER_MUTATION_RECEIPT_INVALID")
-            self._validate_mutation_record(existing, fingerprint)
+            self._validate_mutation_record(
+                existing,
+                fingerprint,
+                execution_id=execution.identity.execution_id,
+                result_id=result_id,
+            )
             if existing.get("status") == "completed":
                 return existing
             raise ReservationAdmissionError(
@@ -534,7 +539,12 @@ class WorkerExecutionStore:
             _write_json_once(path, {**record, "status": "in_flight"})
         except FileExistsError:
             existing = _read_json_object(path, "WORKER_MUTATION_RECEIPT_INVALID")
-            self._validate_mutation_record(existing, fingerprint)
+            self._validate_mutation_record(
+                existing,
+                fingerprint,
+                execution_id=execution.identity.execution_id,
+                result_id=result_id,
+            )
             if existing.get("status") == "completed":
                 return existing
             raise ReservationAdmissionError(
@@ -562,7 +572,12 @@ class WorkerExecutionStore:
         )
         path = self._mutation_path(execution.identity.execution_id, result_id)
         existing = _read_json_object(path, "WORKER_MUTATION_RECEIPT_INVALID")
-        self._validate_mutation_record(existing, fingerprint)
+        self._validate_mutation_record(
+            existing,
+            fingerprint,
+            execution_id=execution.identity.execution_id,
+            result_id=result_id,
+        )
         if existing.get("status") == "completed":
             return existing
         completed = {**record, "status": "completed", "result": result}
@@ -607,11 +622,20 @@ class WorkerExecutionStore:
             **stable,
         }
 
-    def _validate_mutation_record(self, value: Mapping[str, Any], fingerprint: str) -> None:
+    def _validate_mutation_record(
+        self,
+        value: Mapping[str, Any],
+        fingerprint: str,
+        *,
+        execution_id: str,
+        result_id: str,
+    ) -> None:
         if (
             value.get("schema_version") != 1
             or value.get("contract") != "coordinator-worker-mutation-receipt-v1"
             or value.get("fingerprint") != fingerprint
+            or value.get("execution_id") != execution_id
+            or value.get("result_id") != result_id
             or value.get("status") not in {"in_flight", "completed"}
         ):
             raise ReservationAdmissionError(
@@ -625,6 +649,7 @@ class WorkerExecutionStore:
         lock_path = self._root / "locks" / f"{key}.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         with lock_path.open("a+b") as stream:
+            # Seed one lockable byte; serialization authority comes from the OS lock below.
             stream.seek(0, os.SEEK_END)
             if stream.tell() == 0:
                 stream.write(b"0")
@@ -984,7 +1009,10 @@ def _write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
     temporary = path.with_name(
         f"{path.name}.tmp-{os.getpid()}-{hashlib.sha256(os.urandom(16)).hexdigest()[:12]}"
     )
-    temporary.write_text(_canonical(dict(value)) + "\n", encoding="utf-8", newline="\n")
+    with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+        stream.write(_canonical(dict(value)) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
     os.replace(temporary, path)
 
 
@@ -1313,6 +1341,5 @@ __all__ = [
     "McpWorkerClient",
     "WorkerExecution",
     "WorkerExecutionState",
-    "WorkerExecutionStore",
     "WorkerLifecycle",
 ]

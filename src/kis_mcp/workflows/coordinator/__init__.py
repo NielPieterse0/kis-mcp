@@ -16,7 +16,6 @@ from .worker import (
     McpWorkerAdapter,
     WorkerExecution,
     WorkerExecutionState,
-    WorkerExecutionStore,
     WorkerLifecycle,
 )
 
@@ -36,7 +35,6 @@ __all__ = [
     "ScopeRevisionRequest",
     "WorkerExecution",
     "WorkerExecutionState",
-    "WorkerExecutionStore",
     "WorkerLifecycle",
     "WorkPacketService",
 ]

@@ -1,10 +1,12 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import asyncio
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
+from threading import Barrier
 from types import SimpleNamespace
 from typing import Any, Mapping, Sequence
 
@@ -19,9 +21,9 @@ from kis_mcp.workflows.coordinator import (
     ReservationAdmissionError,
     WorkerExecution,
     WorkerExecutionState,
-    WorkerExecutionStore,
     WorkerLifecycle,
 )
+from kis_mcp.workflows.coordinator.worker import WorkerExecutionStore
 
 
 ROOT = Path(__file__).parents[3]
@@ -933,3 +935,128 @@ def test_inflight_mutation_is_not_reexecuted_after_restart(tmp_path: Path) -> No
 
     asyncio.run(scenario())
     assert client.calls == []
+
+
+def test_execution_store_serializes_conflicting_same_sequence_updates(tmp_path: Path) -> None:
+    root = tmp_path / "resolved"
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    store.apply(
+        _identity(),
+        _event("race-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+    )
+    barrier = Barrier(2)
+
+    def transition(event: ExecutionEvent) -> WorkerExecution | str:
+        contender = WorkerExecutionStore(
+            project_id="kis-mcp",
+            change_id="150-parallel-agent-coordinator",
+            namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+        )
+        barrier.wait()
+        try:
+            return contender.apply(_identity(), event, initial_observed_at=NOW)
+        except ReservationAdmissionError as exc:
+            return exc.code
+
+    waiting = _event(
+        "race-waiting", WorkerExecutionState.WAITING_INPUT, expected_sequence=1
+    )
+    completed = _event(
+        "race-completed",
+        WorkerExecutionState.COMPLETED,
+        expected_sequence=1,
+        result_id="race-result",
+    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(transition, (waiting, completed)))
+
+    assert sum(isinstance(outcome, WorkerExecution) for outcome in outcomes) == 1
+    assert any(
+        outcome in {"STALE_WORKER_EVENT", "STALE_WORKER_EXECUTION"}
+        for outcome in outcomes
+        if isinstance(outcome, str)
+    )
+    restored = store.load(_identity().execution_id)
+    assert restored is not None
+    assert restored.sequence == 2
+
+
+def test_mutation_receipt_claim_is_single_winner_under_contention(tmp_path: Path) -> None:
+    root = tmp_path / "resolved"
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    running = store.apply(
+        _identity_for_packet(),
+        _event("claim-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+    )
+    barrier = Barrier(2)
+
+    def claim(_index: int) -> str:
+        contender = WorkerExecutionStore(
+            project_id="kis-mcp",
+            change_id="150-parallel-agent-coordinator",
+            namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+        )
+        barrier.wait()
+        try:
+            receipt = contender.begin_mutation(
+                running,
+                tool_name="write_file",
+                arguments={"path": "x", "content": "y"},
+                progress_id="claim-progress",
+                result_id="claim-result",
+            )
+        except ReservationAdmissionError as exc:
+            return exc.code
+        assert receipt is None
+        return "claimed"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(claim, (1, 2)))
+
+    assert sorted(outcomes) == ["WORKER_MUTATION_RECONCILIATION_REQUIRED", "claimed"]
+
+
+def test_mutation_receipt_rejects_tampered_execution_identity(tmp_path: Path) -> None:
+    root = tmp_path / "resolved"
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(root),  # type: ignore[arg-type]
+    )
+    running = store.apply(
+        _identity_for_packet(),
+        _event("tamper-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+    )
+    store.begin_mutation(
+        running,
+        tool_name="write_file",
+        arguments={"path": "x", "content": "y"},
+        progress_id="tamper-progress",
+        result_id="tamper-result",
+    )
+    receipt_path = next((root / "mutations").glob("*.json"))
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    payload["execution_id"] = "exec-other"
+    receipt_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(
+        ReservationAdmissionError, match="WORKER_MUTATION_RECEIPT_CONFLICT"
+    ):
+        store.begin_mutation(
+            running,
+            tool_name="write_file",
+            arguments={"path": "x", "content": "y"},
+            progress_id="tamper-progress",
+            result_id="tamper-result",
+        )
