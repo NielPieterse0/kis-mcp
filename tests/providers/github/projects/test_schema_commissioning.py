@@ -36,6 +36,7 @@ class QueueRunner:
             raise AssertionError(f"unexpected command: {args}")
         return self.results.pop(0)
 
+
 def _snapshot(
     *,
     priority_type: str = "TEXT",
@@ -198,8 +199,84 @@ def test_read_views_rejects_false_green_saved_filter_behavior() -> None:
     assert "fields=1001" in runner.calls[1][0]
 
 
-@pytest.mark.parametrize("stdout", ["", "[]", "HTTP/2 200 OK\r\n\r\n"])
-def test_read_views_marks_incomplete_saved_view_response_unverified(stdout: str) -> None:
+@pytest.mark.parametrize(
+    "items",
+    [
+        [],
+        _view_items(status="Ready"),
+        [
+            *_view_items(status="Ready"),
+            {"id": 18, "fields": _view_items(status="Ready")[0]["fields"]},
+        ],
+    ],
+)
+def test_read_views_accepts_complete_body_only_saved_view_response(
+    items: list[dict[str, object]],
+) -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=json.dumps(items)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is True
+    assert views[0].behavior_mismatches == ()
+
+
+def test_read_views_rejects_body_only_page_without_pagination_completeness() -> None:
+    items = [
+        {"id": item_id, "fields": _view_items(status="Ready")[0]["fields"]}
+        for item_id in range(100)
+    ]
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=json.dumps(items)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == ("unverified:pagination_evidence",)
+
+
+@pytest.mark.parametrize(
+    ("stdout", "reason"),
+    [
+        ("", "unverified:empty_response"),
+        ("{}", "unverified:malformed_http"),
+        ("[", "unverified:malformed_json"),
+        ("HTTP/2 200 OK\r\n\r\n", "unverified:empty_body"),
+    ],
+)
+def test_read_views_marks_incomplete_saved_view_response_unverified(
+    stdout: str,
+    reason: str,
+) -> None:
     runner = QueueRunner(
         (
             Result(
@@ -220,7 +297,183 @@ def test_read_views_marks_incomplete_saved_view_response_unverified(stdout: str)
     views = _client(runner).read_views(target, _manifest())
 
     assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == (reason,)
+
+
+@pytest.mark.parametrize(
+    ("raw_field", "reason"),
+    [
+        (
+            {"id": 1001, "name": "", "value": {"name": "Ready"}},
+            "unverified:field_name",
+        ),
+        (
+            {"id": 1001, "name": "Status", "value": {"name": 42}},
+            "unverified:single_select_name",
+        ),
+        (
+            {"id": 1001, "name": "Status", "value": {"name": {"raw": 42}}},
+            "unverified:single_select_name",
+        ),
+        (
+            {"id": 1001, "name": "Status", "value": {"name": {"html": "Ready"}}},
+            "unverified:single_select_name",
+        ),
+        (
+            {"id": 1001, "name": "Status", "value": ["Ready"]},
+            "unverified:single_select_value",
+        ),
+    ],
+)
+def test_read_views_marks_malformed_saved_view_field_unverified(
+    raw_field: dict[str, object],
+    reason: str,
+) -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items([{"id": 17, "fields": [raw_field]}])),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == (reason,)
+
+
+def test_read_views_ignores_well_formed_unrelated_saved_view_fields() -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    fields = [
+        {"id": 2001, "name": "Unrelated", "value": "extra"},
+        {"id": 1001, "name": "Status", "value": {"name": "Ready"}},
+    ]
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items([{"id": 17, "fields": fields}])),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is True
     assert views[0].behavior_mismatches == ()
+
+
+def test_read_views_accepts_rest_single_select_raw_name_shape() -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    fields = [
+        {
+            "id": 1001,
+            "name": "Status",
+            "value": {"name": {"html": "Ready", "raw": "Ready"}},
+        }
+    ]
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items([{"id": 17, "fields": fields}])),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is True
+    assert views[0].behavior_mismatches == ()
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        [
+            {"id": 1001, "name": "Status", "value": None},
+            {"id": 1001, "name": "Status", "value": {"name": "Ready"}},
+        ],
+        [
+            {"id": 1001, "name": "Status", "value": {"name": "Ready"}},
+            {"id": 1001, "name": "Status", "value": None},
+        ],
+    ],
+)
+def test_read_views_marks_duplicate_saved_view_fields_unverified(
+    fields: list[dict[str, object]],
+) -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=_included_view_items([{"id": 17, "fields": fields}])),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is None
+    assert views[0].behavior_mismatches == ("unverified:duplicate_required_field",)
+
+
+def test_commission_does_not_repair_unverified_saved_view_field_evidence() -> None:
+    ready_view = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="status:Ready",
+        visible_fields=("Status", "Priority"),
+    )
+    malformed_items = _included_view_items(
+        [
+            {
+                "id": 17,
+                "fields": [
+                    {"id": 1001, "name": "Status", "value": {"name": 42}}
+                ],
+            }
+        ]
+    )
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=json.dumps(ready_view)),
+            Result(stdout=malformed_items),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"canonical schema remained incomplete: 01 Inbox\[unverified:single_select_name\]",
+    ):
+        _client(runner).commission(target, _manifest())
+
+    assert not any(
+        call[0][-1].startswith("query=") and "updateProjectV2View" in call[0][-1]
+        for call in runner.calls
+    )
 
 
 def test_read_views_marks_saved_view_api_failure_unverified() -> None:
@@ -244,7 +497,7 @@ def test_read_views_marks_saved_view_api_failure_unverified() -> None:
     views = _client(runner).read_views(target, _manifest())
 
     assert views[0].behavior_verified is None
-    assert views[0].behavior_mismatches == ()
+    assert views[0].behavior_mismatches == ("unverified:api_error",)
 
 
 def test_read_views_ignores_noncanonical_filtered_views() -> None:
@@ -281,7 +534,7 @@ def test_read_views_ignores_noncanonical_filtered_views() -> None:
     assert "/views/2/items" not in str(runner.calls)
 
 
-def test_read_views_marks_more_than_one_page_unverified() -> None:
+def test_read_views_follows_bounded_saved_view_pagination() -> None:
     runner = QueueRunner(
         (
             Result(
@@ -294,7 +547,36 @@ def test_read_views_marks_more_than_one_page_unverified() -> None:
                     )
                 )
             ),
-            Result(stdout=_included_view_items(has_next=True)),
+            Result(stdout=_included_view_items(_view_items(status="Ready"), has_next=True)),
+            Result(stdout=_included_view_items(_view_items(status="Ready"))),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    views = _client(runner).read_views(target, _manifest())
+
+    assert views[0].behavior_verified is True
+    assert views[0].behavior_mismatches == ()
+    assert "--paginate" not in runner.calls[1][0]
+    assert "--include" in runner.calls[1][0]
+    assert "after=cursor" in runner.calls[2][0]
+
+
+def test_read_views_marks_cyclic_saved_view_pagination_unverified() -> None:
+    runner = QueueRunner(
+        (
+            Result(
+                stdout=json.dumps(
+                    _snapshot(
+                        include_ready=True,
+                        include_view=True,
+                        view_filter="status:Ready",
+                        visible_fields=("Status", "Priority"),
+                    )
+                )
+            ),
+            Result(stdout=_included_view_items(_view_items(status="Ready"), has_next=True)),
+            Result(stdout=_included_view_items(_view_items(status="Ready"), has_next=True)),
         )
     )
     target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
@@ -302,8 +584,7 @@ def test_read_views_marks_more_than_one_page_unverified() -> None:
     views = _client(runner).read_views(target, _manifest())
 
     assert views[0].behavior_verified is None
-    assert "--paginate" not in runner.calls[1][0]
-    assert "--include" in runner.calls[1][0]
+    assert views[0].behavior_mismatches == ("unverified:pagination_cycle",)
 
 
 def test_commission_preserves_existing_option_ids_and_verifies_final_state() -> None:

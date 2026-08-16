@@ -1,0 +1,28 @@
+{
+  "schema_version": 4,
+  "change_id": "170-development-history-boundary",
+  "status": "active",
+  "branch": "change/170-development-history-boundary",
+  "worktree": ".work/worktrees/170-development-history-boundary",
+  "base": "origin/main",
+  "outcome": "Make docs/development explicitly historical/search-only through one archive index without moving or rewriting retained evidence.",
+  "owned_paths": [
+    "docs/development/README.md",
+    ".work/changes/170-development-history-boundary/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "3179cd3a7d42bb1d03384b858f8572a120e5bb02",
+    "local_tree": "a34e0891df3af716e48b6f962d25344911346ff6",
+    "upstream_sha": "3179cd3a7d42bb1d03384b858f8572a120e5bb02",
+    "upstream_tree": "a34e0891df3af716e48b6f962d25344911346ff6",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "registered_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

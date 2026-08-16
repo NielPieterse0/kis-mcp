@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "159-work-management-authority-reconcile",
+  "status": "active",
+  "branch": "change/159-work-management-authority-reconcile",
+  "worktree": ".work/worktrees/159-work-management-authority-reconcile",
+  "base": "main",
+  "outcome": "Reconcile Work Management root authority, programme state, and change-166 closeout evidence to the final corrected 25-field / 12-view live commissioning contract.",
+  "owned_paths": [
+    "SPEC.md",
+    ".work/programmes/work-management/programme.json",
+    ".work/programmes/work-management/roadmap.md",
+    ".work/changes/166-work-management-view-filter-invariant/closeout.md",
+    ".work/changes/166-work-management-view-filter-invariant/tasks.md",
+    ".work/changes/159-work-management-authority-reconcile/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [
+    "166-work-management-view-filter-invariant"
+  ],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "1e51544b4d4e43ad90f890bfbb622f18c45519c7",
+    "local_tree": "cad6b2192f074402762c23e6f874fd88f56630d9",
+    "upstream_sha": "1e51544b4d4e43ad90f890bfbb622f18c45519c7",
+    "upstream_tree": "cad6b2192f074402762c23e6f874fd88f56630d9",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-270",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 270,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}

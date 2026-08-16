@@ -17,6 +17,7 @@ class ShellState:
     shell: str = "generic"
     directory_stack: tuple[str, ...] = ()
     terminated: bool = False
+    cmd_delayed_expansion: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +106,7 @@ def resolve_shell_segments(command: str, state: ShellState) -> tuple[tuple[Shell
                 shell=current.shell,
                 directory_stack=current.directory_stack,
                 terminated=True,
+                cmd_delayed_expansion=current.cmd_delayed_expansion,
             )
             continue
         resolved.append(ShellSegment(text=text, cwd=current.cwd, shell=current.shell))
@@ -154,6 +156,7 @@ def _directory_transition(text: str, state: ShellState) -> ShellState | None:
             cwd=target or state.cwd,
             shell=state.shell,
             directory_stack=state.directory_stack,
+            cmd_delayed_expansion=state.cmd_delayed_expansion,
         )
     if program == "pushd":
         candidates = [value for value in values if value and not value.startswith("-")]
@@ -163,7 +166,12 @@ def _directory_transition(text: str, state: ShellState) -> ShellState | None:
         if target is None:
             return state
         stack = (*state.directory_stack[-31:], state.cwd)
-        return ShellState(cwd=target, shell=state.shell, directory_stack=stack)
+        return ShellState(
+            cwd=target,
+            shell=state.shell,
+            directory_stack=stack,
+            cmd_delayed_expansion=state.cmd_delayed_expansion,
+        )
     if program == "popd":
         if not state.directory_stack:
             return state
@@ -171,6 +179,7 @@ def _directory_transition(text: str, state: ShellState) -> ShellState | None:
             cwd=state.directory_stack[-1],
             shell=state.shell,
             directory_stack=state.directory_stack[:-1],
+            cmd_delayed_expansion=state.cmd_delayed_expansion,
         )
     return None
 
@@ -244,33 +253,62 @@ def output_redirection_targets(command: str, *, shell: str = "generic") -> tuple
 
         target: list[str] = []
         target_quote: str | None = None
-        if command[index] in {'"', "'"}:
-            target_quote = command[index]
-            index += 1
+        quoted_fragments = 0
+        saw_unquoted_content = False
         while index < len(command):
             character = command[index]
             if target_quote is not None:
-                if character == escape and index + 1 < len(command):
-                    index += 1
-                    target.append(command[index])
-                    index += 1
+                target.append(character)
+                if (
+                    dialect == "powershell"
+                    and target_quote == "'"
+                    and character == "'"
+                    and index + 1 < len(command)
+                    and command[index + 1] == "'"
+                ):
+                    target.append(command[index + 1])
+                    index += 2
+                    continue
+                if (
+                    character == escape
+                    and target_quote != "'"
+                    and index + 1 < len(command)
+                ):
+                    target.append(command[index + 1])
+                    index += 2
                     continue
                 if character == target_quote:
-                    index += 1
-                    break
-                target.append(character)
+                    target_quote = None
                 index += 1
                 continue
             if character.isspace() or character in ";|&":
                 break
-            if character == escape and index + 1 < len(command):
-                index += 1
-                target.append(command[index])
+            if character in {'"', "'"}:
+                target_quote = character
+                quoted_fragments += 1
+                target.append(character)
                 index += 1
                 continue
+            if character == escape and index + 1 < len(command):
+                target.append(character)
+                target.append(command[index + 1])
+                saw_unquoted_content = True
+                index += 2
+                continue
+            saw_unquoted_content = True
             target.append(character)
             index += 1
-        value = "".join(target).strip()
+        raw_value = "".join(target).strip()
+        value = raw_value
+        if (
+            quoted_fragments == 1
+            and not saw_unquoted_content
+            and len(raw_value) >= 2
+            and raw_value[0] == raw_value[-1]
+            and raw_value[0] in {'"', "'"}
+            and not (dialect == "powershell" and raw_value[0] == "'")
+        ):
+            value = raw_value[1:-1]
         if value:
             targets.append(value)
     return tuple(targets)

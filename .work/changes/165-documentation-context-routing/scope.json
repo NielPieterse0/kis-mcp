@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "165-documentation-context-routing",
+  "status": "active",
+  "branch": "change/165-documentation-context-routing",
+  "worktree": ".work/worktrees/165-documentation-context-routing",
+  "base": "main",
+  "outcome": "Compress default documentation authority/context loading for governed slices without weakening canonical ownership, HR-001/2/3, change governance, verification, review, or historical evidence.",
+  "owned_paths": [
+    "AGENTS.md",
+    "docs/PLATFORM-CONCEPT.md",
+    ".work/changes/165-documentation-context-routing/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "9d23a2026c04f30c0a963d315d12af6bee7ce1df",
+    "local_tree": "304bbfbae162809b1cfb75c3e09fea5230ccff82",
+    "upstream_sha": "9d23a2026c04f30c0a963d315d12af6bee7ce1df",
+    "upstream_tree": "304bbfbae162809b1cfb75c3e09fea5230ccff82",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

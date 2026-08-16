@@ -1,0 +1,33 @@
+from .ownership import (
+    APPROVED_PROJECT_BOUNDARY,
+    APPROVED_STATE_ROOT,
+    OWNERSHIP_SPECS,
+    StateNamespace,
+    StateNamespaceError,
+    StateNamespaceErrorCode,
+    StateNamespaceRequest,
+    StateNamespaceResolver,
+    StateOwnershipClass,
+    StateOwnershipSpec,
+    derive_change_source_id,
+    derive_worktree_source_id,
+    state_ownership_contract,
+    validate_namespace_uniqueness,
+)
+
+__all__ = [
+    "APPROVED_PROJECT_BOUNDARY",
+    "APPROVED_STATE_ROOT",
+    "OWNERSHIP_SPECS",
+    "StateNamespace",
+    "StateNamespaceError",
+    "StateNamespaceErrorCode",
+    "StateNamespaceRequest",
+    "StateNamespaceResolver",
+    "StateOwnershipClass",
+    "StateOwnershipSpec",
+    "derive_change_source_id",
+    "derive_worktree_source_id",
+    "state_ownership_contract",
+    "validate_namespace_uniqueness",
+]

@@ -6,9 +6,9 @@ Approved target product specification for the planned evolution of `kis-mcp`.
 
 This document defines the final platform boundary, capability planes, shared kernel, primary workflows, authority model, provider strategy, profiles, delivery direction, and success criteria. It is a target-state document only: capabilities described here are not implemented merely because they are documented.
 
-The current implementation baseline remains the small operator-supervised FastMCP gateway described in `SPEC.md`. The three prohibited outcomes in `docs/TRUST-MODEL.md` remain the only enforcement restrictions unless the operator explicitly changes them.
+[`../SPEC.md`](../SPEC.md) owns current implementation truth. The three prohibited outcomes in [`TRUST-MODEL.md`](TRUST-MODEL.md) remain the only Work enforcement restrictions unless the operator explicitly changes them.
 
-The detailed Discover product boundary and phased roadmap are defined in [`DISCOVER-MODULE-PRODUCT-SPEC.md`](DISCOVER-MODULE-PRODUCT-SPEC.md). That document is target-state authority for Discover only; `SPEC.md`, checked-in contracts, tool registration, configuration, and fresh tests remain authoritative for current implementation claims.
+The detailed Discover target boundary and roadmap are defined in [`DISCOVER-MODULE-PRODUCT-SPEC.md`](DISCOVER-MODULE-PRODUCT-SPEC.md). Current implementation claims remain owned by `SPEC.md` and executable repository evidence.
 
 ## 1. Purpose
 
@@ -56,52 +56,11 @@ Reviews and audits are composed workflows over these planes.
 
 ## 3. Relationship to the current kis-mcp baseline
 
-The current gateway is no longer only the initial Work-plane foundation. It now contains bounded public Discover, capability-bearing Skills, Provider and Tool composition, a normalized capability catalogue, readiness-aware progressive exposure, first-class workflow descriptors and recommendations, effect-specific long-tail dispatch, and a read-only Control Center available both mounted and standalone. Govern and broader executable workflow orchestration remain target-state capabilities.
+This document defines target architecture only. [`../SPEC.md`](../SPEC.md) owns the current implemented product architecture, capability inventory, provider/tool status, and implementation boundary.
 
-### Current capability state
+Target design decisions in this document constrain future evolution but do not imply that a capability is implemented. When current and target descriptions differ, treat `SPEC.md` as current truth and this document as the approved destination.
 
-| State | Capability |
-|---|---|
-| Direct primary profile | Frequent Work and Discover operations; health and provider status; capability search, description, and workflow recommendation; effect-specific dispatch; advisory review when ready; and the mounted Control Center entry point. |
-| Discoverable catalogue | Remaining valid Desktop Commander, Skills, internal Discover, quarantine, and mounted provider operations with original schemas, readiness, effects, quality, and exposure metadata. |
-| Status-only catalogue | Disabled, unavailable, authentication-gated, build-failed, or mount-failed operations remain visible but ineligible. |
-| Standalone | KIS Control Center read-only MCP App and UI resource using the same evidence model. |
-| Managed support tooling | AgentSys `6.0.1` host profiles and agnix `0.45.0` CLI are installed through supervised bootstrap scripts and remain outside gateway composition. |
-| Target | Govern surface, broader semantic and trusted remote evidence, and additional executable workflow coordination. |
-
-The current implementation remains responsible for:
-
-- integrating the authoritative Desktop Commander distribution;
-- resolving concrete invocation effects;
-- enforcing exactly HR-001, HR-002, and HR-003;
-- preserving ordinary local development operations outside those prohibited outcomes;
-- providing recoverable quarantine;
-- exposing bounded local Discover evidence without executing repository code;
-- resolving the approved shared Skills catalogue and routing its mutations through Work;
-- explicitly registering and composing approved providers;
-- keeping provider-client authentication lifetime independent from repository-specific routing and selection;
-- exposing one bounded advisory code-review workflow without mutation authority;
-- composing all domains through normalized immutable capability contributions;
-- separating registration, readiness, recommendation, and exposure;
-- preserving the long tail through effect-specific dispatch and original middleware while keeping the direct tool-schema surface bounded.
-
-The future platform may add Govern, broader semantic and trusted remote evidence, and executable coordination for more declared workflows. Those additions MUST NOT silently create a fourth policy prohibition.
-
-Profiles, catalogues, governance checks, evidence requirements, readiness states, and workflow routing may control what platform functionality is installed, selected, or presented. They MUST NOT be interpreted as independent reasons to block an otherwise permitted Desktop Commander invocation under the three-rule Work policy.
-
-### Implemented Skills capability
-
-The current platform includes a focused `skills.catalogue` capability. It resolves reusable procedures from `C:\Projects\.agents\skills`, enriches every current runtime card with reviewed category, capability, activation, effect, and workflow metadata from JSON, exposes bounded catalogue and read/evaluation operations, and routes create/improve mutations through the existing Work middleware and Desktop Commander backend. Skills remain reusable procedures rather than repository authority, provider plugins, or new policy rules. ChatGPT loads instructions and composes ordinary Work operations; the runtime does not automatically execute arbitrary skill code. Initial catalogue failure leaves the wider Work/gateway server available and surfaces a corrective Skills error.
-
-### Implemented Provider and agent capability
-
-The Provider registry contains nine descriptors: Desktop Commander, Context7 MCP, DBHub, Docker Hub MCP, GitHub MCP, NVIDIA NIM, Serena MCP, Supabase, and Control Center. Context7, DBHub, Docker Hub, GitHub, Serena, Supabase, and Control Center are selected for namespaced runtime composition; NVIDIA is workflow-only. DBHub uses a source-aware boundary so local SQLite reads remain local while external database reads retain an external effect; one isolated child proxy is created per registered database binding and KIS owns stable `db_<project>_<binding>_<operation>` names. Docker Hub is an approved external registry connector under `dockerhub_*` and is explicitly separate from local Docker Engine/process operations. Context7 remains an independent approved external documentation connector. Serena mounts only a bounded read-only semantic surface and runs its language-server acquisition path with `UV_OFFLINE=1`; deterministic Discover analysis remains the fallback. Codex CLI remains a local Tools-registry adapter. Each gateway owns its exact Provider and capability composition state; no global latest-composition singleton remains. Project identity is a separate shared-kernel concern loaded once from the central project registry, which now also owns non-secret database and Docker Hub routing. GitHub uses one shared FastMCP client for the parent runtime, performs one `get_me` bootstrap after connection, reuses that authenticated process across downstream sessions, and authorizes explicit repository/Project coordinates against all registered GitHub bindings. Supabase uses one persistent account-scoped OAuth client and validates explicit project-targeted calls against registered Supabase refs. Readiness, mounting, authentication, commissioning, recommendation, and exposure are reported separately and do not create Work authorization.
-
-`review_change_with_agent` collects bounded local Git evidence and requests one advisory review through NVIDIA NIM or Codex CLI. It permits at most one fallback and grants no mutation or nested-delegation authority.
-
-### Control Center
-
-The KIS Control Center is a read-only MCP App available through the mounted `controlcenter_*` provider and through a standalone process. It reports bounded local runtime, project, policy, provider-configuration, quarantine, and verification guidance. The mounted form receives explicit instance-scoped provider status and remains outside Work authorization.
+Future platform additions MUST preserve the closed HR-001 / HR-002 / HR-003 Work decision set unless the operator explicitly changes the trust model. Profiles, catalogues, governance findings, evidence requirements, readiness, workflow selection, and presentation may shape platform behavior but MUST NOT become independent Work-policy prohibitions.
 
 ## 4. Shared platform kernel
 
@@ -122,7 +81,7 @@ kis-mcp Platform Core
 
 Resolves the canonical local project, Git repository, remote repository, workspace boundaries, and trusted external context.
 
-The current baseline implements a focused cross-project identity kernel through strict `settings/projects.settings.json`. Registered projects have stable IDs, absolute local roots, and optional GitHub repository, GitHub Project, and Supabase routing coordinates. Gateway composition retains the immutable registry and exposes bounded read-only project catalogue operations; legacy repository-local settings remain a compatibility loader rather than the gateway authorization source. Trusted external context beyond registered local projects remains target-state work.
+The target identity model MUST provide stable project IDs, canonical local roots, repository identities, workspace boundaries, provider routing coordinates, and provenance for any trusted external context. One canonical project identity must be reused across planes rather than reconstructed independently by each subsystem.
 
 ### ReadAuthority
 
@@ -134,7 +93,7 @@ Determines installed, enabled, runtime-ready, and exposed platform capabilities.
 
 ### EvidenceStore
 
-Implemented as a shared platform persistence primitive. Work-management review artifacts retain their compatible `.work/reviews/<review-id>/` layout while delegating atomic/hash-checked writes to the shared store. Discover uses the same kernel for immutable, versioned project-intelligence generations beneath the configured central KIS state root. Generations carry SHA-256 manifests, provenance/fingerprint metadata, bounded artifacts, conflict detection, corruption detection, atomic current-generation publication, and recoverable supersession; corrupt or superseded evidence is retained/recoverable rather than permanently deleted. Future evidence domains should reuse this kernel rather than introduce independent persistence logic.
+Provides immutable or recoverably superseded evidence with bounded artifacts, integrity metadata, provenance, fingerprints, conflict/corruption detection, and atomic publication. Evidence domains SHOULD reuse this kernel rather than introduce independent persistence semantics.
 
 ### ResultBudgeter
 
@@ -146,11 +105,11 @@ Manages optional providers such as Desktop Commander, local filesystem readers, 
 
 ### ToolCatalogue
 
-Implemented for the current gateway. Provider, Tool, Discover, Skill, and Workflow platform entry points contribute normalized immutable metadata. Eligibility filters readiness, dependencies, credentials, effects, and enablement before deterministic explainable scoring. A JSON-bounded direct profile limits default tool-schema context while the valid long tail remains searchable and effect-dispatched through original schemas and middleware.
+Normalizes Provider, Tool, Discover, Skill, and Workflow contributions into one catalogue. Eligibility MUST evaluate readiness, dependencies, credentials, effects, and enablement before deterministic explainable scoring. The platform SHOULD keep the default exposed surface bounded while retaining eligible long-tail capability through governed discovery and dispatch.
 
 ### WorkflowCoordinator
 
-Partially implemented as first-class workflow descriptors, `recommend_workflow`, the advisory code-review workflow, and bounded Work Management orchestration. Current descriptors cover isolated development, change review, safe pull-request closeout, worktree cleanup, provider commissioning and diagnosis, skill creation or improvement, modularity assessment, work capture, review-evidence persistence, Project schema inspection/reconciliation, programme status, traceability verification, and documentation closeout. Work Management also exposes merge-readiness and post-merge documentation-milestone operations; Project schema/view provisioning remains bounded by the approved provider surface. Broader general-purpose orchestration remains future work.
+Coordinates declared workflows across Discover, Govern, Work, verification, review, and provider boundaries. Workflow descriptions MUST declare evidence requirements, dependencies, effects, completion criteria, and allowed follow-up operations without creating new Work-policy prohibitions.
 
 ### VerificationRegistry
 
@@ -425,35 +384,17 @@ The platform will not initially:
 
 ## 12. Delivery sequence
 
-The sequence remains architectural guidance, but several foundations are already implemented. Status must be read by exposure level rather than as a binary complete/incomplete flag.
+`SPEC.md` owns current implementation status. This section defines only the target sequencing constraints:
 
-| Capability | Status |
-|---|---|
-| Desktop Commander integration, three-rule policy, quarantine, and baseline contracts | Public and implemented. |
-| Repository-wide `inspect_project`, local Git evidence, and bounded local-target `inspect_change` | Public and implemented. |
-| Staged, commit, range, and branch change readers | Public through the bounded `inspect_change` target contract. |
-| Context broker, impact graph, contract intelligence, project catalog, and provider-admission evidence | Internally implemented with versioned contracts; public composition remains target work. |
-| Provider registry, runtime-scoped provider client lifecycle, central project registry, registered GitHub/Supabase routing, Context7/GitHub/Serena/Supabase/Control Center runtime mounting, and provider status | Public and implemented. |
-| Unified capability contributions, instance-scoped readiness, eligibility, explainable scoring, and progressive exposure | Public and implemented. |
-| Skills catalogue, capability-bearing runtime cards, and mutation workflow | Implemented; operations outside the direct profile remain discoverable. |
-| First-class workflow descriptors and recommendations | Implemented for the current registered task workflows; broader general-purpose orchestration remains target work. |
-| NVIDIA/Codex advisory code-review workflow | Public and implemented; live backend commissioning is separate evidence. |
-| KIS Control Center | Implemented as a mounted and standalone read-only MCP App. |
-| AgentSys and agnix managed bootstrap | Implemented as supervised, version-pinned host tooling outside gateway composition. |
-| Govern plane, authority registry, rule evaluation, and drift detection | Target. |
-| Broader semantic providers and trusted remote Discover evidence | Target. |
-| General executable review, audit, debugging, proposal, and verification orchestration | Target; current workflow descriptors and recommendations are implemented. |
+1. establish and keep one shared kernel for identity, evidence, provider registration, capability composition, and verification;
+2. complete bounded Discover composition without widening read or execution authority;
+3. add Govern authority, rules, findings, exceptions, and documentation-drift detection;
+4. turn selected declared workflows into bounded executable orchestration only after their evidence and approval contracts are approved;
+5. add bounded Work planning, proposal, application, and verification workflows while preserving ordinary provider operations and the three-rule Work boundary;
+6. normalize trusted remote evidence through approved connectors;
+7. continue provider discovery, conformance, and registry evaluation through isolated slices.
 
-The next architectural stages are:
-
-1. finish public composition of approved internal Discover services without widening read or execution authority;
-2. add Govern authority, rules, findings, exceptions, and documentation-drift detection;
-3. turn selected declared workflows into bounded executable orchestration after their evidence and approval contracts are approved;
-4. add bounded Work planning, proposal, application, and verification workflows while preserving ordinary Desktop Commander operations;
-5. normalize trusted remote evidence through approved connectors;
-6. continue provider discovery, conformance, and registry evaluation through isolated slices.
-
-Each stage requires explicit design, implementation, and verification. Documentation of target capabilities is not implementation evidence.
+Each stage requires explicit design, implementation, and verification. Target documentation is never implementation evidence.
 
 ## 13. Success criteria
 
@@ -481,4 +422,4 @@ Govern   → evaluate evidence against declared standards
 Work     → perform controlled, authorized change
 ```
 
-The current FastMCP and Desktop Commander gateway is the initial enforcement foundation of that platform. Repository discovery, code intelligence, governance, reviews, audits, debugging, security analysis, documentation assessment, and implementation are composed workflows built on the shared model.
+Repository discovery, code intelligence, governance, reviews, audits, debugging, security analysis, documentation assessment, and implementation are composed workflows built on this shared target model. Consult `SPEC.md` for the current implementation boundary.

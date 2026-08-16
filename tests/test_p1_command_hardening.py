@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from kis_mcp.command_intent import resolve_command_effects_with_state
 from kis_mcp.desktop_commander import DesktopCommanderEffectResolver
+from kis_mcp.shell_parser import ShellState
 
 
 RESOLVER = DesktopCommanderEffectResolver(
@@ -124,6 +126,267 @@ def test_directory_change_updates_later_relative_write_path() -> None:
     )
 
     assert effects.write_paths == (r"C:\Windows\Temp\output.txt",)
+
+
+@pytest.mark.parametrize(
+    ("command", "field", "expected"),
+    [
+        (
+            r'cmd /c "echo data > %USERPROFILE%\Desktop\out.txt"',
+            "unresolved_write_paths",
+            r"%USERPROFILE%\Desktop\out.txt",
+        ),
+        (
+            r'cmd /c "echo data > %USERPROFILE:~0,3%\prefix.txt"',
+            "unresolved_write_paths",
+            r"%USERPROFILE:~0,3%\prefix.txt",
+        ),
+        (
+            r'cmd /c "echo data > %ProgramFiles(x86)%\out.txt"',
+            "unresolved_write_paths",
+            r"%ProgramFiles(x86)%\out.txt",
+        ),
+        (
+            r'cmd /V:ON /c "echo data > !USERPROFILE!\delayed.txt"',
+            "unresolved_write_paths",
+            r"!USERPROFILE!\delayed.txt",
+        ),
+        (
+            r'cmd /V:ON /c "echo data > !ProgramFiles(x86)!\delayed.txt"',
+            "unresolved_write_paths",
+            r"!ProgramFiles(x86)!\delayed.txt",
+        ),
+        (
+            r'cmd /V:ON /c "echo data > !FOO-BAR!\delayed.txt"',
+            "unresolved_write_paths",
+            r"!FOO-BAR!\delayed.txt",
+        ),
+        (
+            r'pwsh -Command "Set-Content -Path $env:USERPROFILE\out.txt -Value data"',
+            "unresolved_write_paths",
+            r"$env:USERPROFILE\out.txt",
+        ),
+        (
+            r'pwsh -Command "Set-Content -Path $ENV:USERPROFILE\mixed.txt -Value data"',
+            "unresolved_write_paths",
+            r"$ENV:USERPROFILE\mixed.txt",
+        ),
+        (
+            r'pwsh -Command "Set-Content -Path $HOME\profile.txt -Value data"',
+            "unresolved_write_paths",
+            r"$HOME\profile.txt",
+        ),
+        (
+            r'pwsh -Command "Remove-Item ${env:USERPROFILE}\old.txt"',
+            "unresolved_delete_paths",
+            r"${env:USERPROFILE}\old.txt",
+        ),
+        (
+            r'cmd /c "move C:\Projects\kis-mcp\a.txt %USERPROFILE%\Desktop\b.txt"',
+            "unresolved_entry_paths",
+            r"%USERPROFILE%\Desktop\b.txt",
+        ),
+    ],
+)
+def test_shell_expanded_mutation_targets_are_preserved_as_unresolved_evidence(
+    command: str,
+    field: str,
+    expected: str,
+) -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert expected in getattr(effects, field)
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        (
+            r'cmd /c "echo data > C:\Projects\kis-mcp\100%.txt"',
+            r"C:\Projects\kis-mcp\100%.txt",
+        ),
+        (
+            r'cmd /V:OFF /c "echo data > C:\Projects\kis-mcp\!literal!.txt"',
+            r"C:\Projects\kis-mcp\!literal!.txt",
+        ),
+    ],
+)
+def test_literal_cmd_markers_remain_resolvable(command: str, expected: str) -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert effects.write_paths == (expected,)
+    assert effects.unresolved_write_paths == ()
+
+
+def test_nested_cmd_v_off_overrides_inherited_delayed_expansion() -> None:
+    effects, _state = resolve_command_effects_with_state(
+        r'cmd /V:OFF /c "echo data > C:\Projects\kis-mcp\!literal!.txt"',
+        state=ShellState(
+            cwd=r"C:\Projects\kis-mcp",
+            shell="cmd",
+            cmd_delayed_expansion=True,
+        ),
+        project_boundary=r"C:\Projects",
+    )
+
+    assert effects.write_paths == (r"C:\Projects\kis-mcp\!literal!.txt",)
+    assert effects.unresolved_write_paths == ()
+
+
+@pytest.mark.parametrize(
+    ("command", "is_unresolved"),
+    [
+        (
+            r'cmd /V:ON /V:OFF /c "echo data > C:\Projects\kis-mcp\!literal!.txt"',
+            False,
+        ),
+        (
+            r'cmd /V:OFF /V:ON /c "echo data > !USERPROFILE!\delayed.txt"',
+            True,
+        ),
+    ],
+)
+def test_cmd_delayed_expansion_uses_last_switch(command: str, is_unresolved: bool) -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert bool(effects.unresolved_write_paths) is is_unresolved
+
+
+@pytest.mark.parametrize(
+    ("command", "is_unresolved"),
+    [
+        (
+            r'cmd /V:ON /c "echo /V:OFF > !USERPROFILE!\payload.txt"',
+            True,
+        ),
+        (
+            r'cmd /V:OFF /c "echo /V:ON > C:\Projects\kis-mcp\!literal!.txt"',
+            False,
+        ),
+    ],
+)
+def test_cmd_payload_v_switch_text_does_not_change_wrapper_state(
+    command: str,
+    is_unresolved: bool,
+) -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert bool(effects.unresolved_write_paths) is is_unresolved
+
+
+def test_nested_cmd_v_off_ignores_payload_v_on_text() -> None:
+    effects, _state = resolve_command_effects_with_state(
+        r'cmd /V:OFF /c "echo /V:ON > C:\Projects\kis-mcp\!literal!.txt"',
+        state=ShellState(
+            cwd=r"C:\Projects\kis-mcp",
+            shell="cmd",
+            cmd_delayed_expansion=True,
+        ),
+        project_boundary=r"C:\Projects",
+    )
+
+    assert effects.write_paths == (r"C:\Projects\kis-mcp\!literal!.txt",)
+    assert effects.unresolved_write_paths == ()
+
+
+@pytest.mark.parametrize("literal", [r"${literal}.txt", r"$(literal).txt"])
+def test_single_quoted_powershell_markers_remain_literal_paths(literal: str) -> None:
+    command = (
+        'pwsh -Command "Set-Content -LiteralPath '
+        f"'C:\\Projects\\kis-mcp\\{literal}' -Value data\""
+    )
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert effects.write_paths == (rf"C:\Projects\kis-mcp\{literal}",)
+    assert effects.unresolved_write_paths == ()
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "''" + "$env:USERPROFILE" + r"'\out.txt'",
+        "'prefix'" + "$env:USERPROFILE" + "'suffix'",
+    ],
+)
+def test_powershell_mixed_quote_write_target_is_unresolved(target: str) -> None:
+    command = 'pwsh -Command "Set-Content -Path ' + target + ' -Value data"'
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert effects.unresolved_write_paths
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "''" + "$env:USERPROFILE" + r"'\out.txt'",
+        "'prefix'" + "$env:USERPROFILE" + "'suffix'",
+    ],
+)
+def test_powershell_mixed_quote_redirection_target_is_unresolved(target: str) -> None:
+    command = 'pwsh -Command "echo data > ' + target + '"'
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert effects.unresolved_write_paths
+
+
+def test_single_quoted_powershell_redirection_marker_remains_literal_path() -> None:
+    command = r'''pwsh -Command "echo data > 'C:\\Projects\\kis-mcp\\$HOME.txt'"'''
+    effects = RESOLVER.resolve(
+        "start_process",
+        {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+    )
+
+    assert effects.write_paths == (r"C:\Projects\kis-mcp\$HOME.txt",)
+    assert effects.unresolved_write_paths == ()
+
+
+def test_powershell_subexpression_create_target_is_preserved_as_unresolved_evidence() -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {
+            "command": r'pwsh -Command "New-Item $(Join-Path $env:USERPROFILE out.txt)"',
+            "cwd": r"C:\Projects\kis-mcp",
+        },
+    )
+
+    assert effects.unresolved_write_paths
+    assert any(value.startswith("$(") for value in effects.unresolved_write_paths)
+
+
+def test_unknown_command_with_environment_syntax_does_not_create_mutation_evidence() -> None:
+    effects = RESOLVER.resolve(
+        "start_process",
+        {
+            "command": r"unknown-tool %USERPROFILE% $env:USERPROFILE",
+            "cwd": r"C:\Projects\kis-mcp",
+        },
+    )
+
+    assert effects.mutated_paths == ()
+    assert effects.unresolved_write_paths == ()
+    assert effects.unresolved_entry_paths == ()
+    assert effects.unresolved_delete_paths == ()
 
 
 def test_push_uses_pushurl_instead_of_fetch_url(tmp_path: Path) -> None:

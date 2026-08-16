@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "169-saved-view-http-readback",
+  "status": "active",
+  "branch": "change/169-saved-view-http-readback",
+  "worktree": ".work/worktrees/169-saved-view-http-readback",
+  "base": "main",
+  "outcome": "Make broad canonical saved-view behavioral readback robust and fail-closed so Work Management readiness remains truthful after backlog catch-up.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/schema_commissioning.py",
+    "tests/providers/github/projects/test_schema_commissioning.py",
+    ".work/changes/169-saved-view-http-readback/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "0996956503a998d0948070fac7faac148fbcc70c",
+    "local_tree": "7c6ecdb5cea193e0cd3d0cd8b83b393bdcbd3258",
+    "upstream_sha": "0996956503a998d0948070fac7faac148fbcc70c",
+    "upstream_tree": "7c6ecdb5cea193e0cd3d0cd8b83b393bdcbd3258",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-304",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 304,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

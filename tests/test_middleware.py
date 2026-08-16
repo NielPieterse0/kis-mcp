@@ -177,6 +177,125 @@ def test_unresolved_git_clean_delete_is_blocked_only_under_hr003() -> None:
     assert calls == []
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        r'cmd /c "echo data > %USERPROFILE%\Desktop\out.txt"',
+        r'cmd /c "echo data > %USERPROFILE:~0,3%\prefix.txt"',
+        r'cmd /c "echo data > %ProgramFiles(x86)%\out.txt"',
+        r'cmd /V:ON /c "echo data > !USERPROFILE!\delayed.txt"',
+        r'cmd /V:ON /c "echo data > !ProgramFiles(x86)!\delayed.txt"',
+        r'cmd /V:ON /c "echo data > !FOO-BAR!\delayed.txt"',
+        r'pwsh -Command "Set-Content -Path $env:USERPROFILE\out.txt -Value data"',
+        r'pwsh -Command "Set-Content -Path $HOME\profile.txt -Value data"',
+        r'pwsh -Command "Set-Content -Path $ENV:USERPROFILE\mixed.txt -Value data"',
+        r'pwsh -Command "Remove-Item ${env:USERPROFILE}\old.txt"',
+        r'cmd /c "move C:\Projects\kis-mcp\a.txt %USERPROFILE%\Desktop\b.txt"',
+        r'pwsh -Command "New-Item $(Join-Path $env:USERPROFILE out.txt)"',
+    ],
+)
+def test_unresolved_shell_mutation_is_structurally_blocked_before_forwarding(
+    command: str,
+) -> None:
+    server = FastMCP("middleware-unresolved-mutation-test")
+    calls: list[object] = []
+
+    @server.tool
+    def start_process(command: str, cwd: str) -> str:
+        calls.append((command, cwd))
+        return "executed"
+
+    server.add_middleware(_middleware(calls))
+
+    async def run() -> None:
+        async with Client(server) as client:
+            with pytest.raises(Exception, match="INVALID_INVOCATION_PATH") as error:
+                await client.call_tool(
+                    "start_process",
+                    {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+                )
+            assert "HR-001" not in str(error.value)
+            assert "HR-003" not in str(error.value)
+
+    asyncio.run(run())
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    ("target", "redirection"),
+    [
+        ("''" + "$env:USERPROFILE" + r"'\out.txt'", False),
+        ("'prefix'" + "$env:USERPROFILE" + "'suffix'", False),
+        ("''" + "$env:USERPROFILE" + r"'\out.txt'", True),
+        ("'prefix'" + "$env:USERPROFILE" + "'suffix'", True),
+    ],
+)
+def test_powershell_mixed_quote_mutation_is_blocked_before_forwarding(
+    target: str,
+    redirection: bool,
+) -> None:
+    server = FastMCP("middleware-powershell-mixed-quote-test")
+    calls: list[object] = []
+
+    @server.tool
+    def start_process(command: str, cwd: str) -> str:
+        calls.append((command, cwd))
+        return "executed"
+
+    server.add_middleware(_middleware(calls))
+    payload = (
+        "echo data > " + target
+        if redirection
+        else "Set-Content -Path " + target + " -Value data"
+    )
+    command = 'pwsh -Command "' + payload + '"'
+
+    async def run() -> None:
+        async with Client(server) as client:
+            with pytest.raises(Exception, match="INVALID_INVOCATION_PATH") as error:
+                await client.call_tool(
+                    "start_process",
+                    {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+                )
+            assert "HR-001" not in str(error.value)
+            assert "HR-003" not in str(error.value)
+
+    asyncio.run(run())
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        r'cmd /c "echo data > C:\Projects\kis-mcp\100%.txt"',
+        r'cmd /V:OFF /c "echo data > C:\Projects\kis-mcp\!literal!.txt"',
+        r'''pwsh -Command "Set-Content -LiteralPath 'C:\Projects\kis-mcp\${literal}.txt' -Value data"''',
+        r'''pwsh -Command "Set-Content -LiteralPath 'C:\Projects\kis-mcp\$(literal).txt' -Value data"''',
+    ],
+)
+def test_literal_shell_markers_are_forwarded_when_statically_bounded(command: str) -> None:
+    server = FastMCP("middleware-literal-marker-test")
+    calls: list[object] = []
+
+    @server.tool
+    def start_process(command: str, cwd: str) -> str:
+        calls.append((command, cwd))
+        return "executed"
+
+    server.add_middleware(_middleware(calls))
+
+    async def run() -> None:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "start_process",
+                {"command": command, "cwd": r"C:\Projects\kis-mcp"},
+            )
+            assert "executed" in result.content[0].text
+
+    asyncio.run(run())
+    assert calls == [(command, r"C:\Projects\kis-mcp")]
+
+
 def test_provider_restriction_fields_are_gateway_managed() -> None:
     server = FastMCP("middleware-provider-config-test")
     calls: list[object] = []

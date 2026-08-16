@@ -119,6 +119,86 @@ def test_persistent_startup_shell_retains_its_final_working_directory(
     assert calls == [("start", startup_command)]
 
 
+def test_persistent_cmd_delayed_expansion_blocks_interactive_unresolved_target() -> None:
+    server = FastMCP("process-delayed-expansion-test")
+    calls: list[tuple[object, ...]] = []
+    resolver = DesktopCommanderEffectResolver(
+        project_boundary=PROJECT_BOUNDARY,
+        provider_state_file=r"C:\Projects\.kis-mcp\desktop-commander.json",
+    )
+
+    @server.tool
+    def start_process(command: str, cwd: str) -> str:
+        calls.append(("start", command, cwd))
+        return "Process started with PID 61"
+
+    @server.tool
+    def interact_with_process(pid: int, input: str) -> str:
+        calls.append(("interact", pid, input))
+        return "input accepted"
+
+    server.add_middleware(_middleware(resolver))
+
+    startup = 'cmd /V:ON /k "echo /V:OFF"'
+
+    async def run() -> None:
+        async with Client(server) as client:
+            await client.call_tool(
+                "start_process",
+                {"command": startup, "cwd": r"C:\Projects\kis-mcp"},
+            )
+            with pytest.raises(Exception, match="INVALID_INVOCATION_PATH"):
+                await client.call_tool(
+                    "interact_with_process",
+                    {"pid": 61, "input": r"echo /V:OFF > !USERPROFILE!\delayed.txt"},
+                )
+
+    asyncio.run(run())
+    assert calls == [
+        ("start", startup, r"C:\Projects\kis-mcp"),
+    ]
+
+
+def test_nested_cmd_v_off_disables_inherited_delayed_expansion_for_interaction() -> None:
+    server = FastMCP("process-delayed-expansion-off-test")
+    calls: list[tuple[object, ...]] = []
+    resolver = DesktopCommanderEffectResolver(
+        project_boundary=PROJECT_BOUNDARY,
+        provider_state_file=r"C:\Projects\.kis-mcp\desktop-commander.json",
+    )
+
+    @server.tool
+    def start_process(command: str, cwd: str) -> str:
+        calls.append(("start", command, cwd))
+        return "Process started with PID 62"
+
+    @server.tool
+    def interact_with_process(pid: int, input: str) -> str:
+        calls.append(("interact", pid, input))
+        return "input accepted"
+
+    server.add_middleware(_middleware(resolver))
+    nested = r'cmd /V:OFF /c "echo data > C:\Projects\kis-mcp\!literal!.txt"'
+
+    async def run() -> None:
+        async with Client(server) as client:
+            await client.call_tool(
+                "start_process",
+                {"command": "cmd /V:ON", "cwd": r"C:\Projects\kis-mcp"},
+            )
+            result = await client.call_tool(
+                "interact_with_process",
+                {"pid": 62, "input": nested},
+            )
+            assert "input accepted" in result.content[0].text
+
+    asyncio.run(run())
+    assert calls == [
+        ("start", "cmd /V:ON", r"C:\Projects\kis-mcp"),
+        ("interact", 62, nested),
+    ]
+
+
 def test_pushd_popd_and_process_termination_update_or_clear_state() -> None:
     server = FastMCP("process-stack-test")
     calls: list[tuple[object, ...]] = []

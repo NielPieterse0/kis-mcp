@@ -19,6 +19,11 @@ class InvocationEffects:
     full effective-path resolution. ``entry_paths`` mutate directory entries
     (for example, move sources) and resolve only existing ancestors. Delete
     intent remains separate because it must be transformed to quarantine.
+
+    ``unresolved_*_paths`` preserve syntactically definite mutation targets that
+    cannot be statically bounded. They are structural invocation failures rather
+    than evidence for any hard policy rule. ``unresolved_delete`` remains the
+    targetless destructive-intent signal used for operations such as ``git clean``.
     """
 
     write_paths: tuple[str, ...] = ()
@@ -26,6 +31,9 @@ class InvocationEffects:
     delete_paths: tuple[str, ...] = ()
     unresolved_delete: bool = False
     external_network: bool = False
+    unresolved_write_paths: tuple[str, ...] = ()
+    unresolved_entry_paths: tuple[str, ...] = ()
+    unresolved_delete_paths: tuple[str, ...] = ()
 
     @property
     def mutated_paths(self) -> tuple[str, ...]:

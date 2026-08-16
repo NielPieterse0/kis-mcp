@@ -4,7 +4,7 @@
 
 **Goal:** Make semantic readiness prove the records returned by each saved GitHub Project view, not only the stored view configuration.
 
-**Architecture:** Extend the existing bounded `GitHubProjectSchemaClient` snapshot with view numbers, add a fixed saved-view-items read using GitHub's 2026-03-10 Project REST contract, evaluate the canonical manifest filter grammar against returned Project field values, and require both structural and behavioral evidence before commissioner success.
+**Architecture:** Extend the existing bounded `GitHubProjectSchemaClient` snapshot with view numbers, read saved-view items through GitHub's 2026-03-10 Project REST contract, evaluate the canonical manifest filter grammar against returned Project field values, follow cursor pagination within a fixed evidence budget, and require both structural and behavioral evidence before commissioner success.
 
 **Tech Stack:** Python 3.11+, `gh api` through the existing registered GitHub client boundary, pytest, Ruff, change workflow.
 
@@ -13,7 +13,7 @@
 - Stay inside `scope.json`.
 - Add failing regressions before behavior changes.
 - Preserve current view IDs and item IDs; no delete/recreate path.
-- Do not alter `SPEC.md` or active change 159.
+- Do not absorb unrelated lanes or repository cleanup.
 - Fail closed as unverified for incomplete behavioral evidence.
 
 ---
@@ -37,9 +37,10 @@
 - [x] Parse and retain `ProjectV2View.number` from GraphQL.
 - [x] Add fixed-shape saved-view-items reads for user/org registered targets.
 - [x] Request only required manifest field database IDs.
-- [x] Bound evidence to one 100-item page and mark `rel="next"` as unverified.
 - [x] Reject blank/malformed response evidence instead of treating it as an empty view.
 - [x] Evaluate supported canonical filter qualifiers and surface contradiction evidence.
+- [x] Follow explicit `after` cursor pagination at 100 items per page within a fixed 10-page / 1000-item budget.
+- [x] Detect malformed pagination, cursor cycles, provider failures, and budget exhaustion as bounded unverified reason codes; do not use unbounded `--paginate`.
 
 ### Task 3: Bind commissioning success to behavioral evidence
 
@@ -48,15 +49,19 @@
 - [x] Repair existing layout/filter/visible-field drift in place through the documented `updateProjectV2View` input.
 - [x] Keep sort/group/vertical-group drift explicit and unready because the current update input does not expose those dimensions.
 - [x] Reapply the declared filter once when saved-view behavior contradicts a structurally matching filter, then require fresh behavioral verification.
-- [x] Return bounded diagnostic evidence sufficient to audit live acceptance.
+- [x] Return bounded diagnostic evidence sufficient to distinguish semantic contradiction from incomplete provider evidence.
 
 ### Task 4: Verify, review, land, and recommission
 
-- [x] Run focused provider/work-management tests and Ruff.
-- [x] Run `scripts/change-workflow.ps1 check` and `git diff --check`.
-- [x] Run required medium/risk specialist reviews and resolve findings.
-- [ ] Commit and prepare an exact-head PR; require GitHub Actions success.
-- [ ] Merge, refresh main, and restart/rebind a runtime to the landed revision.
-- [ ] Rerun bounded Project commissioning and behavioral acceptance for all 12 views.
-- [ ] Reconcile evidence-backed legacy `Todo` / `In Progress` records without blind mapping.
-- [ ] Close #270 only after final live evidence and safe cleanup.
+- [x] Land initial behavioral-readback implementation through PR #293.
+- [x] Land malformed/duplicate-field evidence hardening through authoritative-branch PR #295.
+- [x] Reproduce post-merge acceptance failure on the landed runtime: seven views remained unverified with no semantic contradiction; `12 Completed` was confirmed pagination-limited.
+- [x] Add red→green bounded pagination and diagnostic regressions; focused provider tests and affected Work Management tests passed in the interrupted same-lane work.
+- [x] Run exact-head CI and merge the pagination/diagnostic tranche through PR #296.
+- [x] Recommission exact merged runtime `9d23a20…`; seven views remained unverified with `unverified:single_select_name`.
+- [x] Add red→green REST-shape compatibility for nested single-select option names (`name.raw`) while retaining fail-closed malformed evidence.
+- [ ] Run exact-head CI and final review on the REST-shape compatibility delta.
+- [ ] Merge the exact reviewed head and restart/rebind runtime to the landed revision.
+- [ ] Rerun bounded Project commissioning and behavioral acceptance for all 12 views using the new reason codes if any view remains unverified.
+- [ ] Reconcile only evidence-backed legacy `Todo` / `In Progress` operational drift without blind mapping.
+- [ ] Record final #270/#142 evidence, close #270 only if live acceptance is green, and safely clean the change.

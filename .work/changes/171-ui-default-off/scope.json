@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "171-ui-default-off",
+  "status": "active",
+  "branch": "change/171-ui-default-off",
+  "worktree": ".work/worktrees/171-ui-default-off",
+  "base": "origin/main",
+  "outcome": "Keep the KIS MCP runtime active while the Control Center MCP App/UI is disabled by default, with explicit operator-controlled re-enable through configuration.",
+  "owned_paths": [
+    "settings/providers/platform-runtime.provider.json",
+    "tests/providers/test_runtime_composition.py",
+    "SPEC.md",
+    ".work/changes/171-ui-default-off/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": ["public_contract"],
+  "base_evidence": {
+    "local_sha": "3179cd3a7d42bb1d03384b858f8572a120e5bb02",
+    "local_tree": "a34e0891df3af716e48b6f962d25344911346ff6",
+    "upstream_sha": "3179cd3a7d42bb1d03384b858f8572a120e5bb02",
+    "upstream_tree": "a34e0891df3af716e48b6f962d25344911346ff6",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "registered_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-310",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 310,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete"
+  }
+}

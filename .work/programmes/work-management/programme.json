@@ -1,14 +1,14 @@
 {
     "schema_version":  1,
     "programme_id":  "work-management",
-    "status":  "active",
+    "status":  "completed",
     "scope":  "multi-project",
     "outcome":  "Provide provider-neutral project, review, decision, hold, traceability, and documentation-closeout workflows across configured repositories",
     "working_spec":  ".work/programmes/work-management/target-spec.md",
     "roadmap":  ".work/programmes/work-management/roadmap.md",
     "initial_backend":  "github",
-    "current_change":  "162-work-management-view-readback",
-    "commissioning_state":  "semantic_view_commissioning_reopened_issue_270",
+    "current_change":  null,
+    "commissioning_state":  "live_readiness_owned_by_project_management_schema_status",
     "dependencies":  [
                          "047-capability-composition-and-tool-experience"
                      ],

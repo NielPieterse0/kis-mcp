@@ -23,3 +23,16 @@ def test_output_redirection_targets_preserve_actual_target_text() -> None:
     assert output_redirection_targets(
         r"Write-Output test >> .\output.txt", shell="powershell"
     ) == (r".\output.txt",)
+
+
+def test_output_redirection_targets_preserve_powershell_mixed_quote_context() -> None:
+    first = "''" + "$env:USERPROFILE" + r"'\out.txt'"
+    second = "'prefix'" + "$env:USERPROFILE" + "'suffix'"
+    assert output_redirection_targets(
+        "echo data > " + first,
+        shell="powershell",
+    ) == (first,)
+    assert output_redirection_targets(
+        "echo data > " + second,
+        shell="powershell",
+    ) == (second,)
