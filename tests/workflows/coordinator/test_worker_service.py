@@ -601,3 +601,36 @@ def test_result_normalization_rejects_oversized_text_before_encoding() -> None:
     huge_key = GuardedString("k" * 70_000)
     with pytest.raises(ReservationAdmissionError, match="WORKER_RESULT_TOO_LARGE"):
         asyncio.run(invoke_with({huge_key: "value"}))
+
+
+def test_mcp_adapter_closes_original_context_manager_when_enter_returns_client() -> None:
+    class EnteredClient(FakeClient):
+        pass
+
+    class ClientManager(FakeClient):
+        def __init__(self, entered: EnteredClient) -> None:
+            super().__init__()
+            self.entered_client = entered
+
+        async def __aenter__(self) -> EnteredClient:
+            self.entered += 1
+            return self.entered_client
+
+    entered = EnteredClient()
+    manager = ClientManager(entered)
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: manager,
+        admit_tool=lambda _packet, tool: tool["name"] == "read_file",  # type: ignore[index]
+        assert_authority=lambda authority: authority,
+        is_mutating=lambda _name, _arguments, _tool: False,
+    )
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        await adapter.discover(_packet())
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert manager.entered == 1
+    assert manager.exited == 1
+    assert entered.exited == 0

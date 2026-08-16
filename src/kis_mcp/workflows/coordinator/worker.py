@@ -290,6 +290,7 @@ class McpWorkerAdapter:
         self._admit_tool = admit_tool
         self._assert_authority = assert_authority
         self._is_mutating = is_mutating
+        self._client_manager: McpWorkerClient | None = None
         self._client: McpWorkerClient | None = None
         self._allowed_tools: dict[str, Any] | None = None
         self._packet_id: str | None = None
@@ -301,8 +302,10 @@ class McpWorkerAdapter:
             raise ReservationAdmissionError("WORKER_TRANSPORT_ALREADY_CONNECTED", "MCP worker transport is already connected.")
         verified_binding = _verify_runtime_binding(runtime_binding)
         binding_ref = _runtime_binding_ref(verified_binding)
-        client = self._client_factory(verified_binding)
-        self._client = await client.__aenter__()
+        client_manager = self._client_factory(verified_binding)
+        entered_client = await client_manager.__aenter__()
+        self._client_manager = client_manager
+        self._client = entered_client
         self._allowed_tools = None
         self._packet_id = None
         self._packet_digest = None
@@ -393,14 +396,15 @@ class McpWorkerAdapter:
         await self.connect(runtime_binding)
 
     async def close(self) -> None:
-        client = self._client
+        client_manager = self._client_manager
+        self._client_manager = None
         self._client = None
         self._allowed_tools = None
         self._packet_id = None
         self._packet_digest = None
         self._runtime_binding = None
-        if client is not None:
-            await client.__aexit__(None, None, None)
+        if client_manager is not None:
+            await client_manager.__aexit__(None, None, None)
 
     def _require_client(self) -> McpWorkerClient:
         if self._client is None:
