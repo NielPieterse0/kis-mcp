@@ -102,6 +102,7 @@ class Backend:
                 sort_by=view.sort_by,
                 group_by=view.group_by,
                 vertical_group_by=view.vertical_group_by,
+                behavior_verified=True,
             )
             for view in load_project_schema_manifest().views
         )

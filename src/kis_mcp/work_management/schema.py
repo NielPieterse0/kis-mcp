@@ -135,6 +135,8 @@ class ProjectViewObservation:
     sort_by: tuple[tuple[str, str], ...] = ()
     group_by: tuple[str, ...] = ()
     vertical_group_by: tuple[str, ...] = ()
+    behavior_verified: bool | None = None
+    behavior_mismatches: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         probe = ProjectViewSpec(
@@ -154,6 +156,18 @@ class ProjectViewObservation:
         object.__setattr__(self, "sort_by", probe.sort_by)
         object.__setattr__(self, "group_by", probe.group_by)
         object.__setattr__(self, "vertical_group_by", probe.vertical_group_by)
+        if (
+            self.behavior_verified is not True
+            and self.behavior_verified is not False
+            and self.behavior_verified is not None
+        ):
+            raise ValueError("behavior_verified must be true, false, or null")
+        behavior_mismatches = tuple(
+            _text(value, "view behavior mismatch") for value in self.behavior_mismatches
+        )
+        if self.behavior_verified is True and behavior_mismatches:
+            raise ValueError("verified view behavior cannot contain mismatches")
+        object.__setattr__(self, "behavior_mismatches", behavior_mismatches)
 
 
 @dataclass(frozen=True, slots=True)
@@ -420,9 +434,16 @@ def compare_project_schema(
                     tuple(value.casefold() for value in expected.vertical_group_by),
                 ),
             )
+            stored_semantics_match = True
             for dimension, observed_value, expected_value in dimensions:
                 if observed_value != expected_value:
+                    stored_semantics_match = False
                     view_mismatches.append(f"{expected.name}:{dimension}")
+            if stored_semantics_match and expected.filter:
+                if actual.behavior_verified is False:
+                    view_mismatches.append(f"{expected.name}:behavior")
+                elif actual.behavior_verified is None:
+                    unverified.append(expected.name)
         missing_views = tuple(missing)
         unverified_views = tuple(unverified)
         views_ready = not (unverified_views or view_mismatches)
@@ -503,7 +524,12 @@ def plan_project_schema_repair(
             )
         for mismatch in status.view_mismatches:
             _, _, dimension = mismatch.rpartition(":")
-            commissioner_supported = dimension in {"filter", "visible_fields"}
+            commissioner_supported = dimension in {
+                "layout",
+                "filter",
+                "visible_fields",
+                "behavior",
+            }
             actions.append(
                 ProjectSchemaRepairAction(
                     kind="update_view",

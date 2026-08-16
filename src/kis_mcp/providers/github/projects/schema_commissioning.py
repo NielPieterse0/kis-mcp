@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
+import shlex
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -87,6 +89,7 @@ class _Field:
 @dataclass(frozen=True, slots=True)
 class _View:
     view_id: str
+    view_number: int
     name: str
     layout: str
     filter: str = ""
@@ -95,7 +98,12 @@ class _View:
     group_by: tuple[str, ...] = ()
     vertical_group_by: tuple[str, ...] = ()
 
-    def observation(self) -> ProjectViewObservation:
+    def observation(
+        self,
+        *,
+        behavior_verified: bool | None = None,
+        behavior_mismatches: tuple[str, ...] = (),
+    ) -> ProjectViewObservation:
         return ProjectViewObservation(
             name=self.name,
             layout=self.layout.removesuffix("_LAYOUT").casefold(),
@@ -106,6 +114,8 @@ class _View:
             sort_by=self.sort_by,
             group_by=self.group_by,
             vertical_group_by=self.vertical_group_by,
+            behavior_verified=behavior_verified,
+            behavior_mismatches=behavior_mismatches,
         )
 
 
@@ -230,6 +240,7 @@ class GitHubProjectSchemaClient:
       views(first: 100) {{
         nodes {{
           id
+          number
           name
           layout
           filter
@@ -338,9 +349,15 @@ class GitHubProjectSchemaClient:
                         _required(sort_item.get("direction"), "view sort direction").casefold(),
                     )
                 )
+            view_number = item.get("number")
+            if isinstance(view_number, bool) or not isinstance(view_number, int) or view_number <= 0:
+                raise RuntimeError(
+                    "GITHUB_PROJECT_SCHEMA_INVALID_RESPONSE: view number was invalid"
+                )
             views.append(
                 _View(
                     view_id=_required(item.get("id"), "view id"),
+                    view_number=view_number,
                     name=_required(item.get("name"), "view name"),
                     layout=_required(item.get("layout"), "view layout"),
                     filter=str(item.get("filter") or "").strip(),
@@ -364,13 +381,180 @@ class GitHubProjectSchemaClient:
             views=tuple(views),
         )
 
-    def read_views(self, target: ProjectSchemaTarget) -> tuple[ProjectViewObservation, ...]:
-        return tuple(
-            sorted(
-                (view.observation() for view in self.read_snapshot(target).views),
-                key=lambda view: view.name.casefold(),
+    @staticmethod
+    def _field_slug(name: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "-", name.casefold()).strip("-")
+
+    @classmethod
+    def _filter_requirements(
+        cls,
+        snapshot: _Snapshot,
+        filter_text: str,
+    ) -> tuple[tuple[_Field, tuple[str, ...]], ...] | None:
+        if not filter_text:
+            return ()
+        by_slug = {cls._field_slug(field.name): field for field in snapshot.fields}
+        requirements: list[tuple[_Field, tuple[str, ...]]] = []
+        try:
+            tokens = shlex.split(filter_text, posix=True)
+        except ValueError:
+            return None
+        for token in tokens:
+            qualifier, separator, raw_values = token.partition(":")
+            if not separator or not qualifier or not raw_values:
+                return None
+            field = by_slug.get(qualifier.casefold())
+            if field is None:
+                return None
+            values = tuple(
+                value.strip().casefold()
+                for value in raw_values.split(",")
+                if value.strip()
             )
+            if not values:
+                return None
+            requirements.append((field, values))
+        return tuple(requirements)
+
+    @staticmethod
+    def _included_saved_view_items(stdout: str) -> tuple[dict[str, Any], ...] | None:
+        if not isinstance(stdout, str) or not stdout.strip():
+            return None
+        parts = re.split(r"\r?\n\r?\n", stdout, maxsplit=1)
+        if len(parts) != 2 or not parts[0].lstrip().startswith("HTTP/"):
+            return None
+        headers, body = parts
+        if any(
+            line.casefold().startswith("link:") and 'rel="next"' in line.casefold()
+            for line in headers.splitlines()
+        ):
+            return None
+        if not body.strip():
+            return None
+        try:
+            document = json.loads(body)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(document, list):
+            return None
+        items: list[dict[str, Any]] = []
+        for item in document:
+            if not isinstance(item, dict):
+                return None
+            items.append(item)
+        return tuple(items)
+
+    def _verify_saved_view_behavior(
+        self,
+        target: ProjectSchemaTarget,
+        snapshot: _Snapshot,
+        view: _View,
+        *,
+        expected_filter: str,
+    ) -> tuple[bool | None, tuple[str, ...]]:
+        requirements = self._filter_requirements(snapshot, expected_filter)
+        if requirements is None:
+            return None, ()
+        if not requirements:
+            return True, ()
+        if any(field.database_id is None for field, _ in requirements):
+            return None, ()
+        if target.owner_type == "user":
+            endpoint = (
+                f"/users/{target.owner}/projectsV2/{target.project_number}/"
+                f"views/{view.view_number}/items"
+            )
+        else:
+            endpoint = (
+                f"/orgs/{target.owner}/projectsV2/{target.project_number}/"
+                f"views/{view.view_number}/items"
+            )
+        database_ids = tuple(int(field.database_id) for field, _ in requirements)
+        args = (
+            "gh",
+            "api",
+            "--hostname",
+            "github.com",
+            "--method",
+            "GET",
+            "-H",
+            "X-GitHub-Api-Version: 2026-03-10",
+            "-H",
+            "Accept: application/vnd.github+json",
+            "--include",
+            endpoint,
+            "-f",
+            "per_page=100",
+            "-f",
+            "fields=" + ",".join(str(value) for value in database_ids),
         )
+        result = self._runner(args, self._cwd, self._environment())
+        if getattr(result, "returncode", 1) != 0:
+            return None, ()
+        items = self._included_saved_view_items(str(getattr(result, "stdout", "")))
+        if items is None:
+            return None, ()
+        mismatches: list[str] = []
+        for item in items:
+            raw_fields = item.get("fields")
+            if not isinstance(raw_fields, list):
+                return None, ()
+            values_by_name: dict[str, str] = {}
+            for raw_field in raw_fields:
+                if not isinstance(raw_field, dict):
+                    return None, ()
+                field_name = raw_field.get("name")
+                if not isinstance(field_name, str) or not field_name.strip():
+                    continue
+                value = raw_field.get("value")
+                if isinstance(value, dict):
+                    value = value.get("name")
+                if value is not None:
+                    values_by_name[field_name.casefold()] = str(value).strip()
+            for field, allowed in requirements:
+                observed_value = values_by_name.get(field.name.casefold())
+                if observed_value is None or observed_value.casefold() not in allowed:
+                    detail = "<missing>" if observed_value is None else observed_value
+                    mismatch = f"{field.name}:{detail}"
+                    if mismatch not in mismatches:
+                        mismatches.append(mismatch)
+        return not mismatches, tuple(mismatches)
+
+    def _observations_for_snapshot(
+        self,
+        target: ProjectSchemaTarget,
+        snapshot: _Snapshot,
+        manifest: ProjectSchemaManifest,
+    ) -> tuple[ProjectViewObservation, ...]:
+        actual_by_name = {view.name.casefold(): view for view in snapshot.views}
+        observations: list[ProjectViewObservation] = []
+        for expected in manifest.views:
+            view = actual_by_name.get(expected.name.casefold())
+            if view is None:
+                continue
+            verified, mismatches = self._verify_saved_view_behavior(
+                target,
+                snapshot,
+                view,
+                expected_filter=expected.filter,
+            )
+            observations.append(
+                view.observation(
+                    behavior_verified=verified,
+                    behavior_mismatches=mismatches,
+                )
+            )
+        return tuple(observations)
+
+    def read_views(
+        self,
+        target: ProjectSchemaTarget,
+        manifest: ProjectSchemaManifest,
+    ) -> tuple[ProjectViewObservation, ...]:
+        if not isinstance(manifest, ProjectSchemaManifest):
+            raise ValueError("manifest must be a ProjectSchemaManifest")
+        snapshot = self.read_snapshot(target)
+        return self._observations_for_snapshot(target, snapshot, manifest)
 
     @staticmethod
     def _option_input(option: _Option | None, name: str) -> str:
@@ -453,10 +637,20 @@ class GitHubProjectSchemaClient:
             )
         return tuple(int(by_name[name.casefold()]) for name in names)
 
-    def _update_view(self, snapshot: _Snapshot, actual: _View, expected) -> None:
+    def _update_view(
+        self,
+        snapshot: _Snapshot,
+        actual: _View,
+        expected,
+        *,
+        force_filter: bool = False,
+    ) -> None:
         observed = actual.observation()
         parts = [f"viewId: {_quoted(actual.view_id)}"]
-        if observed.filter != expected.filter:
+        expected_layout = _VIEW_LAYOUT[expected.layout]
+        if actual.layout != expected_layout:
+            parts.append(f"layout: {expected_layout}")
+        if force_filter or observed.filter != expected.filter:
             parts.append(f"filter: {_quoted(expected.filter)}")
         if observed.visible_fields != expected.visible_fields:
             field_ids = self._view_field_ids(snapshot, expected.visible_fields)
@@ -581,11 +775,6 @@ class GitHubProjectSchemaClient:
                         + ", ".join(missing_database_ids)
                     )
                 continue
-            expected_layout = _VIEW_LAYOUT[expected.layout]
-            if actual.layout != expected_layout:
-                raise ValueError(
-                    f"view layout mismatch for {expected.name}: {actual.layout}->{expected_layout}"
-                )
             observed = actual.observation()
             unsupported = []
             if observed.sort_by != expected.sort_by:
@@ -649,11 +838,6 @@ class GitHubProjectSchemaClient:
                 self._create_view(target, snapshot, expected)
                 created_views.append(expected.name)
                 continue
-            expected_layout = _VIEW_LAYOUT[expected.layout]
-            if actual.layout != expected_layout:
-                raise ValueError(
-                    f"view layout mismatch for {expected.name}: {actual.layout}->{expected_layout}"
-                )
             observed = actual.observation()
             unsupported = []
             if observed.sort_by != expected.sort_by:
@@ -667,13 +851,14 @@ class GitHubProjectSchemaClient:
                     f"view configuration mismatch for {expected.name} is not safely mutable: "
                     + ", ".join(unsupported)
                 )
+            expected_layout = _VIEW_LAYOUT[expected.layout]
             if (
-                observed.filter != expected.filter
+                actual.layout != expected_layout
+                or observed.filter != expected.filter
                 or observed.visible_fields != expected.visible_fields
             ):
                 self._update_view(snapshot, actual, expected)
                 updated_views.append(expected.name)
-
         final = self.read_snapshot(target)
         final_views = {view.name.casefold(): view for view in final.views}
         for expected in manifest.views:
@@ -682,12 +867,39 @@ class GitHubProjectSchemaClient:
                 raise RuntimeError(
                     f"GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: view not ready: {expected.name}"
                 )
+        observations = self._observations_for_snapshot(target, final, manifest)
         status = compare_project_schema(
             manifest,
             final.work_fields(),
             project_id="registered-project",
-            views_observed=tuple(view.observation() for view in final.views),
+            views_observed=observations,
         )
+        behavior_repairs = {
+            mismatch.partition(":")[0]
+            for mismatch in status.view_mismatches
+            if mismatch.endswith(":behavior")
+        }
+        if behavior_repairs:
+            expected_by_name = {view.name.casefold(): view for view in manifest.views}
+            for name in sorted(behavior_repairs, key=str.casefold):
+                actual = final_views.get(name.casefold())
+                expected = expected_by_name.get(name.casefold())
+                if actual is None or expected is None:
+                    raise RuntimeError(
+                        f"GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: behavior repair target missing: {name}"
+                    )
+                self._update_view(final, actual, expected, force_filter=True)
+                if expected.name not in updated_views:
+                    updated_views.append(expected.name)
+            final = self.read_snapshot(target)
+            final_views = {view.name.casefold(): view for view in final.views}
+            observations = self._observations_for_snapshot(target, final, manifest)
+            status = compare_project_schema(
+                manifest,
+                final.work_fields(),
+                project_id="registered-project",
+                views_observed=observations,
+            )
         if not status.ready:
             details = [*status.unverified_views, *status.view_mismatches]
             suffix = f": {', '.join(details)}" if details else ""
@@ -704,6 +916,14 @@ class GitHubProjectSchemaClient:
             "updated_views": updated_views,
             "field_count": len(final.fields),
             "view_count": len(final.views),
+            "view_behavior": [
+                {
+                    "name": observation.name,
+                    "verified": observation.behavior_verified,
+                    "mismatches": list(observation.behavior_mismatches),
+                }
+                for observation in observations
+            ],
         }
 
 
@@ -713,6 +933,7 @@ class GitHubProjectSchemaAwareBackend:
         delegate,
         bindings: Mapping[str, ProjectBinding],
         *,
+        manifest: ProjectSchemaManifest,
         gh_config_dir: Path,
         cwd: Path,
         runner: CommandRunner = _default_runner,
@@ -724,6 +945,9 @@ class GitHubProjectSchemaAwareBackend:
             for project_id, binding in self._bindings.items()
         ):
             raise ValueError("schema-aware backend requires exact configured project bindings")
+        if not isinstance(manifest, ProjectSchemaManifest):
+            raise ValueError("manifest must be a ProjectSchemaManifest")
+        self._manifest = manifest
         self._client = GitHubProjectSchemaClient(
             gh_config_dir=gh_config_dir,
             cwd=cwd,
@@ -748,7 +972,7 @@ class GitHubProjectSchemaAwareBackend:
         if configured != project_binding:
             raise ValueError("project_binding does not match configured GitHub binding")
         target = ProjectSchemaTarget.from_binding(project_binding)
-        return await asyncio.to_thread(self._client.read_views, target)
+        return await asyncio.to_thread(self._client.read_views, target, self._manifest)
 
     async def apply_reconciliation(self, decision, *, idempotency_key: str):
         return await self._delegate.apply_reconciliation(
