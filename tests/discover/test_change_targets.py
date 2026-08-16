@@ -107,10 +107,155 @@ def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _git_with_system_config(
+    root: Path,
+    system_config: Path,
+    *arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    environment = dict(os.environ)
+    environment.pop("GIT_CONFIG_NOSYSTEM", None)
+    environment.update(
+        {
+            "GIT_CONFIG_SYSTEM": str(system_config),
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    return subprocess.run(
+        ["git", "-C", str(root), *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+def _write_crlf(path: Path, content: str) -> None:
+    path.write_bytes(content.replace("\n", "\r\n").encode("utf-8"))
+
+
+def _create_autocrlf_linked_worktree(project_root: Path) -> tuple[Path, Path]:
+    system_config = project_root.parent / f"{project_root.name}-system.gitconfig"
+    system_config.write_text("[core]\n\tautocrlf = true\n\teol = native\n", encoding="utf-8")
+    _git_with_system_config(project_root, system_config, "init", "-b", "main")
+    _git_with_system_config(
+        project_root, system_config, "config", "user.name", "Discover Tests"
+    )
+    _git_with_system_config(
+        project_root,
+        system_config,
+        "config",
+        "user.email",
+        "discover@example.invalid",
+    )
+    (project_root / ".gitattributes").write_text(
+        "attributes.txt text eol=crlf\n",
+        encoding="utf-8",
+    )
+    for name in ("system.txt", "attributes.txt", "staged.txt", "unstaged.txt", "both.txt"):
+        _write_crlf(project_root / name, f"base {name}\n")
+    _git_with_system_config(project_root, system_config, "add", "--all")
+    _git_with_system_config(project_root, system_config, "commit", "-m", "initial")
+    linked = project_root.parent / f"{project_root.name}-autocrlf-linked"
+    _git_with_system_config(
+        project_root,
+        system_config,
+        "worktree",
+        "add",
+        "-b",
+        "autocrlf-linked",
+        str(linked),
+    )
+    return linked, system_config
+
+
 def _commit(root: Path, message: str) -> str:
     _git(root, "add", "--all")
     _git(root, "commit", "-m", message)
     return _git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def test_working_tree_inspection_matches_native_autocrlf_in_linked_worktree(
+    project_root: Path,
+    discover_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    linked, system_config = _create_autocrlf_linked_worktree(project_root)
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_config))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+    native = _git_with_system_config(linked, system_config, "diff", "--name-only")
+    assert native.stdout == ""
+    assert b"\r\n" in (linked / "system.txt").read_bytes()
+    assert b"\r\n" in (linked / "attributes.txt").read_bytes()
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    result = reader.inspect_local_changes(str(linked))
+    response = InspectChangeService(reader).inspect(
+        InspectChangeRequest(path=str(linked), source="working_tree")
+    )
+
+    assert result.changes == ()
+    assert result.diagnostics == ()
+    assert result.source_fingerprint is not None
+    assert response.changed_files == ()
+    assert response.change.fingerprint == result.source_fingerprint
+
+
+def test_linked_worktree_inventory_matches_native_staged_unstaged_and_untracked(
+    project_root: Path,
+    discover_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    linked, system_config = _create_autocrlf_linked_worktree(project_root)
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_config))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+    _write_crlf(linked / "staged.txt", "staged change\n")
+    _git_with_system_config(linked, system_config, "add", "--", "staged.txt")
+    _write_crlf(linked / "unstaged.txt", "unstaged change\n")
+    _write_crlf(linked / "both.txt", "both staged\n")
+    _git_with_system_config(linked, system_config, "add", "--", "both.txt")
+    _write_crlf(linked / "both.txt", "both unstaged\n")
+    _write_crlf(linked / "untracked.txt", "untracked\n")
+
+    native_staged = set(
+        _git_with_system_config(
+            linked, system_config, "diff", "--cached", "--name-only"
+        ).stdout.splitlines()
+    )
+    native_unstaged = set(
+        _git_with_system_config(linked, system_config, "diff", "--name-only").stdout.splitlines()
+    )
+    native_untracked = set(
+        _git_with_system_config(
+            linked,
+            system_config,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+        ).stdout.splitlines()
+    )
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    result = reader.inspect_local_changes(str(linked))
+    by_path = {item.path: item for item in result.changes}
+
+    assert {path for path, item in by_path.items() if item.staged_status is not None} == native_staged
+    assert {path for path, item in by_path.items() if item.worktree_status is not None} == native_unstaged
+    assert {path for path, item in by_path.items() if item.untracked} == native_untracked
+    assert by_path["both.txt"].staged_status == "modified"
+    assert by_path["both.txt"].worktree_status == "modified"
+    assert result.diagnostics == ()
+    assert result.source_fingerprint is not None
 
 
 def test_reader_inspects_commit_range_and_branch_targets(

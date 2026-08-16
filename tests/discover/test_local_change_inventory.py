@@ -378,13 +378,23 @@ def test_uses_fixed_non_executing_git_change_commands(
     (project_root / ".git").mkdir()
     calls: list[tuple[str, ...]] = []
     configurations: list[tuple[str, ...]] = []
+    environments: list[dict[str, str]] = []
+    configured_system = r"C:\Projects\system.gitconfig"
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", configured_system)
 
     def fake_run(command, *, cwd, environment, timeout_seconds, max_output_bytes):
         marker = command.index("-C")
         configurations.append(tuple(command[:marker]))
+        environments.append(environment)
         arguments = tuple(command[marker + 2 :])
         calls.append(arguments)
-        stdout = str(project_root).encode() if arguments == ("rev-parse", "--show-toplevel") else b""
+        if arguments == ("rev-parse", "--show-toplevel"):
+            stdout = str(project_root).encode()
+        elif arguments and arguments[0] == "config":
+            stdout = b"core.autocrlf\nyes\x00core.eol\nnative\x00"
+        else:
+            stdout = b""
         return git_reader._GitCommandResult(0, stdout, b"", False, 0)
 
     monkeypatch.setattr(git_reader, "_run_bounded", fake_run)
@@ -392,6 +402,13 @@ def test_uses_fixed_non_executing_git_change_commands(
     inventory = _reader(discover_settings).inspect_local_changes(str(project_root))
 
     assert inventory.changes == ()
+    config_probe = (
+        "config",
+        "--includes",
+        "-z",
+        "--get-regexp",
+        r"^core\.(autocrlf|eol)$",
+    )
     assert calls == [
         ("rev-parse", "--show-toplevel"),
         (
@@ -404,6 +421,7 @@ def test_uses_fixed_non_executing_git_change_commands(
             "--find-renames",
             "--find-copies",
         ),
+        config_probe,
         (
             "diff",
             "--no-ext-diff",
@@ -415,9 +433,22 @@ def test_uses_fixed_non_executing_git_change_commands(
         ),
         ("ls-files", "--others", "--exclude-standard", "-z"),
     ]
-    for configuration in configurations:
+    for arguments, configuration, environment in zip(calls, configurations, environments, strict=True):
+        if arguments == config_probe:
+            assert configuration[-1] == "--no-pager"
+            assert environment["GIT_CONFIG_SYSTEM"] == configured_system
+            assert "GIT_CONFIG_NOSYSTEM" not in environment
+            continue
         assert "core.attributesFile=" in configuration
         assert "core.excludesFile=" in configuration
+        if arguments and arguments[0] == "diff":
+            if "--cached" in arguments:
+                assert "core.autocrlf=true" not in configuration
+                assert "core.eol=native" not in configuration
+            else:
+                assert "core.autocrlf=true" in configuration
+                assert "core.eol=native" in configuration
+            assert environment["GIT_CONFIG_SYSTEM"] == os.devnull
 
 
 def test_non_repository_returns_structural_diagnostic(
