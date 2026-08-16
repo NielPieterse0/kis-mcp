@@ -8,7 +8,7 @@
     "roadmap":  ".work/programmes/work-management/roadmap.md",
     "initial_backend":  "github",
     "current_change":  null,
-    "commissioning_state":  "implemented_with_provider_schema_gap",
+    "commissioning_state":  "live_readiness_owned_by_project_management_schema_status",
     "dependencies":  [
                          "047-capability-composition-and-tool-experience"
                      ],

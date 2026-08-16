@@ -25,6 +25,7 @@ from ..discover.platform import (
 from ..line_endings import RepositoryLineEndingNormalizer
 from ..middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
+from ..process_environment import RepositoryProcessEnvironmentNormalizer
 from ..provider_lifecycle import prepare_provider_launch
 from ..provider_readiness import validate_provider_offline_readiness
 from ..projects import load_project_registry_settings
@@ -146,6 +147,10 @@ def compose_gateway(
             quarantine_paths=lambda paths: quarantine_many_payloads(quarantine, paths),
             text_normalizer=RepositoryLineEndingNormalizer(
                 project_boundary=runtime.project_boundary
+            ),
+            process_environment_normalizer=RepositoryProcessEnvironmentNormalizer(
+                project_boundary=runtime.project_boundary,
+                projects=projects,
             ),
         )
     )

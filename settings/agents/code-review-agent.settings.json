@@ -7,6 +7,7 @@
   "max_evidence_chars": 120000,
   "max_output_chars": 30000,
   "max_backend_attempts": 2,
+  "review_deadline_seconds": 120,
   "nvidia": {
     "enabled": true,
     "base_url": "https://integrate.api.nvidia.com/v1",

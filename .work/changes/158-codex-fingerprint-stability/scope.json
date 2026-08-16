@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "change_id": "158-codex-fingerprint-stability",
+  "status": "active",
+  "branch": "change/158-codex-fingerprint-stability",
+  "worktree": ".work/worktrees/158-codex-fingerprint-stability",
+  "base": "main",
+  "outcome": "Fix #261 by making Codex read-only repository fingerprinting stable for pre-existing dirty diffs while preserving fail-closed mutation detection.",
+  "owned_paths": [
+    "scripts/invoke-codex-agent.ps1",
+    "tests/tools/codex_cli/test_adapter.py",
+    ".work/changes/158-codex-fingerprint-stability/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "4e107b660a9925569d32eb19927b361da7149de5",
+    "local_tree": "b15421c4fb3aa4373f3454145660f5a724a6db5d",
+    "upstream_sha": "4e107b660a9925569d32eb19927b361da7149de5",
+    "upstream_tree": "b15421c4fb3aa4373f3454145660f5a724a6db5d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-261",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 261,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

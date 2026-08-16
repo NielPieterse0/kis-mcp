@@ -58,6 +58,7 @@ class LocalChangeInventory:
     summary: ChangeSummary = field(default_factory=ChangeSummary)
     diagnostics: tuple[Diagnostic, ...] = ()
     truncated: bool = False
+    source_fingerprint: str | None = None
     schema_version: int = 1
     source: str = "local_git"
 

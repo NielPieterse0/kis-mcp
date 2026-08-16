@@ -77,6 +77,8 @@ _CONFIGURATION_EXTENSIONS = {
 _CONTRACT_EXTENSIONS = {".graphql", ".gql", ".proto"}
 _FATAL_DIAGNOSTICS = {
     "CHANGE_TARGET_READER_UNAVAILABLE",
+    "CHANGE_SOURCE_FINGERPRINT_UNAVAILABLE",
+    "CHANGE_SOURCE_CHANGED_DURING_INSPECTION",
     "GIT_CHANGE_READ_FAILED",
     "GIT_EXECUTION_FAILED",
     "GIT_METADATA_ENCODING_INVALID",
@@ -183,6 +185,14 @@ class InspectChangeService:
                 commit_ref=request.commit_ref,
                 base_ref=request.base_ref,
                 head_ref=request.head_ref,
+                resolved_commit_ref=getattr(inventory, "resolved_commit_ref", None),
+                resolved_base_ref=getattr(inventory, "resolved_base_ref", None),
+                resolved_head_ref=getattr(inventory, "resolved_head_ref", None),
+                fingerprint_basis=(
+                    "evidence_snapshot"
+                    if request.source in {"working_tree", "staged"}
+                    else "immutable_ref"
+                ),
             ),
             changed_files=changed_files,
             affected_scopes=_affected_scopes(inventory.changes),
@@ -248,6 +258,9 @@ def _changed_file(record: ChangePathRecord) -> ChangedFile:
 
 
 def _fingerprint(inventory: Any) -> str:
+    source_fingerprint = getattr(inventory, "source_fingerprint", None)
+    if isinstance(source_fingerprint, str) and len(source_fingerprint) == 64:
+        return source_fingerprint
     canonical = json.dumps(
         inventory.to_json_dict(),
         ensure_ascii=True,

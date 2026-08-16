@@ -76,6 +76,25 @@ def test_codex_adapter_invokes_fixed_script_and_extracts_agent_message(tmp_path:
     assert result == "review result"
 
 
+def test_codex_adapter_honors_tighter_per_review_timeout_budget(tmp_path: Path) -> None:
+    calls: list[dict[str, object]] = []
+
+    def run(args, **kwargs):
+        calls.append({"args": args, **kwargs})
+        stdout = json.dumps(
+            {
+                "type": "item.completed",
+                "item": {"type": "agent_message", "text": "review result"},
+            }
+        )
+        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
+
+    adapter = CodexCliAdapter(_settings(), runner=run, pwsh_executable="pwsh")
+
+    assert adapter.review(tmp_path, "inspect", timeout_seconds=2.5) == "review result"
+    assert calls[0]["timeout"] == 2.5
+
+
 def test_codex_adapter_reports_process_failure_without_raw_prompt(tmp_path: Path) -> None:
     def run(args, **kwargs):
         return subprocess.CompletedProcess(args, 7, stdout="", stderr="auth required")
@@ -284,6 +303,75 @@ def test_codex_wrapper_executes_fake_cli_and_preserves_repository(tmp_path: Path
     assert completed.returncode == 0
     assert '"text":"review output"' in completed.stdout
     assert (tmp_path / "tracked.txt").read_text(encoding="utf-8") == "baseline\n"
+
+
+def test_codex_wrapper_preserves_preexisting_dirty_diff_with_git_warning(tmp_path: Path) -> None:
+    pwsh = shutil.which("pwsh")
+    if pwsh is None:
+        pytest.skip("PowerShell is unavailable")
+    _initialize_git_repository(tmp_path)
+    subprocess.run(["git", "config", "core.autocrlf", "true"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "core.safecrlf", "warn"], cwd=tmp_path, check=True)
+    (tmp_path / "tracked.txt").write_bytes(b"dirty\n")
+    fake_codex = tmp_path / "fake-codex.cmd"
+    fake_codex.write_text(
+        '@echo off\r\necho {"type":"item.completed","item":{"type":"agent_message","text":"review output"}}\r\nexit /b 0\r\n',
+        encoding="utf-8",
+    )
+    status_before = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    diff_before = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "--binary", "HEAD", "--"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "will be replaced by CRLF" in diff_before.stderr
+
+    completed = subprocess.run(
+        [
+            pwsh,
+            "-NoProfile",
+            "-File",
+            str(_settings().script_path),
+            "-CodexExecutable",
+            str(fake_codex),
+            "-ProjectPath",
+            str(tmp_path),
+            "-CodexHome",
+            str(tmp_path / "codex-home"),
+        ],
+        input="review prompt",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    status_after = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    diff_after = subprocess.run(
+        ["git", "diff", "--no-ext-diff", "--binary", "HEAD", "--"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    assert completed.returncode == 0
+    assert '"text":"review output"' in completed.stdout
+    assert status_after == status_before
+    assert diff_after == diff_before.stdout
 
 
 def test_codex_wrapper_detects_fake_cli_repository_mutation(tmp_path: Path) -> None:

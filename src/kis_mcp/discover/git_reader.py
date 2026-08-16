@@ -18,6 +18,24 @@ from .read_authority import ReadAuthority, is_within_boundary
 from .settings import DiscoverSettings
 
 _SAFE_SCHEMES = {"git", "http", "https", "ssh"}
+_NATIVE_LINE_ENDING_CONFIG_VALUES = {
+    "core.autocrlf": {
+        "0": "false",
+        "1": "true",
+        "false": "false",
+        "input": "input",
+        "no": "false",
+        "off": "false",
+        "on": "true",
+        "true": "true",
+        "yes": "true",
+    },
+    "core.eol": {
+        "crlf": "crlf",
+        "lf": "lf",
+        "native": "native",
+    },
+}
 GitTimeoutExpired = subprocess.TimeoutExpired
 
 
@@ -297,32 +315,51 @@ class GitReader:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise subprocess.TimeoutExpired(cmd="git", timeout=0)
+        semantic_config = (
+            _read_native_line_ending_config(
+                executable,
+                root,
+                deadline=deadline,
+                max_output_bytes=self._settings.limits.git_max_output_bytes,
+            )
+            if _requires_native_line_ending_config(arguments)
+            else ()
+        )
         environment = _isolated_environment()
         command = [
             executable,
             "--no-pager",
-            "-c",
-            "core.fsmonitor=false",
-            "-c",
-            "core.untrackedCache=false",
-            "-c",
-            "core.attributesFile=",
-            "-c",
-            "core.excludesFile=",
-            "-c",
-            "core.pager=cat",
-            "-c",
-            "pager.status=false",
-            "-c",
-            "diff.external=",
-            "-c",
-            "diff.trustExitCode=false",
-            "-c",
-            "credential.helper=",
-            "-C",
-            str(root),
-            *arguments,
         ]
+        for key, value in semantic_config:
+            command.extend(("-c", f"{key}={value}"))
+        command.extend(
+            [
+                "-c",
+                "core.fsmonitor=false",
+                "-c",
+                "core.untrackedCache=false",
+                "-c",
+                "core.attributesFile=",
+                "-c",
+                "core.excludesFile=",
+                "-c",
+                "core.pager=cat",
+                "-c",
+                "pager.status=false",
+                "-c",
+                "diff.external=",
+                "-c",
+                "diff.trustExitCode=false",
+                "-c",
+                "credential.helper=",
+                "-C",
+                str(root),
+                *arguments,
+            ]
+        )
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired(cmd="git", timeout=0)
         return _run_bounded(
             command,
             cwd=root,
@@ -496,6 +533,149 @@ def _run_bounded(
         truncated=bool(state["truncated"]),
         nul_items=int(state["nul_items"]),
     )
+
+
+def _requires_native_line_ending_config(arguments: tuple[str, ...]) -> bool:
+    if not arguments:
+        return False
+    if arguments[0] == "status":
+        return True
+    return (
+        arguments[0] == "diff"
+        and "--cached" not in arguments
+        and "--end-of-options" not in arguments
+    )
+
+
+def _read_native_line_ending_config(
+    executable: str,
+    root: Path,
+    *,
+    deadline: float,
+    max_output_bytes: int,
+) -> tuple[tuple[str, str], ...]:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise subprocess.TimeoutExpired(cmd="git config", timeout=0)
+    result = _run_bounded(
+        [
+            executable,
+            "--no-pager",
+            "-C",
+            str(root),
+            "config",
+            "--includes",
+            "-z",
+            "--get-regexp",
+            r"^core\.(autocrlf|eol)$",
+        ],
+        cwd=root,
+        environment=_native_config_environment(),
+        timeout_seconds=max(0.001, remaining),
+        max_output_bytes=max_output_bytes,
+    )
+    if result.truncated:
+        raise ValueError("native Git line-ending configuration output was truncated")
+    if result.returncode == 1:
+        return ()
+    if result.returncode != 0:
+        raise ValueError("native Git line-ending configuration could not be read")
+
+    records = result.stdout.split(b"\x00")
+    if records and records[-1] == b"":
+        records.pop()
+    raw_resolved: dict[str, str] = {}
+    for record in records:
+        raw_key, separator, raw_value = record.partition(b"\n")
+        if not separator:
+            raise ValueError("native Git line-ending configuration output was malformed")
+        key = _decode(raw_key).strip().casefold()
+        if key not in _NATIVE_LINE_ENDING_CONFIG_VALUES:
+            raise ValueError("native Git line-ending configuration was unsupported")
+        raw_resolved[key] = _decode(raw_value).strip().casefold()
+
+    resolved: dict[str, str] = {}
+    for key, value in raw_resolved.items():
+        if key == "core.autocrlf" and value == "":
+            value = _read_native_autocrlf_boolean(
+                executable,
+                root,
+                deadline=deadline,
+                max_output_bytes=max_output_bytes,
+            )
+        normalized = _NATIVE_LINE_ENDING_CONFIG_VALUES[key].get(value)
+        if normalized is None:
+            raise ValueError("native Git line-ending configuration was unsupported")
+        resolved[key] = normalized
+    return tuple(
+        (key, resolved[key])
+        for key in _NATIVE_LINE_ENDING_CONFIG_VALUES
+        if key in resolved
+    )
+
+
+def _read_native_autocrlf_boolean(
+    executable: str,
+    root: Path,
+    *,
+    deadline: float,
+    max_output_bytes: int,
+) -> str:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise subprocess.TimeoutExpired(cmd="git config", timeout=0)
+    result = _run_bounded(
+        [
+            executable,
+            "--no-pager",
+            "-C",
+            str(root),
+            "config",
+            "--includes",
+            "--type=bool",
+            "--get",
+            "core.autocrlf",
+        ],
+        cwd=root,
+        environment=_native_config_environment(),
+        timeout_seconds=max(0.001, remaining),
+        max_output_bytes=max_output_bytes,
+    )
+    if result.truncated or result.returncode != 0:
+        raise ValueError("native Git autocrlf configuration could not be normalized")
+    value = _decode(result.stdout).strip().casefold()
+    if value not in {"false", "true"}:
+        raise ValueError("native Git autocrlf configuration was unsupported")
+    return value
+
+
+def _native_config_environment() -> dict[str, str]:
+    environment = dict(os.environ)
+    for key in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_COMMON_DIR",
+        "GIT_NAMESPACE",
+        "GIT_CEILING_DIRECTORIES",
+    ):
+        environment.pop(key, None)
+    environment.update(
+        {
+            "GIT_OPTIONAL_LOCKS": "0",
+            "GIT_TERMINAL_PROMPT": "0",
+            "GIT_PAGER": "cat",
+            "PAGER": "cat",
+            "GCM_INTERACTIVE": "Never",
+            "GIT_ASKPASS": "",
+            "SSH_ASKPASS": "",
+            "GIT_EDITOR": "true",
+            "GIT_SEQUENCE_EDITOR": "true",
+        }
+    )
+    return environment
 
 
 def _isolated_environment() -> dict[str, str]:

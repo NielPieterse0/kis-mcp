@@ -45,8 +45,17 @@ class CodexCliAdapter:
             and self._which(self.settings.executable) is not None
         )
 
-    def review(self, project_path: Path, prompt: str) -> str:
+    def review(
+        self,
+        project_path: Path,
+        prompt: str,
+        *,
+        timeout_seconds: float | None = None,
+    ) -> str:
         project = project_path.resolve()
+        timeout = float(self.settings.timeout_seconds)
+        if timeout_seconds is not None:
+            timeout = min(timeout, max(0.001, float(timeout_seconds)))
         args = [
             self._pwsh_executable,
             "-NoProfile",
@@ -63,7 +72,7 @@ class CodexCliAdapter:
             completed = self._runner(
                 args,
                 input=prompt,
-                timeout=self.settings.timeout_seconds,
+                timeout=timeout,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -74,7 +83,7 @@ class CodexCliAdapter:
             raise CodexCliError(
                 "CODEX_CLI_TIMEOUT",
                 "Codex CLI review timed out",
-                {"timeout_seconds": self.settings.timeout_seconds},
+                {"timeout_seconds": timeout},
             ) from exc
         except UnicodeError as exc:
             raise CodexCliError(

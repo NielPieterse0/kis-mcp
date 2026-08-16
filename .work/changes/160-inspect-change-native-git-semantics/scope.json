@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "160-inspect-change-native-git-semantics",
+  "status": "active",
+  "branch": "change/160-inspect-change-native-git-semantics",
+  "worktree": ".work/worktrees/160-inspect-change-native-git-semantics",
+  "base": "main",
+  "outcome": "Fix #273 by making linked-worktree working-tree inspection match native Git line-ending semantics while preserving bounded non-executing change evidence.",
+  "owned_paths": [
+    "src/kis_mcp/discover/git_reader.py",
+    "tests/discover/test_local_change_inventory.py",
+    "tests/discover/test_change_targets.py",
+    "tests/discover/test_git_hardening.py",
+    ".work/changes/160-inspect-change-native-git-semantics/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "785840c7b496e505b7b6ee6766e7594f14d632ce",
+    "local_tree": "5fe92211f8f5262a5a31251ef699846fe6c356fa",
+    "upstream_sha": "785840c7b496e505b7b6ee6766e7594f14d632ce",
+    "upstream_tree": "5fe92211f8f5262a5a31251ef699846fe6c356fa",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-273",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 273,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

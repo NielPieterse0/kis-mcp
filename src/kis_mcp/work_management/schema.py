@@ -10,7 +10,18 @@ from .contracts import PUBLIC_SCHEMA_VERSION
 
 _MANIFEST_KEYS = frozenset({"schema_version", "portfolio_id", "fields", "views"})
 _FIELD_KEYS = frozenset({"name", "type", "options"})
-_VIEW_KEYS = frozenset({"name", "purpose", "layout"})
+_VIEW_KEYS = frozenset(
+    {
+        "name",
+        "purpose",
+        "layout",
+        "filter",
+        "visible_fields",
+        "sort_by",
+        "group_by",
+        "vertical_group_by",
+    }
+)
 
 
 def _text(value: Any, label: str) -> str:
@@ -62,6 +73,11 @@ class ProjectViewSpec:
     name: str
     purpose: str
     layout: str = "table"
+    filter: str = ""
+    visible_fields: tuple[str, ...] = ()
+    sort_by: tuple[tuple[str, str], ...] = ()
+    group_by: tuple[str, ...] = ()
+    vertical_group_by: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "name", _text(self.name, "view name"))
@@ -70,9 +86,74 @@ class ProjectViewSpec:
         if layout not in {"table", "board", "roadmap"}:
             raise ValueError("view layout must be table, board, or roadmap")
         object.__setattr__(self, "layout", layout)
+        normalized_filter = self.filter.strip() if isinstance(self.filter, str) else None
+        if normalized_filter is None:
+            raise ValueError("view filter must be a string")
+        object.__setattr__(self, "filter", normalized_filter)
+        visible = tuple(_text(value, "visible field") for value in self.visible_fields)
+        groups = tuple(_text(value, "group field") for value in self.group_by)
+        vertical = tuple(_text(value, "vertical group field") for value in self.vertical_group_by)
+        if len({value.casefold() for value in visible}) != len(visible):
+            raise ValueError("visible fields must be unique")
+        if len(groups) > 1 or len(vertical) > 1:
+            raise ValueError("view grouping supports at most one field per axis")
+        if vertical and layout != "board":
+            raise ValueError("vertical grouping is allowed only for board views")
+        if visible and layout == "roadmap":
+            raise ValueError("visible_fields are not supported for roadmap views")
+        normalized_sort: list[tuple[str, str]] = []
+        for field_name, direction in self.sort_by:
+            field = _text(field_name, "sort field")
+            order = _text(direction, "sort direction").casefold()
+            if order not in {"asc", "desc"}:
+                raise ValueError("sort direction must be asc or desc")
+            normalized_sort.append((field, order))
+        object.__setattr__(self, "visible_fields", visible)
+        object.__setattr__(self, "sort_by", tuple(normalized_sort))
+        object.__setattr__(self, "group_by", groups)
+        object.__setattr__(self, "vertical_group_by", vertical)
 
-    def to_json_dict(self) -> dict[str, str]:
-        return {"name": self.name, "purpose": self.purpose, "layout": self.layout}
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name,
+            "purpose": self.purpose,
+            "layout": self.layout,
+            "filter": self.filter,
+            "visible_fields": list(self.visible_fields),
+            "sort_by": [list(item) for item in self.sort_by],
+            "group_by": list(self.group_by),
+            "vertical_group_by": list(self.vertical_group_by),
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectViewObservation:
+    name: str
+    layout: str
+    filter: str = ""
+    visible_fields: tuple[str, ...] = ()
+    sort_by: tuple[tuple[str, str], ...] = ()
+    group_by: tuple[str, ...] = ()
+    vertical_group_by: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        probe = ProjectViewSpec(
+            self.name,
+            "observed Project view",
+            self.layout,
+            self.filter,
+            self.visible_fields,
+            self.sort_by,
+            self.group_by,
+            self.vertical_group_by,
+        )
+        object.__setattr__(self, "name", probe.name)
+        object.__setattr__(self, "layout", probe.layout)
+        object.__setattr__(self, "filter", probe.filter)
+        object.__setattr__(self, "visible_fields", probe.visible_fields)
+        object.__setattr__(self, "sort_by", probe.sort_by)
+        object.__setattr__(self, "group_by", probe.group_by)
+        object.__setattr__(self, "vertical_group_by", probe.vertical_group_by)
 
 
 @dataclass(frozen=True, slots=True)
@@ -119,7 +200,13 @@ class ProjectSchemaRepairAction:
     reason: str
 
     def __post_init__(self) -> None:
-        if self.kind not in {"create_field", "change_field_type", "add_option"}:
+        if self.kind not in {
+            "create_field",
+            "change_field_type",
+            "add_option",
+            "create_view",
+            "update_view",
+        }:
             raise ValueError("unsupported schema repair action kind")
         if self.disposition not in {"automatic", "provider_gap", "manual"}:
             raise ValueError("unsupported schema repair disposition")
@@ -164,7 +251,9 @@ class ProjectSchemaStatus:
     missing_fields: tuple[str, ...] = ()
     type_mismatches: tuple[str, ...] = ()
     missing_options: tuple[str, ...] = ()
+    missing_views: tuple[str, ...] = ()
     unverified_views: tuple[str, ...] = ()
+    view_mismatches: tuple[str, ...] = ()
     schema_version: int = PUBLIC_SCHEMA_VERSION
 
     @property
@@ -182,7 +271,9 @@ class ProjectSchemaStatus:
             "missing_fields": list(self.missing_fields),
             "type_mismatches": list(self.type_mismatches),
             "missing_options": list(self.missing_options),
+            "missing_views": list(self.missing_views),
             "unverified_views": list(self.unverified_views),
+            "view_mismatches": list(self.view_mismatches),
         }
 
 
@@ -201,14 +292,24 @@ def _field_spec(value: Any) -> ProjectFieldSpec:
 
 def _view_spec(value: Any) -> ProjectViewSpec:
     item = _object(value, "project view spec")
-    unknown = sorted(set(item) - _VIEW_KEYS)
-    missing = sorted({"name", "purpose"} - set(item))
-    if unknown or missing:
-        raise ValueError(
-            "project view spec keys must include name and purpose and may include layout"
-        )
+    _exact_keys(item, _VIEW_KEYS, "project view spec")
+    for key in ("visible_fields", "sort_by", "group_by", "vertical_group_by"):
+        if not isinstance(item[key], list):
+            raise ValueError(f"project view {key} must be an array")
+    sort_by: list[tuple[str, str]] = []
+    for entry in item["sort_by"]:
+        if not isinstance(entry, list) or len(entry) != 2:
+            raise ValueError("project view sort_by entries must be [field, direction]")
+        sort_by.append((entry[0], entry[1]))
     return ProjectViewSpec(
-        name=item["name"], purpose=item["purpose"], layout=item.get("layout", "table")
+        name=item["name"],
+        purpose=item["purpose"],
+        layout=item["layout"],
+        filter=item["filter"],
+        visible_fields=tuple(item["visible_fields"]),
+        sort_by=tuple(sort_by),
+        group_by=tuple(item["group_by"]),
+        vertical_group_by=tuple(item["vertical_group_by"]),
     )
 
 
@@ -241,7 +342,7 @@ def compare_project_schema(
     observed_fields: tuple[ProjectField, ...],
     *,
     project_id: str,
-    views_observed: tuple[str, ...] | None,
+    views_observed: tuple[ProjectViewObservation | str, ...] | None,
 ) -> ProjectSchemaStatus:
     if not isinstance(manifest, ProjectSchemaManifest):
         raise ValueError("manifest must be a ProjectSchemaManifest")
@@ -267,17 +368,64 @@ def compare_project_schema(
             if option.casefold() not in available_options:
                 missing_options.append(f"{expected.name}:{option}")
 
+    view_mismatches: list[str] = []
+    missing_views: tuple[str, ...] = ()
     if views_observed is None:
         views_ready: bool | None = None
         unverified_views = tuple(item.name for item in manifest.views)
     else:
-        observed_views = {value.casefold() for value in views_observed}
-        unverified_views = tuple(
-            item.name
-            for item in manifest.views
-            if item.name.casefold() not in observed_views
-        )
-        views_ready = not unverified_views
+        semantic_views = {
+            item.name.casefold(): item
+            for item in views_observed
+            if isinstance(item, ProjectViewObservation)
+        }
+        name_only_views = {
+            item.casefold() for item in views_observed if isinstance(item, str)
+        }
+        if len(semantic_views) + len(name_only_views) != len(views_observed):
+            raise ValueError(
+                "views_observed must contain ProjectViewObservation or string values"
+            )
+        unverified: list[str] = []
+        missing: list[str] = []
+        for expected in manifest.views:
+            key = expected.name.casefold()
+            actual = semantic_views.get(key)
+            if actual is None:
+                unverified.append(expected.name)
+                if key not in name_only_views:
+                    missing.append(expected.name)
+                continue
+            dimensions = (
+                ("layout", actual.layout, expected.layout),
+                ("filter", actual.filter.casefold(), expected.filter.casefold()),
+                (
+                    "visible_fields",
+                    tuple(value.casefold() for value in actual.visible_fields),
+                    tuple(value.casefold() for value in expected.visible_fields),
+                ),
+                (
+                    "sort_by",
+                    tuple((field.casefold(), direction) for field, direction in actual.sort_by),
+                    tuple((field.casefold(), direction) for field, direction in expected.sort_by),
+                ),
+                (
+                    "group_by",
+                    tuple(value.casefold() for value in actual.group_by),
+                    tuple(value.casefold() for value in expected.group_by),
+                ),
+                (
+                    "vertical_group_by",
+                    tuple(value.casefold() for value in actual.vertical_group_by),
+                    tuple(value.casefold() for value in expected.vertical_group_by),
+                ),
+            )
+            for dimension, observed_value, expected_value in dimensions:
+                if observed_value != expected_value:
+                    view_mismatches.append(f"{expected.name}:{dimension}")
+        missing_views = tuple(missing)
+        unverified_views = tuple(unverified)
+        views_ready = not (unverified_views or view_mismatches)
 
     fields_ready = not (missing_fields or mismatches or missing_options)
     return ProjectSchemaStatus(
@@ -288,7 +436,9 @@ def compare_project_schema(
         missing_fields=tuple(sorted(missing_fields, key=str.casefold)),
         type_mismatches=tuple(sorted(mismatches, key=str.casefold)),
         missing_options=tuple(sorted(missing_options, key=str.casefold)),
+        missing_views=tuple(sorted(missing_views, key=str.casefold)),
         unverified_views=tuple(unverified_views),
+        view_mismatches=tuple(sorted(view_mismatches, key=str.casefold)),
     )
 
 
@@ -338,6 +488,38 @@ def plan_project_schema_repair(
                 ),
             )
         )
+    if status.views_ready is False:
+        for view_name in status.missing_views:
+            actions.append(
+                ProjectSchemaRepairAction(
+                    kind="create_view",
+                    target=view_name,
+                    disposition="provider_gap",
+                    reason=(
+                        "the normal Project provider does not create saved views; "
+                        "run the bounded registered-Project commissioner"
+                    ),
+                )
+            )
+        for mismatch in status.view_mismatches:
+            _, _, dimension = mismatch.rpartition(":")
+            commissioner_supported = dimension in {"filter", "visible_fields"}
+            actions.append(
+                ProjectSchemaRepairAction(
+                    kind="update_view",
+                    target=mismatch,
+                    disposition=("provider_gap" if commissioner_supported else "manual"),
+                    reason=(
+                        "the normal Project provider does not repair saved-view semantics; "
+                        "run the bounded registered-Project commissioner"
+                        if commissioner_supported
+                        else (
+                            "the current bounded registered-Project commissioner intentionally "
+                            f"does not mutate existing view {dimension} configuration"
+                        )
+                    ),
+                )
+            )
     actions.sort(key=lambda action: (action.kind, action.target.casefold()))
     return ProjectSchemaPlan(
         project_id=status.project_id,
@@ -355,6 +537,7 @@ __all__ = [
     "ProjectSchemaPlan",
     "ProjectSchemaRepairAction",
     "ProjectSchemaStatus",
+    "ProjectViewObservation",
     "ProjectViewSpec",
     "compare_project_schema",
     "load_project_schema_manifest",

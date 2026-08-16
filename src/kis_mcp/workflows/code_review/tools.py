@@ -34,8 +34,13 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
         backend: str | None = None,
         model: str | None = None,
         review_type: str = "code-quality",
+        source: str = "working_tree",
+        commit_ref: str | None = None,
+        base_ref: str | None = None,
+        head_ref: str | None = None,
+        deadline_seconds: float | None = None,
     ) -> dict[str, Any]:
-        """Review one Git working-tree change without modifying it.
+        """Review one bounded Git change source without modifying it.
 
         review_type is code-quality (default), safety-security, architecture,
         performance, test-quality, documentation, or api-contracts. For NVIDIA
@@ -53,6 +58,11 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
                 backend=backend,
                 model=model,
                 review_type=review_type,
+                source=source,
+                commit_ref=commit_ref,
+                base_ref=base_ref,
+                head_ref=head_ref,
+                deadline_seconds=deadline_seconds,
             )
         except Exception as exc:
             raise ToolError(f"AGENT_REVIEW_FAILED:{type(exc).__name__}") from exc

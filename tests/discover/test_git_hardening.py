@@ -131,6 +131,11 @@ def test_git_uses_only_fixed_read_only_commands_and_isolated_environment(
 
     (project_root / ".git").mkdir()
     calls: list[tuple[tuple[str, ...], dict[str, str]]] = []
+    configured_system = r"C:\Projects\system.gitconfig"
+    configured_global = r"C:\Projects\global.gitconfig"
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", configured_system)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", configured_global)
 
     def fake_run(command, *, cwd, environment, timeout_seconds, max_output_bytes):
         calls.append((tuple(command), dict(environment)))
@@ -159,15 +164,32 @@ def test_git_uses_only_fixed_read_only_commands_and_isolated_environment(
 
     assert summary.available is True
     assert calls
-    forbidden = {"add", "branch", "checkout", "clone", "commit", "config", "fetch", "merge", "pull", "push", "reset", "restore", "switch", "tag"}
+    forbidden = {"add", "branch", "checkout", "clone", "commit", "fetch", "merge", "pull", "push", "reset", "restore", "switch", "tag"}
+    config_calls = 0
     for command, environment in calls:
         assert not forbidden.intersection(command)
         assert "--no-pager" in command
+        assert environment["GIT_OPTIONAL_LOCKS"] == "0"
+        assert environment["GIT_TERMINAL_PROMPT"] == "0"
+        assert environment["GCM_INTERACTIVE"] == "Never"
+        assert environment["GIT_PAGER"] == "cat"
+        if "config" in command:
+            config_calls += 1
+            assert command[-5:] == (
+                "config",
+                "--includes",
+                "-z",
+                "--get-regexp",
+                r"^core\.(autocrlf|eol)$",
+            )
+            assert environment["GIT_CONFIG_SYSTEM"] == configured_system
+            assert environment["GIT_CONFIG_GLOBAL"] == configured_global
+            assert "GIT_CONFIG_NOSYSTEM" not in environment
+            continue
         assert "core.fsmonitor=false" in command
         assert "diff.external=" in command
         assert "credential.helper=" in command
-        assert environment["GIT_OPTIONAL_LOCKS"] == "0"
-        assert environment["GIT_TERMINAL_PROMPT"] == "0"
         assert environment["GIT_CONFIG_NOSYSTEM"] == "1"
-        assert environment["GCM_INTERACTIVE"] == "Never"
-        assert environment["GIT_PAGER"] == "cat"
+        assert environment["GIT_CONFIG_SYSTEM"] == os.devnull
+        assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert config_calls == 1

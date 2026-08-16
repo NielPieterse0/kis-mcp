@@ -118,9 +118,14 @@ class VerificationSelectionService:
             impact_omitted if isinstance(impact_omitted, int) and impact_omitted > 0 else 0
         )
         impact_truncated = bool(getattr(analysis.impact, "truncated", False))
+        source_fingerprint = str(analysis.impact.fingerprint)
+        inspected_change = getattr(getattr(analysis, "change", None), "change", None)
+        inspected_fingerprint = getattr(inspected_change, "fingerprint", None)
+        if isinstance(inspected_fingerprint, str) and len(inspected_fingerprint) == 64:
+            source_fingerprint = inspected_fingerprint
         return VerificationSelectionResult(
             project=project,
-            source_fingerprint=str(analysis.impact.fingerprint),
+            source_fingerprint=source_fingerprint,
             selected=tuple(selected),
             skipped=tuple(skipped),
             omitted_count=omitted_count,

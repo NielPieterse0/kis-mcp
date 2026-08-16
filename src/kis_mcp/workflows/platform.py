@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Any
 
 from ..config import RuntimeConfig
+from ..discover.change_service import InspectChangeService
+from ..discover.git_change_reader import GitChangeReader
+from ..discover.read_authority import ReadAuthority
 from ..providers.platform import (
     ProviderService,
     build_platform_github_project_backend,
@@ -298,6 +301,15 @@ def _build_code_review_agent(
         collector=GitReviewEvidenceCollector(
             project_boundary=Path(runtime.project_boundary),
             max_chars=settings.max_evidence_chars,
+            inspector=InspectChangeService(
+                GitChangeReader(
+                    authority=ReadAuthority(
+                        Path(runtime.project_boundary),
+                        runtime.discover_settings,
+                    ),
+                    settings=runtime.discover_settings,
+                )
+            ),
         ),
         backends={"nvidia-nim": nvidia_backend, "codex-cli": codex_backend},
     )

@@ -42,6 +42,12 @@ def test_agent_settings_schema_declares_backend_attempt_budget() -> None:
         "minimum": 1,
         "maximum": 3,
     }
+    assert "review_deadline_seconds" in schema["required"]
+    assert schema["properties"]["review_deadline_seconds"] == {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 300,
+    }
 
 
 def test_load_agent_settings_reads_strict_checked_in_configuration() -> None:
@@ -54,6 +60,7 @@ def test_load_agent_settings_reads_strict_checked_in_configuration() -> None:
     assert settings.max_evidence_chars == 120000
     assert settings.max_output_chars == 30000
     assert settings.max_backend_attempts == 2
+    assert settings.review_deadline_seconds == 120
     assert isinstance(settings.nvidia, NvidiaSettings)
     assert isinstance(settings.codex, CodexSettings)
     assert settings.nvidia.base_url == "https://integrate.api.nvidia.com/v1"
@@ -159,4 +166,17 @@ def test_load_agent_settings_rejects_invalid_backend_attempt_budget(
     _write_settings(tmp_path, document)
 
     with pytest.raises(AgentSettingsError, match="max_backend_attempts"):
+        load_agent_settings(tmp_path)
+
+
+@pytest.mark.parametrize("value", [0, 301, True, "120"])
+def test_load_agent_settings_rejects_invalid_review_deadline(
+    tmp_path: Path,
+    value: object,
+) -> None:
+    document = _checked_in_document()
+    document["review_deadline_seconds"] = value
+    _write_settings(tmp_path, document)
+
+    with pytest.raises(AgentSettingsError, match="review_deadline_seconds"):
         load_agent_settings(tmp_path)

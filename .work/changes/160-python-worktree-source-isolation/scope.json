@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "160-python-worktree-source-isolation",
+  "status": "active",
+  "branch": "change/160-python-worktree-source-isolation",
+  "worktree": ".work/worktrees/160-python-worktree-source-isolation",
+  "base": "main",
+  "outcome": "Bind KIS-launched repository/worktree processes to the selected worktree Python source and eliminate editable-environment source leakage.",
+  "owned_paths": [
+    "src/kis_mcp/process_environment.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/workflows/verification/execution.py",
+    "tests/test_process_environment.py",
+    "tests/workflows/verification/test_verification_execution.py",
+    ".work/changes/160-python-worktree-source-isolation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "785840c7b496e505b7b6ee6766e7594f14d632ce",
+    "local_tree": "5fe92211f8f5262a5a31251ef699846fe6c356fa",
+    "upstream_sha": "785840c7b496e505b7b6ee6766e7594f14d632ce",
+    "upstream_tree": "5fe92211f8f5262a5a31251ef699846fe6c356fa",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-265",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 265,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

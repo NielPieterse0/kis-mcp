@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from kis_mcp.discover.change_inspection_contracts import InspectChangeRequest
+from kis_mcp.discover.change_service import InspectChangeService
 from kis_mcp.discover.change_targets import build_target_arguments, parse_name_status
 from kis_mcp.discover.git_change_reader import GitChangeReader
 from kis_mcp.discover.read_authority import ReadAuthority
@@ -106,10 +107,155 @@ def _git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _git_with_system_config(
+    root: Path,
+    system_config: Path,
+    *arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    environment = dict(os.environ)
+    environment.pop("GIT_CONFIG_NOSYSTEM", None)
+    environment.update(
+        {
+            "GIT_CONFIG_SYSTEM": str(system_config),
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TERMINAL_PROMPT": "0",
+        }
+    )
+    return subprocess.run(
+        ["git", "-C", str(root), *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+def _write_crlf(path: Path, content: str) -> None:
+    path.write_bytes(content.replace("\n", "\r\n").encode("utf-8"))
+
+
+def _create_autocrlf_linked_worktree(project_root: Path) -> tuple[Path, Path]:
+    system_config = project_root.parent / f"{project_root.name}-system.gitconfig"
+    system_config.write_text("[core]\n\tautocrlf = true\n\teol = native\n", encoding="utf-8")
+    _git_with_system_config(project_root, system_config, "init", "-b", "main")
+    _git_with_system_config(
+        project_root, system_config, "config", "user.name", "Discover Tests"
+    )
+    _git_with_system_config(
+        project_root,
+        system_config,
+        "config",
+        "user.email",
+        "discover@example.invalid",
+    )
+    (project_root / ".gitattributes").write_text(
+        "attributes.txt text eol=crlf\n",
+        encoding="utf-8",
+    )
+    for name in ("system.txt", "attributes.txt", "staged.txt", "unstaged.txt", "both.txt"):
+        _write_crlf(project_root / name, f"base {name}\n")
+    _git_with_system_config(project_root, system_config, "add", "--all")
+    _git_with_system_config(project_root, system_config, "commit", "-m", "initial")
+    linked = project_root.parent / f"{project_root.name}-autocrlf-linked"
+    _git_with_system_config(
+        project_root,
+        system_config,
+        "worktree",
+        "add",
+        "-b",
+        "autocrlf-linked",
+        str(linked),
+    )
+    return linked, system_config
+
+
 def _commit(root: Path, message: str) -> str:
     _git(root, "add", "--all")
     _git(root, "commit", "-m", message)
     return _git(root, "rev-parse", "HEAD").stdout.strip()
+
+
+def test_working_tree_inspection_matches_native_autocrlf_in_linked_worktree(
+    project_root: Path,
+    discover_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    linked, system_config = _create_autocrlf_linked_worktree(project_root)
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_config))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+    native = _git_with_system_config(linked, system_config, "diff", "--name-only")
+    assert native.stdout == ""
+    assert b"\r\n" in (linked / "system.txt").read_bytes()
+    assert b"\r\n" in (linked / "attributes.txt").read_bytes()
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    result = reader.inspect_local_changes(str(linked))
+    response = InspectChangeService(reader).inspect(
+        InspectChangeRequest(path=str(linked), source="working_tree")
+    )
+
+    assert result.changes == ()
+    assert result.diagnostics == ()
+    assert result.source_fingerprint is not None
+    assert response.changed_files == ()
+    assert response.change.fingerprint == result.source_fingerprint
+
+
+def test_linked_worktree_inventory_matches_native_staged_unstaged_and_untracked(
+    project_root: Path,
+    discover_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    linked, system_config = _create_autocrlf_linked_worktree(project_root)
+    monkeypatch.delenv("GIT_CONFIG_NOSYSTEM", raising=False)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_config))
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+
+    _write_crlf(linked / "staged.txt", "staged change\n")
+    _git_with_system_config(linked, system_config, "add", "--", "staged.txt")
+    _write_crlf(linked / "unstaged.txt", "unstaged change\n")
+    _write_crlf(linked / "both.txt", "both staged\n")
+    _git_with_system_config(linked, system_config, "add", "--", "both.txt")
+    _write_crlf(linked / "both.txt", "both unstaged\n")
+    _write_crlf(linked / "untracked.txt", "untracked\n")
+
+    native_staged = set(
+        _git_with_system_config(
+            linked, system_config, "diff", "--cached", "--name-only"
+        ).stdout.splitlines()
+    )
+    native_unstaged = set(
+        _git_with_system_config(linked, system_config, "diff", "--name-only").stdout.splitlines()
+    )
+    native_untracked = set(
+        _git_with_system_config(
+            linked,
+            system_config,
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+        ).stdout.splitlines()
+    )
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    result = reader.inspect_local_changes(str(linked))
+    by_path = {item.path: item for item in result.changes}
+
+    assert {path for path, item in by_path.items() if item.staged_status is not None} == native_staged
+    assert {path for path, item in by_path.items() if item.worktree_status is not None} == native_unstaged
+    assert {path for path, item in by_path.items() if item.untracked} == native_untracked
+    assert by_path["both.txt"].staged_status == "modified"
+    assert by_path["both.txt"].worktree_status == "modified"
+    assert result.diagnostics == ()
+    assert result.source_fingerprint is not None
 
 
 def test_reader_inspects_commit_range_and_branch_targets(
@@ -166,6 +312,153 @@ def test_reader_inspects_commit_range_and_branch_targets(
     assert [item.path for item in branch.changes] == expected
     assert commit.diagnostics == comparison.diagnostics == branch.diagnostics == ()
     assert commit.repository_root == str(project_root)
+
+
+def test_working_tree_inspection_rejects_inventory_fingerprint_race(
+    project_root: Path,
+    discover_settings,
+    monkeypatch,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("before\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    tracked.write_text("after\n", encoding="utf-8")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    original = reader._git.inspect_local_changes
+    calls = 0
+
+    def racing_inventory(path: str):
+        nonlocal calls
+        calls += 1
+        inventory = original(path)
+        if calls == 2:
+            (project_root / "late.txt").write_text("late\n", encoding="utf-8")
+        return inventory
+
+    monkeypatch.setattr(reader._git, "inspect_local_changes", racing_inventory)
+
+    result = reader.inspect_local_changes(str(project_root))
+
+    assert result.source_fingerprint is None
+    assert any(
+        item["code"] == "CHANGE_SOURCE_CHANGED_DURING_INSPECTION"
+        for item in result.diagnostics
+    )
+
+
+def test_staged_inspection_rejects_inventory_fingerprint_race(
+    project_root: Path,
+    discover_settings,
+    monkeypatch,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("before\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    tracked.write_text("after\n", encoding="utf-8")
+    _git(project_root, "add", "tracked.txt")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    original_run = reader._git._run
+    raced = False
+
+    def racing_run(root: Path, arguments: tuple[str, ...], deadline: float):
+        nonlocal raced
+        result = original_run(root, arguments, deadline)
+        if not raced and "--name-status" in arguments and "--cached" in arguments:
+            raced = True
+            late = project_root / "late.txt"
+            late.write_text("late\n", encoding="utf-8")
+            _git(project_root, "add", "late.txt")
+        return result
+
+    monkeypatch.setattr(reader._git, "_run", racing_run)
+
+    result = reader.inspect_change_target(
+        InspectChangeRequest(path=str(project_root), source="staged")
+    )
+
+    assert result.source_fingerprint is None
+    assert result.diagnostics[0]["code"] == "CHANGE_SOURCE_CHANGED_DURING_INSPECTION"
+
+
+def test_reader_source_fingerprint_changes_when_content_changes_at_same_path(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("before\n", encoding="utf-8")
+    _commit(project_root, "initial")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+
+    tracked.write_text("after-one\n", encoding="utf-8")
+    first = reader.inspect_local_changes(str(project_root))
+    tracked.write_text("after-two\n", encoding="utf-8")
+    second = reader.inspect_local_changes(str(project_root))
+
+    assert [item.path for item in first.changes] == ["tracked.txt"]
+    assert [item.path for item in second.changes] == ["tracked.txt"]
+    assert first.source_fingerprint is not None
+    assert second.source_fingerprint is not None
+    assert first.source_fingerprint != second.source_fingerprint
+
+
+def test_reader_resolves_movable_target_refs_into_source_fingerprint(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    tracked = project_root / "tracked.txt"
+    tracked.write_text("base\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    _git(project_root, "switch", "-c", "feature")
+    tracked.write_text("one\n", encoding="utf-8")
+    _commit(project_root, "one")
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    request = InspectChangeRequest(
+        path=str(project_root),
+        source="branch",
+        base_ref="main",
+        head_ref="feature",
+    )
+    first = reader.inspect_change_target(request)
+    first_response = InspectChangeService(reader).inspect(request)
+
+    tracked.write_text("two\n", encoding="utf-8")
+    _commit(project_root, "two")
+    second = reader.inspect_change_target(request)
+    second_response = InspectChangeService(reader).inspect(request)
+
+    assert [item.path for item in first.changes] == ["tracked.txt"]
+    assert [item.path for item in second.changes] == ["tracked.txt"]
+    assert first.source_fingerprint != second.source_fingerprint
+    assert first_response.change.fingerprint == first.source_fingerprint
+    assert second_response.change.fingerprint == second.source_fingerprint
 
 
 def test_reader_inspects_staged_target_only(

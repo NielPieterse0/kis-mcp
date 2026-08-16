@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
@@ -45,6 +47,7 @@ class ChangeExecutionService:
         risk_triggers: tuple[str, ...] = (),
         max_verifications: int | None = None,
         verification_timeout_ms: int = 120_000,
+        review_timeout_ms: int = 120_000,
         review_types: tuple[str, ...] | None = None,
         review_backend: str | None = None,
         review_model: str | None = None,
@@ -62,7 +65,11 @@ class ChangeExecutionService:
             review_backend,
             review_model,
         )
-        timeout_ms = _validate_timeout(verification_timeout_ms)
+        verification_timeout_ms = _validate_timeout(
+            verification_timeout_ms,
+            "verification_timeout_ms",
+        )
+        review_timeout_ms = _validate_timeout(review_timeout_ms, "review_timeout_ms")
         selection = await self._invoker(
             "select_change_verification",
             {
@@ -86,7 +93,7 @@ class ChangeExecutionService:
                     {
                         "project": project,
                         "verification_id": verification_id,
-                        "timeout_ms": timeout_ms,
+                        "timeout_ms": verification_timeout_ms,
                     },
                 )
                 step = _verification_step(verification_id, payload)
@@ -106,17 +113,40 @@ class ChangeExecutionService:
 
         review_results: list[ChangeExecutionStepResult] = []
         review_error_count = 0
-        for review_type in reviews:
-            arguments: dict[str, Any] = {"path": project, "review_type": review_type}
+        review_deadline = time.monotonic() + (review_timeout_ms / 1000)
+        for review_index, review_type in enumerate(reviews):
+            remaining_seconds = review_deadline - time.monotonic()
+            if remaining_seconds <= 0:
+                remaining_reviews = reviews[review_index:]
+                review_results.extend(_review_deadline_step(item) for item in remaining_reviews)
+                review_error_count += len(remaining_reviews)
+                break
+            arguments: dict[str, Any] = {
+                "path": project,
+                "review_type": review_type,
+                "source": source,
+                "commit_ref": commit_ref,
+                "base_ref": base_ref,
+                "head_ref": head_ref,
+                "deadline_seconds": remaining_seconds,
+            }
             if review_backend is not None:
                 arguments["backend"] = review_backend
             if review_model is not None:
                 arguments["model"] = review_model
             try:
-                payload = await self._invoker("review_change_with_agent", arguments)
-                step = _review_step(review_type, payload)
+                payload = await asyncio.wait_for(
+                    self._invoker("review_change_with_agent", arguments),
+                    timeout=remaining_seconds,
+                )
+                step = _review_step(review_type, payload, source_fingerprint)
                 if step.status != "completed":
                     review_error_count += 1
+            except TimeoutError:
+                remaining_reviews = reviews[review_index:]
+                review_results.extend(_review_deadline_step(item) for item in remaining_reviews)
+                review_error_count += len(remaining_reviews)
+                break
             except ChangeExecutionInvocationError as exc:
                 step = ChangeExecutionStepResult(
                     step_id=review_type,
@@ -186,12 +216,41 @@ def _selection_identity(selection: Mapping[str, Any]) -> tuple[str, tuple[str, .
     return fingerprint, tuple(identifiers)
 
 
+def _review_deadline_step(review_type: str) -> ChangeExecutionStepResult:
+    return ChangeExecutionStepResult(
+        step_id=review_type,
+        kind="review",
+        status="error",
+        error_code="AGENT_REVIEW_PHASE_DEADLINE_EXCEEDED",
+        reason="The aggregate specialist-review deadline was exhausted.",
+    )
+
+
 def _review_step(
     review_type: str,
     payload: Mapping[str, Any],
+    source_fingerprint: str,
 ) -> ChangeExecutionStepResult:
     agent_status = payload.get("status")
     if agent_status == "completed":
+        if payload.get("evidence_complete") is not True:
+            return ChangeExecutionStepResult(
+                step_id=review_type,
+                kind="review",
+                status="error",
+                payload=payload,
+                error_code="AGENT_REVIEW_EVIDENCE_INCOMPLETE",
+                reason="Reviewer did not prove complete source evidence.",
+            )
+        if payload.get("source_fingerprint") != source_fingerprint:
+            return ChangeExecutionStepResult(
+                step_id=review_type,
+                kind="review",
+                status="error",
+                payload=payload,
+                error_code="AGENT_REVIEW_SOURCE_MISMATCH",
+                reason="Reviewer evidence fingerprint does not match verification selection.",
+            )
         return ChangeExecutionStepResult(
             step_id=review_type,
             kind="review",
@@ -267,13 +326,11 @@ def _validate_reviews(
     return review_types
 
 
-def _validate_timeout(timeout_ms: int) -> int:
+def _validate_timeout(timeout_ms: int, label: str) -> int:
     if isinstance(timeout_ms, bool) or not isinstance(timeout_ms, int):
-        raise ValueError("verification_timeout_ms must be a positive integer")
+        raise ValueError(f"{label} must be a positive integer")
     if timeout_ms < 1 or timeout_ms > _MAX_TIMEOUT_MS:
-        raise ValueError(
-            f"verification_timeout_ms must be between 1 and {_MAX_TIMEOUT_MS}"
-        )
+        raise ValueError(f"{label} must be between 1 and {_MAX_TIMEOUT_MS}")
     return timeout_ms
 
 

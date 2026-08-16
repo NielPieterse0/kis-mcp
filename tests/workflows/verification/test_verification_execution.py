@@ -99,9 +99,8 @@ def test_supported_profile_builds_fixed_process_command_and_passes() -> None:
     assert arguments["timeout_ms"] == 30_000
     assert arguments["shell"] == "powershell.exe"
     assert "Set-Location -LiteralPath 'C:\\Projects\\fixture'" in arguments["command"]
-    assert "$kisSource = Join-Path -Path 'C:\\Projects\\fixture' -ChildPath 'src'" in arguments["command"]
-    assert "Test-Path -LiteralPath $kisSource -PathType Container" in arguments["command"]
-    assert "$env:PYTHONPATH" in arguments["command"]
+    assert "$kisSource" not in arguments["command"]
+    assert "$env:PYTHONPATH" not in arguments["command"]
     assert "pytest" in arguments["command"]
     assert "__KIS_VERIFICATION_EXIT_CODE" in arguments["command"]
 

@@ -49,6 +49,7 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
         "risk_triggers",
         "max_verifications",
         "verification_timeout_ms",
+        "review_timeout_ms",
         "review_types",
         "review_backend",
         "review_model",
