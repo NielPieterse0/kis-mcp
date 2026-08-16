@@ -12,6 +12,10 @@ from fastmcp.tools.tool import ToolResult
 from .contracts import PolicyEvaluator, ProviderEffectResolver
 from .line_endings import RepositoryLineEndingNormalizer
 from .models import DecisionKind, PolicyDecision
+from .process_environment import (
+    ProcessSourceIsolationError,
+    RepositoryProcessEnvironmentNormalizer,
+)
 from .quarantine import QuarantineError
 from .runtime_observability import (
     RuntimeObservability,
@@ -71,12 +75,14 @@ class ThreeRuleMiddleware(Middleware):
         quarantine_paths: QuarantinePaths,
         observability: RuntimeObservability | None = None,
         text_normalizer: RepositoryLineEndingNormalizer | None = None,
+        process_environment_normalizer: RepositoryProcessEnvironmentNormalizer | None = None,
     ) -> None:
         self.resolver = resolver
         self.policy = policy
         self.quarantine_paths = quarantine_paths
         self.observability = observability or get_runtime_observability()
         self.text_normalizer = text_normalizer
+        self.process_environment_normalizer = process_environment_normalizer
 
     async def on_list_tools(
         self,
@@ -108,6 +114,26 @@ class ThreeRuleMiddleware(Middleware):
         argument_keys = tuple(arguments)
         if self.text_normalizer is not None:
             normalized_arguments = self.text_normalizer.normalize(tool_name, arguments)
+            if normalized_arguments != arguments:
+                arguments = normalized_arguments
+                context = context.copy(
+                    message=context.message.model_copy(update={"arguments": arguments})
+                )
+        if self.process_environment_normalizer is not None:
+            try:
+                normalized_arguments = self.process_environment_normalizer.normalize(
+                    tool_name,
+                    arguments,
+                )
+            except ProcessSourceIsolationError as exc:
+                self._record_call(
+                    tool_name,
+                    argument_keys,
+                    decision="source_isolation",
+                    outcome="rejected",
+                    code=exc.code,
+                )
+                raise ToolError(str(exc)) from exc
             if normalized_arguments != arguments:
                 arguments = normalized_arguments
                 context = context.copy(
