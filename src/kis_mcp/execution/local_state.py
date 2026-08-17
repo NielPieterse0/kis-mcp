@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,7 @@ _SHA = re.compile(r"^[0-9a-f]{40}$")
 _NONTERMINAL = frozenset({
     "created", "materializing", "materialized", "starting", "executing", "cancelling"
 })
+_PROCESS_OWNER_TOKEN = uuid.uuid4().hex
 
 
 class LocalSourceError(RuntimeError):
@@ -74,8 +76,7 @@ def reconcile_stale_runs(settings: LocalProcessProfileSettings) -> tuple[str, ..
         state = _read_state(state_path)
         if not state or state.get("status") not in _NONTERMINAL:
             continue
-        owner_pid = state.get("owner_pid")
-        if owner_pid == os.getpid():
+        if state.get("owner_token") == _PROCESS_OWNER_TOKEN:
             continue
         (run_dir / "cancel.requested").touch(exist_ok=True)
         state.update(
@@ -110,6 +111,7 @@ async def materialize_exact_source(
         "requested_revision": revision,
         "workspace": str(workspace),
         "owner_pid": os.getpid(),
+        "owner_token": _PROCESS_OWNER_TOKEN,
         "authoritative": False,
         "status": "materializing",
         "created_at": _utc_now(),
