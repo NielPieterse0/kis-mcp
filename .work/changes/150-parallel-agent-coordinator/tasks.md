@@ -32,7 +32,7 @@
 - [x] Ruff and Python compilation pass on coordinator source/tests.
 - [x] Governed change check and `git diff --check` pass.
 - [x] Configured code-quality, architecture, and API-contract reviews plus persistent-state/trust-boundary fallback review have no blocking findings; the review engine required exact-diff fallback because its evidence package omitted the large reconciliation test file. One stale accepted-replay authority finding was fixed in `7aa6c23` and regression-tested.
-- [ ] Canonical KIS-local exact-head repository verification passes on the current PR head.
+- [ ] Canonical KIS-local exact-head repository verification passes on the final local landing head. The first full verifier run had one unrelated Discover inventory-race failure; that exact test then passed 5/5 on current `main` and 5/5 on the #252 candidate with the canonical interpreter, so a fresh full verifier rerun is required before landing.
 
 ## Landing gate
 
