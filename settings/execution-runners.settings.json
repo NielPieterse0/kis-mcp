@@ -26,6 +26,25 @@
         "startup_timeout_ms": 120000,
         "cleanup_timeout_ms": 60000
       }
+    },
+    {
+      "profile_id": "windows-virtualbox-proof",
+      "backend_id": "windows-virtualbox",
+      "enabled": false,
+      "image_id": "windows-virtualbox-proof-v1",
+      "toolchain_id": "repository-declared-v1",
+      "virtualbox": {
+        "vboxmanage_path": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe",
+        "template_vm": "kis-windows-template",
+        "snapshot_name": "clean",
+        "state_root": "C:\\Projects\\.kis-mcp\\execution\\virtualbox",
+        "vbox_user_home": "C:\\Projects\\.kis-mcp\\execution\\virtualbox\\vbox-home",
+        "guest_workspace": "C:\\KIS\\workspace",
+        "guest_username_env": "KIS_VIRTUALBOX_GUEST_USERNAME",
+        "guest_password_file_env": "KIS_VIRTUALBOX_GUEST_PASSWORD_FILE",
+        "startup_timeout_ms": 120000,
+        "cleanup_timeout_ms": 60000
+      }
     }
   ]
 }
