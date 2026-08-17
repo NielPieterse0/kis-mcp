@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/verification-requirements.schema.json",
+  "title": "Coordinator Verification Requirements",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "requirement_id", "project_id", "change_id",
+    "authority_revision", "source_scope_fingerprint", "risk_triggers", "checks",
+    "review_types", "exact_head_required", "provider_native_required"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-verification-requirements-v1"},
+    "requirement_id": {"$ref": "#/$defs/nonEmpty"},
+    "project_id": {"$ref": "#/$defs/nonEmpty"},
+    "change_id": {"$ref": "#/$defs/nonEmpty"},
+    "authority_revision": {"type": "integer", "minimum": 1},
+    "source_scope_fingerprint": {"$ref": "#/$defs/digest"},
+    "risk_triggers": {"$ref": "#/$defs/strings"},
+    "checks": {"type": "array", "items": {"$ref": "#/$defs/check"}},
+    "review_types": {"$ref": "#/$defs/strings"},
+    "exact_head_required": {"type": "boolean"},
+    "provider_native_required": {"type": "boolean"}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "strings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "check": {
+      "type": "object", "additionalProperties": false,
+      "required": ["check_id", "category", "reason"],
+      "properties": {
+        "check_id": {"$ref": "#/$defs/nonEmpty"},
+        "category": {"$ref": "#/$defs/nonEmpty"},
+        "reason": {"$ref": "#/$defs/nonEmpty"}
+      }
+    }
+  }
+}

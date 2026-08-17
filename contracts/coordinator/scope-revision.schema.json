@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/scope-revision.schema.json",
+  "title": "Coordinator Scope Revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "request_id", "reservation_id",
+    "expected_authority_revision", "proposed_authority_revision",
+    "expected_fence_token", "changes", "status"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-scope-revision-v1"},
+    "request_id": {"$ref": "#/$defs/nonEmpty"},
+    "reservation_id": {"$ref": "#/$defs/nonEmpty"},
+    "expected_authority_revision": {"type": "integer", "minimum": 1},
+    "proposed_authority_revision": {"type": "integer", "minimum": 2},
+    "expected_fence_token": {"type": "integer", "minimum": 1},
+    "changes": {"$ref": "#/$defs/changes"},
+    "status": {"enum": ["proposed", "accepted", "rejected", "stale"]}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "strings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "changes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "add_owned_paths", "remove_owned_paths", "add_shared_paths",
+        "remove_shared_paths", "add_dependencies", "remove_dependencies",
+        "integration_owner"
+      ],
+      "properties": {
+        "add_owned_paths": {"$ref": "#/$defs/strings"},
+        "remove_owned_paths": {"$ref": "#/$defs/strings"},
+        "add_shared_paths": {"$ref": "#/$defs/strings"},
+        "remove_shared_paths": {"$ref": "#/$defs/strings"},
+        "add_dependencies": {"$ref": "#/$defs/strings"},
+        "remove_dependencies": {"$ref": "#/$defs/strings"},
+        "integration_owner": {"type": ["string", "null"], "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "contract": "coordinator-state-v1",
+  "project_id": "kis-mcp",
+  "change_id": "historical-140-145-overlap",
+  "state": "degraded",
+  "authority_revision": 1,
+  "active_reservation_ids": [
+    "140-registered-external-acquisition",
+    "145-skill-usage-telemetry"
+  ],
+  "integration_owner": null,
+  "degraded_components": {
+    "exclusive-claim-overlap-140-145": {
+      "affected_paths": [
+        "SPEC.md",
+        "docs/OPERATIONS.md",
+        "src/kis_mcp/capabilities/surface.py"
+      ],
+      "reason": "conflicting active exclusive claims intersect",
+      "disjoint_admission": "allowed",
+      "reservation_checks": [
+        {
+          "reservation_id": "140-registered-external-acquisition",
+          "intersects_degraded_component": true,
+          "component_result": "blocked_by_component"
+        },
+        {
+          "reservation_id": "145-skill-usage-telemetry",
+          "intersects_degraded_component": true,
+          "component_result": "blocked_by_component"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 4,
+  "change_id": "150-parallel-agent-coordinator",
+  "status": "active",
+  "branch": "change/150-parallel-agent-coordinator",
+  "worktree": ".work/worktrees/150-parallel-agent-coordinator",
+  "base": "main",
+  "outcome": "Build the KIS-native coordinator for safe parallel implementation as one governed change, beginning with #241 Slice 1 executable architecture and contracts before later bounded slices.",
+  "owned_paths": [
+    "contracts/coordinator/**",
+    "src/kis_mcp/workflows/coordinator/**",
+    "tests/workflows/coordinator/**",
+    "docs/COORDINATOR-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/150-parallel-agent-coordinator/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "f8d2def268a7cb771e66b5b41eb28e91e4e3cb1e",
+    "local_tree": "984ad5e598ec9bf9993c8df6b0cbaf6f22071bdc",
+    "upstream_sha": "f8d2def268a7cb771e66b5b41eb28e91e4e3cb1e",
+    "upstream_tree": "984ad5e598ec9bf9993c8df6b0cbaf6f22071bdc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-241",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 241,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress"
+  }
+}
