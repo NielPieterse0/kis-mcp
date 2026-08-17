@@ -24,6 +24,13 @@ class VerificationResult:
     evidence: str
     failure_classification: str
     truncated: bool
+    requested_revision: str | None = None
+    source_revision: str | None = None
+    source_tree: str | None = None
+    source_fingerprint: str | None = None
+    receipt_path: str | None = None
+    receipt_sha256: str | None = None
+    evidence_reference: str | None = None
     schema_version: int = VERIFICATION_RESULT_SCHEMA_VERSION
     contract: str = VERIFICATION_RESULT_CONTRACT
     tool: str = "run_verification"
@@ -43,6 +50,21 @@ class VerificationResult:
             raise ValueError("verification failure classification is unsupported")
         if self.duration_ms < 0:
             raise ValueError("verification duration must not be negative")
+        for label, value, length in (
+            ("source_revision", self.source_revision, 40),
+            ("source_tree", self.source_tree, 40),
+            ("source_fingerprint", self.source_fingerprint, 64),
+            ("receipt_sha256", self.receipt_sha256, 64),
+        ):
+            if value is not None and (
+                len(value) != length
+                or any(character not in "0123456789abcdef" for character in value)
+            ):
+                raise ValueError(f"verification {label} has invalid identity")
+        if self.receipt_path is not None and not self.receipt_path.strip():
+            raise ValueError("verification receipt_path must not be empty")
+        if self.evidence_reference is not None and not self.evidence_reference.strip():
+            raise ValueError("verification evidence_reference must not be empty")
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
@@ -62,6 +84,13 @@ class VerificationResult:
             "evidence": self.evidence,
             "failure_classification": self.failure_classification,
             "truncated": self.truncated,
+            "requested_revision": self.requested_revision,
+            "source_revision": self.source_revision,
+            "source_tree": self.source_tree,
+            "source_fingerprint": self.source_fingerprint,
+            "receipt_path": self.receipt_path,
+            "receipt_sha256": self.receipt_sha256,
+            "evidence_reference": self.evidence_reference,
         }
 
 

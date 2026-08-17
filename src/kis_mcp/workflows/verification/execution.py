@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
@@ -12,7 +13,7 @@ from ...execution.contracts import (
     ExecutionResult,
     ExecutionSource,
 )
-from ...execution.local import LocalProcessExecutionProvider
+from ...execution.local import LocalProcessExecutionProvider, LocalSourceError
 from ...execution.process import Runner
 from ...execution.settings import ExecutionRunnerSettings, load_execution_runner_settings
 from .contracts import VerificationResult
@@ -67,11 +68,31 @@ class VerificationExecutionService:
         project: str,
         verification_id: str,
         timeout_ms: int = 120_000,
+        exact_revision: str | None = None,
     ) -> VerificationResult:
         project = _required(project, "project")
         verification_id = _required(verification_id, "verification_id")
         timeout_ms = self._bounded_timeout(timeout_ms)
-        inspection = self._inspector.inspect(InspectProjectRequest(path=project))
+        requested_revision = None
+        prepared_source = None
+        inspection_project = project
+        request_id: str | None = None
+        if exact_revision is not None:
+            requested_revision = _required(exact_revision, "exact_revision")
+            request_id = _exact_request_identity(project, verification_id, requested_revision)
+            try:
+                prepared_source = await self._provider.prepare_exact_source(
+                    request_id=request_id,
+                    project=project,
+                    revision=requested_revision,
+                )
+            except LocalSourceError as exc:
+                raise VerificationExecutionError(
+                    "VERIFICATION_SOURCE_MATERIALIZATION_FAILED",
+                    str(exc),
+                ) from exc
+            inspection_project = str(prepared_source.workspace)
+        inspection = self._inspector.inspect(InspectProjectRequest(path=inspection_project))
         declaration = _find_declaration(inspection.verification, verification_id)
         verification_profile = _required(
             str(declaration.get("profile", "")), "verification profile"
@@ -84,12 +105,21 @@ class VerificationExecutionService:
             )
         arguments = _arguments(declaration)
         request = ExecutionRequest(
-            request_id=_request_identity(
-                project, verification_id, verification_profile, arguments
+            request_id=(
+                request_id
+                or _request_identity(project, verification_id, verification_profile, arguments)
             ),
             project_id=_project_identity(project),
             verification_profile_id=verification_profile,
-            source=ExecutionSource(project_path=project, revision="working-tree", exact=False),
+            source=(
+                ExecutionSource(
+                    project_path=str(prepared_source.workspace),
+                    revision=prepared_source.revision,
+                    exact=True,
+                )
+                if prepared_source is not None
+                else ExecutionSource(project_path=project, revision="working-tree", exact=False)
+            ),
             profile=ExecutionProfile(
                 profile_id=self._runner_profile.profile_id,
                 backend_id=self._runner_profile.backend_id,
@@ -114,6 +144,7 @@ class VerificationExecutionService:
             verification_profile=verification_profile,
             arguments=arguments,
             execution=execution,
+            requested_revision=requested_revision,
         )
 
     def _bounded_timeout(self, timeout_ms: int) -> int:
@@ -137,6 +168,7 @@ def verification_result_from_execution(
     verification_profile: str,
     arguments: tuple[str, ...],
     execution: ExecutionResult,
+    requested_revision: str | None = None,
 ) -> VerificationResult:
     if execution.status == "passed":
         failure = "none"
@@ -161,6 +193,13 @@ def verification_result_from_execution(
         evidence=evidence,
         failure_classification=failure,
         truncated=execution.evidence.truncated,
+        requested_revision=requested_revision,
+        source_revision=(execution.source_revision if requested_revision is not None else None),
+        source_tree=execution.evidence.source_tree,
+        source_fingerprint=execution.evidence.source_fingerprint,
+        receipt_path=execution.evidence.receipt_path,
+        receipt_sha256=execution.evidence.receipt_sha256,
+        evidence_reference=execution.evidence.evidence_reference,
     )
 
 
@@ -227,6 +266,17 @@ def _request_identity(
         separators=(",", ":"),
     ).encode("utf-8")
     return f"verification-{hashlib.sha256(payload).hexdigest()[:24]}"
+
+
+def _exact_request_identity(project: str, verification_id: str, revision: str) -> str:
+    payload = json.dumps(
+        {"project": project, "verification_id": verification_id, "revision": revision},
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    prefix = hashlib.sha256(payload).hexdigest()[:12]
+    return f"verification-{prefix}-{uuid.uuid4().hex[:12]}"
 
 
 def _project_identity(project: str) -> str:

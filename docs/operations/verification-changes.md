@@ -54,3 +54,7 @@ pwsh -File .\scripts\verify.ps1
 `scripts/verify.ps1` and `scripts/verify.py` own the current executable verification sequence, dependency/runtime requirements, and checks. Do not maintain a parallel checklist or pinned dependency inventory in this runbook.
 
 Verification is evidence, not an additional permission rule, and deterministic repository verification does not replace explicit live provider commissioning when live evidence is required.
+
+## Primary local Windows exact-head runner
+
+Canonical commit/PR verification is local and GitHub-Actions-independent. `run_verification` accepts `exact_revision`; KIS materializes that Git identity into a unique detached worktree under `C:\Projects\.kis-mcp\execution\local\runs`, rechecks clean HEAD/tree, and executes the verifier through the Work boundary using a Windows Job Object worker. Timeout, cancellation, worker loss, or KIS owner loss terminates the assigned process tree. Terminal runs emit an immutable `local-verification-receipt-v1` plus SHA-256 sidecar binding source revision/tree, lock/verifier identity, runner profile, timestamps, exit status, and log digest. Retained worktrees are recoverable state; stale non-terminal runs are cancellation-reconciled and are never authoritative. GitHub Actions may supply diagnostics but is not a landing prerequisite. VirtualBox/Hyper-V remain optional clean-room/high-isolation proof providers.

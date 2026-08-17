@@ -17,6 +17,6 @@
   },
   "$defs": {
     "logicalId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
-    "evidence": {"type": "object", "additionalProperties": false, "required": ["stdout", "stderr", "diagnostics", "truncated", "receipt_path", "transferred_bytes"], "properties": {"stdout": {"type": "string"}, "stderr": {"type": "string"}, "diagnostics": {"type": "array", "items": {"type": "string"}}, "truncated": {"type": "boolean"}, "receipt_path": {"type": ["string", "null"]}, "transferred_bytes": {"type": ["integer", "null"], "minimum": 0}}}
+    "evidence": {"type": "object", "additionalProperties": false, "required": ["stdout", "stderr", "diagnostics", "truncated", "receipt_path", "receipt_sha256", "source_tree", "source_fingerprint", "evidence_reference", "transferred_bytes"], "properties": {"stdout": {"type": "string"}, "stderr": {"type": "string"}, "diagnostics": {"type": "array", "items": {"type": "string"}}, "truncated": {"type": "boolean"}, "receipt_path": {"type": ["string", "null"]}, "receipt_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}, "source_tree": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}, "source_fingerprint": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}, "evidence_reference": {"type": ["string", "null"]}, "transferred_bytes": {"type": ["integer", "null"], "minimum": 0}}}
   }
 }
