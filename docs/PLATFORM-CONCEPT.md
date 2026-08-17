@@ -115,6 +115,16 @@ Coordinates declared workflows across Discover, Govern, Work, verification, revi
 
 Discovers and records approved repository verification commands, CI checks, governance checks, and provider-health evidence.
 
+### Execution substrate
+
+The target platform SHOULD provide a provider-neutral execution substrate beneath verification and selected isolated workflows. Execution profiles may use the existing local process path, disposable Windows guests, or provider-native CI runners, but they MUST preserve the same declared verification identity, bounded evidence, readiness, and provenance semantics.
+
+Disposable Windows execution SHOULD use versioned Hyper-V guests when host-state isolation materially improves correctness or security. A guest must not inherit mutable development checkout state, KIS runtime state, or operator credentials by default. Image identity, exact source identity, toolchain provenance, lifecycle outcome, and bounded diagnostics SHOULD be retained as verification evidence before guest reset or destruction.
+
+GitHub remains the pull-request identity and exact-head merge control plane, not the canonical verification executor. KIS-owned local verification evidence for the exact current pull-request head is the landing gate. Provider-native CI runners may remain optional execution adapters, but GitHub Actions and the speculative Actions-backed queue are dormant and MUST NOT be required for canonical delivery; disposable Windows commissioning evolves independently beneath the provider-neutral execution substrate.
+
+The same outer execution substrate MAY be reused by other registered repositories. In particular, isolation products may compose Docker or another purpose-specific inner sandbox inside a disposable Windows guest rather than replacing their existing containment contracts.
+
 ## 5. Discover plane
 
 ### Purpose

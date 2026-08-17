@@ -91,7 +91,7 @@ For a governed change:
 5. Keep `scope.json` current. Path claims are exact repository-relative paths or recursive `/**` paths. `owned_paths` are exclusive; overlaps are permitted only when every overlap is explicitly shared and coordinated by dependency/integration ownership. Duplicate outcomes, change IDs, branches, worktree paths, or uncoordinated overlaps must fail before worktree creation.
 6. Work Management may own operational priority, Ready/hold/defer state, scheduling, and execution claims. It does not create or override local change, Git, verification, or merge authority.
 7. During development run only focused/affected checks needed for the change. Before publication run `pwsh -File scripts/change-workflow.ps1 check` from the change worktree.
-8. Pull requests to `main` own the canonical full repository verification once on the exact GitHub head. Merge readiness requires provider-native GitHub Actions evidence for that exact head.
+8. Pull requests to `main` remain the exact review and landing identity, but KIS local verification is the canonical full repository gate. After publication/reconciliation, run `scripts/verify.ps1` through the KIS verification path against the exact current pull-request head and retain a concrete evidence reference before exact-head merge. GitHub Actions evidence is not a landing requirement or substitute for that local evidence.
 9. After verified merge, run `pwsh -File scripts/change-workflow.ps1 cleanup <change-id>` from clean primary `main`. Cleanup must refuse dirty or unmerged worktrees and must never force branch deletion. Historical schema-version-1/2/3 scopes remain valid under their compatibility rules; schema-version-3 `risk_profile` is historical data only. For schema-version-3/4 changes, verified merge plus cleanup establishes historical closed state without a second metadata-only repository commit.
 
 Manual worktree creation is an emergency exception only. Register the same change artifacts before the first implementation edit and run `pwsh -File scripts/change-workflow.ps1 validate` immediately.
@@ -110,7 +110,7 @@ Manual worktree creation is an emergency exception only. Register the same chang
 
 ## Verification and closeout
 
-`scripts/verify.ps1` is the canonical repository verification entry point. The normal PR workflow runs it once on the exact GitHub head after locked environment synchronization. Local development should prefer focused checks unless a separate explicit canonical run is required.
+`scripts/verify.ps1` is the canonical repository verification entry point. Local development should prefer focused checks. Canonical landing verification runs locally through KIS after pull-request publication/reconciliation on the exact current PR head; the resulting passing evidence must be referenced in the implementation trace before merge.
 
 Verification must continue to prove the three-rule set, repository/configuration integrity, provider and contract boundaries, current documentation/implementation consistency, and applicable change-governance requirements. Detailed verification and operator procedures belong to `docs/OPERATIONS.md`.
 
