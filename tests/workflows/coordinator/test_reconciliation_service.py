@@ -257,6 +257,38 @@ def test_accepts_exact_handoff_consumes_key_and_replays_idempotently(tmp_path: P
     assert json.loads(consumed.read_text(encoding="utf-8"))["handoff_id"] == "handoff-1"
 
 
+def test_accepted_replay_rechecks_current_authority(tmp_path: Path) -> None:
+    packet = _packet(tmp_path)
+    reservation = _reservation()
+    authority = _Authority(reservation)
+    service = ReconciliationService(
+        state_root=tmp_path,
+        project_boundary=tmp_path.parent,
+        authority=authority,
+        list_claims=_claims,
+        load_execution=lambda execution_id: (
+            _execution() if execution_id == "execution-1" else None
+        ),
+        namespace_resolver=_Resolver(tmp_path / "evidence"),
+    )
+    service.reconcile(
+        packet=packet,
+        handoff=_handoff(),
+        assignment_key=KEY,
+        observed_change=_observed(),
+        complexity="large",
+    )
+    reservation["fence_token"] = 8
+    with pytest.raises(ReservationAdmissionError, match="INTEGRATION_AUTHORITY_STALE"):
+        service.reconcile(
+            packet=packet,
+            handoff=_handoff(),
+            assignment_key=KEY,
+            observed_change=_observed(),
+            complexity="large",
+        )
+
+
 def test_rejects_stale_fence_without_consuming_assignment(tmp_path: Path) -> None:
     packet = _packet(tmp_path)
     handoff = _handoff()

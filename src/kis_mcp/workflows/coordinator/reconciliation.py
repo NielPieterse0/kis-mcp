@@ -188,6 +188,11 @@ class ReconciliationService:
         with _file_lock(evidence_root / "reconciliation.lock"):
             existing = self._read_reconciliation(reconciliation_id, evidence_root)
             if existing is not None:
+                reconciliation = _mapping(
+                    existing.get("reconciliation"), "existing.reconciliation"
+                )
+                if reconciliation.get("status") == "accepted":
+                    self._assert_integration_authority(packet)
                 return existing
             terminal = self._assignment_terminal(packet_id)
             if terminal is not None and terminal.get("state") == "revoked":
