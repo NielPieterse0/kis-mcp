@@ -508,6 +508,24 @@ class WorkerExecutionStore:
         progress_id: str,
         result_id: str,
     ) -> dict[str, Any] | None:
+        with self._execution_lock(execution.identity.execution_id):
+            return self._begin_mutation_locked(
+                execution,
+                tool_name=tool_name,
+                arguments=arguments,
+                progress_id=progress_id,
+                result_id=result_id,
+            )
+
+    def _begin_mutation_locked(
+        self,
+        execution: WorkerExecution,
+        *,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+        progress_id: str,
+        result_id: str,
+    ) -> dict[str, Any] | None:
         fingerprint, record = self._mutation_identity(
             execution,
             tool_name=tool_name,
@@ -554,6 +572,26 @@ class WorkerExecutionStore:
         return None
 
     def complete_mutation(
+        self,
+        execution: WorkerExecution,
+        *,
+        tool_name: str,
+        arguments: Mapping[str, Any],
+        progress_id: str,
+        result_id: str,
+        result: Any,
+    ) -> dict[str, Any]:
+        with self._execution_lock(execution.identity.execution_id):
+            return self._complete_mutation_locked(
+                execution,
+                tool_name=tool_name,
+                arguments=arguments,
+                progress_id=progress_id,
+                result_id=result_id,
+                result=result,
+            )
+
+    def _complete_mutation_locked(
         self,
         execution: WorkerExecution,
         *,
@@ -649,14 +687,16 @@ class WorkerExecutionStore:
         lock_path = self._root / "locks" / f"{key}.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         with lock_path.open("a+b") as stream:
-            # Seed one lockable byte; serialization authority comes from the OS lock below.
-            stream.seek(0, os.SEEK_END)
-            if stream.tell() == 0:
-                stream.write(b"0")
-                stream.flush()
             stream.seek(0)
             _lock_file(stream)
             try:
+                # Seed the byte only after serialization authority is held.
+                stream.seek(0, os.SEEK_END)
+                if stream.tell() == 0:
+                    stream.write(b"0")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                stream.seek(0)
                 yield
             finally:
                 _unlock_file(stream)
