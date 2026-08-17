@@ -16,7 +16,7 @@
 - MCP/runtime discovery remains advisory and non-authorizing.
 - Durable state ownership/location comes only from landed #278 APIs.
 - Do not implement #252 or #253 behavior.
-- Do not merge without canonical provider-native exact-head GitHub Actions evidence.
+- Do not merge without canonical KIS local verification evidence for the exact current pull-request head; GitHub Actions is diagnostic only.
 
 ### Task 1: Slice 5 contracts and RED tests
 
@@ -58,4 +58,4 @@
 - [x] Run focused Slice 5 tests, full coordinator regression tests, compilation, Ruff, governed change check, and `git diff --check` on the final implementation diff.
 - [x] Run required code-quality, architecture, API-contract, and persistence/recovery review gates; resolve actionable #251 findings and document evidence-disproved compatibility concerns.
 - [x] Resolve blocking #251-scoped findings in corrective commit `7423a83` and rerun focused/full local verification.
-- [x] Prepare the final documentation/review evidence for freeze; after committing, rerun exact-head local checks and queue the frozen head for canonical GitHub Actions verification/merge once the disposable Windows runner is available; do not merge beforehand.
+- [x] Prepare the final documentation/review evidence for freeze. Reconcile the frozen implementation with current `main`, rerun exact-head local verification, update the existing pull request to that verified head, and merge only that exact locally verified head.

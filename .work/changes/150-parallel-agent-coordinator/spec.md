@@ -1,7 +1,7 @@
 # Change Specification: Parallel Agent Coordinator
 
 - **Change ID**: `150-parallel-agent-coordinator`
-- **Status**: Slice 5 (#251) implementation complete locally — exact-head canonical CI/merge pending
+- **Status**: Slice 5 (#251) implementation complete locally — current-main reconciliation and canonical local exact-head verification/merge pending
 - **Complexity**: `large`
 - **Risk triggers**: `architecture_boundary`, `public_contract`, `persistent_state`
 

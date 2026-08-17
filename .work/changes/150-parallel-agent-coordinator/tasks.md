@@ -41,9 +41,9 @@
 - [x] Persistence/recovery review findings were resolved: explicit receipt identity validation, contention tests, fsynced durable writes, and internal-only store exposure were added. Later compatibility concerns were disproven by repository evidence: receipt v1/store are new in unmerged #251, every receipt builder already writes `execution_id`/`result_id`, and no package-level store imports exist.
 - [x] Final documentation/review evidence prepared for freeze; exact-head local verification is rerun after commit without further modification.
 
-## Landing stop
+## Landing gate
 
-- #251 must not merge until provider-native GitHub Actions canonical verification succeeds for the exact frozen head.
-- The disposable Windows Actions runner needed for that canonical evidence is not yet commissioned.
-- Do not waive or substitute local evidence for the exact-head CI requirement.
-- Do not begin #252 from this lane.
+- [ ] Reconcile the frozen Slice 5 implementation with current `main` without widening #251 scope.
+- [ ] Run canonical KIS local verification against the exact current pull-request head and retain its evidence reference.
+- [ ] Merge only that exact locally verified head, refresh registered/local `main`, and record #251 delivery.
+- [ ] Begin #252 only after #251 is landed and the parent coordinator worktree is reconciled to the new `main`.

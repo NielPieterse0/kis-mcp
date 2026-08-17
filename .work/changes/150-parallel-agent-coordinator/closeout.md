@@ -3,7 +3,7 @@
 - **Change**: `150-parallel-agent-coordinator`
 - **Parent issue**: #241
 - **Current slice**: #251
-- **Status**: **IMPLEMENTATION COMPLETE / LOCALLY VERIFIED / CANONICAL EXACT-HEAD CI + MERGE PENDING**
+- **Status**: **IMPLEMENTATION COMPLETE / PRIOR LOCAL VERIFICATION PASSED / CURRENT-MAIN RECONCILIATION + CANONICAL LOCAL EXACT-HEAD VERIFICATION + MERGE PENDING**
 
 ## Outcome
 
@@ -58,13 +58,13 @@ The architecture reviewer completed successfully on corrective commit `7423a83`.
 
 Persistence-focused review drove the same hardening: explicit execution/result receipt identity, contention tests, fsynced durable writes, and internal-only store exposure. Later reviewer concerns about missing receipt fields or legacy compatibility were disproven by exact repository evidence: `_mutation_identity` writes both fields into every receipt, the receipt/store format is first introduced by unmerged #251, and no package-level store imports exist. The thread contention tests intentionally exercise synchronous filesystem lock/exclusive-create primitives used by the store; MCP transport scheduling remains separately async/ephemeral. No blocking persistence/recovery finding remains.
 
-## Landing constraint / residual dependency
+## Landing gate
 
-#251 is **not merged**. Repository policy requires provider-native GitHub Actions canonical verification for the exact frozen head. That evidence is currently unavailable because the disposable Windows Actions runner needed for canonical verification has not yet been commissioned.
+#251 is **not merged**. Current repository policy requires canonical KIS local verification against the exact current pull-request head, with a concrete evidence reference retained before exact-head merge. GitHub Actions is optional diagnostic evidence and is not a landing requirement.
 
 Therefore:
 
-- do not merge #251;
-- do not waive, fake, or substitute local verification for exact-head GitHub Actions evidence;
-- keep the final reviewed local commit frozen for publication/CI/merge when the Windows runner is available;
-- do not begin #252 from this lane.
+- reconcile the reviewed Slice 5 implementation with current `main` without widening #251 scope;
+- rerun the canonical local verification path on the resulting exact pull-request head;
+- merge only that exact verified head, then refresh registered/local default-branch truth;
+- begin #252 only after #251 is landed and the parent coordinator branch is reconciled to the new `main`.
