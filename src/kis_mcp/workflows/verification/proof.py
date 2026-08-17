@@ -10,7 +10,7 @@ from ...execution.contracts import (
     ExecutionResult,
     ExecutionSource,
 )
-from ...execution.hyperv import HyperVDisposableExecutionProvider
+from ...execution.provider import ExecutionProvider
 from ...execution.settings import RunnerProfileSettings
 from .contracts import VerificationResult
 from .execution import (
@@ -45,13 +45,15 @@ class DisposableVerificationProofService:
         self,
         *,
         inspector: InspectProjectPort,
-        provider: HyperVDisposableExecutionProvider,
+        provider: ExecutionProvider,
         runner_profile: RunnerProfileSettings,
         max_evidence_chars: int = 20_000,
         max_timeout_ms: int = 300_000,
     ) -> None:
-        if runner_profile.backend_id != "windows-hyperv":
-            raise ValueError("disposable verification proof requires a windows-hyperv profile")
+        if runner_profile.backend_id == "local-process":
+            raise ValueError("disposable verification proof requires a disposable guest profile")
+        if provider.backend_id != runner_profile.backend_id:
+            raise ValueError("disposable verification proof provider/profile backend mismatch")
         if max_evidence_chars < 1 or max_timeout_ms < 1:
             raise ValueError("disposable verification proof limits must be positive")
         self._inspector = inspector

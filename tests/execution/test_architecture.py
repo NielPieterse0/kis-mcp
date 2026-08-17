@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import kis_mcp.execution as execution
+
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 EXECUTION_ROOT = REPOSITORY_ROOT / "src" / "kis_mcp" / "execution"
@@ -34,3 +36,11 @@ def test_hyperv_proof_uses_exact_archive_transfer_not_host_checkout_mount() -> N
     assert "Copy-VMFile" in source
     assert "New-VMSwitch" not in source
     assert "New-SmbShare" not in source
+
+
+def test_virtualbox_disposable_provider_module_is_present() -> None:
+    assert (EXECUTION_ROOT / "virtualbox.py").is_file()
+
+
+def test_virtualbox_provider_is_exported_from_execution_package() -> None:
+    assert hasattr(execution, "VirtualBoxDisposableExecutionProvider")

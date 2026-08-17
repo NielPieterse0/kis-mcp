@@ -15,6 +15,7 @@ _ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,127}$")
 _ROOT_KEYS = frozenset({"schema_version", "default_profile", "evidence_limit_chars", "profiles"})
 _LOCAL_KEYS = frozenset({"profile_id", "backend_id", "enabled", "image_id", "toolchain_id"})
 _HYPERV_KEYS = frozenset((*_LOCAL_KEYS, "hyperv"))
+_VIRTUALBOX_KEYS = frozenset((*_LOCAL_KEYS, "virtualbox"))
 _HYPERV_CONFIG_KEYS = frozenset(
     {
         "template_vm",
@@ -23,6 +24,20 @@ _HYPERV_CONFIG_KEYS = frozenset(
         "guest_workspace",
         "guest_username_env",
         "guest_password_env",
+        "startup_timeout_ms",
+        "cleanup_timeout_ms",
+    }
+)
+_VIRTUALBOX_CONFIG_KEYS = frozenset(
+    {
+        "vboxmanage_path",
+        "template_vm",
+        "snapshot_name",
+        "state_root",
+        "vbox_user_home",
+        "guest_workspace",
+        "guest_username_env",
+        "guest_password_file_env",
         "startup_timeout_ms",
         "cleanup_timeout_ms",
     }
@@ -104,6 +119,36 @@ class HyperVProfileSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class VirtualBoxProfileSettings:
+    vboxmanage_path: str
+    template_vm: str
+    snapshot_name: str
+    state_root: str
+    vbox_user_home: str
+    guest_workspace: str
+    guest_username_env: str
+    guest_password_file_env: str
+    startup_timeout_ms: int
+    cleanup_timeout_ms: int
+
+    def __post_init__(self) -> None:
+        state_root = _windows_absolute(self.state_root, "virtualbox.state_root")
+        if not is_within_windows_boundary(state_root, boundary=APPROVED_STATE_ROOT):
+            raise ExecutionSettingsError(
+                "virtualbox.state_root must remain within the configured KIS state root"
+            )
+        vbox_user_home = _windows_absolute(
+            self.vbox_user_home, "virtualbox.vbox_user_home"
+        )
+        if not is_within_windows_boundary(vbox_user_home, boundary=state_root):
+            raise ExecutionSettingsError(
+                "virtualbox.vbox_user_home must remain within the virtualbox state root"
+            )
+        object.__setattr__(self, "state_root", state_root)
+        object.__setattr__(self, "vbox_user_home", vbox_user_home)
+
+
+@dataclass(frozen=True, slots=True)
 class RunnerProfileSettings:
     profile_id: str
     backend_id: str
@@ -111,6 +156,7 @@ class RunnerProfileSettings:
     image_id: str
     toolchain_id: str
     hyperv: HyperVProfileSettings | None = None
+    virtualbox: VirtualBoxProfileSettings | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,13 +196,59 @@ def _hyperv_settings(raw: Any, label: str) -> HyperVProfileSettings:
     )
 
 
+def _virtualbox_settings(raw: Any, label: str) -> VirtualBoxProfileSettings:
+    value = _mapping(raw, label)
+    _exact_keys(value, _VIRTUALBOX_CONFIG_KEYS, label)
+    state_root = _windows_absolute(value["state_root"], f"{label}.state_root")
+    if not is_within_windows_boundary(state_root, boundary=APPROVED_STATE_ROOT):
+        raise ExecutionSettingsError(
+            f"{label}.state_root must remain within the configured KIS state root"
+        )
+    vbox_user_home = _windows_absolute(
+        value["vbox_user_home"], f"{label}.vbox_user_home"
+    )
+    if not is_within_windows_boundary(vbox_user_home, boundary=state_root):
+        raise ExecutionSettingsError(
+            f"{label}.vbox_user_home must remain within the virtualbox state root"
+        )
+    return VirtualBoxProfileSettings(
+        vboxmanage_path=_windows_absolute(
+            value["vboxmanage_path"], f"{label}.vboxmanage_path"
+        ),
+        template_vm=_text(value["template_vm"], f"{label}.template_vm"),
+        snapshot_name=_text(value["snapshot_name"], f"{label}.snapshot_name"),
+        state_root=state_root,
+        vbox_user_home=vbox_user_home,
+        guest_workspace=_windows_absolute(
+            value["guest_workspace"], f"{label}.guest_workspace"
+        ),
+        guest_username_env=_env_name(
+            value["guest_username_env"], f"{label}.guest_username_env"
+        ),
+        guest_password_file_env=_env_name(
+            value["guest_password_file_env"], f"{label}.guest_password_file_env"
+        ),
+        startup_timeout_ms=_positive_int(
+            value["startup_timeout_ms"], f"{label}.startup_timeout_ms", 600_000
+        ),
+        cleanup_timeout_ms=_positive_int(
+            value["cleanup_timeout_ms"], f"{label}.cleanup_timeout_ms", 600_000
+        ),
+    )
+
+
 def _profile(raw: Any, index: int) -> RunnerProfileSettings:
     label = f"profiles[{index}]"
     value = _mapping(raw, label)
     backend = _logical_id(value.get("backend_id"), f"{label}.backend_id")
-    expected = _HYPERV_KEYS if backend == "windows-hyperv" else _LOCAL_KEYS
+    if backend == "windows-hyperv":
+        expected = _HYPERV_KEYS
+    elif backend == "windows-virtualbox":
+        expected = _VIRTUALBOX_KEYS
+    else:
+        expected = _LOCAL_KEYS
     _exact_keys(value, expected, label)
-    if backend not in {"local-process", "windows-hyperv"}:
+    if backend not in {"local-process", "windows-hyperv", "windows-virtualbox"}:
         raise ExecutionSettingsError(f"{label}.backend_id is unsupported")
     enabled = value["enabled"]
     if not isinstance(enabled, bool):
@@ -166,6 +258,11 @@ def _profile(raw: Any, index: int) -> RunnerProfileSettings:
         if backend == "windows-hyperv"
         else None
     )
+    virtualbox = (
+        _virtualbox_settings(value["virtualbox"], f"{label}.virtualbox")
+        if backend == "windows-virtualbox"
+        else None
+    )
     return RunnerProfileSettings(
         profile_id=_logical_id(value["profile_id"], f"{label}.profile_id"),
         backend_id=backend,
@@ -173,6 +270,7 @@ def _profile(raw: Any, index: int) -> RunnerProfileSettings:
         image_id=_logical_id(value["image_id"], f"{label}.image_id"),
         toolchain_id=_logical_id(value["toolchain_id"], f"{label}.toolchain_id"),
         hyperv=hyperv,
+        virtualbox=virtualbox,
     )
 
 
@@ -214,5 +312,6 @@ __all__ = [
     "ExecutionSettingsError",
     "HyperVProfileSettings",
     "RunnerProfileSettings",
+    "VirtualBoxProfileSettings",
     "load_execution_runner_settings",
 ]

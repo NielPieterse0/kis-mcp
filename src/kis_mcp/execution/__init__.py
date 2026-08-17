@@ -12,11 +12,13 @@ from .contracts import (
 from .hyperv import HyperVDisposableExecutionProvider
 from .local import LocalProcessExecutionProvider
 from .provider import ExecutionProvider
+from .virtualbox import VirtualBoxDisposableExecutionProvider
 from .settings import (
     ExecutionRunnerSettings,
     ExecutionSettingsError,
     HyperVProfileSettings,
     RunnerProfileSettings,
+    VirtualBoxProfileSettings,
     load_execution_runner_settings,
 )
 
@@ -37,5 +39,7 @@ __all__ = [
     "LocalProcessExecutionProvider",
     "ReadinessStatus",
     "RunnerProfileSettings",
+    "VirtualBoxDisposableExecutionProvider",
+    "VirtualBoxProfileSettings",
     "load_execution_runner_settings",
 ]
