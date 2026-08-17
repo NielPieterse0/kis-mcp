@@ -22,32 +22,32 @@
 
 **Requirements:** REQ-252-01 through REQ-252-10.
 
-- [ ] Add RED tests for stale/mismatched handoffs, independent Git evidence, local scope/global claim validation, dependency blocking, assignment consumption, and duplicate handback.
-- [ ] Add RED tests for deterministic verification derivation and configured risk-review mapping.
-- [ ] Version verification requirements away from stale provider-native-CI semantics to `kis_local_exact_head` authority.
+- [x] Add RED tests for stale/mismatched handoffs, independent Git evidence, local scope/global claim validation, dependency blocking, assignment consumption, and duplicate handback.
+- [x] Add RED tests for deterministic verification derivation and configured risk-review mapping.
+- [x] Version verification requirements away from stale provider-native-CI semantics to `kis_local_exact_head` authority.
 ### Task 2: Deterministic reconciliation
 
-- [ ] Implement strict identity/status/dependency validation against packet + handoff + observed Git evidence.
-- [ ] Re-read current reservation authority and current governed claim graph before acceptance.
-- [ ] Reject changed paths outside packet scope.
-- [ ] Atomically consume the active assignment key only for an accepted handoff; preserve idempotent replay of the same accepted reconciliation.
+- [x] Implement strict identity/status/dependency validation against packet + handoff + observed Git evidence.
+- [x] Re-read current reservation authority and current governed claim graph before acceptance and accepted replay.
+- [x] Reject changed paths outside packet scope.
+- [x] Atomically consume the active assignment key only for an accepted handoff; preserve idempotent replay of the same accepted reconciliation.
 
 ### Task 3: Verification requirements
 
-- [ ] Derive deterministic check categories from changed paths and caller-supplied repository verification IDs.
-- [ ] Reuse `select_change_controls` for configured base/risk review requirements.
-- [ ] Emit strict v2 verification requirements with exact-head local KIS authority.
+- [x] Derive deterministic check categories from changed paths and caller-supplied repository verification IDs.
+- [x] Reuse `select_change_controls` for configured base/risk review requirements.
+- [x] Emit strict v2 verification requirements with exact-head local KIS authority.
 
 ### Task 4: Serialized integration
 
-- [ ] Persist one queue record per accepted reconciliation and serialize queue mutation with a cross-process lock.
-- [ ] Enforce one active integration owner/candidate at a time per integration key.
-- [ ] Require passing referenced `local` verification matching the exact candidate head before delivery authorization.
-- [ ] Keep repository delivery distinct from commissioning/closeout.
+- [x] Persist one queue record per accepted reconciliation and serialize queue mutation with a cross-process lock.
+- [x] Enforce one active integration owner/candidate at a time per integration key.
+- [x] Require passing referenced `local` verification matching the exact candidate head before delivery authorization.
+- [x] Keep repository delivery distinct from commissioning/closeout.
 
 ### Task 5: Documentation, review, verification, landing
 
-- [ ] Update the coordinator module product spec to implemented Slice 6 behavior and change-179 landing semantics.
-- [ ] Run focused Slice 6 tests, full coordinator regressions, Ruff/compile, change-governance check, and `git diff --check`.
-- [ ] Run required code-quality, architecture, API-contract, and persistent-state reviews; resolve blocking findings.
+- [x] Update the coordinator module product spec to implemented Slice 6 behavior and change-179 landing semantics.
+- [x] Run focused Slice 6 tests, full coordinator regressions, Ruff/compile, change-governance check, and `git diff --check`.
+- [x] Run configured code-quality, architecture, and API-contract reviews plus persistent-state/trust-boundary fallback review; resolve blocking findings.
 - [ ] Publish/reconcile the exact candidate, run canonical local exact-head verification, merge only that head, and then begin #253.

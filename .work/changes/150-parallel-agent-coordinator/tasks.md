@@ -31,12 +31,12 @@
 - [x] Strict coordinator schemas validate Slice 6 emitted values.
 - [x] Ruff and Python compilation pass on coordinator source/tests.
 - [x] Governed change check and `git diff --check` pass.
-- [ ] Required code-quality, architecture, API-contract, and persistent-state reviews have no blocking findings.
+- [x] Configured code-quality, architecture, and API-contract reviews plus persistent-state/trust-boundary fallback review have no blocking findings; the review engine required exact-diff fallback because its evidence package omitted the large reconciliation test file. One stale accepted-replay authority finding was fixed in `7aa6c23` and regression-tested.
 - [ ] Canonical KIS-local exact-head repository verification passes on the current PR head.
 
 ## Landing gate
 
-- [ ] Freeze/reconcile Slice 6 with current `main` without widening scope.
+- [x] Freeze/reconcile Slice 6 with current `main` without widening scope; registered GitHub/local `main` remains `6a5e843341f4213080014e5bd7388e8b1959baa9`.
 - [ ] Publish/update the parent coordinator PR at the exact reviewed head.
 - [ ] Run canonical local verification on that exact head and retain a concrete evidence reference.
 - [ ] Merge only that head, refresh registered/local `main`, record #252 delivery, then begin #253.
