@@ -1,70 +1,53 @@
-# Closeout / Handoff: Parallel Agent Coordinator — Slice 5 (#251)
+# Closeout / Handoff: Parallel Agent Coordinator — Slice 6 (#252)
 
 - **Change**: `150-parallel-agent-coordinator`
 - **Parent issue**: #241
-- **Current slice**: #251
-- **Status**: **IMPLEMENTATION COMPLETE / PRIOR LOCAL VERIFICATION PASSED / CURRENT-MAIN RECONCILIATION + CANONICAL LOCAL EXACT-HEAD VERIFICATION + MERGE PENDING**
+- **Current slice**: #252
+- **Status**: **SLICE 6 COMPLETE / EXACT-HEAD VERIFIED / LANDED TO LOCAL MAIN**
 
 ## Outcome
 
-#251 is implementation-complete inside the existing parent coordinator worktree. The branch was reconciled with current `main` after #278 landed; no #278 implementation was authored in this lane.
+#252 implements deterministic worker-handoff reconciliation, scope/risk-derived verification requirements, and serialized integration admission on the existing parent coordinator change.
 
-Implemented Slice 5 behavior:
+Implemented behavior:
 
-- strict `coordinator-worker-execution-v2`, work-packet v2, and worker-handoff v2 correlation contracts;
-- deterministic worker lifecycle with exact-event idempotence and stale/conflicting transition rejection;
-- ephemeral MCP connect/discover/filter/invoke/cleanup/reconnect with exact runtime-binding validation and bounded result normalization;
-- current reservation/revision/lease/fence assertion before filtered exposure and immediately before mutating dispatch;
-- internal durable `WorkerExecutionStore` placed only through landed #278 `DURABLE_EVIDENCE` resolution using project identity plus `derive_change_source_id(change_id)`;
-- ordered lifecycle restoration after restart and persisted idempotent resume/retry;
-- per-execution OS-level cross-process serialization for durable lifecycle transitions;
-- fsynced atomic durable snapshots and write-ahead mutation receipts tied to execution/attempt, reservation/revision/lease/fence, runtime binding, tool/arguments, progress, and result identity;
-- completed mutation retries return the prior durable normalized result without re-dispatch;
-- uncertain `in_flight` mutation evidence fails closed for explicit reconciliation rather than replaying possibly completed mutation work;
-- single-winner receipt creation under contention and explicit rejection of tampered receipt identity;
-- structured adapter results retain execution/attempt and authority/runtime correlation;
-- MCP reconnect/discovery remains transport-only and never creates, renews, transfers, or restores mutation authority.
+- validates durable packet issuance, assignment generation/key digest, reservation revision/fence, runtime binding, worker/task identity, exact base/head, changed paths, dependencies, and current global claims;
+- rejects stale, tampered, out-of-scope, residual, dependency-incomplete, or globally invalid handoffs without inventing completion evidence;
+- consumes the active assignment only after accepted reconciliation secures integration admission, with crash/retry recovery and same-handoff idempotence;
+- revalidates current reservation/claim authority when replaying previously accepted reconciliation evidence;
+- emits `coordinator-verification-requirements-v2` using repository change-control settings and `kis_local_exact_head` landing authority;
+- serializes one active integration candidate per integration owner and requires referenced passing local verification for the exact candidate head before delivery authorization;
+- keeps actual GitHub merge mutation in existing registered KIS operations;
+- stores reconciliation/integration evidence through typed `DURABLE_EVIDENCE` namespaces keyed by project and change identity;
+- hardens the earlier coordinator Windows lock-initialization and mutation-receipt contention paths exposed by full regression testing.
 
-No #252 reconciliation/integration behavior and no #253 observability/commissioning behavior was implemented.
+## Verification
 
-## Local verification
+Final Slice 6 gates pass:
 
-Final implementation-state verification after corrective commit `7423a83`:
-
-- focused worker lifecycle/MCP/persistence suite: **26/26 passed**;
-- full coordinator regression suite: **84/84 passed**;
-- Python `compileall` on `src/kis_mcp/workflows/coordinator`: **passed**;
-- Ruff on coordinator source/tests: **passed**;
-- `git diff --check`: **passed**;
-- `scripts/change-workflow.ps1 check`: **passed**, reporting only parent coordinator-owned paths.
-
-After this closeout evidence is committed, the same exact-head local checks are rerun without modifying the frozen commit.
+- focused reconciliation/integration suite: passed;
+- full coordinator regression suite: passed;
+- Python compileall: passed;
+- Ruff: passed;
+- `scripts/change-workflow.ps1 check`: passed;
+- `git diff --check`: passed;
+- canonical full `scripts/verify.ps1`: passed on exact landing head `3196590e675abc916cc94e0f1638aef435ac2973`;
+- an earlier full-suite run had one Discover inventory-race failure outside coordinator scope; the exact failing test then passed 5/5 on prior `main` and 5/5 on the candidate, and the final full rerun passed 100%.
 
 ## Specialist review programme
 
-### Code quality
+The configured review engine could not invoke its model because the exact Slice 6 range exceeded its evidence package and omitted `tests/workflows/coordinator/test_reconciliation_service.py`. Each required review therefore entered its prescribed `exact-diff` manual fallback.
 
-Initial immutable candidate `6d9c259` identified four items: lock-contention concern, explicit receipt-identity validation, missing concurrent receipt-claim coverage, and uncertainty about #278 landing. Corrective commit `7423a83` added/verified the required behavior. The corrective code-quality review then reported **zero findings**.
+- **Code quality / persistence**: one blocking recovery defect was found: cached accepted reconciliation could be replayed after authority changed. Commit `7aa6c23` revalidates current integration authority on accepted replay and adds a regression test. No further blocking finding survived exact-diff review.
+- **Architecture**: authority planes remain separated; durable evidence cannot supersede newer reservation/fence state; reconciliation/integration state is project+change namespaced. No blocking finding remains. Pre-existing broad reservation/assignment mutexes can briefly serialize unrelated projects and should be partitioned/effectiveness-measured in subsequent coordinator hardening.
+- **API/contracts**: verification requirements are strict v2 and use configured review derivation plus local exact-head authority. No unversioned public contract expansion or provider-native CI requirement remains.
+- **Trust boundary**: writes remain beneath `C:\Projects`; assignment keys are persisted only as SHA-256 digests; changed repository paths are normalized and constrained to packet/governed scope; stale authority fails closed. No blocking HR-001/HR-002/HR-003 finding remains.
 
-### API / contracts
+## Landing
 
-Initial review asked that the new durable store not accidentally expand the coordinator package API and raised compatibility questions about the internal receipt format. `WorkerExecutionStore` was removed from package `__all__`/imports and is now internal. Repository search confirmed no package-level consumers, and `coordinator-worker-mutation-receipt-v1` is new inside unmerged #251 with no legacy reader/receipt population. The corrective API/contracts review reported **zero findings**.
+- Local `main` was fast-forwarded from `6a5e843341f4213080014e5bd7388e8b1959baa9` to the exact verified Slice 6 head `3196590e675abc916cc94e0f1638aef435ac2973`.
+- The parent coordinator worktree remains intentionally present because #253 is the next slice of the same governed change; it is not eligible for cleanup yet.
+- Exact source/review branches were published during closeout attempts, but GitHub repeatedly returned HTTP 503 while creating the PR. Under the operator-approved recovery mode, GitHub synchronization is remote-mirror debt and does not roll back the verified local-main landing.
+- GitHub Actions is not a landing requirement.
 
-### Architecture
-
-The architecture reviewer completed successfully on corrective commit `7423a83`. It found no blocking architecture defect; the only actionable verification was to confirm that removing the store from the package surface had no consumers. Repository-wide search returned zero matches. The review also confirmed the explicit receipt validation and fsynced durable writes as correct/no-action changes.
-
-### Persistence / recovery
-
-Persistence-focused review drove the same hardening: explicit execution/result receipt identity, contention tests, fsynced durable writes, and internal-only store exposure. Later reviewer concerns about missing receipt fields or legacy compatibility were disproven by exact repository evidence: `_mutation_identity` writes both fields into every receipt, the receipt/store format is first introduced by unmerged #251, and no package-level store imports exist. The thread contention tests intentionally exercise synchronous filesystem lock/exclusive-create primitives used by the store; MCP transport scheduling remains separately async/ephemeral. No blocking persistence/recovery finding remains.
-
-## Landing gate
-
-#251 is **not merged**. Current repository policy requires canonical KIS local verification against the exact current pull-request head, with a concrete evidence reference retained before exact-head merge. GitHub Actions is optional diagnostic evidence and is not a landing requirement.
-
-Therefore:
-
-- reconcile the reviewed Slice 5 implementation with current `main` without widening #251 scope;
-- rerun the canonical local verification path on the resulting exact pull-request head;
-- merge only that exact verified head, then refresh registered/local default-branch truth;
-- begin #252 only after #251 is landed and the parent coordinator branch is reconciled to the new `main`.
+#252 is repository-delivered and complete. The next implementation slice is #253; no #253 code is included in this closeout commit.

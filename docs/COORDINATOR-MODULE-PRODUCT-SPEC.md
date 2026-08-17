@@ -72,7 +72,7 @@ The authoritative coordinator lifecycle distinguishes these states:
 
 ## Executable contract ownership
 
-Slice 1 introduced ten strict Draft 2020-12 schemas beneath `contracts/coordinator/`. Slice 5 adds the location-independent `worker-execution` contract through the same governed #241 change:
+The coordinator contract catalogue now contains eleven strict Draft 2020-12 schemas beneath `contracts/coordinator/`. Slice 5 added the location-independent `worker-execution` contract, and Slice 6 versions verification requirements to the current KIS-local exact-head landing authority:
 
 | Contract | Purpose | Behavioral owner |
 |---|---|---|
@@ -85,7 +85,7 @@ Slice 1 introduced ten strict Draft 2020-12 schemas beneath `contracts/coordinat
 | `work-packet` | Bounded worker assignment with frozen authority, task/capability correlation, and immutable reference to the canonical runtime binding. | #250/#251 |
 | `worker-execution` | Location-independent worker lifecycle, authority/runtime correlation, idempotent event identity, and progress/result identifiers. | #251 |
 | `worker-handoff` | Exact worker output/evidence, execution/attempt/result correlation, and residual state. | #251 |
-| `verification-requirements` | Scope/risk-derived gate requirements without pass claims. | #252 |
+| `verification-requirements` | Scope/risk-derived gate requirements without pass claims; v2 fixes canonical landing authority to referenced KIS-local exact-head verification. | #252 |
 | `reconciliation-result` | Deterministic handoff validation and integration disposition. | #252 |
 
 Slice 1 publishes the schemas only as repository-owned contract resources under `contracts/coordinator/`; it exposes no runtime coordinator package or MCP tool. Runtime loading/validation belongs to the later slice that implements the consuming behavior, so Slice 1 does not couple contract access to a source-checkout layout.
@@ -105,9 +105,9 @@ Later implementations must preserve all of these invariants:
 7. A worker handoff is rejected when its reservation, fence, exact head, changed scope, or evidence is stale or inconsistent.
 8. Verification requirements derive from authoritative scope/risk facts rather than worker confidence.
 9. Shared-hotspot integration is centrally serialized through the declared integration owner.
-10. Exact-head provider-native evidence remains required where repository policy requires it.
+10. Canonical repository landing requires referenced passing KIS-local verification for the exact candidate head; provider-native CI is diagnostic only unless another explicit repository contract requires it.
 
-The Slice-1 schemas record the evidence needed to evaluate these invariants. They do not implement the transitions themselves.
+The contract catalogue records the evidence needed to evaluate these invariants. Slices 2 through 6 now implement reservation, authority, planning, worker execution, reconciliation, verification derivation, and serialized integration transitions; #253 remains responsible for projection and commissioning.
 
 ## Degraded-component semantics
 
@@ -153,7 +153,7 @@ No implemented slice grants an exception to this dependency chain: the remaining
 
 Separate issue numbers are acceptance units, not independent worktrees. The single parent governed change remains the integration owner for coordinator-specific shared hotspots until an explicit governed revision changes that strategy.
 
-## Cumulative implementation status through Slice 5
+## Cumulative implementation status through Slice 6
 
 Implemented by #247:
 
@@ -208,11 +208,20 @@ Implemented by #251 on the same parent branch:
 - structured adapter results retain execution/attempt, exact authority facts, runtime binding, packet/task, progress, and result correlation when durable execution identity is supplied;
 - reconnect, discovery, and transport session state remain ephemeral and non-authorizing; durable evidence never creates, renews, or supersedes #248/#249 mutation authority.
 
-Slices 2 through 5 expose no public MCP coordinator tool. Transport discovery/connectivity never grants authority.
+Implemented by #252 on the same parent branch:
+
+- deterministic handoff reconciliation against durable packet issuance, assignment generation/key digest, current reservation revision/fence, runtime binding, worker/task identity, independently observed exact base/head, changed paths, current global claims, local packet scope, and dependency completion;
+- assignment consumption only after accepted reconciliation has secured serialized integration admission, with exact replay idempotence and rejection of stale or differently consumed assignments;
+- scope/risk-derived verification requirements that reuse canonical change-control settings for configured review types and version the contract to `coordinator-verification-requirements-v2`;
+- canonical verification authority fixed to referenced passing KIS-local exact-head evidence, with GitHub Actions removed from the coordinator landing contract;
+- durable reconciliation and integration evidence placed through the landed #278 `DURABLE_EVIDENCE` namespace resolver and governed change source identity;
+- a cross-process serialized integration queue that admits one active candidate per integration owner, requires exact-head local verification before delivery authorization, and records delivered merge identity without duplicating the existing registered GitHub merge client;
+- fail-closed behavior for tampered packet evidence, stale authority, out-of-scope changes, invalid global claims, unsatisfied dependencies, busy integration owners, and stale verification evidence.
+
+Slices 2 through 6 expose no public MCP coordinator tool. Transport discovery/connectivity never grants authority.
 
 Not yet implemented:
 
-- #252 handoff/assignment-key reconciliation, verification derivation, integration serialization/landing coordination, or cleanup coordination;
 - #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
 
-#251 implementation is locally complete on the parent change branch, but it is not landed product behavior until canonical exact-head GitHub Actions evidence is available and the governed change is merged.
+#251 and #252 are landed product behavior on local `main`. #252 was canonically verified at exact head `3196590e675abc916cc94e0f1638aef435ac2973` before local-main landing; GitHub PR synchronization remains remote-mirror debt after repeated provider HTTP 503 failures. #253 is the only remaining delivery slice in the parent coordinator change.

@@ -1,49 +1,42 @@
-# Tasks: Parallel Agent Coordinator — Slice 5 (#251)
+# Tasks: Parallel Agent Coordinator — Slice 6 (#252)
 
 ## Prerequisites
 
-- [x] #247 architecture/contracts completed and preserved.
-- [x] #248 atomic reservation admission completed and preserved.
-- [x] #249 scope-revision/lease/fence authority lifecycle completed and preserved.
-- [x] #250 deterministic planning/runtime binding/work packets completed and preserved.
-- [x] Parent branch reconciled with current `main` after #278 landed; no #278 implementation was authored in this lane.
-- [x] #241/#251 re-read; canonical `develop-code`, `develop-docs`, and `mcp-development` procedures loaded.
-- [x] Landed #278 state ownership API re-read from repository truth and consumed directly.
-- [x] Strict `247 -> 248 -> 249 -> 250 -> 251 -> 252 -> 253` sequencing preserved.
+- [x] #247 architecture/contracts landed.
+- [x] #248 atomic reservation admission landed.
+- [x] #249 scope revision/lease/fence authority landed.
+- [x] #250 planner/runtime binding/work packets landed.
+- [x] #251 durable worker lifecycle/MCP adapter landed via PR #328 at merge `6a5e843341f4213080014e5bd7388e8b1959baa9`.
+- [x] Parent worktree fast-forwarded to current `main` after #251 landing.
+- [x] Current repository local exact-head verification authority from change 179 applied to #252 design.
 
-## Slice 5 implementation
+## Slice 6 implementation
 
-- [x] Add strict worker-execution lifecycle/correlation contract.
-- [x] Add deterministic location-independent worker execution transition model.
-- [x] Add idempotent duplicate/stale event handling.
-- [x] Add ephemeral MCP connect/discover/filter/invoke/cleanup/reconnect adapter.
-- [x] Enforce current reservation authority before filtered exposure and immediately before mutating invocation.
-- [x] Extend worker-handoff correlation without implementing #252 reconciliation.
-- [x] Consume #278 `DURABLE_EVIDENCE` namespace resolution plus `derive_change_source_id(change_id)` for the persistent execution store; no alternate root/source convention added.
-- [x] Restore ordered execution state after restart and preserve idempotent persisted resume/retry.
-- [x] Persist write-ahead mutation receipts so completed mutation retries reuse the stored result and uncertain in-flight work is not executed twice.
-- [x] Keep durable result/effect evidence tied to execution/attempt, reservation/revision/lease/fence, runtime binding, tool arguments, progress, and result identity.
-- [x] Serialize conflicting lifecycle updates with the existing cross-platform OS file-lock primitive and make mutation receipt claims single-winner through exclusive file creation.
-- [x] Fsync durable snapshots/receipts before atomic replacement/dispatch evidence is relied upon.
-- [x] Keep `WorkerExecutionStore` internal rather than expanding the coordinator package API.
-- [x] Keep MCP reconnect/discovery/session objects ephemeral and non-authorizing.
+- [x] Add deterministic reconciliation service and tests.
+- [x] Validate assignment/reservation/fence/runtime/execution/task identity.
+- [x] Validate independent exact-base/head/changed-path Git evidence.
+- [x] Revalidate global claims plus local packet scope.
+- [x] Block unsatisfied dependencies.
+- [x] Consume assignment key atomically on accepted handoff; reject stale/revoked/consumed keys.
+- [x] Derive verification checks/reviews from authoritative scope + configured change controls.
+- [x] Replace stale provider-native verification contract semantics with KIS-local exact-head authority.
+- [x] Add durable serialized integration queue and exact-head local-verification delivery gate.
+- [x] Keep actual GitHub mutation in existing registered KIS operations.
+- [x] Harden Windows lock initialization and mutation-receipt contention after full-regression failures; stress the two race scenarios 10/10 clean.
 
-## Slice 5 gates
+## Slice 6 gates
 
-- [x] Focused worker persistence/lifecycle/MCP tests pass (**26/26**).
-- [x] Full coordinator regression suite passes (**84/84**).
-- [x] Strict coordinator schemas validate emitted Slice 5 values through the coordinator regression suite.
-- [x] Ruff and Python compilation pass on the final implementation state.
-- [x] Governed change check and `git diff --check` pass on the final implementation state.
-- [x] Code-quality corrective review `7423a83` reports zero findings.
-- [x] API/contracts corrective review `7423a83` reports zero findings.
-- [x] Architecture corrective review `7423a83` completed with no blocking defect; its only action was repository-wide verification that no package-level `WorkerExecutionStore` consumers remained, and that search returned zero matches.
-- [x] Persistence/recovery review findings were resolved: explicit receipt identity validation, contention tests, fsynced durable writes, and internal-only store exposure were added. Later compatibility concerns were disproven by repository evidence: receipt v1/store are new in unmerged #251, every receipt builder already writes `execution_id`/`result_id`, and no package-level store imports exist.
-- [x] Final documentation/review evidence prepared for freeze; exact-head local verification is rerun after commit without further modification.
+- [x] Focused reconciliation/integration tests pass.
+- [x] Full coordinator regression suite passes after fixing the two surfaced Windows contention races.
+- [x] Strict coordinator schemas validate Slice 6 emitted values.
+- [x] Ruff and Python compilation pass on coordinator source/tests.
+- [x] Governed change check and `git diff --check` pass.
+- [x] Configured code-quality, architecture, and API-contract reviews plus persistent-state/trust-boundary fallback review have no blocking findings; the review engine required exact-diff fallback because its evidence package omitted the large reconciliation test file. One stale accepted-replay authority finding was fixed in `7aa6c23` and regression-tested.
+- [x] Canonical KIS-local exact-head repository verification passed on `3196590e675abc916cc94e0f1638aef435ac2973`. The first full verifier run had one unrelated Discover inventory-race failure; that exact test then passed 5/5 on prior `main` and 5/5 on the #252 candidate with the canonical interpreter, and the fresh full verifier rerun passed completely.
 
 ## Landing gate
 
-- [ ] Reconcile the frozen Slice 5 implementation with current `main` without widening #251 scope.
-- [ ] Run canonical KIS local verification against the exact current pull-request head and retain its evidence reference.
-- [ ] Merge only that exact locally verified head, refresh registered/local `main`, and record #251 delivery.
-- [ ] Begin #252 only after #251 is landed and the parent coordinator worktree is reconciled to the new `main`.
+- [x] Freeze/reconcile Slice 6 with prior `main` without widening scope; exact candidate `3196590e675abc916cc94e0f1638aef435ac2973` descended from `6a5e843341f4213080014e5bd7388e8b1959baa9`.
+- [x] Publish exact source/review branches as far as GitHub availability allowed; PR creation was independently blocked by GitHub HTTP 503 and is retained as remote-sync debt rather than a local landing gate under the operator-approved local-main recovery mode.
+- [x] Run canonical local verification on exact candidate `3196590e675abc916cc94e0f1638aef435ac2973` and retain the passing verifier output in the execution transcript/change closeout.
+- [x] Fast-forward local `main` only to that exact verified head. #252 repository delivery is complete locally; #253 remains the next slice after this closeout record is reconciled.
