@@ -35,6 +35,7 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
     read = OperationEffect.READ_ONLY
     change = OperationEffect.LOCAL_CHANGE
     external = OperationEffect.EXTERNAL
+    process = OperationEffect.PROCESS
     return (
         _workflow(
             "capture-project-work",
@@ -178,63 +179,25 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             (read,),
         ),
         _workflow(
-            "complete-work-managed-merge-queue",
-            "Complete work-managed pull requests through the KIS merge queue",
-            "Require the existing Work Management readiness gate for each frozen pull-request head, then integrate through cumulative ALLGREEN queue candidates and record documentation reconciliation after GitHub observes the landed work.",
-            (
-                "github.pull-request.read",
-                "github.actions.read",
-                "work.traceability.verify",
-                "operation.kis_github_merge_queue_enqueue",
-                "operation.kis_github_merge_queue_reconcile",
-                "operation.kis_github_merge_queue_land",
-                "work.reconcile",
-            ),
-            (
-                "github_pull_request_read",
-                "github_actions_list",
-                "github_actions_get",
-                "project_management_merge_readiness",
-                "kis_github_merge_queue_enqueue",
-                "kis_github_merge_queue_reconcile",
-                "kis_github_merge_queue_land",
-                "project_management_documentation_reconcile",
-            ),
-            (
-                "each source pull-request head is frozen and Work Management ready before enqueue",
-                "candidate Actions evidence matches the exact cumulative candidate SHA",
-                "the queue generation base and ALLGREEN order are revalidated before base advancement",
-                "documentation_reconciliation_due is evidence-linked after landing",
-                "post_merge_complete is required before Done",
-            ),
-            (
-                "merge queued work-managed pull request",
-                "work-managed merge queue",
-                "queued documentation closeout",
-            ),
-            (read, external, change),
-        ),
-        _workflow(
             "complete-work-managed-pull-request",
             "Complete a work-managed pull request",
-            "Observe the exact pull-request head and provider-native GitHub Actions evidence, require Work Management command state to permit landing, merge only that approved head, then record the post-merge documentation milestone before Done.",
+            "Observe the exact pull-request head, execute canonical local verification for that head, require Work Management command state to permit landing, merge only that approved head, then record the post-merge documentation milestone before Done.",
             (
                 "github.pull-request.read",
-                "github.actions.read",
+                "operation.execute_change_workflow",
                 "work.traceability.verify",
                 "operation.kis_github_merge_registered_pull_request",
                 "work.reconcile",
             ),
             (
                 "github_pull_request_read",
-                "github_actions_list",
-                "github_actions_get",
+                "execute_change_workflow",
                 "project_management_merge_readiness",
                 "kis_github_merge_registered_pull_request",
                 "project_management_documentation_reconcile",
             ),
             (
-                "provider-native GitHub Actions evidence matches the exact pull-request head",
+                "referenced local verification matches the exact pull-request head",
                 "an unready merge gate stops this workflow before merge",
                 "only the exact approved head is merged",
                 "documentation_reconciliation_due is evidence-linked after merge",
@@ -245,7 +208,7 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
                 "documentation closeout",
                 "post merge documentation",
             ),
-            (read, external, change),
+            (read, external, change, process),
         ),
     )
 
