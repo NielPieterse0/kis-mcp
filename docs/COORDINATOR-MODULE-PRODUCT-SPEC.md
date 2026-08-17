@@ -224,4 +224,4 @@ Not yet implemented:
 
 - #253 coordinator telemetry, Control Center projection, effectiveness evaluation, operator UX, or live commissioning.
 
-#251 is landed. #252 is implemented on the parent change branch and remains subject to its final review, exact-head local verification, and merge gates before it becomes landed product behavior.
+#251 and #252 are landed product behavior on local `main`. #252 was canonically verified at exact head `3196590e675abc916cc94e0f1638aef435ac2973` before local-main landing; GitHub PR synchronization remains remote-mirror debt after repeated provider HTTP 503 failures. #253 is the only remaining delivery slice in the parent coordinator change.

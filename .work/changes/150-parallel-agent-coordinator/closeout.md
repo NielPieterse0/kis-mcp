@@ -3,7 +3,7 @@
 - **Change**: `150-parallel-agent-coordinator`
 - **Parent issue**: #241
 - **Current slice**: #252
-- **Status**: **IMPLEMENTATION + REVIEW COMPLETE / PR EXACT-HEAD LOCAL VERIFICATION + MERGE PENDING**
+- **Status**: **SLICE 6 COMPLETE / EXACT-HEAD VERIFIED / LANDED TO LOCAL MAIN**
 
 ## Outcome
 
@@ -23,7 +23,7 @@ Implemented behavior:
 
 ## Verification
 
-Current pre-publication candidate gates pass:
+Final Slice 6 gates pass:
 
 - focused reconciliation/integration suite: passed;
 - full coordinator regression suite: passed;
@@ -31,7 +31,8 @@ Current pre-publication candidate gates pass:
 - Ruff: passed;
 - `scripts/change-workflow.ps1 check`: passed;
 - `git diff --check`: passed;
-- registered GitHub/local `main` verified at `6a5e843341f4213080014e5bd7388e8b1959baa9` before publication.
+- canonical full `scripts/verify.ps1`: passed on exact landing head `3196590e675abc916cc94e0f1638aef435ac2973`;
+- an earlier full-suite run had one Discover inventory-race failure outside coordinator scope; the exact failing test then passed 5/5 on prior `main` and 5/5 on the candidate, and the final full rerun passed 100%.
 
 ## Specialist review programme
 
@@ -42,13 +43,11 @@ The configured review engine could not invoke its model because the exact Slice 
 - **API/contracts**: verification requirements are strict v2 and use configured review derivation plus local exact-head authority. No unversioned public contract expansion or provider-native CI requirement remains.
 - **Trust boundary**: writes remain beneath `C:\Projects`; assignment keys are persisted only as SHA-256 digests; changed repository paths are normalized and constrained to packet/governed scope; stale authority fails closed. No blocking HR-001/HR-002/HR-003 finding remains.
 
-## Landing gate
+## Landing
 
-Remaining work is deliberately narrow:
+- Local `main` was fast-forwarded from `6a5e843341f4213080014e5bd7388e8b1959baa9` to the exact verified Slice 6 head `3196590e675abc916cc94e0f1638aef435ac2973`.
+- The parent coordinator worktree remains intentionally present because #253 is the next slice of the same governed change; it is not eligible for cleanup yet.
+- Exact source/review branches were published during closeout attempts, but GitHub repeatedly returned HTTP 503 while creating the PR. Under the operator-approved recovery mode, GitHub synchronization is remote-mirror debt and does not roll back the verified local-main landing.
+- GitHub Actions is not a landing requirement.
 
-1. publish/update the parent coordinator pull request at the exact final candidate head;
-2. run canonical KIS-local repository verification on that exact pull-request head and retain its concrete evidence reference;
-3. merge only that verified head, refresh registered/local `main`, reconcile #252 Work Management state, and clean the merged parent worktree only when the parent change is actually complete;
-4. immediately begin #253 observability/effectiveness/commissioning work, including durable independent execution status/receipts, bounded review concurrency, non-silent progress reporting, cross-project contention telemetry/partitioning analysis, and reconciliation of live runner configuration with canonical JSON settings.
-
-GitHub Actions is not a landing requirement.
+#252 is repository-delivered and complete. The next implementation slice is #253; no #253 code is included in this closeout commit.

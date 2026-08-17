@@ -32,11 +32,11 @@
 - [x] Ruff and Python compilation pass on coordinator source/tests.
 - [x] Governed change check and `git diff --check` pass.
 - [x] Configured code-quality, architecture, and API-contract reviews plus persistent-state/trust-boundary fallback review have no blocking findings; the review engine required exact-diff fallback because its evidence package omitted the large reconciliation test file. One stale accepted-replay authority finding was fixed in `7aa6c23` and regression-tested.
-- [ ] Canonical KIS-local exact-head repository verification passes on the final local landing head. The first full verifier run had one unrelated Discover inventory-race failure; that exact test then passed 5/5 on current `main` and 5/5 on the #252 candidate with the canonical interpreter, so a fresh full verifier rerun is required before landing.
+- [x] Canonical KIS-local exact-head repository verification passed on `3196590e675abc916cc94e0f1638aef435ac2973`. The first full verifier run had one unrelated Discover inventory-race failure; that exact test then passed 5/5 on prior `main` and 5/5 on the #252 candidate with the canonical interpreter, and the fresh full verifier rerun passed completely.
 
 ## Landing gate
 
-- [x] Freeze/reconcile Slice 6 with current `main` without widening scope; registered GitHub/local `main` remains `6a5e843341f4213080014e5bd7388e8b1959baa9`.
-- [ ] Publish/update the parent coordinator PR at the exact reviewed head.
-- [ ] Run canonical local verification on that exact head and retain a concrete evidence reference.
-- [ ] Merge only that head, refresh registered/local `main`, record #252 delivery, then begin #253.
+- [x] Freeze/reconcile Slice 6 with prior `main` without widening scope; exact candidate `3196590e675abc916cc94e0f1638aef435ac2973` descended from `6a5e843341f4213080014e5bd7388e8b1959baa9`.
+- [x] Publish exact source/review branches as far as GitHub availability allowed; PR creation was independently blocked by GitHub HTTP 503 and is retained as remote-sync debt rather than a local landing gate under the operator-approved local-main recovery mode.
+- [x] Run canonical local verification on exact candidate `3196590e675abc916cc94e0f1638aef435ac2973` and retain the passing verifier output in the execution transcript/change closeout.
+- [x] Fast-forward local `main` only to that exact verified head. #252 repository delivery is complete locally; #253 remains the next slice after this closeout record is reconciled.

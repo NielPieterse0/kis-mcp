@@ -50,4 +50,4 @@
 - [x] Update the coordinator module product spec to implemented Slice 6 behavior and change-179 landing semantics.
 - [x] Run focused Slice 6 tests, full coordinator regressions, Ruff/compile, change-governance check, and `git diff --check`.
 - [x] Run configured code-quality, architecture, and API-contract reviews plus persistent-state/trust-boundary fallback review; resolve blocking findings.
-- [ ] Publish/reconcile the exact candidate, run canonical local exact-head verification, merge only that head, and then begin #253.
+- [x] Reconcile the exact candidate, run canonical local exact-head verification, and land only that head to local `main`; GitHub PR synchronization is retained as remote-mirror debt after repeated HTTP 503 failures. #253 begins only after this Slice 6 closeout is recorded.
