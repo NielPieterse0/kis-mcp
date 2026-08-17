@@ -9,6 +9,11 @@ from .models import (
     ScopeRevisionRequest,
 )
 from .planner import PlannerService, WorkPacketService
+from .reconciliation import (
+    IntegrationQueueService,
+    ReconciliationService,
+    VerificationRequirementService,
+)
 from .service import ReservationService
 from .worker import (
     ExecutionEvent,
@@ -23,6 +28,7 @@ __all__ = [
     "AuthorityService",
     "ExecutionEvent",
     "ExecutionIdentity",
+    "IntegrationQueueService",
     "LocalGovernanceAdapter",
     "McpWorkerAdapter",
     "PlannerRequest",
@@ -32,7 +38,9 @@ __all__ = [
     "ReservationRequest",
     "ReservationResult",
     "ReservationService",
+    "ReconciliationService",
     "ScopeRevisionRequest",
+    "VerificationRequirementService",
     "WorkerExecution",
     "WorkerExecutionState",
     "WorkerLifecycle",

@@ -580,13 +580,15 @@ class AuthorityService:
         lock_path = self._state_root / "coordinator" / "admission.lock"
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         with lock_path.open("a+b") as stream:
-            stream.seek(0, os.SEEK_END)
-            if stream.tell() == 0:
-                stream.write(b"0")
-                stream.flush()
             stream.seek(0)
             _lock_file(stream)
             try:
+                stream.seek(0, os.SEEK_END)
+                if stream.tell() == 0:
+                    stream.write(b"0")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                stream.seek(0)
                 yield
             finally:
                 _unlock_file(stream)
