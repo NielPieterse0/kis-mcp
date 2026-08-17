@@ -39,19 +39,13 @@ pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change
 
 Use [`AGENTS.md`](../../AGENTS.md) rather than this runbook when deciding whether a change is governed, how paths may be claimed, what evidence is authoritative, or whether cleanup/merge is permitted.
 
-For bounded local commissioning of the configured speculative GitHub landing queue:
-
-```powershell
-pwsh -File .\scripts\smoke-github-merge-queue.ps1
-```
-
-Use the queue settings/source/current KIS workflow schemas for queue semantics; this runbook does not restate them.
+The speculative GitHub Actions-backed landing queue is dormant and is not a canonical delivery path. Its implementation and smoke script remain for bounded diagnostics only; do not use them to satisfy merge readiness.
 
 ## Verify
 
-During development, run only the focused/affected checks needed for the current change. The normal pull request to `main` owns the canonical full repository verification on the exact GitHub head.
+During development, run only the focused/affected checks needed for the current change. Before publication, complete the governed scope check. After the pull request is published/reconciled, run the canonical full repository verification locally through KIS against the exact current pull-request head and retain its concrete evidence reference for Work Management merge readiness.
 
-For an explicit local canonical run outside that PR path:
+Run the canonical verifier from that exact-head checkout/worktree:
 
 ```powershell
 pwsh -File .\scripts\verify.ps1

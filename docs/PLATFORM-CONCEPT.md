@@ -121,7 +121,7 @@ The target platform SHOULD provide a provider-neutral execution substrate beneat
 
 Disposable Windows execution SHOULD use versioned Hyper-V guests when host-state isolation materially improves correctness or security. A guest must not inherit mutable development checkout state, KIS runtime state, or operator credentials by default. Image identity, exact source identity, toolchain provenance, lifecycle outcome, and bounded diagnostics SHOULD be retained as verification evidence before guest reset or destruction.
 
-GitHub runner orchestration belongs to this execution layer rather than becoming a second GitHub authority surface. GitHub MCP and provider-native Actions evidence remain authoritative for pull requests, exact-head check state, merge readiness, and landing. An ephemeral GitHub Actions scale-set adapter may dispatch disposable guests while keeping low-level runner mechanics behind bounded KIS workflows.
+GitHub remains the pull-request identity and exact-head merge control plane, not the canonical verification executor. KIS-owned local verification evidence for the exact current pull-request head is the landing gate. Provider-native CI runners may remain optional execution adapters, but GitHub Actions and the speculative Actions-backed queue are dormant and MUST NOT be required for canonical delivery; disposable Windows commissioning evolves independently beneath the provider-neutral execution substrate.
 
 The same outer execution substrate MAY be reused by other registered repositories. In particular, isolation products may compose Docker or another purpose-specific inner sandbox inside a disposable Windows guest rather than replacing their existing containment contracts.
 

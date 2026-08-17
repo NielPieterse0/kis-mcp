@@ -1,0 +1,50 @@
+{
+  "schema_version": 4,
+  "change_id": "179-local-verification-landing-authority",
+  "status": "active",
+  "branch": "change/179-local-verification-landing-authority",
+  "worktree": ".work/worktrees/179-local-verification-landing-authority",
+  "base": "main",
+  "outcome": "Replace GitHub Actions landing authority with exact-tree KIS verification and exact-head GitHub merge identity so repository delivery can continue without Actions.",
+  "owned_paths": [
+    "AGENTS.md",
+    "SPEC.md",
+    "docs/PLATFORM-CONCEPT.md",
+    "docs/operations/verification-changes.md",
+    "src/kis_mcp/work_management/traceability.py",
+    "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/workflows/project_management/descriptors.py",
+    "src/kis_mcp/workflows/project_management/__init__.py",
+    "tests/workflows/project_management/test_documentation_tools.py",
+    "tests/workflows/project_management/test_descriptors.py",
+    "tests/capabilities/test_registered_commit_workflow.py",
+    "tests/capabilities/test_decision_pipeline.py",
+    "tests/capabilities/test_registered_default_branch_refresh_capability.py",
+    "tests/workflows/test_github_merge_queue_workflow.py",
+    "tests/workflows/test_merge_queue_governance.py",
+    "tests/work_management/test_traceability.py",
+    "tests/work_management/test_cli.py",
+    "tests/execution/__init__.py",
+    ".work/changes/179-local-verification-landing-authority/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    ".github/workflows/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "b68da37a8269dd7c4e9523a3db0c5b9a279e1f11",
+    "local_tree": "33846a035df389160325aabe876dfb0ea18cd421",
+    "upstream_sha": "b68da37a8269dd7c4e9523a3db0c5b9a279e1f11",
+    "upstream_tree": "33846a035df389160325aabe876dfb0ea18cd421",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
