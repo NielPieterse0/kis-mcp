@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "191-governed-acquisition-envelope",
+  "status": "active",
+  "branch": "change/191-governed-acquisition-envelope",
+  "worktree": ".work/worktrees/191-governed-acquisition-envelope",
+  "base": "main",
+  "outcome": "Restore the governed acquisition authorization envelope with exact profile identity/hash binding and fail-closed registered acquisition execution.",
+  "owned_paths": [
+    "contracts/external-acquisition/settings.schema.json",
+    "docs/EXTERNAL-ACQUISITION-MODULE-PRODUCT-SPEC.md",
+    "settings/external-acquisition.settings.json",
+    "src/kis_mcp/acquisition/contracts.py",
+    "src/kis_mcp/acquisition/profiles.py",
+    "src/kis_mcp/acquisition/service.py",
+    "src/kis_mcp/acquisition/settings.py",
+    "tests/acquisition/test_registered_acquisition.py",
+    "tests/capabilities/test_registered_acquisition_dispatch.py",
+    ".work/changes/191-governed-acquisition-envelope/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "20fb433d78ddd4e85f0864e2c84f9535f11f2a3f",
+    "local_tree": "51862357222d800e619efce469ee5e4fa8cd5d35",
+    "upstream_sha": "20fb433d78ddd4e85f0864e2c84f9535f11f2a3f",
+    "upstream_tree": "51862357222d800e619efce469ee5e4fa8cd5d35",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

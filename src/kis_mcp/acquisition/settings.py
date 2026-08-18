@@ -8,9 +8,10 @@ from typing import Any, Mapping
 
 _PROJECT_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _LOGICAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_HASH = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SECRET_NAME = re.compile(r"(?:token|secret|password|credential|api[_-]?key|authorization|auth)", re.IGNORECASE)
 _ROOT_KEYS = {"schema_version", "provider", "limits", "authorizations"}
-_PROVIDER_KEYS = {"project_id", "script_relative_path"}
+_PROVIDER_KEYS = {"project_id", "script_relative_path", "profile_policy_relative_path"}
 _LIMIT_KEYS = {"max_parameters", "max_parameter_string_chars", "max_request_json_chars"}
 _AUTH_KEYS = {"project_id", "profiles"}
 _PROFILE_KEYS = {
@@ -19,6 +20,9 @@ _PROFILE_KEYS = {
     "recipe_directory",
     "recipe_id_prefix",
     "allowed_parameter_keys",
+    "request_schema_version",
+    "provider_profile_schema_version",
+    "provider_profile_sha256",
 }
 
 
@@ -81,6 +85,9 @@ class ProfileAuthorization:
     recipe_directory: str
     recipe_id_prefix: str
     allowed_parameter_keys: tuple[str, ...]
+    request_schema_version: int
+    provider_profile_schema_version: int
+    provider_profile_sha256: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +100,7 @@ class ProjectAuthorization:
 class ExternalAcquisitionSettings:
     provider_project_id: str
     provider_script_relative_path: str
+    provider_profile_policy_relative_path: str
     limits: AcquisitionLimits
     authorizations: tuple[ProjectAuthorization, ...]
 
@@ -122,12 +130,25 @@ def _profile(value: Any, label: str) -> ProfileAuthorization:
         raise ValueError(f"{label}.allowed_parameter_keys must be unique")
     if any(_SECRET_NAME.search(item) for item in normalized):
         raise ValueError(f"{label}.allowed_parameter_keys cannot contain secret-like names")
+    request_schema_version = _bounded_int(raw["request_schema_version"], f"{label}.request_schema_version", 1, 2)
+    provider_profile_schema_version = _bounded_int(
+        raw["provider_profile_schema_version"],
+        f"{label}.provider_profile_schema_version",
+        1,
+        3,
+    )
+    provider_profile_sha256 = raw["provider_profile_sha256"]
+    if not isinstance(provider_profile_sha256, str) or _HASH.fullmatch(provider_profile_sha256) is None:
+        raise ValueError(f"{label}.provider_profile_sha256 must be sha256:<64 lowercase hex>")
     return ProfileAuthorization(
         profile_id=profile_id,
         approval_required=True,
         recipe_directory=recipe_directory,
         recipe_id_prefix=prefix,
         allowed_parameter_keys=normalized,
+        request_schema_version=request_schema_version,
+        provider_profile_schema_version=provider_profile_schema_version,
+        provider_profile_sha256=provider_profile_sha256,
     )
 
 
@@ -139,13 +160,17 @@ def load_external_acquisition_settings(path: Path | None = None) -> ExternalAcqu
         raise ValueError(f"external acquisition settings could not be read: {type(exc).__name__}") from exc
     root = _mapping(payload, "external acquisition settings")
     _exact_keys(root, _ROOT_KEYS, "external acquisition settings")
-    if root["schema_version"] != 1:
-        raise ValueError("external acquisition settings schema_version must be 1")
+    if root["schema_version"] != 2:
+        raise ValueError("external acquisition settings schema_version must be 2")
 
     provider = _mapping(root["provider"], "provider")
     _exact_keys(provider, _PROVIDER_KEYS, "provider")
     provider_project_id = _project_id(provider["project_id"], "provider.project_id")
     provider_script = _relative_windows_path(provider["script_relative_path"], "provider.script_relative_path")
+    provider_profile_policy = _relative_windows_path(
+        provider["profile_policy_relative_path"],
+        "provider.profile_policy_relative_path",
+    )
 
     limits_raw = _mapping(root["limits"], "limits")
     _exact_keys(limits_raw, _LIMIT_KEYS, "limits")
@@ -179,6 +204,7 @@ def load_external_acquisition_settings(path: Path | None = None) -> ExternalAcqu
     return ExternalAcquisitionSettings(
         provider_project_id=provider_project_id,
         provider_script_relative_path=provider_script,
+        provider_profile_policy_relative_path=provider_profile_policy,
         limits=limits,
         authorizations=tuple(projects),
     )

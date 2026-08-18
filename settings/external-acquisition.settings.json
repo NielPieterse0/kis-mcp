@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "provider": {
     "project_id": "import-isolate",
-    "script_relative_path": "scripts\\Invoke-RegisteredExternalAcquisition.ps1"
+    "script_relative_path": "scripts\\Invoke-RegisteredExternalAcquisition.ps1",
+    "profile_policy_relative_path": "policy\\provider-profiles.json"
   },
   "limits": {
     "max_parameters": 16,
@@ -20,7 +21,10 @@
           "recipe_id_prefix": "commodity-",
           "allowed_parameter_keys": [
             "query"
-          ]
+          ],
+          "request_schema_version": 1,
+          "provider_profile_schema_version": 1,
+          "provider_profile_sha256": "sha256:dead7364ec723eead3bcfd94d6a3da5bb52d8656e395a21fdacabbbff4630806"
         },
         {
           "profile_id": "public-http-dataset",
@@ -31,7 +35,10 @@
             "latitude",
             "longitude",
             "run"
-          ]
+          ],
+          "request_schema_version": 1,
+          "provider_profile_schema_version": 2,
+          "provider_profile_sha256": "sha256:c726f8fbbb5fbcfe5d9131e0b8d85a8fc6298dd749ea4883607f0d008bcd1f09"
         }
       ]
     }

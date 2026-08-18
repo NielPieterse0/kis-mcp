@@ -4,7 +4,7 @@ This document is the durable module-specific contract for KIS registered externa
 
 ## Current capability
 
-KIS exposes one discoverable approval-gated external operation, `kis_acquire_registered_evidence`, for registered projects that have explicit authorization in `settings/external-acquisition.settings.json`.
+KIS exposes one discoverable approval-gated external operation, `kis_acquire_registered_evidence`, for registered projects that have explicit authorization in `settings/external-acquisition.settings.json`. Authorization settings schema v2 carries the exact provider-profile binding and provider request-schema selection.
 
 The public operation accepts exactly:
 
@@ -17,26 +17,31 @@ The public operation accepts exactly:
 
 It does not accept a URL, network target, provider tool name, recipe path, executable path, credential value, or arbitrary HTTP request.
 
-## Three-layer authority
+## Shared authorization boundary
 
-External acquisition preserves three independent authorities:
+External acquisition preserves three distinct responsibilities without maintaining two semantic provider registries:
 
-1. **KIS authorization JSON** — registered project/profile/recipe namespace, parameter keys, approval requirement, and request budgets.
-2. **`import-isolate` provider policy** — network/provider containment, allowed tools/hosts/methods/redirects/credentials/resources, isolated execution, and raw evidence acquisition.
+1. **KIS authorization JSON** — registered project/profile/recipe namespace, parameter keys, approval requirement, request schema version, request budgets, and an exact binding to the selected provider-profile schema version and canonical SHA-256.
+2. **`import-isolate` provider policy** — the single semantic owner of network/provider containment, allowed tools/hosts/methods/redirects/authentication/resources, isolated execution, and raw evidence acquisition.
 3. **Consumer recipe JSON** — source/dataset/web evidence semantics. A recipe may only narrow provider authority.
 
-KIS resolves the consumer project through the central project registry, derives the configured project-relative recipe path, resolves effective Windows containment, reads bounded recipe bytes, and verifies the caller-declared SHA-256 before provider delegation.
+KIS resolves both the consumer and registered provider projects through the central project registry. Before delegation it resolves the configured provider-policy path inside `import-isolate`, reads bounded policy bytes, requires one exact selected profile, verifies that profile's configured schema version and canonical SHA-256, and rejects disabled profiles. It separately derives the configured project-relative consumer recipe path, resolves effective Windows containment, reads bounded recipe bytes, and verifies the caller-declared recipe SHA-256.
+
+This profile binding makes provider-policy drift fail closed without duplicating host, authentication, retry, redirect, content-type, or resource-limit semantics in KIS. A normal newly supported source shape therefore changes declarative provider configuration, KIS authorization configuration, and the consumer recipe/adapter rather than KIS acquisition core code.
 
 ## Provider boundary
 
 The registered provider project is `import-isolate`. KIS invokes only the fixed host script configured by `provider.script_relative_path`; the current entry point is `scripts\\Invoke-RegisteredExternalAcquisition.ps1`.
 
-The provider receives a normalized request containing only schema version, project/profile/recipe/hash identity, and bounded parameters plus the already-verified recipe path. KIS strips its `approved` control field before delegation.
+The provider receives a normalized request containing only the configured request schema version, project/profile/recipe/hash identity, and bounded parameters plus the already-verified recipe path. KIS strips its `approved` control field before delegation. Request schema v1 remains scalar-only. Request schema v2 permits arrays of 1-64 bounded non-secret scalar values for provider-supported list/date iteration; the configured KIS parameter allowlist and total request JSON budget remain cumulative limits.
 
 `import-isolate` independently re-verifies request/recipe identity and hash against its checked-in provider policy and dispatches through its existing isolated runtime:
 
-- HTTP recipe schema v1 uses the generalized HTTP acquisition path;
-- Firecrawl recipe schema v2 uses only provider-authorized `firecrawl_search`, `firecrawl_scrape`, or `firecrawl_map` through the existing Firecrawl container boundary.
+- legacy HTTP recipe schema v1 remains available only through compatible provider profiles and request v1;
+- generic HTTP recipe schema v3 requires a schema-v3 provider profile and supports the bounded transport/authentication/pagination/iteration/discovery envelope owned by `import-isolate`;
+- Firecrawl recipe schema v2 uses only provider-authorized `firecrawl_search`, `firecrawl_scrape`, or `firecrawl_map` through the existing Firecrawl container boundary and request v1.
+
+The checked-in generic HTTP template in `import-isolate` is disabled by default. KIS does not turn that template, or any commercial/licensed source, into execution authority merely because the transport class is supported; an enabled exact provider profile plus explicit KIS authorization and consumer recipe remain required.
 
 Ordinary Work HR-002 remains unchanged. This external action is an explicit approval-gated connector path, not a new Work network capability.
 
@@ -57,7 +62,7 @@ Unexpected fields, mismatched request identity, malformed hashes, absolute/trave
 
 ## Failure and compatibility rules
 
-Unsupported settings schema, unregistered projects, unauthorized profiles/recipe namespaces/parameters, missing approval, recipe hash mismatch, missing provider project/script, provider process failure, and malformed provider results fail closed as structural/external-operation errors. They do not create a fourth Work hard rule.
+Unsupported settings schema, unregistered projects, unauthorized profiles/recipe namespaces/parameters, provider-policy path escape/unavailability, missing/duplicate/disabled provider profiles, provider-profile schema/hash drift, missing approval, recipe hash mismatch, missing provider project/script, provider process failure, and malformed provider results fail closed as structural/external-operation errors. They do not create a fourth Work hard rule.
 
 The existing registered-GitHub virtual approval/dispatch contract remains independent and unchanged. Schema-bound `approved=true` is accepted only for explicitly registered virtual families; unrelated virtual operations cannot opt into that mechanism by adding an `approved` field.
 
