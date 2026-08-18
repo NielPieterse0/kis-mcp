@@ -1,0 +1,30 @@
+{
+  "schema_version": 4,
+  "change_id": "189-ui-default-off",
+  "status": "active",
+  "branch": "change/189-ui-default-off",
+  "worktree": ".work/worktrees/189-ui-default-off",
+  "base": "main",
+  "outcome": "Restore Control Center UI as explicit opt-in by keeping the gateway provider disabled by default while preserving standalone/operator enablement.",
+  "owned_paths": [
+    "SPEC.md",
+    "settings/providers/platform-runtime.provider.json",
+    "tests/providers/test_runtime_composition.py",
+    ".work/changes/189-ui-default-off/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "d149e7152e1b328d6b26d94b2cb5319d6778aa41",
+    "local_tree": "6d83107560d6b9cbd84f3c4ff70d035869130f10",
+    "upstream_sha": "d149e7152e1b328d6b26d94b2cb5319d6778aa41",
+    "upstream_tree": "6d83107560d6b9cbd84f3c4ff70d035869130f10",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

@@ -28,7 +28,7 @@
     },
     {
       "provider_id": "control-center",
-      "enabled": true,
+      "enabled": false,
       "namespace": "controlcenter"
     },
     {
