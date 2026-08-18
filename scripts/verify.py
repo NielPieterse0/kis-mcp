@@ -203,63 +203,10 @@ def _verification_branch() -> str | None:
         text=True,
         check=False,
     )
-    if completed.returncode == 0:
-        branch = completed.stdout.strip()
-        if branch:
-            return branch
-    return _detached_verification_branch()
-
-
-def _detached_verification_branch() -> str | None:
-    merge_base = subprocess.run(
-        ["git", "merge-base", "HEAD", "main"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if merge_base.returncode != 0 or not merge_base.stdout.strip():
-        return None
-    completed = subprocess.run(
-        ["git", "diff", "--name-only", merge_base.stdout.strip(), "HEAD"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
     if completed.returncode != 0:
         return None
-
-    candidates: list[str] = []
-    prefix = ".work/changes/"
-    suffix = "/scope.json"
-    for raw_path in completed.stdout.splitlines():
-        path = raw_path.strip().replace("\\", "/")
-        if not path.startswith(prefix) or not path.endswith(suffix):
-            continue
-        change_id = path[len(prefix) : -len(suffix)]
-        if not change_id or "/" in change_id or change_id.startswith("_"):
-            continue
-        try:
-            scope = json.loads((ROOT / Path(path)).read_text(encoding="utf-8-sig"))
-        except (OSError, UnicodeError, json.JSONDecodeError):
-            return None
-        if not isinstance(scope, dict):
-            return None
-        schema_version = scope.get("schema_version")
-        status = scope.get("status")
-        branch = scope.get("branch")
-        if (
-            isinstance(schema_version, int)
-            and not isinstance(schema_version, bool)
-            and schema_version >= 3
-            and status in {"active", "ready"}
-            and scope.get("change_id") == change_id
-            and branch == f"change/{change_id}"
-        ):
-            candidates.append(branch)
-
-    return candidates[0] if len(candidates) == 1 else None
+    branch = completed.stdout.strip()
+    return branch or None
 
 
 def verify_change_governance() -> int:

@@ -52,12 +52,7 @@ def test_run_verification_tool_has_narrow_process_surface() -> None:
 
     tool = {item.name: item for item in asyncio.run(server.list_tools())}["run_verification"]
     properties = tool.parameters["properties"]
-    assert set(properties) == {
-        "project",
-        "verification_id",
-        "timeout_ms",
-        "exact_revision",
-    }
+    assert set(properties) == {"project", "verification_id", "timeout_ms"}
     assert "command" not in properties
     assert tool.annotations.readOnlyHint is False
     result = asyncio.run(
@@ -77,7 +72,6 @@ def test_run_verification_tool_has_narrow_process_surface() -> None:
             "project": r"C:\Projects\fixture",
             "verification_id": "python-pytest",
             "timeout_ms": 45_000,
-            "exact_revision": None,
         }
     ]
 

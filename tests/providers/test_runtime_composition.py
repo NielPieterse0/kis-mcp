@@ -80,7 +80,7 @@ def _canonical_document() -> dict[str, Any]:
             {"provider_id": "dockerhub-mcp", "enabled": True, "namespace": "dockerhub"},
             {"provider_id": "github-mcp", "enabled": True, "namespace": "github"},
             {"provider_id": "supabase", "enabled": True, "namespace": "supabase"},
-            {"provider_id": "control-center", "enabled": False, "namespace": "controlcenter"},
+            {"provider_id": "control-center", "enabled": True, "namespace": "controlcenter"},
             {"provider_id": "serena-mcp", "enabled": True, "namespace": "serena"},
         ],
     }
@@ -190,13 +190,7 @@ def test_canonical_runtime_settings_select_exact_approved_providers() -> None:
         "serena",
         "supabase",
     ]
-    enabled_by_provider = {item.provider_id: item.enabled for item in settings.providers}
-    assert enabled_by_provider["control-center"] is False
-    assert all(
-        enabled
-        for provider_id, enabled in enabled_by_provider.items()
-        if provider_id != "control-center"
-    )
+    assert all(item.enabled for item in settings.providers)
 
 
 def test_runtime_settings_schema_is_closed_and_matches_canonical_contract() -> None:

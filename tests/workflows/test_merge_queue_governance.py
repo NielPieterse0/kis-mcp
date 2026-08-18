@@ -35,7 +35,7 @@ def record_json() -> dict[str, object]:
     ).to_json_dict()
 
 
-def trace_json(*, head: str = HEAD, local_ready: bool = True) -> dict[str, object]:
+def trace_json(*, head: str = HEAD, github_actions: bool = True) -> dict[str, object]:
     pr = PullRequestEvidence(
         repository="NielPieterse0/kis-mcp",
         number=167,
@@ -50,8 +50,8 @@ def trace_json(*, head: str = HEAD, local_ready: bool = True) -> dict[str, objec
         revision=head,
         status=VerificationStatus.PASSED,
         command="pwsh -NoProfile -File scripts/verify.ps1",
-        source="local" if local_ready else "github_actions",
-        reference="evidence:verify-120" if local_ready else "run:120",
+        source="github_actions" if github_actions else "local",
+        reference="run:120" if github_actions else None,
     )
     return ImplementationTrace(
         project_id="kis-mcp",
@@ -78,8 +78,8 @@ def test_governance_receipt_rejects_stale_head_identity() -> None:
         _governance_receipt("kis-mcp", 167, "b" * 40, record_json(), trace_json())
 
 
-def test_governance_receipt_rejects_actions_only_readiness() -> None:
+def test_governance_receipt_requires_exact_github_actions_readiness() -> None:
     with pytest.raises(ToolError, match="MERGE_QUEUE_GOVERNANCE_NOT_READY"):
         _governance_receipt(
-            "kis-mcp", 167, HEAD, record_json(), trace_json(local_ready=False)
+            "kis-mcp", 167, HEAD, record_json(), trace_json(github_actions=False)
         )

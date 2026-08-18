@@ -7,8 +7,6 @@ from pathlib import Path
 
 from kis_mcp.work_management import (
     BackendBindingSettings,
-    DocumentationImpact,
-    DocumentationMode,
     EvidenceSettings,
     FeatureMode,
     LifecycleState,
@@ -22,10 +20,8 @@ from kis_mcp.work_management import (
     ProjectItemKind,
     ProjectOwnerType,
     ReconciliationOutcome,
-    RecordType,
     WorkManagementService,
     WorkManagementSettings,
-    WorkRecord,
 )
 
 
@@ -98,11 +94,7 @@ def project_fields() -> tuple[ProjectField, ...]:
 
 
 def project_item(
-    *,
-    number: int = 177,
-    revision: str = "rev-1",
-    status: str = "Ready",
-    owner: str | None = None,
+    *, revision: str = "rev-1", status: str = "Ready", owner: str | None = None
 ) -> ProjectItem:
     values = [
         ProjectFieldValue(field_name="Status", value=status),
@@ -115,11 +107,11 @@ def project_item(
     if owner is not None:
         values.append(ProjectFieldValue(field_name="Execution Owner", value=owner))
     return ProjectItem(
-        item_id=f"item-{number}",
+        item_id="item-177",
         kind=ProjectItemKind.ISSUE,
-        title=f"Issue {number}",
+        title="Restore Work Management command plane",
         repository="owner/alpha",
-        number=number,
+        number=177,
         state="OPEN",
         revision=revision,
         field_values=tuple(values),
@@ -191,241 +183,6 @@ class Backend:
             provider_revision=self.item.revision,
             message="applied",
         )
-
-
-class BoundedInventoryBackend:
-    def __init__(self, items: tuple[ProjectItem, ...]) -> None:
-        self.items = list(items)
-        self.applied = []
-        self.read_limits: list[int] = []
-        self.revision = 1
-
-    async def read_inventory(self, project_binding, *, field_names=(), item_limit=100):
-        del field_names
-        self.read_limits.append(item_limit)
-        truncated = len(self.items) > item_limit
-        return ProjectInventory(
-            binding=project_binding,
-            title="Programme",
-            fields=project_fields(),
-            items=tuple(self.items[:item_limit]),
-            truncated=truncated,
-            next_cursor="next" if truncated else None,
-        )
-
-    async def apply_reconciliation(self, decision, *, idempotency_key: str):
-        self.applied.append((decision, idempotency_key))
-        index = next(
-            index
-            for index, item in enumerate(self.items)
-            if item.item_id == decision.external_id
-        )
-        item = self.items[index]
-        fields = {value.field_name: value.value for value in item.field_values}
-        fields.update(dict(decision.desired_fields))
-        self.revision += 1
-        updated = replace(
-            item,
-            revision=f"rev-applied-{self.revision}",
-            field_values=tuple(
-                ProjectFieldValue(field_name=name, value=value)
-                for name, value in fields.items()
-            ),
-        )
-        self.items[index] = updated
-        return ReconciliationOutcome(
-            project_id=decision.project_id,
-            record_id=decision.record_id,
-            action=decision.action,
-            applied=True,
-            success=True,
-            provider_revision=updated.revision,
-            message="applied",
-        )
-
-
-def completion_record() -> WorkRecord:
-    return WorkRecord(
-        record_id="TASK-177",
-        project_id="alpha-project",
-        title="Complete exact target",
-        record_type=RecordType.TASK,
-        state=LifecycleState.DOCUMENTATION,
-        documentation_mode=DocumentationMode.REQUIRED,
-        documentation_impact=DocumentationImpact.NONE,
-        documentation_rationale="No reader-facing behavior changed",
-        documentation_reviewer="operator",
-    )
-
-
-def test_exact_target_claim_resolves_beyond_default_inventory_bound() -> None:
-    backend = BoundedInventoryBackend(
-        tuple(project_item(number=number) for number in range(1, 101))
-        + (project_item(number=177),)
-    )
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    result = asyncio.run(
-        service.claim_work(
-            "alpha-project",
-            "owner/alpha",
-            177,
-            "kis-dev/session-1",
-            apply=False,
-        )
-    )
-
-    assert result["mode"] == "preview"
-    assert backend.read_limits[0] > 100
-
-
-def test_complete_work_resolves_beyond_default_bound_and_preserves_revision() -> None:
-    target = project_item(number=177, revision="rev-target-1", status="Active")
-    backend = BoundedInventoryBackend(
-        tuple(project_item(number=number) for number in range(1, 101)) + (target,)
-    )
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    result = asyncio.run(
-        service.complete_work(
-            "alpha-project",
-            "owner/alpha",
-            177,
-            completion_record(),
-            apply=True,
-            idempotency_key="complete-177",
-        )
-    )
-
-    decision, _key = backend.applied[0]
-    assert decision.observed_revision == "rev-target-1"
-    assert result["source_close_required"] is True
-    inventory, reread, _settings = asyncio.run(
-        service._issue_command_inventory("alpha-project", "owner/alpha", 177)
-    )
-    assert inventory.truncated is False
-    assert reread.revision == result["outcomes"][0]["provider_revision"]
-    values = {value.field_name: value.value for value in reread.field_values}
-    assert values["Status"] == "Done"
-    assert values["Delivery Stage"] == "Complete"
-
-
-def test_exact_target_resolution_stays_fail_closed_when_bounded_scan_is_incomplete() -> None:
-    backend = BoundedInventoryBackend(
-        tuple(project_item(number=number) for number in range(1, 1002))
-    )
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    try:
-        asyncio.run(
-            service.claim_work(
-                "alpha-project",
-                "owner/alpha",
-                1777,
-                "kis-dev/session-1",
-                apply=False,
-            )
-        )
-    except ValueError as exc:
-        assert "truncated Project inventory" in str(exc)
-    else:
-        raise AssertionError("incomplete exact-target inventory must fail closed")
-
-    assert 100 < backend.read_limits[0] < len(backend.items)
-
-
-def test_exact_target_resolution_rejects_observed_match_when_scan_stays_incomplete() -> None:
-    target = project_item(number=177)
-    hidden_duplicate = replace(target, item_id="item-177-hidden-duplicate")
-    decoys = tuple(
-        project_item(number=number)
-        for number in range(1, 1001)
-        if number != 177
-    )
-    backend = BoundedInventoryBackend((target, *decoys, hidden_duplicate))
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    try:
-        asyncio.run(
-            service.claim_work(
-                "alpha-project",
-                "owner/alpha",
-                177,
-                "kis-dev/session-1",
-                apply=False,
-            )
-        )
-    except ValueError as exc:
-        assert "truncated" in str(exc)
-    else:
-        raise AssertionError("incomplete exact-target resolution must not assume uniqueness")
-
-
-def test_exact_target_resolution_reports_visible_duplicates_before_truncation() -> None:
-    target = project_item(number=177)
-    duplicate = replace(target, item_id="item-177-visible-duplicate")
-    decoys = tuple(
-        project_item(number=number)
-        for number in range(1, 1000)
-        if number != 177
-    )
-    backend = BoundedInventoryBackend(
-        (target, duplicate, *decoys, project_item(number=1001))
-    )
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    try:
-        asyncio.run(
-            service.claim_work(
-                "alpha-project",
-                "owner/alpha",
-                177,
-                "kis-dev/session-1",
-                apply=False,
-            )
-        )
-    except ValueError as exc:
-        assert "multiple Project items match" in str(exc)
-    else:
-        raise AssertionError("observed duplicate exact-target items must report ambiguity")
-
-
-def test_exact_target_resolution_rejects_duplicate_matches_beyond_first_page() -> None:
-    target = project_item(number=177)
-    duplicate = replace(target, item_id="item-177-duplicate")
-    backend = BoundedInventoryBackend(
-        tuple(project_item(number=number) for number in range(1, 101))
-        + (target, duplicate)
-    )
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    try:
-        asyncio.run(
-            service.claim_work(
-                "alpha-project",
-                "owner/alpha",
-                177,
-                "kis-dev/session-1",
-                apply=False,
-            )
-        )
-    except ValueError as exc:
-        assert "multiple Project items match" in str(exc)
-    else:
-        raise AssertionError("duplicate exact-target Project items must fail closed")
-
-
-def test_next_work_keeps_default_fail_closed_inventory_bound() -> None:
-    backend = BoundedInventoryBackend(
-        tuple(project_item(number=number) for number in range(1, 102))
-    )
-    service = WorkManagementService(wm_settings(), {"github": backend})
-
-    result = asyncio.run(service.next_work("alpha-project"))
-
-    assert result.complete is False
-    assert result.reasons == ("inventory_truncated",)
-    assert backend.read_limits == [100]
 
 
 def test_next_work_reads_live_project_command_fields() -> None:

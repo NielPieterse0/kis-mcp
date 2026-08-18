@@ -16,7 +16,6 @@ Load only the runbook needed for the operator task. Do not read every runbook by
 | Canonical JSON configuration and settings ownership | [`operations/configuration.md`](operations/configuration.md) |
 | Local stdio startup, capability dispatch, Control Center, long-lived tool-binding diagnosis | [`operations/runtime.md`](operations/runtime.md) |
 | Provider status, DBHub/Docker Hub activation and commissioning, GitHub OAuth, Supabase OAuth | [`operations/providers.md`](operations/providers.md) |
-| VirtualBox disposable Windows host/template setup and commissioning | [`operations/virtualbox-windows-execution.md`](operations/virtualbox-windows-execution.md) |
 | NVIDIA/Codex advisory review-agent setup and use | [`operations/review-agent.md`](operations/review-agent.md) |
 | Work Management and Discover operator workflows | [`operations/work-discover.md`](operations/work-discover.md) |
 | Local ChatGPT HTTP smoke, tunnel profiles, `kis-op` / `kis-dev`, ChatGPT app commissioning | [`operations/chatgpt-remote.md`](operations/chatgpt-remote.md) |

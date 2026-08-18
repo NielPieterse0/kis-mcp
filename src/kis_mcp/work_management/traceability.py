@@ -885,16 +885,16 @@ def evaluate_merge_readiness(
     ]
     if len(matching_pull_requests) == 1:
         pull_request = matching_pull_requests[0]
-        exact_local_verification = any(
+        exact_github_ci = any(
             verification.pull_request_number == pull_request.number
             and verification.revision == pull_request.head_revision
             and verification.status is VerificationStatus.PASSED
-            and verification.source.casefold().replace("-", "_") == "local"
+            and verification.source.casefold().replace("-", "_") == "github_actions"
             and verification.reference is not None
             for verification in trace.verifications
         )
-        if not exact_local_verification:
-            blocking.add("local_exact_head_verification_required")
+        if not exact_github_ci:
+            blocking.add("github_actions_exact_head_required")
 
     documentation_ready = (
         record.documentation_impact is DocumentationImpact.PRE_MERGE_COMPLETE

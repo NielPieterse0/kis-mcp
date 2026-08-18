@@ -305,8 +305,8 @@ def merge_ready_trace(
             verification(
                 tested_revision=tested_revision or pr.head_revision,
                 status=status,
-                source="local",
-                reference="evidence:verify-053-head",
+                source="github_actions",
+                reference="run:1001",
             ),
         ),
     )
@@ -332,37 +332,17 @@ def test_merge_readiness_requires_exact_revision_and_matching_identity() -> None
     assert "record_project_mismatch" in mismatched.blocking_reasons
 
 
-def test_merge_readiness_requires_referenced_local_exact_head_evidence() -> None:
+def test_merge_readiness_requires_provider_native_github_actions_evidence() -> None:
     pr = pull_request()
-    actions_only = trace(
-        prs=(pr,),
-        verifications=(
-            verification(
-                tested_revision=pr.head_revision,
-                source="github_actions",
-                reference="run:1001",
-            ),
-        ),
-    )
-    unreferenced_local = trace(
+    local_only = trace(
         prs=(pr,),
         verifications=(verification(tested_revision=pr.head_revision),),
     )
-    failed_local = trace(
-        prs=(pr,),
-        verifications=(
-            verification(
-                tested_revision=pr.head_revision,
-                status=VerificationStatus.FAILED,
-                reference="evidence:failed",
-            ),
-        ),
-    )
 
-    for candidate in (actions_only, unreferenced_local, failed_local):
-        readiness = evaluate_merge_readiness(record(), candidate, pr.number)
-        assert readiness.ready is False
-        assert "local_exact_head_verification_required" in readiness.blocking_reasons
+    readiness = evaluate_merge_readiness(record(), local_only, pr.number)
+
+    assert readiness.ready is False
+    assert "github_actions_exact_head_required" in readiness.blocking_reasons
 
 
 def test_required_documentation_must_be_pre_merge_complete_or_reviewed_none() -> None:
@@ -525,8 +505,8 @@ def test_historical_verification_does_not_block_current_exact_pass() -> None:
             verification(
                 evidence_id="verify-current",
                 tested_revision=pr.head_revision,
-                source="local",
-                reference="evidence:current",
+                source="github_actions",
+                reference="run:current",
             ),
         ),
     )

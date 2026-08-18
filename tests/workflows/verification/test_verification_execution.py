@@ -214,7 +214,7 @@ def test_textual_process_pid_polling_respects_original_timeout(
 ) -> None:
     clock = iter((10.0, 10.01, 10.03, 10.03))
     monkeypatch.setattr(
-        "kis_mcp.execution.process.time.perf_counter",
+        "kis_mcp.workflows.verification.execution.time.perf_counter",
         lambda: next(clock),
     )
     runner = _Runner(
@@ -255,25 +255,6 @@ def test_missing_exit_marker_is_incomplete_not_success() -> None:
     assert result.status == "incomplete"
     assert result.exit_code is None
     assert result.failure_classification == "timeout_or_incomplete"
-
-
-def test_exact_revision_requires_full_lowercase_commit_sha() -> None:
-    runner = _Runner([])
-    service = VerificationExecutionService(
-        inspector=_Inspector([_declaration()]),
-        runner=runner,
-    )
-
-    with pytest.raises(VerificationExecutionError, match="VERIFICATION_SOURCE_REVISION_INVALID"):
-        asyncio.run(
-            service.run(
-                project=r"C:\Projects\fixture",
-                verification_id="python-pytest",
-                timeout_ms=30_000,
-                exact_revision="abc123",
-            )
-        )
-    assert runner.calls == []
 
 
 def test_unsupported_profile_is_rejected_before_runner() -> None:
