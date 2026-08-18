@@ -34,5 +34,6 @@ Use these categories to narrow a historical search:
 | Skills, SDK, and operator tooling | [`skills-module/`](skills-module/), [`mcp-sdk-integrations/`](mcp-sdk-integrations/), [`control-center/`](control-center/), [`tools/`](tools/) |
 | GitHub/work-management history | [`git-workflow-tooling/`](git-workflow-tooling/), [`github-project-onboarding/`](github-project-onboarding/), [`github-default-branch-refresh.md`](github-default-branch-refresh.md), [`workflow-discovery-bridge.md`](workflow-discovery-bridge.md) |
 | Safety and credential history | [`quarantine-integrity/`](quarantine-integrity/), [`secrets/`](secrets/) |
+| Cross-era historical audits | [`audits/`](audits/) — chronological reconstruction, commissioning evidence, and structured historical registers; never current product authority |
 
 This map is navigational only. The archive can grow without requiring this index to enumerate every historical record.
