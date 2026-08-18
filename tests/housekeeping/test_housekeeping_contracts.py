@@ -36,7 +36,7 @@ def test_governed_work_links_reads_exact_source_binding(tmp_path: Path) -> None:
     (change / "scope.json").write_text(
         json.dumps(
             {
-                "change_id": "194-example",
+                "change_id": " 194-example ",
                 "status": "active",
                 "complexity": "medium",
                 "risk_triggers": ["external_action"],

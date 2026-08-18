@@ -48,6 +48,7 @@ def _scope_link(root: Path, path: Path) -> GovernedWorkLink | None:
         or number <= 0
         or kind not in {"issue", "pull_request"}
         or not isinstance(change_id, str)
+        or not change_id.strip()
     ):
         return None
     raw_triggers = document.get("risk_triggers", [])
@@ -55,7 +56,7 @@ def _scope_link(root: Path, path: Path) -> GovernedWorkLink | None:
         sorted(item.strip() for item in raw_triggers if isinstance(item, str) and item.strip())
     )
     return GovernedWorkLink(
-        change_id=change_id,
+        change_id=change_id.strip(),
         scope_path=str(path.relative_to(root)).replace("\\", "/"),
         source_repository=repository.strip(),
         source_number=number,

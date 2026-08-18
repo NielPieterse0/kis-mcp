@@ -59,6 +59,14 @@ def _normalized(value: Any) -> str | None:
     return value.strip().casefold().replace(" ", "_").replace("-", "_")
 
 
+def _has_blocker(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    return True
+
+
 def _source_key(item: Mapping[str, Any]) -> tuple[str, int, str] | None:
     repository = item.get("repository")
     number = item.get("number")
@@ -409,13 +417,13 @@ async def run_work_management_reconciliation(
                     "Ready/Active work is missing command-plane readiness metadata.",
                     {"missing_fields": missing},
                 ), config.max_findings)
-        if status == "blocked" and blocker in (None, "", False, 0):
+        if status == "blocked" and not _has_blocker(blocker):
             _bounded_append(findings, _finding(
                 FindingKind.BLOCKED_WITHOUT_DEPENDENCY, FindingSeverity.WARNING, record,
                 "Blocked work has no observed native dependency evidence.",
                 {"status": fields.get("Status")},
             ), config.max_findings)
-        if blocker not in (None, "", False, 0) and status not in {"blocked", "on_hold"}:
+        if _has_blocker(blocker) and status not in {"blocked", "on_hold"}:
             _bounded_append(findings, _finding(
                 FindingKind.DEPENDENCY_WITHOUT_BLOCKED_STATE,
                 FindingSeverity.WARNING,
@@ -582,7 +590,7 @@ async def run_backlog_readiness(
         blocker = fields.get("Blocked By")
         owner = fields.get("Execution Owner")
         source_state = _normalized(item.get("state"))
-        if status == "blocked" and blocker in (None, "", False, 0):
+        if status == "blocked" and not _has_blocker(blocker):
             _bounded_append(findings, _finding(
                 FindingKind.BLOCKED_WITHOUT_DEPENDENCY,
                 FindingSeverity.WARNING,
@@ -596,7 +604,7 @@ async def run_backlog_readiness(
                 if action is not None:
                     actions.append(action)
             continue
-        if blocker in (None, "", False, 0):
+        if not _has_blocker(blocker):
             continue
         refs = _dependency_refs(blocker, repository)
         if refs is None:

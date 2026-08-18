@@ -591,3 +591,19 @@ def test_backlog_readiness_stops_after_first_dependency_read_failure(
     assert receipt.complete is False
     assert "source_evidence_incomplete" in receipt.conflicts
     assert invoker.external_calls == [("nielpieterse0/kis-mcp", 10)]
+
+
+def test_backlog_readiness_treats_whitespace_blocker_as_empty(tmp_path: Path) -> None:
+    invoker = FakeInvoker(
+        inventory={"items": [_item(90, blocked_by="   ")], "truncated": False}
+    )
+    trigger = HousekeepingTrigger(runner=RunnerKind.BACKLOG_READINESS)
+
+    receipt = asyncio.run(
+        run_backlog_readiness(invoker, _config(tmp_path), trigger)
+    )
+
+    assert FindingKind.BLOCKED_WITHOUT_DEPENDENCY in {
+        finding.kind for finding in receipt.findings
+    }
+    assert len(receipt.actions) == 1
