@@ -1,0 +1,29 @@
+{
+  "schema_version": 4,
+  "change_id": "186-post-actions-reconstruction",
+  "status": "active",
+  "branch": "change/186-post-actions-reconstruction",
+  "worktree": ".work/worktrees/186-post-actions-reconstruction",
+  "base": "main",
+  "outcome": "Reconstruct the intended post-Actions KIS state from the restored pre-outage baseline by first classifying all post-boundary work, then serially retiring obsolete execution workarounds and selectively reimplementing only still-valid value as fresh governed slices.",
+  "owned_paths": [
+    ".work/changes/186-post-actions-reconstruction/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "ef2b337264577d4a3d347dae38f4ae4579c531ba",
+    "local_tree": "443a77461e5dabdb53cdf0a904c135ea0b8d8baa",
+    "upstream_sha": "ef2b337264577d4a3d347dae38f4ae4579c531ba",
+    "upstream_tree": "443a77461e5dabdb53cdf0a904c135ea0b8d8baa",
+    "upstream_ref": "main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  }
+}
