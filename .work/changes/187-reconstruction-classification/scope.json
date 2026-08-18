@@ -1,0 +1,27 @@
+{
+  "schema_version": 4,
+  "change_id": "187-reconstruction-classification",
+  "status": "active",
+  "branch": "change/187-reconstruction-classification",
+  "worktree": ".work/worktrees/187-reconstruction-classification",
+  "base": "main",
+  "outcome": "Classify all post-Actions repository and host residue, freeze the serial reconstruction order, and confirm the restored GitHub-native exact-head lifecycle is already the lean verification authority.",
+  "owned_paths": [
+    ".work/changes/187-reconstruction-classification/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "b71fb129fd28513befe8b1c65232cdce5e61ae6d",
+    "local_tree": "570e2679355c21aa6fc69cdcbf8a10f2613895cb",
+    "upstream_sha": "b71fb129fd28513befe8b1c65232cdce5e61ae6d",
+    "upstream_tree": "570e2679355c21aa6fc69cdcbf8a10f2613895cb",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
