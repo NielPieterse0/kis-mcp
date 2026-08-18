@@ -1,0 +1,43 @@
+{
+  "schema_version": 4,
+  "change_id": "194-deterministic-housekeeping",
+  "status": "active",
+  "branch": "change/194-deterministic-housekeeping",
+  "worktree": ".work/worktrees/194-deterministic-housekeeping",
+  "base": "main",
+  "outcome": "Reimplement provider-neutral deterministic housekeeping reconciliation and backlog-readiness runners from historical Change 176 evidence against the current Work Management contracts.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping/**",
+    "tests/housekeeping/**",
+    "scripts/housekeeping.py",
+    ".work/changes/194-deterministic-housekeeping/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/execution/**",
+    ".github/workflows/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "cea1858252b1dbda88304dd6a0346d1107a799b7",
+    "local_tree": "8d7af22c2293176bae8249a1ed911fee632164c9",
+    "upstream_sha": "cea1858252b1dbda88304dd6a0346d1107a799b7",
+    "upstream_tree": "8d7af22c2293176bae8249a1ed911fee632164c9",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
