@@ -170,8 +170,14 @@ def test_shared_serena_client_delegates_fastmcp_proxy_tool_calls() -> None:
     ]
 
 
-def test_serena_normalizes_symbols_and_references_without_schema_leakage() -> None:
+def test_serena_normalizes_symbols_and_references_without_schema_leakage(tmp_path: Path) -> None:
     settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    install_root = tmp_path / "serena"
+    settings = replace(
+        settings,
+        install_root=install_root,
+        project_data_root=install_root / "projects",
+    )
     adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))
 
     def call(name: str, arguments: dict[str, object]):
