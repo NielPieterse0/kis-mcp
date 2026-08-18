@@ -27,7 +27,15 @@ REGISTERED_ACQUISITION_OPERATION_SCHEMA: dict[str, object] = {
                 "pattern": r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
             },
             "additionalProperties": {
-                "type": ["string", "number", "boolean"],
+                "oneOf": [
+                    {"type": ["string", "number", "boolean"]},
+                    {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 64,
+                        "items": {"type": ["string", "number", "boolean"]},
+                    },
+                ],
             },
         },
         "approved": {"type": "boolean"},

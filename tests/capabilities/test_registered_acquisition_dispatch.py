@@ -41,6 +41,11 @@ def test_registered_acquisition_is_fixed_schema_approval_gated_virtual_operation
     assert set(operation.input_schema["required"]) == set(operation.input_schema["properties"])
     assert "url" not in operation.input_schema["properties"]
     assert "target" not in operation.input_schema["properties"]
+    parameter_value_schema = operation.input_schema["properties"]["parameters"]["additionalProperties"]
+    assert parameter_value_schema["oneOf"][0]["type"] == ["string", "number", "boolean"]
+    assert parameter_value_schema["oneOf"][1]["type"] == "array"
+    assert parameter_value_schema["oneOf"][1]["minItems"] == 1
+    assert parameter_value_schema["oneOf"][1]["maxItems"] == 64
 
 
 def test_registered_acquisition_dispatch_requires_schema_bound_approval(

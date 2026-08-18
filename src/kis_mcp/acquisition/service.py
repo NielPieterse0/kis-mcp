@@ -13,6 +13,7 @@ from fastmcp.exceptions import ToolError
 from ..config import load_runtime_config
 from ..paths import PathValidationError, is_within_windows_boundary, resolve_windows_effective_path
 from ..projects.settings import load_project_registry_settings
+from .profiles import verify_provider_profile
 from .provider import ImportIsolateProvider
 from .settings import ExternalAcquisitionSettings, load_external_acquisition_settings
 
@@ -79,7 +80,28 @@ def _required_text(value: Any, pattern: re.Pattern[str], label: str) -> str:
     return value
 
 
-def _normalize_parameters(value: Any, allowed: tuple[str, ...], settings: ExternalAcquisitionSettings) -> dict[str, object]:
+def _normalize_parameter_scalar(item: Any, name: str, settings: ExternalAcquisitionSettings) -> object:
+    if isinstance(item, str):
+        if len(item) > settings.limits.max_parameter_string_chars:
+            raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} is too long")
+        return item
+    if isinstance(item, bool):
+        return item
+    if isinstance(item, int):
+        return item
+    if isinstance(item, float):
+        if not math.isfinite(item):
+            raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} must be finite")
+        return item
+    raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} must be a scalar")
+
+
+def _normalize_parameters(
+    value: Any,
+    allowed: tuple[str, ...],
+    settings: ExternalAcquisitionSettings,
+    request_schema_version: int,
+) -> dict[str, object]:
     if not isinstance(value, Mapping):
         raise ToolError("INVALID_ACQUISITION_REQUEST: parameters must be an object")
     if len(value) > settings.limits.max_parameters:
@@ -92,19 +114,12 @@ def _normalize_parameters(value: Any, allowed: tuple[str, ...], settings: Extern
         name = _required_text(key, _LOGICAL_ID, "parameter name")
         if _SECRET_NAME.search(name):
             raise ToolError("SECRET_VALUE_FORBIDDEN: secret-like acquisition parameters are not allowed")
-        if isinstance(item, str):
-            if len(item) > settings.limits.max_parameter_string_chars:
-                raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} is too long")
-        elif isinstance(item, bool):
-            pass
-        elif isinstance(item, int):
-            pass
-        elif isinstance(item, float):
-            if not math.isfinite(item):
-                raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} must be finite")
+        if isinstance(item, list):
+            if request_schema_version != 2 or not 1 <= len(item) <= 64:
+                raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} list is not permitted")
+            normalized[name] = [_normalize_parameter_scalar(entry, name, settings) for entry in item]
         else:
-            raise ToolError(f"INVALID_ACQUISITION_REQUEST: parameter {name} must be a scalar")
-        normalized[name] = item
+            normalized[name] = _normalize_parameter_scalar(item, name, settings)
     return normalized
 
 
@@ -178,15 +193,29 @@ class RegisteredAcquisitionService:
             authorization = self.settings.authorization(project_id, profile_id)
         except KeyError as exc:
             raise ToolError(f"UNAUTHORIZED_ACQUISITION_PROFILE: {project_id}/{profile_id}") from exc
+        try:
+            provider_project = self.projects.project(self.settings.provider_project_id)
+        except KeyError as exc:
+            raise ToolError(f"REGISTERED_PROVIDER_PROJECT_REQUIRED: {self.settings.provider_project_id}") from exc
+        verify_provider_profile(
+            provider_project.local_root,
+            self.settings.provider_profile_policy_relative_path,
+            authorization,
+        )
         if not recipe_id.startswith(authorization.recipe_id_prefix):
             raise ToolError("UNAUTHORIZED_ACQUISITION_RECIPE: recipe is outside the configured namespace")
-        parameters = _normalize_parameters(arguments.get("parameters"), authorization.allowed_parameter_keys, self.settings)
+        parameters = _normalize_parameters(
+            arguments.get("parameters"),
+            authorization.allowed_parameter_keys,
+            self.settings,
+            authorization.request_schema_version,
+        )
         recipe_path, recipe_bytes = _read_recipe(project.local_root, authorization.recipe_directory, recipe_id)
         actual_hash = "sha256:" + hashlib.sha256(recipe_bytes).hexdigest()
         if actual_hash != recipe_hash:
             raise ToolError("RECIPE_HASH_MISMATCH: registered recipe bytes do not match the approved hash")
         provider_request: dict[str, object] = {
-            "schema_version": 1,
+            "schema_version": authorization.request_schema_version,
             "project_id": project_id,
             "profile_id": profile_id,
             "recipe_id": recipe_id,
