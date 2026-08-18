@@ -40,7 +40,7 @@ def _server(skills_config: SkillsConfig) -> FastMCP:
     return server
 
 
-def test_register_skills_tools_exposes_exact_eleven_operation_names(
+def test_register_skills_tools_exposes_exact_twelve_operation_names(
     skills_config: SkillsConfig, make_skill
 ) -> None:
     make_skill("alpha-skill")
@@ -62,6 +62,7 @@ def test_register_skills_tools_exposes_exact_eleven_operation_names(
         "improve_skill",
         "record_skill_outcome",
         "skill_telemetry_report",
+        "skill_delivery_telemetry_report",
     )
     by_name = {tool.name: tool for tool in tools}
     assert set(by_name["list_skills"].parameters["properties"]) == {"limit", "cursor"}
@@ -94,6 +95,12 @@ def test_register_skills_tools_exposes_exact_eleven_operation_names(
         "tool_calls",
         "retries",
         "verification_passed",
+        "delivery_path",
+    }
+    assert set(by_name["skill_delivery_telemetry_report"].parameters["properties"]) == {
+        "skill_id",
+        "project_id",
+        "content_sha256",
     }
 
 

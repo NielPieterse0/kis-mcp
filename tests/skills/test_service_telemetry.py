@@ -9,7 +9,7 @@ import pytest
 from kis_mcp.skills.catalogue import SkillCatalogue
 from kis_mcp.skills.errors import SkillsError
 from kis_mcp.skills.service import SkillsService
-from kis_mcp.skills.telemetry import SkillTelemetryStore
+from kis_mcp.skills.telemetry import SkillTelemetryEvent, SkillTelemetryStore
 
 
 class NoOpBackend:
@@ -168,3 +168,51 @@ def test_mutations_record_versioned_events(skills_config, tmp_path: Path) -> Non
 
     groups = store.report(skill_id="new-skill").groups
     assert sum(group.mutation_count for group in groups) == 2
+
+
+def test_reported_outcome_requires_same_delivery_path_as_observed_load(
+    skills_config, make_skill, tmp_path: Path
+) -> None:
+    make_skill("alpha-skill")
+    service, store = _service(skills_config, tmp_path)
+    loaded = service.load_skill(
+        "alpha-skill", activation_id="activation-1", project_id="project-alpha"
+    )
+
+    with pytest.raises(SkillsError, match="SKILLS_TELEMETRY_ATTRIBUTION_REQUIRED"):
+        service.record_skill_outcome(
+            skill_id="alpha-skill",
+            activation_id="activation-1",
+            snapshot_id=loaded.snapshot_id,
+            content_sha256=loaded.sha256,
+            project_id="project-alpha",
+            phase="completed",
+            delivery_path="mcp_resource",
+        )
+
+    store.record(
+        SkillTelemetryEvent(
+            event_name="skill_loaded",
+            source="observed",
+            skill_id="alpha-skill",
+            snapshot_id=loaded.snapshot_id,
+            content_sha256=loaded.sha256,
+            project_id="project-alpha",
+            activation_id="activation-1",
+            delivery_path="mcp_resource",
+            resource_uri="skill:///alpha-skill/SKILL.md",
+            resource_class="SKILL.md",
+            server_origin="kis-test",
+            digest_verified=True,
+        )
+    )
+    event = service.record_skill_outcome(
+        skill_id="alpha-skill",
+        activation_id="activation-1",
+        snapshot_id=loaded.snapshot_id,
+        content_sha256=loaded.sha256,
+        project_id="project-alpha",
+        phase="completed",
+        delivery_path="mcp_resource",
+    )
+    assert event.delivery_path == "mcp_resource"

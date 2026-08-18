@@ -56,17 +56,35 @@ ChatGPT loads skill instructions and performs the described workflow by calling 
 | `create_skill` | Validate, stage, and publish one new skill through the Work backend. |
 | `improve_skill` | Replace one existing text file using an expected SHA-256 precondition through the Work backend. |
 | `record_skill_outcome` | Record caller-attributed `applied`, `completed`, or `failed` evidence only when it matches a prior observed load for the exact skill/package hash and activation identity. |
-| `skill_telemetry_report` | Return bounded redacted usage/outcome aggregates grouped by skill package hash and project. |
+| `skill_telemetry_report` | Return the backwards-compatible bounded usage/outcome aggregates grouped by skill package hash and project. |
+| `skill_delivery_telemetry_report` | Compare bounded usage/outcome evidence for the same canonical skill/package hash across `kis_native` and `mcp_resource` delivery. |
+
+## MCP resource delivery
+
+The same immutable validated catalogue is also exposed as read-only MCP resources; this is a delivery surface, not a second catalogue or lifecycle authority.
+
+| Resource identity | Meaning |
+|---|---|
+| `skill:///` | First deterministic bounded catalogue page containing active skill IDs, canonical entrypoint URIs, active snapshot identity, entrypoint SHA-256 values, and a continuation URI when truncated. |
+| `skill:///catalogue?cursor=<cursor>` | Deterministic bounded continuation page tied to the same snapshot cursor contract. |
+| `skill:///<skill-id>/SKILL.md` | Exact canonical entrypoint bytes represented by the active validated snapshot. |
+| `skill:///<skill-id>/resource?path=<relative-path>` | Exact canonical supporting-resource bytes for a validated relative path, including references, scripts, assets, agents, and other configured package resources. |
+
+Supporting resources remain progressively disclosed: catalogue discovery does not eagerly enumerate their paths or contents. `SKILL.md` has exactly one canonical resource identity and cannot be aliased through the supporting-resource template. Before returning bytes, KIS revalidates the path boundary and verifies size plus SHA-256 against the active snapshot; post-snapshot mutation, traversal, link/reparse escape, unsupported package content, or other integrity drift fails closed.
+
+Resource delivery grants no execution authority. Script files and other executable-looking assets are returned only as data. Existing KIS-native Skills tools, mutation routing through Work middleware, and catalogue authority remain unchanged.
 
 ## Usage telemetry
 
 KIS observes discovery, load, resource discovery/read, refresh, evaluation, creation, and improvement without retaining prompts, skill/file contents, search text, credentials, or arbitrary tool arguments. Package-level SHA-256 from the immutable catalogue is the version identity; resource reads do not create separate file-hash versions.
 
-Loads are not treated as applications. `record_skill_outcome` is the only public path for application/completion attribution, and reported evidence is kept distinct from observed runtime evidence. A reported outcome must match an earlier observed load by skill ID, activation ID, snapshot ID, package SHA-256, and project identity when supplied.
+Loads are not treated as applications. `record_skill_outcome` is the only public path for application/completion attribution, and reported evidence is kept distinct from observed runtime evidence. A reported outcome must match an earlier observed load by skill ID, activation ID, snapshot ID, package SHA-256, project identity when supplied, and delivery path. The backwards-compatible default delivery path is `kis_native`.
 
-Production composition persists the redacted event contract beneath `<state_root>\telemetry\skills.sqlite3` with bounded retention. Live evidence also appears in the existing bounded `RuntimeObservability`/Control Center snapshot. Optional duration, token, tool-call, retry, and verification metrics are stored only when actually observed or explicitly reported; absent values remain not observable.
+MCP delivery is attributed at the `resources/read` boundary as `mcp_resource`. An entrypoint read records a load; a supporting-resource read records a resource read; reading a catalogue page records catalogue exposure only. Passive `resources/list` and `resources/templates/list` enumeration records no meaningful skill use. MCP events retain the canonical package SHA-256 plus resource URI, resource class, server/origin identity, and digest-verification result. Digest attribution compares the already-returned resource bytes with immutable snapshot metadata and does not reread the filesystem. Telemetry persistence is observational: a telemetry-write failure is logged but cannot overturn an otherwise successful canonical resource response. Optional activation/project correlation is accepted only from request `_meta` keys `kis_activation_id` and `kis_project_id`; ordinary request correlation continues to use the runtime request identity.
 
-The report exposes separate usage/outcome counters and metric sample counts. It does not calculate one opaque quality score or decide whether a skill should be admitted, retained, or withdrawn; those behavioral decisions belong to the downstream skill-evaluation authority.
+Production composition persists the redacted event contract beneath `<state_root>\telemetry\skills.sqlite3` with bounded retention. Existing databases migrate additively: prior rows remain `kis_native`, while new MCP-only attribution columns are added without rewriting the existing native event/report contract. Live evidence also appears in the existing bounded `RuntimeObservability`/Control Center snapshot. Optional duration, token, tool-call, retry, verification, and MCP digest metrics are stored only when actually observed or explicitly reported; absent values remain not observable.
+
+`skill_telemetry_report` preserves the existing version/project grouping and counters. `skill_delivery_telemetry_report` groups the same canonical skill/package hash/project by `kis_native` versus `mcp_resource` and reports whether an exact-hash cross-path comparison is valid. A comparison requires at least one successful observed entrypoint load on both delivery paths. Missing counterparts, missing path-specific loads, different package hashes, failed digest verification, or unverified MCP digests are explicitly non-comparable rather than silently pooled. Neither report calculates one opaque quality score or decides whether a skill should be admitted, retained, or withdrawn; those behavioral decisions belong to downstream skill-evaluation authority.
 
 ## Module boundaries
 
@@ -74,11 +92,13 @@ The report exposes separate usage/outcome counters and metric sample counts. It 
 skills.config       strict JSON configuration and limits
 skills.frontmatter  conservative SKILL.md metadata parser
 skills.source       path safety, file collection, and source normalization
-skills.catalogue    immutable snapshots and read/query operations
+skills.catalogue    immutable snapshots, read/query operations, and snapshot-verified resource bytes
+skills.resources    read-only FastMCP resource index and progressive resource templates
+skills.delivery_telemetry  MCP resource-boundary attribution and digest evidence
 skills.backend      narrow Work mutation protocol and FastMCP adapter
-skills.telemetry    bounded redacted live/durable usage and outcome evidence
+skills.telemetry    bounded redacted live/durable usage, outcome, and delivery comparison evidence
 skills.service      query/mutation orchestration, telemetry, and optimistic concurrency
-skills.tools        thin public FastMCP registration
+skills.tools        thin public FastMCP tool registration
 skills.models       explicit versioned response contracts
 skills.errors       corrective SKILLS_* structural failures
 ```
@@ -93,9 +113,9 @@ Dependency direction is enforced by architecture tests. Public tools depend on t
 - `name` and `description` are required.
 - Files, total skill bytes, result counts, suffixes, and query limits are JSON-configured.
 - Traversal, absolute paths, backslashes, symbolic links, reparse points, and configured hard-link cases are rejected.
-- Text files must be UTF-8; configured PNG files are represented as binary metadata without returning binary content.
+- Text files must be UTF-8; configured binary package resources remain hash/size validated and are returned only through the read-only MCP resource surface as exact bytes.
 - A refresh is atomic: any invalid source rejects the candidate refresh and preserves the prior active snapshot.
-- Initial catalogue failure is fail-open for the wider server: ordinary Work/gateway tools remain available, the eleven Skills operations remain discoverable, and Skills calls return the corrective initialization failure until the source is repaired and the server is restarted.
+- Initial catalogue failure is fail-open for the wider server: ordinary Work/gateway tools remain available, the twelve Skills operations remain discoverable, and Skills calls return the corrective initialization failure until the source is repaired and the server is restarted.
 - Snapshot IDs are deterministic SHA-256-derived fingerprints of normalized skill metadata and file evidence.
 
 These are retrieval and structural correctness boundaries. They do not add a fourth Work policy rule.

@@ -96,3 +96,39 @@ def test_sqlite_schema_has_no_payload_columns(tmp_path: Path) -> None:
 
     forbidden = {"prompt", "content", "file_content", "query", "arguments", "path"}
     assert columns.isdisjoint(forbidden)
+
+
+def test_existing_database_migrates_delivery_columns_without_rewriting_native_rows(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "skills.sqlite3"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """CREATE TABLE skill_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, occurred_at TEXT NOT NULL,
+                event_name TEXT NOT NULL, source TEXT NOT NULL, skill_id TEXT,
+                snapshot_id TEXT, content_sha256 TEXT, project_id TEXT,
+                activation_id TEXT, request_id TEXT, outcome TEXT NOT NULL,
+                duration_ms INTEGER, error_class TEXT, total_tokens INTEGER,
+                tool_calls INTEGER, retries INTEGER, verification_passed INTEGER
+            )"""
+        )
+        connection.execute(
+            """INSERT INTO skill_events (
+                occurred_at, event_name, source, skill_id, snapshot_id,
+                content_sha256, project_id, activation_id, request_id, outcome
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "2026-08-16T00:00:00+00:00", "skill_loaded", "observed",
+                "alpha-skill", "snapshot-a", "a" * 64, "project-alpha",
+                "activation-1", "request-1", "success",
+            ),
+        )
+
+    store = SkillTelemetryStore(path)
+    report = store.delivery_report(skill_id="alpha-skill")
+
+    assert report.groups[0].delivery_path == "kis_native"
+    with sqlite3.connect(path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(skill_events)")}
+    assert {"delivery_path", "resource_uri", "resource_class", "server_origin", "digest_verified"} <= columns
