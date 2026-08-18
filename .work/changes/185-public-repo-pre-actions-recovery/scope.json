@@ -1,0 +1,59 @@
+{
+  "schema_version": 4,
+  "change_id": "185-public-repo-pre-actions-recovery",
+  "status": "active",
+  "branch": "change/185-public-repo-pre-actions-recovery",
+  "worktree": ".work/worktrees/185-public-repo-pre-actions-recovery",
+  "base": "main",
+  "outcome": "Safely make kis-mcp public, restore the exact evidence-backed repository state immediately before GitHub Actions availability was lost while preserving later history, and inventory without implementing valuable post-boundary work for later selective reintroduction.",
+  "owned_paths": [
+    ".work/changes/150-parallel-agent-coordinator/**",
+    ".work/changes/171-ui-default-off/**",
+    ".work/changes/173-exact-target-work-resolution/**",
+    ".work/changes/174-disposable-windows-execution-foundation/**",
+    ".work/changes/179-local-verification-landing-authority/**",
+    ".work/changes/179-local-windows-runner/**",
+    ".work/changes/180-virtualbox-disposable-windows-provider/**",
+    ".work/changes/181-mcp-authority-platform-reliability/**",
+    ".work/changes/182-detached-verifier-claim-projection/**",
+    ".work/changes/183-serena-exact-verification-test-isolation/**",
+    ".work/changes/185-public-repo-pre-actions-recovery/**",
+    "AGENTS.md",
+    "contracts/**",
+    "docs/**",
+    "scripts/**",
+    "settings/**",
+    "SPEC.md",
+    "src/**",
+    "tests/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "destructive",
+    "external_action",
+    "public_contract",
+    "secrets",
+    "security"
+  ],
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "ISSUE-348",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 348,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  },
+  "base_evidence": {
+    "local_sha": "3bd13309827affab06b194c054541f65af89f001",
+    "local_tree": "d616de57b990e86b183978cca9a205d048593e98",
+    "upstream_sha": "3bd13309827affab06b194c054541f65af89f001",
+    "upstream_tree": "d616de57b990e86b183978cca9a205d048593e98",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  }
+}
