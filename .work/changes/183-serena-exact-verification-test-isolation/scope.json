@@ -1,0 +1,28 @@
+{
+  "schema_version": 4,
+  "change_id": "183-serena-exact-verification-test-isolation",
+  "status": "active",
+  "branch": "change/183-serena-exact-verification-test-isolation",
+  "worktree": ".work/worktrees/183-serena-exact-verification-test-isolation",
+  "base": "main",
+  "outcome": "Isolate the Serena normalization unit test from durable provider project state so repeated exact-head verification workspaces cannot collide through the shared workspace folder name.",
+  "owned_paths": [
+    "tests/providers/test_context7_serena_providers.py",
+    ".work/changes/183-serena-exact-verification-test-isolation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "238431c946c5dd2b1219d43fdce1e6f46c9a3a27",
+    "local_tree": "a4d6cc4af74657d14fe2c653942e9cfa31419b03",
+    "upstream_sha": "238431c946c5dd2b1219d43fdce1e6f46c9a3a27",
+    "upstream_tree": "a4d6cc4af74657d14fe2c653942e9cfa31419b03",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
