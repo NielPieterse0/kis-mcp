@@ -1,0 +1,197 @@
+{
+  "assertions": {
+    "all_authoritative": true,
+    "all_passed": true,
+    "all_receipts_hash_verified": true,
+    "unique_run_dirs": true,
+    "unique_workspaces": true
+  },
+  "cases": {
+    "critical-251": {
+      "authoritative": true,
+      "elapsed_ms": 28580,
+      "evidence_reference": "kis-local-verification:C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-251-9868f9769d\\receipt.json#sha256=1bb740cb4e32b8e260c554be42ea5f3616c55db1977d5b197e20f849144bdaba",
+      "exit_code": 0,
+      "finished_at": "2026-08-18T00:42:44.381537Z",
+      "name": "critical-251",
+      "project": "C:\\Projects\\kis-mcp\\.work\\worktrees\\179-local-windows-runner",
+      "receipt_path": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-251-9868f9769d\\receipt.json",
+      "receipt_sha256": "1bb740cb4e32b8e260c554be42ea5f3616c55db1977d5b197e20f849144bdaba",
+      "request_id": "commission-critical-251-9868f9769d",
+      "requested_revision": "0d5a0185a277c1158c3f2649146e9305755609ff",
+      "resolved_revision": "0d5a0185a277c1158c3f2649146e9305755609ff",
+      "run_dir": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-251-9868f9769d",
+      "source_fingerprint": "216fd768dcdc0eecef9b8ece5a40bdf0e4d8d842cb5e9de613644a51281d03a7",
+      "source_tree": "d24d424d27cc05e5344ff7427344ee013f3a19a0",
+      "started_at": "2026-08-18T00:42:15.800564Z",
+      "status": "passed",
+      "worker_diagnostics": [
+        "worker_status:completed",
+        "worker_reason:verification process exited"
+      ],
+      "workspace": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-251-9868f9769d\\workspace"
+    },
+    "critical-252": {
+      "authoritative": true,
+      "elapsed_ms": 14330,
+      "evidence_reference": "kis-local-verification:C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-252-44c0c1eeb6\\receipt.json#sha256=c010a0352528bac152021904da27d4ac204c7d343333ca2f7506090d9f8277a2",
+      "exit_code": 0,
+      "finished_at": "2026-08-18T00:43:47.202460Z",
+      "name": "critical-252",
+      "project": "C:\\Projects\\kis-mcp\\.work\\worktrees\\179-local-windows-runner",
+      "receipt_path": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-252-44c0c1eeb6\\receipt.json",
+      "receipt_sha256": "c010a0352528bac152021904da27d4ac204c7d343333ca2f7506090d9f8277a2",
+      "request_id": "commission-critical-252-44c0c1eeb6",
+      "requested_revision": "3196590e675abc916cc94e0f1638aef435ac2973",
+      "resolved_revision": "3196590e675abc916cc94e0f1638aef435ac2973",
+      "run_dir": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-252-44c0c1eeb6",
+      "source_fingerprint": "a14beea199d4c8d19efae9452cac847930722c60d53a4738dd259a684da0646d",
+      "source_tree": "964b2e4776117d1a991e7e02c8674cde6a375a54",
+      "started_at": "2026-08-18T00:43:32.872216Z",
+      "status": "passed",
+      "worker_diagnostics": [
+        "worker_status:completed",
+        "worker_reason:verification process exited"
+      ],
+      "workspace": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-critical-252-44c0c1eeb6\\workspace"
+    },
+    "large-338": {
+      "authoritative": true,
+      "elapsed_ms": 19926,
+      "evidence_reference": "kis-local-verification:C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-large-338-8fb2d91958\\receipt.json#sha256=094f6ca158e0b0d232aa945e3abd399601550937e952151f73b9f7c18afdc4f2",
+      "exit_code": 0,
+      "finished_at": "2026-08-18T00:43:52.804873Z",
+      "name": "large-338",
+      "project": "C:\\Projects\\kis-mcp\\.work\\worktrees\\179-local-windows-runner",
+      "receipt_path": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-large-338-8fb2d91958\\receipt.json",
+      "receipt_sha256": "094f6ca158e0b0d232aa945e3abd399601550937e952151f73b9f7c18afdc4f2",
+      "request_id": "commission-large-338-8fb2d91958",
+      "requested_revision": "d38db6af5c34220e60fff65c6ca32ca86cff515f",
+      "resolved_revision": "d38db6af5c34220e60fff65c6ca32ca86cff515f",
+      "run_dir": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-large-338-8fb2d91958",
+      "source_fingerprint": "f19df70e4e11f5478bb7ffbd1a66dc909948ae4cacdd7a51714f23e2fe438591",
+      "source_tree": "24bc23e769d1bc30294744f6ffdb9b4a8d3fc127",
+      "started_at": "2026-08-18T00:43:32.878600Z",
+      "status": "passed",
+      "worker_diagnostics": [
+        "worker_status:completed",
+        "worker_reason:verification process exited"
+      ],
+      "workspace": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-large-338-8fb2d91958\\workspace"
+    },
+    "medium-121": {
+      "authoritative": true,
+      "elapsed_ms": 10012,
+      "evidence_reference": "kis-local-verification:C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-medium-121-85997814d0\\receipt.json#sha256=a5ee08a4a36121c12e798de4f4ee41a24bf12c9f39c514619f388d87472d3769",
+      "exit_code": 0,
+      "finished_at": "2026-08-18T00:44:05.296246Z",
+      "name": "medium-121",
+      "project": "C:\\Projects\\kis-mcp\\.work\\worktrees\\179-local-windows-runner",
+      "receipt_path": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-medium-121-85997814d0\\receipt.json",
+      "receipt_sha256": "a5ee08a4a36121c12e798de4f4ee41a24bf12c9f39c514619f388d87472d3769",
+      "request_id": "commission-medium-121-85997814d0",
+      "requested_revision": "762164d9fa81adcbb7426f9902ee54d963e8568b",
+      "resolved_revision": "762164d9fa81adcbb7426f9902ee54d963e8568b",
+      "run_dir": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-medium-121-85997814d0",
+      "source_fingerprint": "cece1f87574cc4f44647e102bc7a30fc3a546d1fdf1efe5a2dc6b291d6a7452a",
+      "source_tree": "e494d821e050fa0214f24408218c715cbeea6297",
+      "started_at": "2026-08-18T00:43:55.283166Z",
+      "status": "passed",
+      "worker_diagnostics": [
+        "worker_status:completed",
+        "worker_reason:verification process exited"
+      ],
+      "workspace": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-medium-121-85997814d0\\workspace"
+    },
+    "product-doc-solution": {
+      "authoritative": true,
+      "elapsed_ms": 77062,
+      "evidence_reference": "kis-local-verification:C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-product-doc-solution-370dc5d1a4\\receipt.json#sha256=c32d09f8ee7f40e6c5fba9fa56ab09c0c1bf1117a85e71167daa4c665dad13bd",
+      "exit_code": 0,
+      "finished_at": "2026-08-18T00:43:32.870773Z",
+      "name": "product-doc-solution",
+      "project": "C:\\Projects\\doc-solution",
+      "receipt_path": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-product-doc-solution-370dc5d1a4\\receipt.json",
+      "receipt_sha256": "c32d09f8ee7f40e6c5fba9fa56ab09c0c1bf1117a85e71167daa4c665dad13bd",
+      "request_id": "commission-product-doc-solution-370dc5d1a4",
+      "requested_revision": "acf9ffd139ee009d3b921d5cd7c24691bb1c4737",
+      "resolved_revision": "acf9ffd139ee009d3b921d5cd7c24691bb1c4737",
+      "run_dir": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-product-doc-solution-370dc5d1a4",
+      "source_fingerprint": "c9392a609f444fd5b04465f278c30ae59eee3f63c49bdb927beb10e17b679d00",
+      "source_tree": "57ee49b74722c40d08341e2362cc4a847baec5a1",
+      "started_at": "2026-08-18T00:42:15.807564Z",
+      "status": "passed",
+      "worker_diagnostics": [
+        "worker_status:completed",
+        "worker_reason:verification process exited"
+      ],
+      "workspace": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-product-doc-solution-370dc5d1a4\\workspace"
+    },
+    "small-122": {
+      "authoritative": true,
+      "elapsed_ms": 2476,
+      "evidence_reference": "kis-local-verification:C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-small-122-18094e01b1\\receipt.json#sha256=90dff98e4e45df5bb0c55be0232d3f7899b32f5a1e706bfe8b8f6520004eb383",
+      "exit_code": 0,
+      "finished_at": "2026-08-18T00:43:55.282632Z",
+      "name": "small-122",
+      "project": "C:\\Projects\\kis-mcp\\.work\\worktrees\\179-local-windows-runner",
+      "receipt_path": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-small-122-18094e01b1\\receipt.json",
+      "receipt_sha256": "90dff98e4e45df5bb0c55be0232d3f7899b32f5a1e706bfe8b8f6520004eb383",
+      "request_id": "commission-small-122-18094e01b1",
+      "requested_revision": "22f5a699e1a8666d8b5a57da3f3f8b1edcba4439",
+      "resolved_revision": "22f5a699e1a8666d8b5a57da3f3f8b1edcba4439",
+      "run_dir": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-small-122-18094e01b1",
+      "source_fingerprint": "547cb9dadcb8f86e5181bf5dc8b7400053eb25cc94ead7e70efba75dc9076b3d",
+      "source_tree": "08d55686dcfb03d20341892c12b1430c9201aaaf",
+      "started_at": "2026-08-18T00:43:52.805834Z",
+      "status": "passed",
+      "worker_diagnostics": [
+        "worker_status:completed",
+        "worker_reason:verification process exited"
+      ],
+      "workspace": "C:\\Projects\\.kis-mcp\\execution\\local\\runs\\commission-small-122-18094e01b1\\workspace"
+    }
+  },
+  "commissioning": "local-windows-runner-338",
+  "concurrency_pairs": [
+    {
+      "cases": [
+        "critical-251",
+        "product-doc-solution"
+      ],
+      "finished_at": "2026-08-18T00:43:32.871929Z",
+      "started_at": "2026-08-18T00:42:15.800424Z",
+      "wall_ms": 77071
+    },
+    {
+      "cases": [
+        "critical-252",
+        "large-338"
+      ],
+      "finished_at": "2026-08-18T00:43:52.805737Z",
+      "started_at": "2026-08-18T00:43:32.871992Z",
+      "wall_ms": 19934
+    }
+  ],
+  "coverage": {
+    "critical_parallel_backlog": [
+      "critical-251",
+      "critical-252"
+    ],
+    "large": "large-338",
+    "medium": "medium-121",
+    "process_tree_tests": "tests/execution/test_local_worker.py",
+    "registered_product_repo": "product-doc-solution",
+    "small": "small-122",
+    "stale_reconciliation_tests": "tests/execution/test_local_state.py"
+  },
+  "generated_at": "2026-08-18T00:44:05.296750Z",
+  "github_actions_calls": 0,
+  "runner_profile": {
+    "backend_id": "local-process",
+    "image_id": "host-current",
+    "profile_id": "local-process",
+    "toolchain_id": "repository-declared"
+  },
+  "schema_version": 1
+}

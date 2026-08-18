@@ -8,7 +8,12 @@
       "backend_id": "local-process",
       "enabled": true,
       "image_id": "host-current",
-      "toolchain_id": "repository-declared"
+      "toolchain_id": "repository-declared",
+      "local": {
+        "state_root": "C:\\Projects\\.kis-mcp\\execution\\local",
+        "materialize_timeout_ms": 60000,
+        "worker_cleanup_grace_ms": 10000
+      }
     },
     {
       "profile_id": "windows-hyperv-proof",

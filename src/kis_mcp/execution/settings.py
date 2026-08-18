@@ -13,9 +13,13 @@ from ..paths import is_within_windows_boundary
 _LOGICAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _ENV_NAME = re.compile(r"^[A-Z][A-Z0-9_]{1,127}$")
 _ROOT_KEYS = frozenset({"schema_version", "default_profile", "evidence_limit_chars", "profiles"})
-_LOCAL_KEYS = frozenset({"profile_id", "backend_id", "enabled", "image_id", "toolchain_id"})
-_HYPERV_KEYS = frozenset((*_LOCAL_KEYS, "hyperv"))
-_VIRTUALBOX_KEYS = frozenset((*_LOCAL_KEYS, "virtualbox"))
+_BASE_PROFILE_KEYS = frozenset({"profile_id", "backend_id", "enabled", "image_id", "toolchain_id"})
+_LOCAL_KEYS = frozenset((*_BASE_PROFILE_KEYS, "local"))
+_HYPERV_KEYS = frozenset((*_BASE_PROFILE_KEYS, "hyperv"))
+_VIRTUALBOX_KEYS = frozenset((*_BASE_PROFILE_KEYS, "virtualbox"))
+_LOCAL_CONFIG_KEYS = frozenset(
+    {"state_root", "materialize_timeout_ms", "worker_cleanup_grace_ms"}
+)
 _HYPERV_CONFIG_KEYS = frozenset(
     {
         "template_vm",
@@ -99,6 +103,21 @@ def _env_name(value: Any, label: str) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class LocalProcessProfileSettings:
+    state_root: str
+    materialize_timeout_ms: int
+    worker_cleanup_grace_ms: int
+
+    def __post_init__(self) -> None:
+        state_root = _windows_absolute(self.state_root, "local.state_root")
+        if not is_within_windows_boundary(state_root, boundary=APPROVED_STATE_ROOT):
+            raise ExecutionSettingsError(
+                "local.state_root must remain within the configured KIS state root"
+            )
+        object.__setattr__(self, "state_root", state_root)
+
+
+@dataclass(frozen=True, slots=True)
 class HyperVProfileSettings:
     template_vm: str
     checkpoint_name: str
@@ -155,6 +174,7 @@ class RunnerProfileSettings:
     enabled: bool
     image_id: str
     toolchain_id: str
+    local: LocalProcessProfileSettings | None = None
     hyperv: HyperVProfileSettings | None = None
     virtualbox: VirtualBoxProfileSettings | None = None
 
@@ -170,6 +190,20 @@ class ExecutionRunnerSettings:
             if profile.profile_id == profile_id:
                 return profile
         raise KeyError(profile_id)
+
+
+def _local_settings(raw: Any, label: str) -> LocalProcessProfileSettings:
+    value = _mapping(raw, label)
+    _exact_keys(value, _LOCAL_CONFIG_KEYS, label)
+    return LocalProcessProfileSettings(
+        state_root=_windows_absolute(value["state_root"], f"{label}.state_root"),
+        materialize_timeout_ms=_positive_int(
+            value["materialize_timeout_ms"], f"{label}.materialize_timeout_ms", 600_000
+        ),
+        worker_cleanup_grace_ms=_positive_int(
+            value["worker_cleanup_grace_ms"], f"{label}.worker_cleanup_grace_ms", 120_000
+        ),
+    )
 
 
 def _hyperv_settings(raw: Any, label: str) -> HyperVProfileSettings:
@@ -241,18 +275,38 @@ def _profile(raw: Any, index: int) -> RunnerProfileSettings:
     label = f"profiles[{index}]"
     value = _mapping(raw, label)
     backend = _logical_id(value.get("backend_id"), f"{label}.backend_id")
-    if backend == "windows-hyperv":
+    legacy_local_profile = False
+    if backend == "local-process":
+        actual = {str(key) for key in value}
+        if actual == _BASE_PROFILE_KEYS:
+            legacy_local_profile = True
+        else:
+            _exact_keys(value, _LOCAL_KEYS, label)
+        expected = None
+    elif backend == "windows-hyperv":
         expected = _HYPERV_KEYS
     elif backend == "windows-virtualbox":
         expected = _VIRTUALBOX_KEYS
     else:
-        expected = _LOCAL_KEYS
-    _exact_keys(value, expected, label)
+        expected = _BASE_PROFILE_KEYS
+    if expected is not None:
+        _exact_keys(value, expected, label)
     if backend not in {"local-process", "windows-hyperv", "windows-virtualbox"}:
         raise ExecutionSettingsError(f"{label}.backend_id is unsupported")
     enabled = value["enabled"]
     if not isinstance(enabled, bool):
         raise ExecutionSettingsError(f"{label}.enabled must be a boolean")
+    local = (
+        LocalProcessProfileSettings(
+            state_root=r"C:\Projects\.kis-mcp\execution\local",
+            materialize_timeout_ms=60_000,
+            worker_cleanup_grace_ms=10_000,
+        )
+        if backend == "local-process" and legacy_local_profile
+        else _local_settings(value["local"], f"{label}.local")
+        if backend == "local-process"
+        else None
+    )
     hyperv = (
         _hyperv_settings(value["hyperv"], f"{label}.hyperv")
         if backend == "windows-hyperv"
@@ -269,6 +323,7 @@ def _profile(raw: Any, index: int) -> RunnerProfileSettings:
         enabled=enabled,
         image_id=_logical_id(value["image_id"], f"{label}.image_id"),
         toolchain_id=_logical_id(value["toolchain_id"], f"{label}.toolchain_id"),
+        local=local,
         hyperv=hyperv,
         virtualbox=virtualbox,
     )
@@ -311,6 +366,7 @@ __all__ = [
     "ExecutionRunnerSettings",
     "ExecutionSettingsError",
     "HyperVProfileSettings",
+    "LocalProcessProfileSettings",
     "RunnerProfileSettings",
     "VirtualBoxProfileSettings",
     "load_execution_runner_settings",

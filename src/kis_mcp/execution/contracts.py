@@ -11,6 +11,7 @@ EXECUTION_SCHEMA_VERSION = 1
 
 _LOGICAL_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _GIT_COMMIT = re.compile(r"^[0-9a-f]{40}$")
+_SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _SUPPORTED_STATUSES = frozenset({"passed", "failed", "incomplete"})
 _SUPPORTED_FAILURES = frozenset(
     {
@@ -193,6 +194,10 @@ class ExecutionEvidence:
     diagnostics: tuple[str, ...] = ()
     truncated: bool = False
     receipt_path: str | None = None
+    receipt_sha256: str | None = None
+    source_tree: str | None = None
+    source_fingerprint: str | None = None
+    evidence_reference: str | None = None
     transferred_bytes: int | None = None
 
     def __post_init__(self) -> None:
@@ -206,6 +211,18 @@ class ExecutionEvidence:
             raise ValueError("execution evidence truncated must be a boolean")
         if self.receipt_path is not None:
             object.__setattr__(self, "receipt_path", _text(self.receipt_path, "receipt_path"))
+        if self.receipt_sha256 is not None and _SHA256.fullmatch(self.receipt_sha256) is None:
+            raise ValueError("receipt_sha256 must be 64 lowercase hex characters or null")
+        if self.source_tree is not None and _GIT_COMMIT.fullmatch(self.source_tree) is None:
+            raise ValueError("source_tree must be 40 lowercase hex characters or null")
+        if self.source_fingerprint is not None and _SHA256.fullmatch(self.source_fingerprint) is None:
+            raise ValueError("source_fingerprint must be 64 lowercase hex characters or null")
+        if self.evidence_reference is not None:
+            object.__setattr__(
+                self,
+                "evidence_reference",
+                _text(self.evidence_reference, "evidence_reference"),
+            )
         if self.transferred_bytes is not None and (
             isinstance(self.transferred_bytes, bool) or self.transferred_bytes < 0
         ):
@@ -218,6 +235,10 @@ class ExecutionEvidence:
             "diagnostics": list(self.diagnostics),
             "truncated": self.truncated,
             "receipt_path": self.receipt_path,
+            "receipt_sha256": self.receipt_sha256,
+            "source_tree": self.source_tree,
+            "source_fingerprint": self.source_fingerprint,
+            "evidence_reference": self.evidence_reference,
             "transferred_bytes": self.transferred_bytes,
         }
 

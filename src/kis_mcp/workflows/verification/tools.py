@@ -31,6 +31,7 @@ class VerificationServicePort(Protocol):
         project: str,
         verification_id: str,
         timeout_ms: int = 120_000,
+        exact_revision: str | None = None,
     ) -> VerificationResult: ...
 
 
@@ -57,6 +58,7 @@ def register_verification_tool(
         project: str,
         verification_id: str,
         timeout_ms: int = 120_000,
+        exact_revision: str | None = None,
     ) -> dict[str, object]:
         """Execute one verification previously discovered for a local project."""
         try:
@@ -65,6 +67,7 @@ def register_verification_tool(
                     project=project,
                     verification_id=verification_id,
                     timeout_ms=timeout_ms,
+                    exact_revision=exact_revision,
                 )
             ).to_json_dict()
         except VerificationExecutionError as exc:

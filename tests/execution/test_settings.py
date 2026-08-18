@@ -8,6 +8,7 @@ import pytest
 from kis_mcp.execution.settings import (
     ExecutionSettingsError,
     HyperVProfileSettings,
+    LocalProcessProfileSettings,
     load_execution_runner_settings,
 )
 
@@ -46,6 +47,9 @@ def test_repository_execution_settings_default_to_local_process() -> None:
     assert default.profile_id == "local-process"
     assert default.backend_id == "local-process"
     assert default.enabled is True
+    assert default.local is not None
+    assert default.local.state_root == r"C:\Projects\.kis-mcp\execution\local"
+    assert default.local.worker_cleanup_grace_ms == 10_000
     hyperv = settings.profile("windows-hyperv-proof")
     assert hyperv.backend_id == "windows-hyperv"
     assert hyperv.enabled is False
@@ -58,6 +62,21 @@ def test_repository_execution_settings_default_to_local_process() -> None:
     assert virtualbox.virtualbox is not None
     assert virtualbox.virtualbox.snapshot_name == "clean"
     assert virtualbox.virtualbox.vbox_user_home.startswith(r"C:\Projects\.kis-mcp")
+
+
+def test_schema_v1_local_profile_without_local_block_uses_compatible_defaults(tmp_path: Path) -> None:
+    source = Path(__file__).resolve().parents[2] / "settings" / "execution-runners.settings.json"
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["profiles"][0].pop("local")
+    target = tmp_path / "execution.json"
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    settings = load_execution_runner_settings(target)
+    local = settings.profile("local-process").local
+    assert local is not None
+    assert local.state_root == r"C:\Projects\.kis-mcp\execution\local"
+    assert local.materialize_timeout_ms == 60_000
+    assert local.worker_cleanup_grace_ms == 10_000
 
 
 def test_execution_settings_reject_unknown_keys(tmp_path: Path) -> None:
@@ -80,6 +99,15 @@ def test_execution_settings_reject_state_root_outside_kis_state_boundary(tmp_pat
 
     with pytest.raises(ExecutionSettingsError, match="KIS state root"):
         load_execution_runner_settings(target)
+
+
+def test_direct_local_settings_reject_state_root_outside_kis_boundary() -> None:
+    with pytest.raises(ExecutionSettingsError, match="KIS state root"):
+        LocalProcessProfileSettings(
+            state_root=r"C:\ProgramData\kis-mcp\local",
+            materialize_timeout_ms=60_000,
+            worker_cleanup_grace_ms=10_000,
+        )
 
 
 def test_direct_hyperv_settings_reject_state_root_outside_kis_boundary() -> None:
