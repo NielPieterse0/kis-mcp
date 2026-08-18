@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/runtime-binding.schema.json",
+  "title": "Coordinator Runtime Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "binding_id", "binding_fingerprint",
+    "worker_id", "worker_revision", "runtime_id", "runtime_revision",
+    "tool_id", "tool_revision", "protocol", "interface", "endpoint",
+    "binding", "transport", "capabilities", "observed_at",
+    "grants_mutation_authority"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-runtime-binding-v1"},
+    "binding_id": {"$ref": "#/$defs/nonEmpty"},
+    "binding_fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "worker_id": {"$ref": "#/$defs/nonEmpty"},
+    "worker_revision": {"$ref": "#/$defs/nonEmpty"},
+    "runtime_id": {"$ref": "#/$defs/nonEmpty"},
+    "runtime_revision": {"$ref": "#/$defs/sha"},
+    "tool_id": {"$ref": "#/$defs/nonEmpty"},
+    "tool_revision": {"$ref": "#/$defs/nonEmpty"},
+    "protocol": {"$ref": "#/$defs/nonEmpty"},
+    "interface": {"$ref": "#/$defs/nonEmpty"},
+    "endpoint": {"$ref": "#/$defs/nonEmpty"},
+    "binding": {"$ref": "#/$defs/nonEmpty"},
+    "transport": {"enum": ["mcp", "a2a", "local-process", "other"]},
+    "capabilities": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "observed_at": {"type": "string", "format": "date-time"},
+    "grants_mutation_authority": {"const": false}
+  },
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+  }
+}

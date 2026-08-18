@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "change_id": "193-parallel-agent-coordinator",
+  "status": "active",
+  "branch": "change/193-parallel-agent-coordinator",
+  "worktree": ".work/worktrees/193-parallel-agent-coordinator",
+  "base": "main",
+  "outcome": "Reimplement the retained KIS parallel-agent coordinator contracts, authority state, planning, durable worker lifecycle, and reconciliation/integration behavior from historical Change 150, excluding Actions-loss local/VM verification-runner coupling.",
+  "owned_paths": [
+    "contracts/coordinator/**",
+    "src/kis_mcp/workflows/coordinator/**",
+    "tests/workflows/coordinator/**",
+    "docs/COORDINATOR-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/193-parallel-agent-coordinator/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "bb954d1a005e07d1a5afc899b291e8d177d6b702",
+    "local_tree": "63641eac0b57b240b3e2cf6ac6ca357a28795c64",
+    "upstream_sha": "bb954d1a005e07d1a5afc899b291e8d177d6b702",
+    "upstream_tree": "63641eac0b57b240b3e2cf6ac6ca357a28795c64",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
