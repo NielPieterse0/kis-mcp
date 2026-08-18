@@ -310,9 +310,9 @@ def test_execution_rejects_completed_review_without_complete_evidence() -> None:
     assert result.reviews[0].error_code == "AGENT_REVIEW_EVIDENCE_INCOMPLETE"
 
 
-def test_execution_passes_exact_commit_selector_to_verification_and_review() -> None:
+def test_execution_passes_exact_commit_selector_to_specialist_review() -> None:
     invoker = _Invoker()
-    result = asyncio.run(
+    asyncio.run(
         ChangeExecutionService(invoker).execute(
             project=r"C:\Projects\fixture",
             source="commit",
@@ -321,16 +321,6 @@ def test_execution_passes_exact_commit_selector_to_verification_and_review() -> 
         )
     )
 
-    verification_calls = [
-        arguments for name, arguments in invoker.calls if name == "run_verification"
-    ]
-    assert verification_calls
-    assert all(arguments["exact_revision"] == "abc123" for arguments in verification_calls)
-    assert result.status == "incomplete"
-    assert all(
-        item.error_code == "CHANGE_EXECUTION_EXACT_VERIFICATION_REQUIRED"
-        for item in result.verifications
-    )
     review_call = next(arguments for name, arguments in invoker.calls if name == "review_change_with_agent")
     assert review_call["source"] == "commit"
     assert review_call["commit_ref"] == "abc123"

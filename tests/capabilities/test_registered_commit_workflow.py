@@ -112,12 +112,10 @@ def test_workflow_descriptors_route_publish_and_closeout_to_virtual_operations()
     assert closeout.required_steps[:4] == (
         "inspect_change",
         "github_pull_request_read",
-        "execute_change_workflow",
-        "github_review_pull_request",
+        "github_actions_list",
+        "github_actions_get",
     )
-    assert "github_actions_list" not in closeout.required_steps
-    assert "github_actions_get" not in closeout.required_steps
-    assert "operation.execute_change_workflow" in closeout.capabilities
+    assert "run_verification" not in closeout.required_steps
     assert "kis_github_merge_registered_pull_request" in closeout.required_steps
     assert "kis_github_delete_registered_branch" in closeout.required_steps
     assert "github_merge_pull_request" not in closeout.required_steps

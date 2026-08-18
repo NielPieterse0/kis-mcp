@@ -88,19 +88,15 @@ class ChangeExecutionService:
         verification_incomplete_count = 0
         for verification_id in verification_ids:
             try:
-                verification_args: dict[str, Any] = {
-                    "project": project,
-                    "verification_id": verification_id,
-                    "timeout_ms": verification_timeout_ms,
-                }
-                if source == "commit" and commit_ref is not None:
-                    verification_args["exact_revision"] = commit_ref
-                payload = await self._invoker("run_verification", verification_args)
-                step = _verification_step(
-                    verification_id,
-                    payload,
-                    requested_revision=(commit_ref if source == "commit" else None),
+                payload = await self._invoker(
+                    "run_verification",
+                    {
+                        "project": project,
+                        "verification_id": verification_id,
+                        "timeout_ms": verification_timeout_ms,
+                    },
                 )
+                step = _verification_step(verification_id, payload)
             except ChangeExecutionInvocationError as exc:
                 step = ChangeExecutionStepResult(
                     step_id=verification_id,
@@ -289,8 +285,6 @@ def _review_step(
 def _verification_step(
     verification_id: str,
     payload: Mapping[str, Any],
-    *,
-    requested_revision: str | None = None,
 ) -> ChangeExecutionStepResult:
     if payload.get("contract") != "verification-result-v1":
         raise ChangeExecutionInvocationError(
@@ -303,38 +297,6 @@ def _verification_step(
             "CHANGE_EXECUTION_VERIFICATION_RESULT_INVALID",
             f"Verification {verification_id!r} returned an invalid status.",
         )
-    if requested_revision is not None:
-        source_revision = payload.get("source_revision")
-        receipt_sha256 = payload.get("receipt_sha256")
-        evidence_reference = payload.get("evidence_reference")
-        if payload.get("requested_revision") != requested_revision:
-            raise ChangeExecutionInvocationError(
-                "CHANGE_EXECUTION_EXACT_VERIFICATION_REQUIRED",
-                f"Verification {verification_id!r} did not preserve the requested commit reference.",
-            )
-        if (
-            not isinstance(source_revision, str)
-            or len(source_revision) != 40
-            or any(character not in "0123456789abcdef" for character in source_revision)
-            or not isinstance(receipt_sha256, str)
-            or len(receipt_sha256) != 64
-            or any(character not in "0123456789abcdef" for character in receipt_sha256)
-            or not isinstance(evidence_reference, str)
-            or not evidence_reference.startswith("kis-local-verification:")
-        ):
-            raise ChangeExecutionInvocationError(
-                "CHANGE_EXECUTION_EXACT_VERIFICATION_REQUIRED",
-                f"Verification {verification_id!r} did not return canonical local receipt evidence.",
-            )
-        if (
-            len(requested_revision) == 40
-            and all(character in "0123456789abcdef" for character in requested_revision.lower())
-            and source_revision != requested_revision.lower()
-        ):
-            raise ChangeExecutionInvocationError(
-                "CHANGE_EXECUTION_EXACT_VERIFICATION_REQUIRED",
-                f"Verification {verification_id!r} executed a different commit.",
-            )
     return ChangeExecutionStepResult(
         step_id=verification_id,
         kind="verification",

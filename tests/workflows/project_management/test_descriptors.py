@@ -18,6 +18,7 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
         "reconcile-project-state",
         "report-programme-status",
         "verify-change-traceability",
+        "complete-work-managed-merge-queue",
         "complete-work-managed-pull-request",
     }
     assert by_id["capture-project-work"].required_steps == (
@@ -49,14 +50,12 @@ def test_project_management_workflows_are_task_level_and_complete() -> None:
     )
     assert by_id["complete-work-managed-pull-request"].required_steps == (
         "github_pull_request_read",
-        "execute_change_workflow",
+        "github_actions_list",
+        "github_actions_get",
         "project_management_merge_readiness",
         "kis_github_merge_registered_pull_request",
         "project_management_documentation_reconcile",
     )
-    assert "github.actions.read" not in by_id["complete-work-managed-pull-request"].capabilities
-    assert "operation.execute_change_workflow" in by_id["complete-work-managed-pull-request"].capabilities
-    assert OperationEffect.PROCESS in by_id["complete-work-managed-pull-request"].effects
     assert all(
         "delete" not in " ".join(item.required_steps).casefold()
         and "graphql" not in " ".join(item.required_steps).casefold()

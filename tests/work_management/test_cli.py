@@ -242,8 +242,8 @@ def test_merge_readiness_cli_blocks_unfinished_documentation(
                     "revision": head,
                     "status": "passed",
                     "command": "verify",
-                    "source": "local",
-                    "reference": "evidence:verify-110",
+                    "source": "github_actions",
+                    "reference": "run-110",
                 }
             ],
             "merges": [],

@@ -191,9 +191,8 @@ def test_safe_closeout_uses_runtime_verification_capability() -> None:
     )
 
     assert "github.pull-request.read" in descriptor.capabilities
-    assert "operation.execute_change_workflow" in descriptor.capabilities
-    assert "github.actions.read" not in descriptor.capabilities
-    assert "execute_change_workflow" in descriptor.required_steps
+    assert "github.actions.read" in descriptor.capabilities
+    assert "verification.execute" not in descriptor.capabilities
     assert "run_verification" not in descriptor.required_steps
 
 
