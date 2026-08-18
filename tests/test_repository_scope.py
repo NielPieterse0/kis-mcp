@@ -211,6 +211,137 @@ def test_verification_branch_falls_back_to_local_branch(monkeypatch) -> None:
     assert verifier._verification_branch() == "change/139-example"
 
 
+def test_verification_branch_resolves_single_detached_change_claim(
+    tmp_path, monkeypatch
+) -> None:
+    verifier = _load_repository_verifier()
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
+    monkeypatch.setattr(verifier, "ROOT", tmp_path)
+    scope = tmp_path / ".work" / "changes" / "182-detached" / "scope.json"
+    scope.parent.mkdir(parents=True)
+    scope.write_text(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "change_id": "182-detached",
+                "status": "active",
+                "branch": "change/182-detached",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def run(args, **kwargs):
+        if args[1:4] == ["symbolic-ref", "--quiet", "--short"]:
+            return verifier.subprocess.CompletedProcess(args, 1, "", "")
+        if args[1:3] == ["merge-base", "HEAD"]:
+            return verifier.subprocess.CompletedProcess(args, 0, "a" * 40 + "\n", "")
+        if args[1:3] == ["diff", "--name-only"]:
+            return verifier.subprocess.CompletedProcess(
+                args, 0, ".work/changes/182-detached/scope.json\n", ""
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(verifier.subprocess, "run", run)
+
+    assert verifier._verification_branch() == "change/182-detached"
+
+
+def test_verification_branch_keeps_ambiguous_detached_changes_fail_closed(
+    tmp_path, monkeypatch
+) -> None:
+    verifier = _load_repository_verifier()
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
+    monkeypatch.setattr(verifier, "ROOT", tmp_path)
+    for change_id in ("182-first", "183-second"):
+        scope = tmp_path / ".work" / "changes" / change_id / "scope.json"
+        scope.parent.mkdir(parents=True)
+        scope.write_text(
+            json.dumps(
+                {
+                    "schema_version": 4,
+                    "change_id": change_id,
+                    "status": "active",
+                    "branch": f"change/{change_id}",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    def run(args, **kwargs):
+        if args[1:4] == ["symbolic-ref", "--quiet", "--short"]:
+            return verifier.subprocess.CompletedProcess(args, 1, "", "")
+        if args[1:3] == ["merge-base", "HEAD"]:
+            return verifier.subprocess.CompletedProcess(args, 0, "a" * 40 + "\n", "")
+        if args[1:3] == ["diff", "--name-only"]:
+            return verifier.subprocess.CompletedProcess(
+                args,
+                0,
+                ".work/changes/182-first/scope.json\n"
+                ".work/changes/183-second/scope.json\n",
+                "",
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(verifier.subprocess, "run", run)
+
+    assert verifier._verification_branch() is None
+
+
+def test_verification_branch_keeps_invalid_detached_scope_fail_closed(
+    tmp_path, monkeypatch
+) -> None:
+    verifier = _load_repository_verifier()
+    monkeypatch.delenv("GITHUB_HEAD_REF", raising=False)
+    monkeypatch.delenv("GITHUB_REF_NAME", raising=False)
+    monkeypatch.setattr(verifier, "ROOT", tmp_path)
+    scope = tmp_path / ".work" / "changes" / "182-detached" / "scope.json"
+    scope.parent.mkdir(parents=True)
+
+    def run(args, **kwargs):
+        if args[1:4] == ["symbolic-ref", "--quiet", "--short"]:
+            return verifier.subprocess.CompletedProcess(args, 1, "", "")
+        if args[1:3] == ["merge-base", "HEAD"]:
+            return verifier.subprocess.CompletedProcess(args, 0, "a" * 40 + "\n", "")
+        if args[1:3] == ["diff", "--name-only"]:
+            return verifier.subprocess.CompletedProcess(
+                args, 0, ".work/changes/182-detached/scope.json\n", ""
+            )
+        raise AssertionError(args)
+
+    monkeypatch.setattr(verifier.subprocess, "run", run)
+
+    scope.write_text("{not-json", encoding="utf-8")
+    assert verifier._verification_branch() is None
+
+    scope.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "change_id": "182-detached",
+                "status": "active",
+                "branch": "change/182-detached",
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert verifier._verification_branch() is None
+
+    scope.write_text(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "change_id": "182-detached",
+                "status": "active",
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert verifier._verification_branch() is None
+
+
 def test_repository_declares_canonical_line_ending_policy() -> None:
     attributes = (REPOSITORY_ROOT / ".gitattributes").read_text(encoding="utf-8")
     editor = (REPOSITORY_ROOT / ".editorconfig").read_text(encoding="utf-8")
