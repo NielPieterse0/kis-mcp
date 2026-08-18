@@ -1,4 +1,4 @@
-﻿from .contracts import (
+from .contracts import (
     Finding,
     FindingKind,
     FindingSeverity,
