@@ -1,0 +1,29 @@
+{
+  "schema_version": 4,
+  "change_id": "188-exact-target-work-resolution",
+  "status": "active",
+  "branch": "change/188-exact-target-work-resolution",
+  "worktree": ".work/worktrees/188-exact-target-work-resolution",
+  "base": "main",
+  "outcome": "Restore bounded exact-target Work Management issue resolution beyond the default Project inventory window while remaining fail-closed on incomplete scans.",
+  "owned_paths": [
+    "src/kis_mcp/work_management/service.py",
+    "tests/work_management/test_command_service.py",
+    ".work/changes/188-exact-target-work-resolution/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "a6fa2dc27240d7723c9c69f49497b7d8e9bc24f2",
+    "local_tree": "1f2cd093ba75203fc6f7a687f71a0040a17776bb",
+    "upstream_sha": "a6fa2dc27240d7723c9c69f49497b7d8e9bc24f2",
+    "upstream_tree": "1f2cd093ba75203fc6f7a687f71a0040a17776bb",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
