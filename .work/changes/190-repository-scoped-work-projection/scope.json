@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "190-repository-scoped-work-projection",
+  "status": "active",
+  "branch": "change/190-repository-scoped-work-projection",
+  "worktree": ".work/worktrees/190-repository-scoped-work-projection",
+  "base": "main",
+  "outcome": "Restore repository-scoped GitHub Project Work projection so one shared Project cannot resolve or mutate records from the wrong registered repository.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/project_management.py",
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/providers/test_github_project_management.py",
+    ".work/changes/190-repository-scoped-work-projection/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "3624664e5b105e9b8b17880a0e92f02a612ca630",
+    "local_tree": "c2fbc16c6e91da53f460f186320bcc2b5bf96e5d",
+    "upstream_sha": "3624664e5b105e9b8b17880a0e92f02a612ca630",
+    "upstream_tree": "c2fbc16c6e91da53f460f186320bcc2b5bf96e5d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

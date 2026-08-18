@@ -31,7 +31,7 @@ class FakeCaller:
         return response
 
 
-def binding() -> ProjectBinding:
+def binding(repository: str | None = "ExampleOwner/alpha") -> ProjectBinding:
     return ProjectBinding(
         binding_id="github-default",
         managed_project_id="alpha-project",
@@ -39,7 +39,7 @@ def binding() -> ProjectBinding:
         owner="ExampleOwner",
         owner_type=ProjectOwnerType.USER,
         project_number=12,
-        repository="ExampleOwner/alpha",
+        repository=repository,
     )
 
 
@@ -134,11 +134,136 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
                 "owner": "ExampleOwner",
                 "owner_type": "user",
                 "project_number": 12,
-                "per_page": 25,
+                "per_page": 50,
                 "field_names": ["Status"],
             },
         ),
     ]
+
+
+def test_inventory_scopes_shared_project_items_to_binding_repository() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "items": [
+                {
+                    "id": "I_FOREIGN",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Foreign issue",
+                        "number": 17,
+                        "repository": "ExampleOwner/college",
+                    },
+                }
+            ],
+            "pageInfo": page_info(True, "CURSOR_2"),
+        },
+        {
+            "items": [
+                {
+                    "id": "I_LOCAL",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Local issue",
+                        "number": 7,
+                        "repository": "exampleowner/ALPHA",
+                    },
+                }
+            ],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller, page_size=1).read_inventory(binding())
+    )
+
+    assert [item.item_id for item in inventory.items] == ["I_LOCAL"]
+    assert inventory.truncated is False
+    assert [call[1].get("after") for call in caller.calls[-2:]] == [None, "CURSOR_2"]
+
+
+def test_inventory_limit_counts_only_repository_scoped_items() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "items": [
+                {
+                    "id": "I_LOCAL",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Local issue",
+                        "number": 7,
+                        "repository": "ExampleOwner/alpha",
+                    },
+                }
+            ],
+            "pageInfo": page_info(True, "CURSOR_2"),
+        },
+        {
+            "items": [
+                {
+                    "id": "I_FOREIGN",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Foreign issue",
+                        "number": 17,
+                        "repository": "ExampleOwner/college",
+                    },
+                }
+            ],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller, page_size=1).read_inventory(
+            binding(), item_limit=1
+        )
+    )
+
+    assert [item.item_id for item in inventory.items] == ["I_LOCAL"]
+    assert inventory.truncated is False
+    assert len(caller.calls) == 4
+
+
+def test_inventory_without_repository_binding_preserves_shared_visibility() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "items": [
+                {
+                    "id": "I_ALPHA",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "Alpha issue",
+                        "number": 7,
+                        "repository": "ExampleOwner/alpha",
+                    },
+                },
+                {
+                    "id": "I_COLLEGE",
+                    "type": "ISSUE",
+                    "content": {
+                        "title": "College issue",
+                        "number": 17,
+                        "repository": "ExampleOwner/college",
+                    },
+                },
+            ],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller).read_inventory(binding(None))
+    )
+
+    assert [item.item_id for item in inventory.items] == ["I_ALPHA", "I_COLLEGE"]
+    assert inventory.truncated is False
 
 
 def test_inventory_normalizes_live_github_project_rest_shapes() -> None:
@@ -202,15 +327,31 @@ def test_inventory_paginates_and_reports_truncation() -> None:
         {"fields": [], "pageInfo": page_info(False)},
         {
             "items": [
-                {"id": "I_1", "type": "DRAFT", "title": "One"},
-                {"id": "I_2", "type": "DRAFT", "title": "Two"},
+                {
+                    "id": "I_1",
+                    "type": "ISSUE",
+                    "content": {"title": "One", "number": 1, "repository": "ExampleOwner/alpha"},
+                },
+                {
+                    "id": "I_2",
+                    "type": "ISSUE",
+                    "content": {"title": "Two", "number": 2, "repository": "ExampleOwner/alpha"},
+                },
             ],
             "pageInfo": page_info(True, "CURSOR_2"),
         },
         {
             "items": [
-                {"id": "I_3", "type": "DRAFT", "title": "Three"},
-                {"id": "I_4", "type": "DRAFT", "title": "Four"},
+                {
+                    "id": "I_3",
+                    "type": "ISSUE",
+                    "content": {"title": "Three", "number": 3, "repository": "ExampleOwner/alpha"},
+                },
+                {
+                    "id": "I_4",
+                    "type": "ISSUE",
+                    "content": {"title": "Four", "number": 4, "repository": "ExampleOwner/alpha"},
+                },
             ],
             "pageInfo": page_info(True, "CURSOR_3"),
         },
@@ -233,7 +374,7 @@ def test_inventory_paginates_and_reports_truncation() -> None:
             "owner": "ExampleOwner",
             "owner_type": "user",
             "project_number": 12,
-            "per_page": 1,
+            "per_page": 2,
             "after": "CURSOR_2",
         },
     )

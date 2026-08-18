@@ -463,15 +463,13 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
         cursor: str | None = None
         requested_fields = field_names
         fields_reconciled = False
+        repository = binding.repository.casefold() if binding.repository else None
         for _page in range(self._max_pages):
-            remaining = item_limit - len(items)
-            if remaining <= 0:
-                return tuple(items), cursor is not None, cursor
             while True:
                 arguments = {
                     "method": "list_project_items",
                     **self._base_arguments(binding),
-                    "per_page": min(self._page_size, remaining),
+                    "per_page": self._page_size,
                 }
                 if cursor is not None:
                     arguments["after"] = cursor
@@ -497,16 +495,14 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
                 break
             has_next, next_cursor = _page_info(page_source, "list_project_items")
             normalized = [_normalize_item(node, "list_project_items") for node in nodes]
-            if len(normalized) > remaining:
-                if not has_next or next_cursor is None:
-                    raise _invalid(
-                        "list_project_items",
-                        "page exceeded requested limit without a continuation cursor",
-                    )
-                normalized = normalized[:remaining]
-            items.extend(normalized)
-            if len(items) >= item_limit:
-                return tuple(items), has_next, next_cursor if has_next else None
+            for item in normalized:
+                if repository is not None and (
+                    item.repository is None or item.repository.casefold() != repository
+                ):
+                    continue
+                if len(items) >= item_limit:
+                    return tuple(items), True, next_cursor if has_next else None
+                items.append(item)
             if not has_next:
                 return tuple(items), False, None
             cursor = next_cursor
