@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/coordinator/coordinator-state.schema.json",
+  "title": "Coordinator State",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "contract", "project_id", "change_id", "state",
+    "authority_revision", "active_reservation_ids", "degraded_components"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract": {"const": "coordinator-state-v1"},
+    "project_id": {"$ref": "#/$defs/nonEmpty"},
+    "change_id": {"$ref": "#/$defs/nonEmpty"},
+    "state": {
+      "enum": [
+        "planning", "reserved", "executing", "handed_off", "reconciling",
+        "reviewable", "integrating", "delivered", "commissioning", "closed",
+        "degraded", "failed"
+      ]
+    },
+    "authority_revision": {"type": "integer", "minimum": 1},
+    "active_reservation_ids": {"$ref": "#/$defs/uniqueStrings"},
+    "integration_owner": {"type": ["string", "null"], "minLength": 1},
+    "degraded_components": {
+      "type": "object",
+      "propertyNames": {"$ref": "#/$defs/nonEmpty"},
+      "additionalProperties": {"$ref": "#/$defs/degradedComponent"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"state": {"const": "degraded"}}},
+      "then": {"properties": {"degraded_components": {"minProperties": 1}}},
+      "else": {"properties": {"degraded_components": {"maxProperties": 0}}}
+    }
+  ],
+  "$defs": {
+    "nonEmpty": {"type": "string", "minLength": 1},
+    "uniqueStrings": {
+      "type": "array", "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "nonEmptyStrings": {
+      "type": "array", "minItems": 1, "uniqueItems": true,
+      "items": {"$ref": "#/$defs/nonEmpty"}
+    },
+    "reservationCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reservation_id", "intersects_degraded_component", "component_result"],
+      "properties": {
+        "reservation_id": {"$ref": "#/$defs/nonEmpty"},
+        "intersects_degraded_component": {"type": "boolean"},
+        "component_result": {"enum": ["blocked_by_component", "clear_of_component"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"intersects_degraded_component": {"const": true}}},
+          "then": {"properties": {"component_result": {"const": "blocked_by_component"}}},
+          "else": {"properties": {"component_result": {"const": "clear_of_component"}}}
+        }
+      ]
+    },
+    "degradedComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["affected_paths", "reason", "disjoint_admission", "reservation_checks"],
+      "properties": {
+        "affected_paths": {"$ref": "#/$defs/nonEmptyStrings"},
+        "reason": {"$ref": "#/$defs/nonEmpty"},
+        "disjoint_admission": {"const": "allowed"},
+        "reservation_checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/reservationCheck"},
+          "contains": {
+            "type": "object",
+            "required": ["intersects_degraded_component"],
+            "properties": {"intersects_degraded_component": {"const": true}}
+          }
+        }
+      }
+    }
+  }
+}
