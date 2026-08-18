@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "198-kis-history-end-state-audit",
+  "status": "active",
+  "branch": "change/198-kis-history-end-state-audit",
+  "worktree": ".work/worktrees/198-kis-history-end-state-audit",
+  "base": "main",
+  "outcome": "Persist the complete #375 historical, diff, current-state, and live-tool audit as historical engineering evidence without implementing remediation.",
+  "owned_paths": [
+    "docs/development/audits/**",
+    "docs/development/README.md",
+    ".work/changes/198-kis-history-end-state-audit/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "5f5a319b389715ef9b5283e999ef33322ae5ff51",
+    "local_tree": "7ee50be0cdea9dd87c37c0bec467676b780aaaa7",
+    "upstream_sha": "5f5a319b389715ef9b5283e999ef33322ae5ff51",
+    "upstream_tree": "7ee50be0cdea9dd87c37c0bec467676b780aaaa7",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-378",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 378,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress"
+  }
+}
