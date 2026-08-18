@@ -257,6 +257,25 @@ def test_missing_exit_marker_is_incomplete_not_success() -> None:
     assert result.failure_classification == "timeout_or_incomplete"
 
 
+def test_exact_revision_requires_full_lowercase_commit_sha() -> None:
+    runner = _Runner([])
+    service = VerificationExecutionService(
+        inspector=_Inspector([_declaration()]),
+        runner=runner,
+    )
+
+    with pytest.raises(VerificationExecutionError, match="VERIFICATION_SOURCE_REVISION_INVALID"):
+        asyncio.run(
+            service.run(
+                project=r"C:\Projects\fixture",
+                verification_id="python-pytest",
+                timeout_ms=30_000,
+                exact_revision="abc123",
+            )
+        )
+    assert runner.calls == []
+
+
 def test_unsupported_profile_is_rejected_before_runner() -> None:
     runner = _Runner([])
     service = VerificationExecutionService(

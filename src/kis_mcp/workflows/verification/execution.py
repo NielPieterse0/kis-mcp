@@ -78,7 +78,7 @@ class VerificationExecutionService:
         inspection_project = project
         request_id: str | None = None
         if exact_revision is not None:
-            requested_revision = _required(exact_revision, "exact_revision")
+            requested_revision = _exact_revision(exact_revision)
             request_id = _exact_request_identity(project, verification_id, requested_revision)
             try:
                 prepared_source = await self._provider.prepare_exact_source(
@@ -282,6 +282,16 @@ def _exact_request_identity(project: str, verification_id: str, revision: str) -
 def _project_identity(project: str) -> str:
     digest = hashlib.sha256(project.encode("utf-8")).hexdigest()[:20]
     return f"project-{digest}"
+
+
+def _exact_revision(value: str) -> str:
+    revision = _required(value, "exact_revision")
+    if len(revision) != 40 or any(character not in "0123456789abcdef" for character in revision):
+        raise VerificationExecutionError(
+            "VERIFICATION_SOURCE_REVISION_INVALID",
+            "exact_revision must be a full 40-character lowercase Git commit SHA.",
+        )
+    return revision
 
 
 def _required(value: str, label: str) -> str:

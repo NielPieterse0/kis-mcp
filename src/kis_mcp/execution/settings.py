@@ -275,22 +275,35 @@ def _profile(raw: Any, index: int) -> RunnerProfileSettings:
     label = f"profiles[{index}]"
     value = _mapping(raw, label)
     backend = _logical_id(value.get("backend_id"), f"{label}.backend_id")
+    legacy_local_profile = False
     if backend == "local-process":
-        expected = _LOCAL_KEYS
+        actual = {str(key) for key in value}
+        if actual == _BASE_PROFILE_KEYS:
+            legacy_local_profile = True
+        else:
+            _exact_keys(value, _LOCAL_KEYS, label)
+        expected = None
     elif backend == "windows-hyperv":
         expected = _HYPERV_KEYS
     elif backend == "windows-virtualbox":
         expected = _VIRTUALBOX_KEYS
     else:
         expected = _BASE_PROFILE_KEYS
-    _exact_keys(value, expected, label)
+    if expected is not None:
+        _exact_keys(value, expected, label)
     if backend not in {"local-process", "windows-hyperv", "windows-virtualbox"}:
         raise ExecutionSettingsError(f"{label}.backend_id is unsupported")
     enabled = value["enabled"]
     if not isinstance(enabled, bool):
         raise ExecutionSettingsError(f"{label}.enabled must be a boolean")
     local = (
-        _local_settings(value["local"], f"{label}.local")
+        LocalProcessProfileSettings(
+            state_root=r"C:\Projects\.kis-mcp\execution\local",
+            materialize_timeout_ms=60_000,
+            worker_cleanup_grace_ms=10_000,
+        )
+        if backend == "local-process" and legacy_local_profile
+        else _local_settings(value["local"], f"{label}.local")
         if backend == "local-process"
         else None
     )
