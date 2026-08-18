@@ -199,6 +199,21 @@ class GitHubProjectManagementAdapter:
             raise ValueError(f"project binding is not configured: {project_id}") from exc
 
     @staticmethod
+    def _require_repository_binding(
+        binding: ProjectBinding,
+        decision: ReconciliationDecision,
+    ) -> None:
+        if (
+            binding.repository is not None
+            and decision.source_repository is not None
+            and binding.repository.casefold() != decision.source_repository.casefold()
+        ):
+            raise GitHubProjectManagementError(
+                "GITHUB_PROJECT_MANAGEMENT_INVALID_COMMAND: "
+                "source repository does not match project repository binding"
+            )
+
+    @staticmethod
     def _base(binding: ProjectBinding) -> dict[str, Any]:
         return {
             "owner": binding.owner,
@@ -487,10 +502,11 @@ class GitHubProjectManagementAdapter:
     ) -> ReconciliationOutcome:
         if not isinstance(decision, ReconciliationDecision):
             raise ValueError("decision must be ReconciliationDecision")
+        binding = self._binding(decision.project_id)
+        self._require_repository_binding(binding, decision)
         replay = self._idempotency_result(decision, idempotency_key)
         if replay is not None:
             return replay
-        binding = self._binding(decision.project_id)
         if decision.action is ReconciliationAction.CREATE:
             if not self.capabilities.add_item:
                 return self._unsupported(

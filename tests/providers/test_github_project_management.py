@@ -53,6 +53,7 @@ def decision(
     desired_fields: tuple[tuple[str, object], ...] = (("Status", "Active"),),
     external_id: str | None = "I_1",
     observed_revision: str | None = "2026-08-07T00:00:00Z",
+    source_repository: str = "ExampleOwner/alpha",
 ) -> ReconciliationDecision:
     return ReconciliationDecision(
         project_id="alpha-project",
@@ -61,7 +62,7 @@ def decision(
         changed_fields=changed_fields,
         desired_fields=desired_fields,
         external_id=external_id,
-        source_repository="ExampleOwner/alpha",
+        source_repository=source_repository,
         source_number=7,
         source_kind="issue",
         observed_revision=observed_revision,
@@ -94,6 +95,37 @@ def test_missing_read_or_write_tools_disable_only_affected_operations() -> None:
     assert write_only.read_inventory is False
     assert write_only.add_item is False
     assert write_only.update_item is False
+
+
+@pytest.mark.parametrize("action", [ReconciliationAction.CREATE, ReconciliationAction.UPDATE])
+def test_reconciliation_rejects_foreign_source_repository_before_provider_calls(
+    action: ReconciliationAction,
+) -> None:
+    caller = Caller()
+    adapter = GitHubProjectManagementAdapter(
+        caller,
+        {"alpha-project": binding()},
+        available_tools=("projects_get", "projects_list", "projects_write"),
+    )
+
+    with pytest.raises(GitHubProjectManagementError, match="project repository binding"):
+        asyncio.run(
+            adapter.apply_reconciliation(
+                decision(
+                    action,
+                    source_repository="ExampleOwner/college",
+                    external_id=None if action is ReconciliationAction.CREATE else "I_1",
+                    observed_revision=(
+                        None
+                        if action is ReconciliationAction.CREATE
+                        else "2026-08-07T00:00:00Z"
+                    ),
+                ),
+                idempotency_key=f"foreign-{action.value}",
+            )
+        )
+
+    assert caller.calls == []
 
 
 def test_update_preflights_revision_then_updates_changed_fields() -> None:
