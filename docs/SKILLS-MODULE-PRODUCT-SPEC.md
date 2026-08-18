@@ -58,6 +58,20 @@ ChatGPT loads skill instructions and performs the described workflow by calling 
 | `record_skill_outcome` | Record caller-attributed `applied`, `completed`, or `failed` evidence only when it matches a prior observed load for the exact skill/package hash and activation identity. |
 | `skill_telemetry_report` | Return bounded redacted usage/outcome aggregates grouped by skill package hash and project. |
 
+## MCP resource delivery
+
+The same immutable validated catalogue is also exposed as read-only MCP resources; this is a delivery surface, not a second catalogue or lifecycle authority.
+
+| Resource identity | Meaning |
+|---|---|
+| `skill:///` | Deterministic bounded catalogue index containing active skill IDs, canonical entrypoint URIs, active snapshot identity, and entrypoint SHA-256 values. |
+| `skill:///<skill-id>/SKILL.md` | Exact canonical entrypoint bytes represented by the active validated snapshot. |
+| `skill:///<skill-id>/resource?path=<relative-path>` | Exact canonical supporting-resource bytes for a validated relative path, including references, scripts, assets, agents, and other configured package resources. |
+
+Supporting resources remain progressively disclosed: catalogue discovery does not eagerly enumerate their paths or contents. `SKILL.md` has exactly one canonical resource identity and cannot be aliased through the supporting-resource template. Before returning bytes, KIS revalidates the path boundary and verifies size plus SHA-256 against the active snapshot; post-snapshot mutation, traversal, link/reparse escape, unsupported package content, or other integrity drift fails closed.
+
+Resource delivery grants no execution authority. Script files and other executable-looking assets are returned only as data. Existing KIS-native Skills tools, mutation routing through Work middleware, and catalogue authority remain unchanged.
+
 ## Usage telemetry
 
 KIS observes discovery, load, resource discovery/read, refresh, evaluation, creation, and improvement without retaining prompts, skill/file contents, search text, credentials, or arbitrary tool arguments. Package-level SHA-256 from the immutable catalogue is the version identity; resource reads do not create separate file-hash versions.
@@ -74,11 +88,12 @@ The report exposes separate usage/outcome counters and metric sample counts. It 
 skills.config       strict JSON configuration and limits
 skills.frontmatter  conservative SKILL.md metadata parser
 skills.source       path safety, file collection, and source normalization
-skills.catalogue    immutable snapshots and read/query operations
+skills.catalogue    immutable snapshots, read/query operations, and snapshot-verified resource bytes
+skills.resources    read-only FastMCP resource index and progressive resource templates
 skills.backend      narrow Work mutation protocol and FastMCP adapter
 skills.telemetry    bounded redacted live/durable usage and outcome evidence
 skills.service      query/mutation orchestration, telemetry, and optimistic concurrency
-skills.tools        thin public FastMCP registration
+skills.tools        thin public FastMCP tool registration
 skills.models       explicit versioned response contracts
 skills.errors       corrective SKILLS_* structural failures
 ```
