@@ -17,7 +17,12 @@ from .models import (
     SkillRefreshResponse,
     SkillSearchResponse,
 )
-from .telemetry import SkillTelemetryEvent, SkillTelemetryReport, SkillTelemetryStore
+from .telemetry import (
+    SkillDeliveryTelemetryReport,
+    SkillTelemetryEvent,
+    SkillTelemetryReport,
+    SkillTelemetryStore,
+)
 
 
 def _duration_ms(start_ns: int) -> int:
@@ -218,6 +223,7 @@ class SkillsService:
         tool_calls: int | None = None,
         retries: int | None = None,
         verification_passed: bool | None = None,
+        delivery_path: str = "kis_native",
     ) -> SkillTelemetryEvent:
         if self.telemetry is None:
             raise SkillsError(
@@ -231,6 +237,7 @@ class SkillsService:
             snapshot_id=snapshot_id,
             content_sha256=content_sha256,
             project_id=project_id,
+            delivery_path=delivery_path,
         ):
             raise SkillsError(
                 "SKILLS_TELEMETRY_ATTRIBUTION_REQUIRED",
@@ -262,6 +269,7 @@ class SkillsService:
             tool_calls=tool_calls,
             retries=retries,
             verification_passed=verification_passed,
+            delivery_path=delivery_path,
         )
         self.telemetry.record(event)
         return event
@@ -278,6 +286,23 @@ class SkillsService:
                 "SKILLS_TELEMETRY_UNAVAILABLE", "Skill telemetry is not configured"
             )
         return self.telemetry.report(
+            skill_id=skill_id,
+            project_id=project_id,
+            content_sha256=content_sha256,
+        )
+
+    def skill_delivery_telemetry_report(
+        self,
+        *,
+        skill_id: str | None = None,
+        project_id: str | None = None,
+        content_sha256: str | None = None,
+    ) -> SkillDeliveryTelemetryReport:
+        if self.telemetry is None:
+            raise SkillsError(
+                "SKILLS_TELEMETRY_UNAVAILABLE", "Skill telemetry is not configured"
+            )
+        return self.telemetry.delivery_report(
             skill_id=skill_id,
             project_id=project_id,
             content_sha256=content_sha256,

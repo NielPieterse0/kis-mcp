@@ -236,6 +236,43 @@ class SkillCatalogue:
             "SKILLS_FILE_UNKNOWN", "Skill file is not in the active snapshot", subject=path
         )
 
+    def read_skill_resource_bytes(self, skill_id: str, relative_path: str) -> bytes:
+        """Return bytes only when they still match the active validated snapshot."""
+        entry = self._entry(skill_id)
+        path = self.source_reader.safe_relative_path(relative_path).as_posix()
+        item = next((candidate for candidate in entry.files if candidate.path == path), None)
+        if item is None:
+            raise SkillsError(
+                "SKILLS_FILE_UNKNOWN", "Skill file is not in the active snapshot", subject=path
+            )
+        skill_root = self.root / entry.source_directory
+        target = self.source_reader.target_path(entry.source_directory, path)
+        try:
+            self.source_reader.assert_safe_chain(skill_root, target)
+            data = target.read_bytes()
+            self.source_reader.assert_safe_chain(skill_root, target)
+        except SkillsError as exc:
+            if exc.code in {"SKILLS_LINK_REJECTED", "SKILLS_PATH_UNSAFE"}:
+                raise
+            raise SkillsError(
+                "SKILLS_RESOURCE_STALE",
+                "Skill resource no longer matches the active snapshot",
+                subject=path,
+            ) from exc
+        except OSError as exc:
+            raise SkillsError(
+                "SKILLS_RESOURCE_STALE",
+                "Skill resource no longer matches the active snapshot",
+                subject=path,
+            ) from exc
+        if len(data) != item.size or hashlib.sha256(data).hexdigest() != item.sha256:
+            raise SkillsError(
+                "SKILLS_RESOURCE_STALE",
+                "Skill resource no longer matches the active snapshot",
+                subject=path,
+            )
+        return data
+
     def evaluate_skill(self, skill_id: str) -> SkillEvaluationResponse:
         entry = self._entry(skill_id)
         return SkillEvaluationResponse(

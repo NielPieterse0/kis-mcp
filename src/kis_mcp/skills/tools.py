@@ -20,7 +20,12 @@ from .models import (
     SkillSearchResponse,
 )
 from .service import SkillsService
-from .telemetry import SkillTelemetryEvent, SkillTelemetryReport, SkillTelemetryStore
+from .telemetry import (
+    SkillDeliveryTelemetryReport,
+    SkillTelemetryEvent,
+    SkillTelemetryReport,
+    SkillTelemetryStore,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -37,6 +42,7 @@ SKILLS_TOOL_NAMES = (
     "improve_skill",
     "record_skill_outcome",
     "skill_telemetry_report",
+    "skill_delivery_telemetry_report",
 )
 
 
@@ -116,6 +122,10 @@ class _UnavailableSkillsService:
         self._raise()
 
     def skill_telemetry_report(self, **kwargs) -> SkillTelemetryReport:
+        del kwargs
+        self._raise()
+
+    def skill_delivery_telemetry_report(self, **kwargs) -> SkillDeliveryTelemetryReport:
         del kwargs
         self._raise()
 
@@ -307,6 +317,7 @@ def register_skills_tools(
         tool_calls: int | None = None,
         retries: int | None = None,
         verification_passed: bool | None = None,
+        delivery_path: str = "kis_native",
     ) -> SkillTelemetryEvent:
         try:
             return active.record_skill_outcome(
@@ -321,6 +332,7 @@ def register_skills_tools(
                 tool_calls=tool_calls,
                 retries=retries,
                 verification_passed=verification_passed,
+                delivery_path=delivery_path,
             )
         except SkillsError as exc:
             raise ToolError(str(exc)) from exc
@@ -336,6 +348,27 @@ def register_skills_tools(
     ) -> SkillTelemetryReport:
         try:
             return active.skill_telemetry_report(
+                skill_id=skill_id,
+                project_id=project_id,
+                content_sha256=content_sha256,
+            )
+        except SkillsError as exc:
+            raise ToolError(str(exc)) from exc
+
+    @server.tool(
+        name="skill_delivery_telemetry_report",
+        description=(
+            "Compare bounded skill usage/outcome evidence by kis_native versus "
+            "mcp_resource delivery for the same canonical content hash."
+        ),
+    )
+    def skill_delivery_telemetry_report(
+        skill_id: str | None = None,
+        project_id: str | None = None,
+        content_sha256: str | None = None,
+    ) -> SkillDeliveryTelemetryReport:
+        try:
+            return active.skill_delivery_telemetry_report(
                 skill_id=skill_id,
                 project_id=project_id,
                 content_sha256=content_sha256,

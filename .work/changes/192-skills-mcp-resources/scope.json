@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "192-skills-mcp-resources",
+  "status": "active",
+  "branch": "change/192-skills-mcp-resources",
+  "worktree": ".work/worktrees/192-skills-mcp-resources",
+  "base": "main",
+  "outcome": "Restore canonical Skills as MCP Resources with delivery attribution while remaining compatible with FastMCP 3.x and normative MCP 2025-11-25.",
+  "owned_paths": [
+    "docs/SKILLS-MODULE-PRODUCT-SPEC.md",
+    "src/kis_mcp/skills/catalogue.py",
+    "src/kis_mcp/skills/delivery_telemetry.py",
+    "src/kis_mcp/skills/platform.py",
+    "src/kis_mcp/skills/resources.py",
+    "src/kis_mcp/skills/service.py",
+    "src/kis_mcp/skills/telemetry.py",
+    "src/kis_mcp/skills/tools.py",
+    "tests/skills/test_architecture.py",
+    "tests/skills/test_delivery_telemetry.py",
+    "tests/skills/test_resources.py",
+    "tests/skills/test_service_telemetry.py",
+    "tests/skills/test_telemetry.py",
+    "tests/skills/test_tools.py",
+    ".work/changes/192-skills-mcp-resources/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "a226574d38708fbc5ef37e9fdb8c430d62f9762a",
+    "local_tree": "8a26aa8508df24a1586922674c588731174e3ade",
+    "upstream_sha": "a226574d38708fbc5ef37e9fdb8c430d62f9762a",
+    "upstream_tree": "8a26aa8508df24a1586922674c588731174e3ade",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

@@ -14,6 +14,7 @@ _EVENT_NAMES = frozenset(
         "skill_loaded",
         "skill_resource_discovered",
         "skill_resource_read",
+        "skill_catalogue_exposed",
         "skill_catalogue_refreshed",
         "skill_evaluated",
         "skill_created",
@@ -24,6 +25,10 @@ _EVENT_NAMES = frozenset(
     }
 )
 _REPORTED_EVENTS = frozenset({"skill_applied", "skill_completed", "skill_failed"})
+_DELIVERY_PATHS = frozenset({"kis_native", "mcp_resource"})
+_RESOURCE_CLASSES = frozenset(
+    {"catalogue", "SKILL.md", "reference", "script", "asset", "agent", "other"}
+)
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
 _ERROR_CLASS = re.compile(r"^[A-Za-z0-9_.]{1,128}$")
@@ -50,6 +55,11 @@ class SkillTelemetryEvent:
     tool_calls: int | None = None
     retries: int | None = None
     verification_passed: bool | None = None
+    delivery_path: str = "kis_native"
+    resource_uri: str | None = None
+    resource_class: str | None = None
+    server_origin: str | None = None
+    digest_verified: bool | None = None
     occurred_at: str | None = None
 
 
@@ -87,6 +97,41 @@ class SkillTelemetryReport:
     schema_version: int = 1
 
 
+@dataclass(frozen=True, slots=True)
+class SkillDeliveryTelemetryGroup:
+    skill_id: str
+    content_sha256: str
+    project_id: str | None
+    delivery_path: str
+    loaded_count: int
+    resource_read_count: int
+    applied_count: int
+    completed_count: int
+    failed_count: int
+    error_count: int
+    digest_verified_count: int
+    digest_failed_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class SkillDeliveryComparison:
+    skill_id: str
+    content_sha256: str
+    project_id: str | None
+    comparable: bool
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class SkillDeliveryTelemetryReport:
+    groups: tuple[SkillDeliveryTelemetryGroup, ...]
+    comparisons: tuple[SkillDeliveryComparison, ...]
+    event_count: int
+    catalogue_exposure_count: int
+    truncated: bool
+    schema_version: int = 1
+
+
 def _optional_id(value: str | None, label: str) -> str | None:
     if value is None:
         return None
@@ -102,6 +147,15 @@ def _optional_metric(value: int | None, label: str) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{label} must be a non-negative integer")
     return value
+
+
+def _optional_text(value: str | None, label: str, *, max_length: int) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized or len(normalized) > max_length or any(ord(ch) < 32 for ch in normalized):
+        raise ValueError(f"{label} is invalid")
+    return normalized
 
 
 def _normalize_event(event: SkillTelemetryEvent) -> SkillTelemetryEvent:
@@ -124,6 +178,17 @@ def _normalize_event(event: SkillTelemetryEvent) -> SkillTelemetryEvent:
         raise ValueError("error_class is invalid")
     if not event.outcome or len(event.outcome) > 32:
         raise ValueError("outcome is invalid")
+    if event.delivery_path not in _DELIVERY_PATHS:
+        raise ValueError("delivery_path is invalid")
+    resource_uri = _optional_text(event.resource_uri, "resource_uri", max_length=2048)
+    resource_class = event.resource_class
+    if resource_class is not None and resource_class not in _RESOURCE_CLASSES:
+        raise ValueError("resource_class is invalid")
+    server_origin = _optional_text(event.server_origin, "server_origin", max_length=256)
+    if event.delivery_path == "kis_native" and any(
+        value is not None for value in (resource_uri, resource_class, server_origin, event.digest_verified)
+    ):
+        raise ValueError("MCP resource attribution requires mcp_resource delivery_path")
     return SkillTelemetryEvent(
         event_name=event.event_name,
         source=event.source,
@@ -140,6 +205,11 @@ def _normalize_event(event: SkillTelemetryEvent) -> SkillTelemetryEvent:
         tool_calls=_optional_metric(event.tool_calls, "tool_calls"),
         retries=_optional_metric(event.retries, "retries"),
         verification_passed=event.verification_passed,
+        delivery_path=event.delivery_path,
+        resource_uri=resource_uri,
+        resource_class=resource_class,
+        server_origin=server_origin,
+        digest_verified=event.digest_verified,
         occurred_at=event.occurred_at or _timestamp(),
     )
 
@@ -189,10 +259,27 @@ class SkillTelemetryStore:
                     total_tokens INTEGER,
                     tool_calls INTEGER,
                     retries INTEGER,
-                    verification_passed INTEGER
+                    verification_passed INTEGER,
+                    delivery_path TEXT NOT NULL DEFAULT 'kis_native',
+                    resource_uri TEXT,
+                    resource_class TEXT,
+                    server_origin TEXT,
+                    digest_verified INTEGER
                 )
                 """
             )
+            existing_columns = {
+                row[1] for row in connection.execute("PRAGMA table_info(skill_events)")
+            }
+            for name, declaration in (
+                ("delivery_path", "TEXT NOT NULL DEFAULT 'kis_native'"),
+                ("resource_uri", "TEXT"),
+                ("resource_class", "TEXT"),
+                ("server_origin", "TEXT"),
+                ("digest_verified", "INTEGER"),
+            ):
+                if name not in existing_columns:
+                    connection.execute(f"ALTER TABLE skill_events ADD COLUMN {name} {declaration}")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_skill_events_identity "
                 "ON skill_events(skill_id, content_sha256, project_id)"
@@ -211,8 +298,9 @@ class SkillTelemetryStore:
                     occurred_at, event_name, source, skill_id, snapshot_id,
                     content_sha256, project_id, activation_id, request_id,
                     outcome, duration_ms, error_class, total_tokens, tool_calls,
-                    retries, verification_passed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    retries, verification_passed, delivery_path, resource_uri,
+                    resource_class, server_origin, digest_verified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     selected.occurred_at,
@@ -231,6 +319,11 @@ class SkillTelemetryStore:
                     selected.tool_calls,
                     selected.retries,
                     None if selected.verification_passed is None else int(selected.verification_passed),
+                    selected.delivery_path,
+                    selected.resource_uri,
+                    selected.resource_class,
+                    selected.server_origin,
+                    None if selected.digest_verified is None else int(selected.digest_verified),
                 ),
             )
             connection.execute(
@@ -266,6 +359,7 @@ class SkillTelemetryStore:
         snapshot_id: str,
         content_sha256: str,
         project_id: str | None,
+        delivery_path: str = "kis_native",
     ) -> bool:
         values = (
             _optional_id(skill_id, "skill_id"),
@@ -274,9 +368,12 @@ class SkillTelemetryStore:
             content_sha256,
             _optional_id(project_id, "project_id"),
             _optional_id(project_id, "project_id"),
+            delivery_path,
         )
         if _SHA256.fullmatch(content_sha256) is None:
             raise ValueError("content_sha256 must be a lowercase SHA-256 value")
+        if delivery_path not in _DELIVERY_PATHS:
+            raise ValueError("delivery_path is invalid")
         with self._connect() as connection:
             row = connection.execute(
                 """
@@ -285,6 +382,7 @@ class SkillTelemetryStore:
                   AND skill_id = ? AND activation_id = ? AND snapshot_id = ?
                   AND content_sha256 = ?
                   AND ((project_id = ?) OR (project_id IS NULL AND ? IS NULL))
+                  AND delivery_path = ?
                 LIMIT 1
                 """,
                 values,
@@ -363,6 +461,70 @@ class SkillTelemetryStore:
             truncated=truncated,
         )
 
+    def delivery_report(
+        self,
+        *,
+        skill_id: str | None = None,
+        project_id: str | None = None,
+        content_sha256: str | None = None,
+    ) -> SkillDeliveryTelemetryReport:
+        where, values = self._filters(
+            skill_id=skill_id,
+            project_id=project_id,
+            content_sha256=content_sha256,
+        )
+        connector = " AND " if where else " WHERE "
+        meaningful_where = f"{where}{connector}skill_id IS NOT NULL AND content_sha256 IS NOT NULL"
+        with self._connect() as connection:
+            event_count = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM skill_events{meaningful_where}", values
+                ).fetchone()[0]
+            )
+            catalogue_exposure_count = 0
+            if not values:
+                catalogue_exposure_count = int(
+                    connection.execute(
+                        "SELECT COUNT(*) FROM skill_events "
+                        "WHERE event_name = 'skill_catalogue_exposed' "
+                        "AND delivery_path = 'mcp_resource'"
+                    ).fetchone()[0]
+                )
+            rows = connection.execute(
+                f"""
+                SELECT skill_id, content_sha256, project_id, delivery_path,
+                  SUM(event_name = 'skill_loaded' AND outcome = 'success'),
+                  SUM(event_name = 'skill_resource_read' AND outcome = 'success'),
+                  SUM(event_name = 'skill_applied' AND outcome = 'success'),
+                  SUM(event_name = 'skill_completed' AND outcome = 'success'),
+                  SUM(event_name = 'skill_failed'),
+                  SUM(outcome != 'success'),
+                  SUM(digest_verified = 1), SUM(digest_verified = 0)
+                FROM skill_events{meaningful_where}
+                GROUP BY skill_id, content_sha256, project_id, delivery_path
+                ORDER BY skill_id, content_sha256, project_id, delivery_path
+                LIMIT ?
+                """,
+                (*values, self.max_report_rows + 1),
+            ).fetchall()
+        truncated = len(rows) > self.max_report_rows
+        selected_rows = list(rows[: self.max_report_rows])
+        if truncated and selected_rows:
+            boundary_identity = tuple(selected_rows[-1][:3])
+            next_identity = tuple(rows[self.max_report_rows][:3])
+            if boundary_identity == next_identity:
+                selected_rows = [
+                    row for row in selected_rows if tuple(row[:3]) != boundary_identity
+                ]
+        groups = tuple(self._delivery_group(row) for row in selected_rows)
+        return SkillDeliveryTelemetryReport(
+            groups=groups,
+            comparisons=self._comparisons(groups),
+            event_count=event_count,
+            catalogue_exposure_count=catalogue_exposure_count,
+            truncated=truncated,
+        )
+
     @staticmethod
     def _group(row: tuple[object, ...]) -> SkillTelemetryGroup:
         return SkillTelemetryGroup(
@@ -390,8 +552,67 @@ class SkillTelemetryStore:
             verification_passes=int(row[21]) if row[21] is not None else None,
         )
 
+    @staticmethod
+    def _delivery_group(row: tuple[object, ...]) -> SkillDeliveryTelemetryGroup:
+        return SkillDeliveryTelemetryGroup(
+            skill_id=str(row[0]),
+            content_sha256=str(row[1]),
+            project_id=row[2] if isinstance(row[2], str) else None,
+            delivery_path=str(row[3]),
+            loaded_count=int(row[4] or 0),
+            resource_read_count=int(row[5] or 0),
+            applied_count=int(row[6] or 0),
+            completed_count=int(row[7] or 0),
+            failed_count=int(row[8] or 0),
+            error_count=int(row[9] or 0),
+            digest_verified_count=int(row[10] or 0),
+            digest_failed_count=int(row[11] or 0),
+        )
+
+    @staticmethod
+    def _comparisons(
+        groups: tuple[SkillDeliveryTelemetryGroup, ...],
+    ) -> tuple[SkillDeliveryComparison, ...]:
+        by_identity: dict[tuple[str, str, str | None], dict[str, SkillDeliveryTelemetryGroup]] = {}
+        for group in groups:
+            key = (group.skill_id, group.content_sha256, group.project_id)
+            by_identity.setdefault(key, {})[group.delivery_path] = group
+        comparisons: list[SkillDeliveryComparison] = []
+        for (skill_id, content_sha256, project_id), paths in sorted(
+            by_identity.items(), key=lambda item: tuple(value or "" for value in item[0])
+        ):
+            native = paths.get("kis_native")
+            mcp = paths.get("mcp_resource")
+            if native is None:
+                comparable, reason = False, "missing_kis_native"
+            elif mcp is None:
+                comparable, reason = False, "missing_mcp_resource"
+            elif native.loaded_count < 1:
+                comparable, reason = False, "missing_kis_native_load"
+            elif mcp.loaded_count < 1:
+                comparable, reason = False, "missing_mcp_resource_load"
+            elif mcp.digest_failed_count:
+                comparable, reason = False, "digest_verification_failed"
+            elif mcp.digest_verified_count < 1:
+                comparable, reason = False, "digest_unverified"
+            else:
+                comparable, reason = True, "matched_content_sha256"
+            comparisons.append(
+                SkillDeliveryComparison(
+                    skill_id=skill_id,
+                    content_sha256=content_sha256,
+                    project_id=project_id,
+                    comparable=comparable,
+                    reason=reason,
+                )
+            )
+        return tuple(comparisons)
+
 
 __all__ = [
+    "SkillDeliveryComparison",
+    "SkillDeliveryTelemetryGroup",
+    "SkillDeliveryTelemetryReport",
     "SkillTelemetryEvent",
     "SkillTelemetryGroup",
     "SkillTelemetryReport",
