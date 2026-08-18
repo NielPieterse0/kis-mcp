@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "199-housekeeping-operationalization",
+  "status": "active",
+  "branch": "change/199-housekeeping-operationalization",
+  "worktree": ".work/worktrees/199-housekeeping-operationalization",
+  "base": "main",
+  "outcome": "Operationalize Change 194 housekeeping on the authenticated kis-op runtime with unattended preview cadence, durable receipts/failures/freshness, and explicit supervised apply idempotency.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping_runtime/**",
+    "tests/housekeeping_runtime/**",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/gateway/foundation.py",
+    "src/kis_mcp/gateway/operations.py",
+    "settings/housekeeping.settings.json",
+    "SPEC.md",
+    "docs/operations/work-discover.md",
+    ".work/changes/199-housekeeping-operationalization/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "deployment",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "7a324079dcfa57f61dca93548ec6cfffbb1293d8",
+    "local_tree": "d09bbe11bd4879ed0c9f7bdb8d176624e1809fc9",
+    "upstream_sha": "7a324079dcfa57f61dca93548ec6cfffbb1293d8",
+    "upstream_tree": "d09bbe11bd4879ed0c9f7bdb8d176624e1809fc9",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}

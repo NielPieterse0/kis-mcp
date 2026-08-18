@@ -22,6 +22,8 @@ from ..discover.platform import (
     discover_capability_contributions,
     register_platform_discover,
 )
+from ..housekeeping_runtime.capability import housekeeping_capability_contribution
+from ..housekeeping_runtime.platform import compose_housekeeping_runtime
 from ..line_endings import RepositoryLineEndingNormalizer
 from ..middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
@@ -130,6 +132,11 @@ def compose_gateway(
         agent_settings,
         providers.service,
     )
+    compose_housekeeping_runtime(
+        server,
+        runtime,
+        environment=os.environ,
+    )
 
     resolver = DesktopCommanderEffectResolver(
         project_boundary=runtime.project_boundary,
@@ -165,6 +172,7 @@ def compose_gateway(
         *tool_capability_contributions(build_platform_tool_registry()),
         *discover_capability_contributions(),
         project_capability_contribution(),
+        housekeeping_capability_contribution(),
         capability_control_contribution(),
     )
     def current_skill_contributions():

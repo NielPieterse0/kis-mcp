@@ -20,6 +20,7 @@ _SERVER_STARTED_AT = datetime.now(UTC).isoformat()
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _RUNTIME_GENERATION_FILES = (
     "settings/kis-mcp.settings.json",
+    "settings/housekeeping.settings.json",
     "settings/projects.settings.json",
     "settings/capabilities.settings.json",
     "settings/work-management/command-plane.settings.json",
