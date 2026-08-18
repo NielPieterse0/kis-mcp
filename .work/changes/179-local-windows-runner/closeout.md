@@ -45,7 +45,9 @@ Required review types from the large-change risk profile are code quality, safet
 - Initial code-quality review found a real stale-owner PID reuse risk; fixed by replacing PID-only ownership with a per-process random owner token and regression coverage.
 - Safety/security reviews found no evidence-backed vulnerability after the fix.
 - Architecture/API reviews raised compatibility concerns around new evidence/settings fields; new execution evidence remains additive/optional, legacy schema-v1 local profiles retain defaults, and exact SHA strictness is intentional and documented.
-- Several whole-range NVIDIA reviews failed with provider 503/timeouts and the Codex CLI fallback failed in its current quota/process state. Those failures are not counted as review approval; final exact-diff manual fallback plus successful commit-level specialist coverage is required before publication.
+- Several whole-range NVIDIA reviews failed with provider 503/timeouts and the Codex CLI fallback failed in its current quota/process state. Those failures are not counted as review approval.
+- Final manual exact-diff fallback covered base `8cc759d4766c22ca522b1834d8ec0b92954d6bca` through candidate `abce3cd77a5535058052049b8081595444ec382d` across code, contracts, tests, documentation, and commissioning evidence. No additional blocking code-quality, safety/security, architecture, or API-contract finding remained; the final `abce3cd` delta is commissioning/evidence-only.
+- The six retained commissioning receipts were independently re-hashed from disk after review and all matched their recorded SHA-256 values; run/workspace namespaces remain unique and `github_actions_calls` remains `0`.
 
 ## Recovery and residual state
 

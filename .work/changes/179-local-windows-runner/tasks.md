@@ -14,6 +14,6 @@
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
 - [x] Run canonical `pwsh -File scripts/verify.ps1` locally without GitHub Actions.
 - [x] Commission two concurrent runs and one registered non-KIS repository.
-- [ ] Run final required specialist/manual fallback reviews and resolve blocking findings.
+- [x] Run final required specialist/manual fallback reviews and resolve blocking findings.
 - [ ] Publish/reconcile PR, verify exact PR head locally, and retain receipt reference.
 - [ ] Merge exact approved head, refresh registered default branch, close issue evidence, and safely clean worktree.
