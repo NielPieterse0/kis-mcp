@@ -12,6 +12,23 @@ The operator, ChatGPT session, FastMCP gateway, Desktop Commander process, and r
 
 The trust assumption permits ordinary development tools to remain ordinary. It does not permit the three prohibited outcomes below.
 
+## Registered mutation approval authority
+
+`approval_required` is capability metadata, not a fourth hard rule and not evidence of a universal approval service. For the current directly supervised system, registered virtual GitHub and acquisition mutations use a required schema-bound `approved=true` value as **operator/caller self-attestation**. The generic dispatcher verifies that this shortcut is available only to explicitly registered virtual families; it does not independently resolve a user identity, Work record, assignment key, or separate approval receipt.
+
+That contract is intentional for supervised direct calls. Operation-specific invariants still provide the actual mutation safety boundary: registered project/repository targets, exact expected refs or immutable recipe identities, bounded schemas, and post-mutation verification. Higher-level workflows may add independent authority evidence before they submit the same schema-bound approval.
+
+| Approval-required family | Direct-call approval source | Additional mechanical authority | Classification |
+| --- | --- | --- | --- |
+| Registered GitHub exact mutations: publish/reconcile commit, create PR, configure repository, commission Project schema, merge PR, refresh default tracking ref, delete branch | Required `approved=true` self-attestation on the registered virtual schema | Registered target plus exact branch/SHA/default-ref invariants; mutation-specific verification | Intentionally supervised/self-attested |
+| Registered acquisition | Required `approved=true` self-attestation on the registered virtual schema | Registered project/profile, immutable recipe hash, bounded authorized parameters | Intentionally supervised/self-attested |
+| Merge queue enqueue and land | Required `approved=true` self-attestation | Fresh Work Management record/trace are independently recomputed into exact-head merge-readiness governance receipts; landing also revalidates queue generation, base, members, and successful exact candidate checks | Mechanically gated beyond self-attestation |
+| Merge queue reconcile and dequeue | Required `approved=true` self-attestation | Registered queue identity plus live base/head/generation invariants; no separate Work approval record is required for these maintenance transitions | Intentionally supervised/self-attested with exact-state fencing |
+| Housekeeping apply receipt | Generic schema-bound approval is not accepted; the operation uses its original runtime workflow | Apply is restricted to `kis-op`, requires a fresh complete conflict-free persisted preview, recomputes the plan unchanged, and derives stable idempotency before mutation | Mechanically gated by preview receipt/workflow |
+| Other `approval_required` non-virtual operations | Generic dispatcher rejects them | Their original tool/workflow must enforce its own authority contract | Mechanically delegated to original workflow |
+
+The Work Management execution/assignment authority described by coordinator programme issue #241 is a different boundary: it governs who owns and may mutate repository work packets. It must not be duplicated or retroactively treated as the approval source for supervised registered provider mutations. If that coordinator later routes these mutations on behalf of autonomous workers, its assignment/fencing evidence must be checked at that workflow boundary before the registered mutation call.
+
 ## Enforcement boundary
 
 FastMCP is the policy boundary in front of Desktop Commander.

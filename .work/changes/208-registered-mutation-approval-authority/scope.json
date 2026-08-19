@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "208-registered-mutation-approval-authority",
+  "status": "active",
+  "branch": "change/208-registered-mutation-approval-authority",
+  "worktree": ".work/worktrees/208-registered-mutation-approval-authority",
+  "base": "main",
+  "outcome": "Prove and document the authoritative approval boundary for registered approval-required mutations, add reproducible direct/workflow tests, and identify any bounded remediation without importing private-repository Actions requirements.",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/**",
+    "src/kis_mcp/workflows/**",
+    "tests/capabilities/**",
+    "tests/workflows/**",
+    "docs/TRUST-MODEL.md",
+    "docs/OPERATIONS.md",
+    ".work/changes/208-registered-mutation-approval-authority/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "README.md",
+    ".gitignore"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "8d2321f61dd4e76310c8adf7b45891fd797bb5fc",
+    "local_tree": "966fe2fde96e92b203618091ed413230ecd0395e",
+    "upstream_sha": "8d2321f61dd4e76310c8adf7b45891fd797bb5fc",
+    "upstream_tree": "966fe2fde96e92b203618091ed413230ecd0395e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-290",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 290,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}
