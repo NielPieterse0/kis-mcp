@@ -26,6 +26,8 @@ class FastMCPInvoker:
         structured = getattr(result, "structured_content", None)
         if isinstance(structured, dict):
             return dict(structured)
+        if structured is not None:
+            raise RuntimeError(f"{operation} returned invalid structured content")
         content = tuple(getattr(result, "content", ()))
         if len(content) == 1:
             text = getattr(content[0], "text", None)

@@ -155,3 +155,20 @@ def test_text_only_tool_result_fails_closed_when_content_is_ambiguous() -> None:
                 "github_issue_read", {"method": "get", "issue_number": 251}
             )
         )
+
+
+def test_text_fallback_rejects_malformed_present_structured_content() -> None:
+    class Server:
+        async def call_tool(self, _name, _arguments, **_kwargs):
+            return SimpleNamespace(
+                is_error=False,
+                content=(SimpleNamespace(text='{"state":"closed"}'),),
+                structured_content=["malformed"],
+            )
+
+    with pytest.raises(RuntimeError, match="invalid structured content"):
+        asyncio.run(
+            FastMCPInvoker(Server()).external(
+                "github_issue_read", {"method": "get", "issue_number": 251}
+            )
+        )
