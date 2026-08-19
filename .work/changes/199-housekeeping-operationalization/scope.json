@@ -9,6 +9,7 @@
   "owned_paths": [
     "src/kis_mcp/housekeeping_runtime/**",
     "tests/housekeeping_runtime/**",
+    "tests/discover/test_tool_registration.py",
     "src/kis_mcp/gateway/composition.py",
     "src/kis_mcp/gateway/foundation.py",
     "src/kis_mcp/gateway/operations.py",

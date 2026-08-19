@@ -14,11 +14,14 @@
 - Ruff passed for all new runtime/test code and affected gateway modules.
 - `git diff --check` passed.
 - `scripts/change-workflow.ps1 check` passed with all changed paths inside Change 199 scope.
+- Exact-head Actions run `32232849625` exposed one stale Discover registration expectation for the three new housekeeping tools; the test was brought into Change 199 scope and corrected.
+- Post-fix focused regression plus housekeeping-runtime tests passed (33 tests), followed by Ruff, `git diff --check`, and scope/governance checks.
 
 ## Review
 
 - Preliminary exact-working-tree reviews found and resolved target/mode receipt validation, persisted cadence restart behavior, independent freshness-policy configuration, and deduplicated-receipt metadata issues.
-- Final required `code-quality`, `architecture`, and `api-contracts` review evidence is intentionally performed after this repository artifact is frozen so its exact source fingerprint is not invalidated by closeout edits.
+- A first final full-range `code-quality`, `architecture`, and `api-contracts` review set was clean at `48e40b949e04688783e32bf59269f75e137c500b`, then invalidated by the CI-driven test/scope correction.
+- Required full-range specialist reviews must therefore be rerun on the post-fix frozen candidate before republication.
 
 ## Git and merge
 
