@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "change_id": "204-closing-keyword-commissioning",
+  "status": "active",
+  "branch": "change/204-closing-keyword-commissioning",
+  "worktree": ".work/worktrees/204-closing-keyword-commissioning",
+  "base": "main",
+  "outcome": "Commission the landed GitHub issue-closing guard with one fresh governed merge and prove the source issue remains open after landing.",
+  "owned_paths": [
+    ".work/changes/204-closing-keyword-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "ceaa20343560464beb020ff7676332599a0c7566",
+    "local_tree": "6a196ba8b61d7f52a307a839a92ffac3c8a8f13d",
+    "upstream_sha": "ceaa20343560464beb020ff7676332599a0c7566",
+    "upstream_tree": "6a196ba8b61d7f52a307a839a92ffac3c8a8f13d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
