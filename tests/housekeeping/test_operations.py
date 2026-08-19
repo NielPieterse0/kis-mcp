@@ -12,6 +12,13 @@ def _result(payload: dict) -> SimpleNamespace:
     return SimpleNamespace(is_error=False, content=(), structured_content=payload)
 
 
+def _text_result(text: str, *, extra_content: bool = False) -> SimpleNamespace:
+    content = [SimpleNamespace(text=text)]
+    if extra_content:
+        content.append(SimpleNamespace(text="second"))
+    return SimpleNamespace(is_error=False, content=tuple(content), structured_content=None)
+
+
 def _budget_envelope(operation: str) -> dict:
     return {
         "truncated": True,
@@ -108,3 +115,43 @@ def test_read_does_not_replay_domain_payload_with_budget_reason_only() -> None:
 
     assert payload == domain_payload
     assert calls == ["execute_read_action"]
+
+
+def test_external_accepts_single_text_only_tool_result_without_replay() -> None:
+    calls: list[tuple[str, dict]] = []
+
+    class Server:
+        async def call_tool(self, name, arguments, **kwargs):
+            calls.append((name, arguments))
+            assert kwargs == {}
+            return _text_result('{"state":"closed"}')
+
+    payload = asyncio.run(
+        FastMCPInvoker(Server()).external(
+            "github_issue_read", {"method": "get", "issue_number": 251}
+        )
+    )
+
+    assert payload == {"text": '{"state":"closed"}'}
+    assert calls == [
+        (
+            "execute_external_action",
+            {
+                "operation": "github_issue_read",
+                "arguments": {"method": "get", "issue_number": 251},
+            },
+        )
+    ]
+
+
+def test_text_only_tool_result_fails_closed_when_content_is_ambiguous() -> None:
+    class Server:
+        async def call_tool(self, _name, _arguments, **_kwargs):
+            return _text_result('{"state":"closed"}', extra_content=True)
+
+    with pytest.raises(RuntimeError, match="no structured content"):
+        asyncio.run(
+            FastMCPInvoker(Server()).external(
+                "github_issue_read", {"method": "get", "issue_number": 251}
+            )
+        )

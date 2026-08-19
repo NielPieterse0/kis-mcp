@@ -24,9 +24,14 @@ class FastMCPInvoker:
             )
             raise RuntimeError(f"{operation} failed: {detail}")
         structured = getattr(result, "structured_content", None)
-        if not isinstance(structured, dict):
-            raise RuntimeError(f"{operation} returned no structured content")
-        return dict(structured)
+        if isinstance(structured, dict):
+            return dict(structured)
+        content = tuple(getattr(result, "content", ()))
+        if len(content) == 1:
+            text = getattr(content[0], "text", None)
+            if isinstance(text, str):
+                return {"text": text}
+        raise RuntimeError(f"{operation} returned no structured content")
 
     @staticmethod
     def _is_result_budget_envelope(payload: Mapping[str, Any]) -> bool:
