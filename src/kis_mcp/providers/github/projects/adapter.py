@@ -473,6 +473,8 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
                 }
                 if cursor is not None:
                     arguments["after"] = cursor
+                if binding.repository is not None:
+                    arguments["query"] = f"repo:{binding.repository}"
                 if requested_fields:
                     arguments["field_names"] = list(requested_fields)
                 document = await self._call(

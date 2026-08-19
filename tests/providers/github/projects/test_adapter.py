@@ -135,6 +135,7 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
                 "owner_type": "user",
                 "project_number": 12,
                 "per_page": 50,
+                "query": "repo:ExampleOwner/alpha",
                 "field_names": ["Status"],
             },
         ),
@@ -182,6 +183,10 @@ def test_inventory_scopes_shared_project_items_to_binding_repository() -> None:
     assert [item.item_id for item in inventory.items] == ["I_LOCAL"]
     assert inventory.truncated is False
     assert [call[1].get("after") for call in caller.calls[-2:]] == [None, "CURSOR_2"]
+    assert [call[1].get("query") for call in caller.calls[-2:]] == [
+        "repo:ExampleOwner/alpha",
+        "repo:ExampleOwner/alpha",
+    ]
 
 
 def test_inventory_limit_counts_only_repository_scoped_items() -> None:
@@ -264,6 +269,7 @@ def test_inventory_without_repository_binding_preserves_shared_visibility() -> N
 
     assert [item.item_id for item in inventory.items] == ["I_ALPHA", "I_COLLEGE"]
     assert inventory.truncated is False
+    assert "query" not in caller.calls[-1][1]
 
 
 def test_inventory_normalizes_live_github_project_rest_shapes() -> None:
@@ -376,6 +382,7 @@ def test_inventory_paginates_and_reports_truncation() -> None:
             "project_number": 12,
             "per_page": 2,
             "after": "CURSOR_2",
+            "query": "repo:ExampleOwner/alpha",
         },
     )
 

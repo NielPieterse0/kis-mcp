@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "200-project-inventory-repository-filter",
+  "status": "active",
+  "branch": "change/200-project-inventory-repository-filter",
+  "worktree": ".work/worktrees/200-project-inventory-repository-filter",
+  "base": "main",
+  "outcome": "Complete Change 199 live commissioning by applying the configured repository filter at the GitHub Project provider boundary so unattended housekeeping can traverse the shared Project without unrelated-page truncation.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "tests/providers/github/projects/test_adapter.py",
+    ".work/changes/200-project-inventory-repository-filter/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "f9fec4d24bff7f6e3dffc431bdafb211ad6aed30",
+    "local_tree": "ae78d5b77056a2dbbba80291a4b2c95edf08433b",
+    "upstream_sha": "f9fec4d24bff7f6e3dffc431bdafb211ad6aed30",
+    "upstream_tree": "ae78d5b77056a2dbbba80291a4b2c95edf08433b",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
