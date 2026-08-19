@@ -132,6 +132,12 @@ def test_checked_in_scheduler_is_independent_of_legacy_work_management_automatio
     }
 
 
+def test_checked_in_source_evidence_budget_has_live_repository_headroom() -> None:
+    housekeeping = load_housekeeping_runtime_settings()
+
+    assert {target.max_external_reads for target in housekeeping.targets} == {200}
+
+
 def test_housekeeping_settings_participate_in_runtime_generation() -> None:
     from kis_mcp.gateway import foundation
 

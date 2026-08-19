@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "202-housekeeping-evidence-read-bound",
+  "status": "active",
+  "branch": "change/202-housekeeping-evidence-read-bound",
+  "worktree": ".work/worktrees/202-housekeeping-evidence-read-bound",
+  "base": "main",
+  "outcome": "Raise the bounded unattended housekeeping source-evidence read budget above the live repository requirement so both scheduled previews can complete while preserving fail-closed evidence semantics.",
+  "owned_paths": [
+    "settings/housekeeping.settings.json",
+    "tests/housekeeping_runtime/test_housekeeping_runtime_settings.py",
+    ".work/changes/202-housekeeping-evidence-read-bound/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "deployment",
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "36875e3c3e0204ad5814f32bd332ee361496bb02",
+    "local_tree": "e9a2f915d36fc5ebcabb487f7a50ebe7a05d1ba0",
+    "upstream_sha": "36875e3c3e0204ad5814f32bd332ee361496bb02",
+    "upstream_tree": "e9a2f915d36fc5ebcabb487f7a50ebe7a05d1ba0",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
