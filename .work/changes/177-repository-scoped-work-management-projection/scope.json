@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "177-repository-scoped-work-management-projection",
+  "status": "active",
+  "branch": "change/177-repository-scoped-work-management-projection",
+  "worktree": ".work/worktrees/177-repository-scoped-work-management-projection",
+  "base": "main",
+  "outcome": "Repair repository-scoped Work Management projection and binding behavior proven defective by #318 while preserving the shared GitHub Project as the single authority.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "src/kis_mcp/providers/github/project_management.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/providers/test_github_project_management.py",
+    ".work/changes/177-repository-scoped-work-management-projection/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/execution/**",
+    "src/kis_mcp/workflows/verification/**",
+    "src/kis_mcp/housekeeping/**",
+    "tests/housekeeping/**",
+    "scripts/housekeeping.py",
+    ".work/changes/174-disposable-windows-execution-foundation/**",
+    ".work/changes/150-parallel-agent-coordinator/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "9adf1ca26a6a96a173605a7e5dd5c11216d6ec0e",
+    "local_tree": "99b7653a39b65d2afc5d40ae01c4690221902093",
+    "upstream_sha": "9adf1ca26a6a96a173605a7e5dd5c11216d6ec0e",
+    "upstream_tree": "99b7653a39b65d2afc5d40ae01c4690221902093",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-317",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 317,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
