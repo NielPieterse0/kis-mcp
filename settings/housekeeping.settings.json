@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "host_instance": "kis-op",
+  "state_namespace": "housekeeping",
+  "receipt_retention": 120,
+  "freshness_stale_after_seconds": 5400,
+  "apply_max_age_seconds": 1800,
+  "scheduled_mode": "preview",
+  "targets": [
+    {
+      "runner": "work-management-reconciliation",
+      "project_id": "kis-mcp",
+      "repository": "NielPieterse0/kis-mcp",
+      "repository_root": "C:\\Projects\\kis-mcp",
+      "interval_seconds": 1800,
+      "initial_delay_seconds": 15,
+      "item_limit": 1000,
+      "max_findings": 200,
+      "max_mutations": 20,
+      "max_external_reads": 100
+    },
+    {
+      "runner": "backlog-readiness",
+      "project_id": "kis-mcp",
+      "repository": "NielPieterse0/kis-mcp",
+      "repository_root": "C:\\Projects\\kis-mcp",
+      "interval_seconds": 1800,      "initial_delay_seconds": 45,
+      "item_limit": 1000,
+      "max_findings": 200,
+      "max_mutations": 20,
+      "max_external_reads": 100
+    }
+  ]
+}

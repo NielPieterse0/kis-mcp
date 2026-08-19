@@ -8,7 +8,8 @@ Use these canonical configuration owners:
 
 - [`../../settings/projects.settings.json`](../../settings/projects.settings.json) for registered project identity/routing;
 - [`../../settings/work-management/github-projects.settings.json`](../../settings/work-management/github-projects.settings.json) for Work Management modes/bindings;
-- [`../../settings/work-management/github-project-schema.json`](../../settings/work-management/github-project-schema.json) for the desired GitHub Project schema/view projection.
+- [`../../settings/work-management/github-project-schema.json`](../../settings/work-management/github-project-schema.json) for the desired GitHub Project schema/view projection;
+- [`../../settings/housekeeping.settings.json`](../../settings/housekeeping.settings.json) for the `kis-op` housekeeping host, runner cadence, freshness, retention, and bounded execution limits.
 
 Before changing or adding a managed project, register the intended identity/routing, keep stable bindings stable unless an explicit migration is approved, authenticate the runtime provider, and inspect current schema/status before apply.
 
@@ -28,6 +29,18 @@ Standalone reconciliation is preview-only. Use the current KIS Work Management o
 Before schema-dependent mutation, run the current schema-status operation. If it reports the registered Project is not ready, invoke the bounded registered-project commissioner with the intended registered project/binding and explicit approval, then rerun schema status. Use the manifest itself for current field/view counts, types, option values, and layout semantics.
 
 Do not treat historical commissioning records, issue/change numbers, or copied managed-repository lists as current authority. Inspect the registry, manifest, runtime status, and exact Git/GitHub evidence instead.
+
+## Operate unattended housekeeping
+
+The scheduler authority is the long-lived `kis-op` runtime (`operation` remote instance). `kis-dev`, stdio, GitHub Actions, and the legacy Work Management `scheduled_reconciliation` automation switch do not run the timer.
+
+After deploying a housekeeping change, restart `kis-op` from the merged revision and complete its normal GitHub OAuth bootstrap. Use `execute_read_action` for `kis_housekeeping_status`. Commissioning requires `active=true`, one active target for each configured runner, and a concrete `next_due_at` for each target.
+
+Scheduled runs are always preview-only. After each configured initial delay/cadence, read `kis_housekeeping_status` again through `execute_read_action`. For both `work_management_reconciliation` and `backlog_readiness`, require a `last_success_receipt_id` and `freshness=fresh`. Use `execute_read_action` for `kis_housekeeping_receipt` with that ID to inspect the persisted bounded receipt. `failed`, `stale`, or `never` is not commissioned evidence.
+
+Apply is never timer-driven. To apply an intended preview, use approval-gated `execute_external_action` for `kis_housekeeping_apply_receipt` with its receipt ID. The runtime rejects stale, incomplete, conflicting, unsafe, or changed plans, reruns preview against current authority, and derives a stable idempotency key from the unchanged actionable-plan fingerprint.
+
+If housekeeping must be stopped, set `enabled=false` in `settings/housekeeping.settings.json`, deliver that governed change, and restart `kis-op`. Persisted receipts remain under the configured KIS state root for diagnosis and bounded retention. Do not redirect housekeeping into GitHub Actions or revive the retired local execution/landing architecture.
 
 ## Use Discover
 
