@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "201-housekeeping-internal-dispatch",
+  "status": "active",
+  "branch": "change/201-housekeeping-internal-dispatch",
+  "worktree": ".work/worktrees/201-housekeeping-internal-dispatch",
+  "base": "main",
+  "outcome": "Complete Change 194 commissioning by separating internal housekeeping operation results from user-facing capability result-budget truncation while preserving effect and approval enforcement.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping/operations.py",
+    "tests/housekeeping/test_operations.py",
+    ".work/changes/201-housekeeping-internal-dispatch/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "d0b6b342e819e0c2f3617cda5e704de44ab4942c",
+    "local_tree": "3dc475534c2cb4d7f7cc866c1beb1c734ff605ad",
+    "upstream_sha": "d0b6b342e819e0c2f3617cda5e704de44ab4942c",
+    "upstream_tree": "3dc475534c2cb4d7f7cc866c1beb1c734ff605ad",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
