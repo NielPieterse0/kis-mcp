@@ -30,6 +30,8 @@ class FakeInvoker:
         self.external_calls: list[tuple[str, int]] = []
         self.open_issue_inventory: set[int] | None = None
         self.bulk_issue_calls = 0
+        self.issue_read_envelope = False
+        self.omit_issue_state = False
         self.fail_change_operation: str | None = None
         self.reject_ready_preview = False
 
@@ -82,7 +84,14 @@ class FakeInvoker:
         self.external_calls.append((repository, number))
         if (repository, number) in self.fail_sources:
             raise RuntimeError("source unavailable")
-        return {"state": self.source_states.get((repository, number), "open")}
+        payload = (
+            {"number": number}
+            if self.omit_issue_state
+            else {"state": self.source_states.get((repository, number), "open")}
+        )
+        if self.issue_read_envelope:
+            return {"text": json.dumps(payload)}
+        return payload
 
 
 def _config(root: Path, *, max_external_reads: int = 100) -> HousekeepingRunConfig:
@@ -184,6 +193,42 @@ def test_reconciliation_bulk_open_inventory_avoids_historical_read_exhaustion(
     assert [action.action_id for action in receipt.actions] == [
         "capture:nielpieterse0/kis-mcp#5"
     ]
+
+
+def test_reconciliation_fallback_accepts_provider_text_issue_envelope(
+    tmp_path: Path,
+) -> None:
+    _scope(tmp_path, "194-example", 42)
+    invoker = FakeInvoker(inventory={"items": [], "truncated": False})
+    invoker.issue_read_envelope = True
+    invoker.source_states[("nielpieterse0/kis-mcp", 42)] = "closed"
+    trigger = HousekeepingTrigger(runner=RunnerKind.WORK_MANAGEMENT_RECONCILIATION)
+
+    receipt = asyncio.run(
+        run_work_management_reconciliation(invoker, _config(tmp_path), trigger)
+    )
+
+    assert receipt.complete is True
+    assert receipt.metrics.source_failures == 0
+    assert receipt.actions == ()
+
+
+def test_reconciliation_fallback_fails_closed_without_issue_state(
+    tmp_path: Path,
+) -> None:
+    _scope(tmp_path, "194-example", 42)
+    invoker = FakeInvoker(inventory={"items": [], "truncated": False})
+    invoker.omit_issue_state = True
+    trigger = HousekeepingTrigger(runner=RunnerKind.WORK_MANAGEMENT_RECONCILIATION)
+
+    receipt = asyncio.run(
+        run_work_management_reconciliation(invoker, _config(tmp_path), trigger)
+    )
+
+    assert receipt.complete is False
+    assert receipt.metrics.source_failures == 1
+    assert "source_evidence_incomplete" in receipt.conflicts
+    assert receipt.actions == ()
 
 
 def test_reconciliation_apply_derives_action_idempotency_key(tmp_path: Path) -> None:
@@ -311,6 +356,25 @@ def test_backlog_readiness_reports_resolved_exact_dependency(tmp_path: Path) -> 
         finding.kind for finding in receipt.findings
     }
     assert not receipt.actions
+
+
+def test_backlog_readiness_accepts_provider_text_issue_envelope(tmp_path: Path) -> None:
+    invoker = FakeInvoker(
+        inventory={"items": [_item(52, blocked_by="#10")], "truncated": False}
+    )
+    invoker.issue_read_envelope = True
+    invoker.source_states[("nielpieterse0/kis-mcp", 10)] = "closed"
+    trigger = HousekeepingTrigger(runner=RunnerKind.BACKLOG_READINESS)
+
+    receipt = asyncio.run(
+        run_backlog_readiness(invoker, _config(tmp_path), trigger)
+    )
+
+    assert receipt.complete is True
+    assert receipt.metrics.source_failures == 0
+    assert FindingKind.RESOLVED_DEPENDENCY_STILL_BLOCKING in {
+        finding.kind for finding in receipt.findings
+    }
 
 
 def test_backlog_readiness_reports_ambiguous_dependency_text(tmp_path: Path) -> None:
