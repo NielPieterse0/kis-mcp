@@ -125,10 +125,19 @@ async def _read_source_issue(
     number: int,
 ) -> dict[str, Any]:
     owner, repo = repository.split("/", 1)
-    return await invoker.external(
-        "github_issue_read",
-        {"method": "get", "owner": owner, "repo": repo, "issue_number": number},
+    payload = _provider_json(
+        await invoker.external(
+            "github_issue_read",
+            {"method": "get", "owner": owner, "repo": repo, "issue_number": number},
+        )
     )
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("github_issue_read returned malformed source evidence")
+    source = dict(payload)
+    state = _source_state(source)
+    if state not in {"open", "closed"}:
+        raise RuntimeError("github_issue_read returned unusable source lifecycle state")
+    return source
 
 
 def _provider_json(payload: Mapping[str, Any]) -> Any:

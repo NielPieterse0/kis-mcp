@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "206-housekeeping-issue-envelope",
+  "status": "active",
+  "branch": "change/206-housekeeping-issue-envelope",
+  "worktree": ".work/worktrees/206-housekeeping-issue-envelope",
+  "base": "main",
+  "outcome": "Normalize GitHub issue-read provider envelopes before housekeeping lifecycle-state evaluation so reconciliation and backlog-readiness can consume complete source evidence without weakening fail-closed behavior.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping/work_management.py",
+    "tests/housekeeping/test_work_management.py",
+    ".work/changes/206-housekeeping-issue-envelope/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [
+    "205-housekeeping-source-inventory"
+  ],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "13a3d5fc71f87b8c55c53d696748a8ec013dac03",
+    "local_tree": "f15dcf322e35d8d49565a7c11405420144e22bff",
+    "upstream_sha": "13a3d5fc71f87b8c55c53d696748a8ec013dac03",
+    "upstream_tree": "f15dcf322e35d8d49565a7c11405420144e22bff",
+    "upstream_ref": "refs/heads/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
