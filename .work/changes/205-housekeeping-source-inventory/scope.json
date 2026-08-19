@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "205-housekeeping-source-inventory",
+  "status": "active",
+  "branch": "change/205-housekeeping-source-inventory",
+  "worktree": ".work/worktrees/205-housekeeping-source-inventory",
+  "base": "main",
+  "outcome": "Make housekeeping source-evidence collection scale with repository history by using complete bounded open-source inventories and per-run dependency caching while preserving fail-closed semantics and legacy record interpretation.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping/work_management.py",
+    "tests/housekeeping/test_work_management.py",
+    ".work/changes/205-housekeeping-source-inventory/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "ac7c97e8b6e874cbc775ddc77214841faa3eb07e",
+    "local_tree": "aa8383d2a17a53fa795aa39444ceac63bf1173ea",
+    "upstream_sha": "ac7c97e8b6e874cbc775ddc77214841faa3eb07e",
+    "upstream_tree": "aa8383d2a17a53fa795aa39444ceac63bf1173ea",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
