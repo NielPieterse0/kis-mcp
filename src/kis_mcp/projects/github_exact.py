@@ -25,12 +25,21 @@ from .registry import ProjectRegistry
 from .settings import load_project_registry_settings
 
 _SHA = re.compile(r"^[0-9a-fA-F]{40}$")
+_ISSUE_CLOSING_REFERENCE = re.compile(
+    r"\b(?:close(?:s|d)?|fix(?:es|ed)?|resolve(?:s|d)?)\s+"
+    r"(?:(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+))?#\d+\b",
+    re.IGNORECASE,
+)
 _OPERATION_STATES = frozenset({"not_started", "in_progress", "applied", "failed", "unknown"})
 _DEFAULT_MUTATION_DEADLINE_MS = 30_000
 _MAX_MUTATION_DEADLINE_MS = 300_000
 _MUTATION_RECONCILE_RESERVE_MS = 5_000
 CommandRunner = Callable[..., Any]
 MergeMethod = Literal["merge"]
+
+
+def _contains_issue_closing_reference(text: str) -> bool:
+    return _ISSUE_CLOSING_REFERENCE.search(text) is not None
 
 
 class _Deadline:
@@ -1538,7 +1547,7 @@ class RegisteredGitHubOperations:
                 "--repo",
                 repository,
                 "--json",
-                "number,url,title,body,headRefOid,baseRefName,state,isDraft",
+                "number,url,title,body,commits,headRefOid,baseRefName,state,isDraft",
             ),
             cwd,
             deadline=deadline,
@@ -1577,6 +1586,27 @@ class RegisteredGitHubOperations:
             )
         if before.get("state") != "OPEN" or before.get("isDraft") is True:
             raise ToolError("PULL_REQUEST_NOT_MERGEABLE_STATE: pull request must be open and non-draft")
+        body = before.get("body")
+        if body is not None and not isinstance(body, str):
+            raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: pull request body is not text")
+        if _contains_issue_closing_reference(body or ""):
+            raise ToolError(
+                "ISSUE_CLOSING_REFERENCE_BLOCKED: pull request body contains a GitHub issue-closing reference"
+            )
+        commits = before.get("commits", [])
+        if not isinstance(commits, list):
+            raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: pull request commits are not a list")
+        for commit in commits:
+            if not isinstance(commit, Mapping):
+                raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: pull request commit is not an object")
+            headline = commit.get("messageHeadline", "")
+            message_body = commit.get("messageBody", "")
+            if not isinstance(headline, str) or not isinstance(message_body, str):
+                raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: commit message is not text")
+            if _contains_issue_closing_reference(f"{headline}\n{message_body}"):
+                raise ToolError(
+                    "ISSUE_CLOSING_REFERENCE_BLOCKED: pull request commit message contains a GitHub issue-closing reference"
+                )
 
         self._run(
             (
