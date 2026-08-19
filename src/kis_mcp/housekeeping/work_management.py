@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -128,6 +129,57 @@ async def _read_source_issue(
         "github_issue_read",
         {"method": "get", "owner": owner, "repo": repo, "issue_number": number},
     )
+
+
+def _provider_json(payload: Mapping[str, Any]) -> Any:
+    text = payload.get("text")
+    if isinstance(text, str):
+        return json.loads(text)
+    return payload
+
+
+async def _read_complete_open_issue_numbers(
+    invoker: OperationInvoker,
+    repository: str,
+    *,
+    max_reads: int,
+) -> tuple[set[int] | None, int]:
+    owner, repo = repository.split("/", 1)
+    numbers: set[int] = set()
+    after: str | None = None
+    reads = 0
+    while reads < max_reads:
+        arguments: dict[str, Any] = {
+            "owner": owner,
+            "repo": repo,
+            "state": "OPEN",
+            "perPage": 100,
+        }
+        if after is not None:
+            arguments["after"] = after
+        reads += 1
+        try:
+            payload = _provider_json(
+                await invoker.external("github_list_issues", arguments)
+            )
+        except Exception:
+            return None, reads
+        if not isinstance(payload, Mapping):
+            return None, reads
+        issues = payload.get("issues")
+        page_info = payload.get("pageInfo")
+        if not isinstance(issues, list) or not isinstance(page_info, Mapping):
+            return None, reads
+        for issue in issues:
+            if isinstance(issue, Mapping) and isinstance(issue.get("number"), int):
+                numbers.add(int(issue["number"]))
+        if page_info.get("hasNextPage") is not True:
+            return numbers, reads
+        end_cursor = page_info.get("endCursor")
+        if not isinstance(end_cursor, str) or not end_cursor:
+            return None, reads
+        after = end_cursor
+    return None, reads
 
 
 async def _plan_missing_project_record(
@@ -302,6 +354,21 @@ async def run_work_management_reconciliation(
     for link in links:
         by_source.setdefault(link.source_key, []).append(link)
     external_reads = 0
+    absent_issue_sources = [
+        bound_links[0]
+        for source_key, bound_links in sorted(by_source.items())
+        if source_key not in project_keys
+        and len(bound_links) == 1
+        and bound_links[0].source_kind == "issue"
+    ]
+    open_issue_numbers: set[int] | None = None
+    if absent_issue_sources and external_reads < config.max_external_reads:
+        open_issue_numbers, reads_used = await _read_complete_open_issue_numbers(
+            invoker,
+            config.repository,
+            max_reads=config.max_external_reads - external_reads,
+        )
+        external_reads += reads_used
     for source_key, bound_links in sorted(by_source.items()):
         if source_key in project_keys:
             continue
@@ -313,18 +380,24 @@ async def run_work_management_reconciliation(
                 {"changes": [item.change_id for item in bound_links]},
             ), config.max_findings)
             continue
-        if external_reads >= config.max_external_reads:
-            source_failures += 1
-            continue
         link = bound_links[0]
-        external_reads += 1
-        try:
-            source = await _read_source_issue(invoker, link.source_repository, link.source_number)
-        except Exception:
-            source_failures += 1
-            continue
-        if _source_state(source) != "open":
-            continue
+        if link.source_kind == "issue" and open_issue_numbers is not None:
+            if link.source_number not in open_issue_numbers:
+                continue
+        else:
+            if external_reads >= config.max_external_reads:
+                source_failures += 1
+                continue
+            external_reads += 1
+            try:
+                source = await _read_source_issue(
+                    invoker, link.source_repository, link.source_number
+                )
+            except Exception:
+                source_failures += 1
+                continue
+            if _source_state(source) != "open":
+                continue
         _bounded_append(findings, _finding(
             FindingKind.MISSING_PROJECT_RECORD, FindingSeverity.WARNING, record,
             "Open governed work is absent from the Work Management Project.",
@@ -578,6 +651,7 @@ async def run_backlog_readiness(
             trigger, config, "project_management_next_work", exc
         )
     external_reads = 0
+    dependency_state_cache: dict[tuple[str, int], str] = {}
     for item in items:
         key = _source_key(item)
         if key is None or key[0] != config.repository.casefold():
@@ -637,6 +711,11 @@ async def run_backlog_readiness(
         states: list[str] = []
         failed = False
         for dependency_repository, dependency_number in refs:
+            dependency_key = (dependency_repository.casefold(), dependency_number)
+            cached_state = dependency_state_cache.get(dependency_key)
+            if cached_state is not None:
+                states.append(cached_state)
+                continue
             if external_reads >= config.max_external_reads:
                 source_failures += 1
                 failed = True
@@ -655,6 +734,7 @@ async def run_backlog_readiness(
                 source_failures += 1
                 failed = True
                 break
+            dependency_state_cache[dependency_key] = state
             states.append(state)
         if not failed and states and all(state == "closed" for state in states):
             _bounded_append(findings, _finding(

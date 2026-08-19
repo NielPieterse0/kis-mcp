@@ -28,6 +28,8 @@ class FakeInvoker:
         self.source_states: dict[tuple[str, int], str] = {}
         self.fail_sources: set[tuple[str, int]] = set()
         self.external_calls: list[tuple[str, int]] = []
+        self.open_issue_inventory: set[int] | None = None
+        self.bulk_issue_calls = 0
         self.fail_change_operation: str | None = None
         self.reject_ready_preview = False
 
@@ -58,6 +60,22 @@ class FakeInvoker:
     async def external(
         self, operation: str, arguments: Mapping[str, Any]
     ) -> dict[str, Any]:
+        if operation == "github_list_issues":
+            self.bulk_issue_calls += 1
+            if self.open_issue_inventory is None:
+                raise RuntimeError("bulk source inventory unavailable")
+            return {
+                "text": json.dumps(
+                    {
+                        "issues": [
+                            {"number": number}
+                            for number in sorted(self.open_issue_inventory)
+                        ],
+                        "totalCount": len(self.open_issue_inventory),
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                    }
+                )
+            }
         assert operation == "github_issue_read"
         repository = f"{arguments['owner']}/{arguments['repo']}".casefold()
         number = int(arguments["issue_number"])
@@ -139,6 +157,33 @@ def test_reconciliation_plans_exact_missing_project_capture(tmp_path: Path) -> N
     assert action.operation == "project_management_reconcile"
     assert action.arguments["desired"][0]["source_number"] == 364
     assert receipt.metrics.safe_actions == 1
+
+
+def test_reconciliation_bulk_open_inventory_avoids_historical_read_exhaustion(
+    tmp_path: Path,
+) -> None:
+    for number in range(1, 6):
+        _scope(tmp_path, f"{number:03d}-example", number)
+    invoker = FakeInvoker(inventory={"items": [], "truncated": False})
+    invoker.open_issue_inventory = {5}
+    trigger = HousekeepingTrigger(runner=RunnerKind.WORK_MANAGEMENT_RECONCILIATION)
+
+    receipt = asyncio.run(
+        run_work_management_reconciliation(
+            invoker, _config(tmp_path, max_external_reads=1), trigger
+        )
+    )
+
+    assert receipt.complete is True
+    assert receipt.metrics.source_failures == 0
+    assert invoker.bulk_issue_calls == 1
+    assert invoker.external_calls == []
+    assert [finding.record_id for finding in receipt.findings] == [
+        "NielPieterse0/kis-mcp#5"
+    ]
+    assert [action.action_id for action in receipt.actions] == [
+        "capture:nielpieterse0/kis-mcp#5"
+    ]
 
 
 def test_reconciliation_apply_derives_action_idempotency_key(tmp_path: Path) -> None:
@@ -372,6 +417,32 @@ def test_backlog_readiness_fails_closed_when_dependency_scan_exceeds_bound(
     assert receipt.complete is False
     assert "source_evidence_incomplete" in receipt.conflicts
     assert receipt.applied_receipts == ()
+
+
+def test_backlog_readiness_reuses_dependency_state_within_run(tmp_path: Path) -> None:
+    invoker = FakeInvoker(
+        inventory={
+            "items": [
+                _item(55, blocked_by="#10"),
+                _item(56, blocked_by="#10"),
+            ],
+            "truncated": False,
+        }
+    )
+    invoker.source_states[("nielpieterse0/kis-mcp", 10)] = "closed"
+    trigger = HousekeepingTrigger(runner=RunnerKind.BACKLOG_READINESS)
+
+    receipt = asyncio.run(
+        run_backlog_readiness(invoker, _config(tmp_path, max_external_reads=1), trigger)
+    )
+
+    assert receipt.complete is True
+    assert receipt.metrics.source_failures == 0
+    assert invoker.external_calls == [("nielpieterse0/kis-mcp", 10)]
+    assert sum(
+        finding.kind is FindingKind.RESOLVED_DEPENDENCY_STILL_BLOCKING
+        for finding in receipt.findings
+    ) == 2
 
 
 def test_backlog_readiness_apply_derives_action_idempotency_key(tmp_path: Path) -> None:
