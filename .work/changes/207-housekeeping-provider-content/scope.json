@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "207-housekeeping-provider-content",
+  "status": "active",
+  "branch": "change/207-housekeeping-provider-content",
+  "worktree": ".work/worktrees/207-housekeeping-provider-content",
+  "base": "main",
+  "outcome": "Make the internal housekeeping invoker consume successful text-only FastMCP tool results without bypassing capability dispatch, so live GitHub source evidence reaches both runners while preserving fail-closed result handling.",
+  "owned_paths": [
+    "src/kis_mcp/housekeeping/operations.py",
+    "tests/housekeeping/test_operations.py",
+    ".work/changes/207-housekeeping-provider-content/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [
+    "206-housekeeping-issue-envelope"
+  ],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "1f5cf9e729df2ee77917f99cd42dd48e604d7e89",
+    "local_tree": "969c728a412543535d25e698d5bd66a50745bac0",
+    "upstream_sha": "1f5cf9e729df2ee77917f99cd42dd48e604d7e89",
+    "upstream_tree": "969c728a412543535d25e698d5bd66a50745bac0",
+    "upstream_ref": "refs/heads/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
