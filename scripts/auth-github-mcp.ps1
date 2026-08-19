@@ -28,9 +28,10 @@ if ($GitHubProjects.Count -lt 1) {
     throw 'KIS_PROJECT_REGISTRY_INVALID: at least one registered GitHub repository is required.'
 }
 
-Write-Host 'GitHub OAuth is owned by the kis-op runtime.'
-Write-Host 'Starting kis-op; complete the browser sign-in once and keep that runtime running to reuse the authenticated GitHub MCP process.'
-Write-Host 'Stopping or restarting kis-op requires one new GitHub OAuth sign-in.'
+Write-Host 'GitHub authentication is owned by the kis-op runtime.'
+Write-Host 'Starting kis-op; KIS first reuses valid GitHub CLI authentication from the configured credential store.'
+Write-Host 'If shared CLI authentication is unavailable or invalid, complete the provider browser/device OAuth fallback.'
+Write-Host 'Restarting kis-op creates a fresh GitHub MCP child, which repeats this reuse-first authentication decision.'
 
 & pwsh -NoProfile -File (Join-Path $PSScriptRoot 'start-chatgpt.ps1') -Instance operation
 if ($LASTEXITCODE -ne 0) {

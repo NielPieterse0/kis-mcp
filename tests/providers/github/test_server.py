@@ -99,19 +99,34 @@ def test_health_reports_runtime_lifetime_and_pat_conflict_without_secrets(
     assert missing.authenticated == "not_verified"
 
     executable.write_bytes(b"official-binary-placeholder")
+    decision = github_server.GitHubAuthDecision(
+        source="github_cli_keyring",
+        state="shared_auth_reused",
+        reason="github_cli_active_auth_valid",
+    )
     ready = github_server.github_provider_health(
         settings,
         {"GITHUB_PERSONAL_ACCESS_TOKEN": PAT},
+        auth_decision=decision,
     )
     assert ready.ready is True
     assert ready.pat_override_present is True
+    assert ready.auth_source == "github_cli_keyring"
+    assert ready.auth_decision == "shared_auth_reused"
+    assert ready.auth_reason == "github_cli_active_auth_valid"
     assert PAT not in str(asdict(ready))
 
 
-def test_builds_one_persistent_token_free_official_stdio_client(
+def test_builds_one_persistent_official_stdio_client_with_managed_shared_auth(
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     captured: dict[str, Any] = {}
+
+    def auth_runner(command: list[str], **_: Any) -> SimpleNamespace:
+        if command[1:3] == ["auth", "status"]:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+        return SimpleNamespace(returncode=0, stdout=PAT + "\n", stderr="")
 
     class FakeServer:
         def __init__(self, name: str) -> None:
@@ -163,19 +178,28 @@ def test_builds_one_persistent_token_free_official_stdio_client(
     runtime_tools = ProviderRuntimeToolState()
     server = github_server.build_github_provider_server(
         _settings(),
-        environ={"GITHUB_PERSONAL_ACCESS_TOKEN": PAT, "PATH": "bin"},
+        environ={"PATH": "bin"},
         validate_executable=False,
         repository_settings_source=_repository_settings,
         client_factory=FakeClient,
         startup_state=startup_state,
         runtime_tools=runtime_tools,
+        github_cli_config_dir=r"C:\Projects\.mcp-external-state\gh-config",
+        auth_runner=auth_runner,
     )
 
     assert server is proxy
     assert captured["name"] == "kis-mcp-github"
     assert captured["transport"]["command"].endswith("github-mcp-server.exe")
     assert captured["transport"]["args"] == ["stdio", "--toolsets=all"]
-    assert captured["transport"]["env"] == {"PATH": "bin"}
+    assert captured["transport"]["env"] == {
+        "PATH": "bin",
+        "GITHUB_PERSONAL_ACCESS_TOKEN": PAT,
+    }
+    stderr = capsys.readouterr().err
+    assert "github_auth=shared_auth_reused" in stderr
+    assert "source=github_cli_keyring" in stderr
+    assert PAT not in stderr
     assert len(proxy.providers) == 1
     provider = proxy.providers[0]
     assert isinstance(provider, PersistentClientProxyProvider)
@@ -227,12 +251,15 @@ def test_registers_common_provider_descriptor_and_local_readiness(tmp_path: Path
     ready = descriptor.readiness_probe()
     assert ready.state is ProviderState.READY
     assert ready.summary == (
-        "GitHub MCP is ready; one OAuth login is required when the KIS runtime starts."
+        "GitHub MCP is ready; runtime startup will reuse valid shared GitHub CLI auth, "
+        "otherwise interactive OAuth is required."
     )
-    assert ready.details["user_status"]["state"] == "ready_authentication_required"
-    assert ready.details["commissioning"]["authenticated"] == (
-        "required_at_runtime_start"
+    assert ready.details["user_status"]["state"] == "ready_authentication_bootstrap"
+    assert ready.details["user_status"]["required_action"] == (
+        "Start the selected KIS runtime; KIS will reuse valid GitHub CLI auth first and "
+        "request interactive OAuth only as fallback."
     )
+    assert ready.details["commissioning"]["authenticated"] == "bootstrap_pending"
 
     conflicted_descriptor = github_server.register_github_provider(
         ProviderRegistry(),
@@ -261,7 +288,7 @@ def test_descriptor_shares_runtime_auth_and_tool_discovery_state(
     )
 
     before = descriptor.readiness_probe()
-    assert before.details["user_status"]["state"] == "ready_authentication_required"
+    assert before.details["user_status"]["state"] == "ready_authentication_bootstrap"
     assert descriptor.runtime_tools_probe is not None
     assert tuple(descriptor.runtime_tools_probe()) == ()
 

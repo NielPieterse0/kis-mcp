@@ -47,7 +47,7 @@ Remove-Item Env:GITHUB_PERSONAL_ACCESS_TOKEN -ErrorAction SilentlyContinue
 pwsh -NoProfile -File .\scripts\auth-github-mcp.ps1
 ```
 
-Complete the supervised browser/device authentication requested by the running provider and keep the selected runtime active. Then run the non-live focused smoke:
+Start the selected runtime. KIS first checks the configured GitHub CLI authentication state and, when it is valid, passes that CLI-managed credential only to the fresh GitHub MCP child process. No browser/device prompt is expected on that path. If the shared CLI credential is unavailable or invalid, complete the supervised provider browser/device OAuth fallback. Then run the non-live focused smoke:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
