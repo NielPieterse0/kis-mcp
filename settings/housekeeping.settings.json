@@ -18,7 +18,7 @@
       "item_limit": 1000,
       "max_findings": 200,
       "max_mutations": 20,
-      "max_external_reads": 100
+      "max_external_reads": 200
     },
     {
       "runner": "backlog-readiness",
@@ -29,7 +29,7 @@
       "item_limit": 1000,
       "max_findings": 200,
       "max_mutations": 20,
-      "max_external_reads": 100
+      "max_external_reads": 200
     }
   ]
 }
