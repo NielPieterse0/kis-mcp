@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Mapping
 
 import pytest
 from fastmcp import Client, FastMCP
@@ -367,6 +368,39 @@ def test_schema_bound_approval_dispatches_only_registered_virtual_operation(
     assert calls == [
         ("kis_github_publish_registered_commit", {"approved": True})
     ]
+
+
+def test_all_registered_virtual_mutations_use_schema_bound_supervised_approval() -> None:
+    approval_operations = {
+        operation.name: operation
+        for operation in capability_control_contribution().operations
+        if operation.approval_required
+    }
+    assert set(approval_operations) == {
+        "kis_github_publish_registered_commit",
+        "kis_github_reconcile_registered_commit",
+        "kis_github_create_registered_pull_request",
+        "kis_github_configure_registered_repository",
+        "kis_github_commission_registered_project_schema",
+        "kis_github_merge_registered_pull_request",
+        "kis_github_refresh_registered_default_branch",
+        "kis_github_delete_registered_branch",
+        "kis_acquire_registered_evidence",
+        "kis_github_merge_queue_enqueue",
+        "kis_github_merge_queue_reconcile",
+        "kis_github_merge_queue_dequeue",
+        "kis_github_merge_queue_land",
+    }
+    for operation in approval_operations.values():
+        approved_schema = operation.input_schema["properties"]["approved"]
+        assert approved_schema == {"type": "boolean"}
+        assert "approved" in operation.input_schema["required"]
+        assert execution_module._registered_virtual_approval(
+            operation, {"approved": True}
+        ) is True
+        assert execution_module._registered_virtual_approval(
+            operation, {"approved": False}
+        ) is False
 
 
 def test_execution_router_rejects_capability_control_recursion() -> None:

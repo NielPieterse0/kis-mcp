@@ -67,6 +67,26 @@ def _run(invoker: Invoker) -> Any:
     ))
 
 
+def test_completion_rejects_missing_supervised_approval_before_any_workflow_step() -> None:
+    invoker = Invoker()
+    service = CompletionCoordinator(invoker, lambda project_id: r"C:\Projects\college")
+
+    with pytest.raises(ValueError, match="approved must be true"):
+        asyncio.run(service.prepare(
+            project_id="college",
+            commit=COMMIT,
+            source_base=SOURCE_BASE,
+            branch="feature/example",
+            expected_remote_branch=None,
+            expected_remote_default=DEFAULT,
+            title="Review exact change",
+            body="Ready for review.",
+            approved=False,
+        ))
+
+    assert invoker.calls == []
+
+
 def test_completion_coordinates_verification_publish_and_pr_in_fixed_order() -> None:
     invoker = Invoker()
     result = _run(invoker)
