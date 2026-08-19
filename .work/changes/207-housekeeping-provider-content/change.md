@@ -22,6 +22,6 @@ Make the internal housekeeping invoker consume successful text-only FastMCP tool
 - Live root-cause evidence: loopback `execute_external_action -> github_issue_read` returned one successful text content item with no `structuredContent`; the old invoker rejected that result before the provider payload decoder could run.
 - TDD evidence: the text-only external-result regression failed before implementation and passed afterward; ambiguous two-item text content remains rejected.
 - Focused checks: full `tests/housekeeping` + `tests/housekeeping_runtime` green; Ruff green; `git diff --check` green.
-- Review findings: pending final exact-range review.
+- Review findings: exact base→head NVIDIA code-quality review completed with complete evidence fingerprint `0cc8b1f99a927e384536391c245fae12ca8790d69f799f46a802a3acebf46f99` and no findings.
 - Residual risk: unsupported provider content shapes still fail closed; mutation operations are never replayed by this normalization.
-- Closeout state: implementation complete locally; scope check, review, publication, merge, and live commissioning pending.
+- Closeout state: implementation, focused verification, scope check, and review complete locally; publication, merge, and live commissioning pending.
