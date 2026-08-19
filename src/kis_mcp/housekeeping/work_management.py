@@ -134,8 +134,9 @@ async def _read_source_issue(
     if not isinstance(payload, Mapping):
         raise RuntimeError("github_issue_read returned malformed source evidence")
     source = dict(payload)
-    if _source_state(source) is None:
-        raise RuntimeError("github_issue_read returned source evidence without state")
+    state = _source_state(source)
+    if state not in {"open", "closed"}:
+        raise RuntimeError("github_issue_read returned unusable source lifecycle state")
     return source
 
 

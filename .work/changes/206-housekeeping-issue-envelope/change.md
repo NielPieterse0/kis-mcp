@@ -19,6 +19,6 @@ Normalize GitHub issue-read provider envelopes before housekeeping lifecycle-sta
 
 - Implementation notes: normalize exact issue reads through the existing provider JSON decoder and reject unusable lifecycle-state evidence.
 - Focused checks: provider-envelope regressions red before implementation; full housekeeping + runtime suite green; Ruff and `git diff --check` green.
-- Review findings: pending final specialist/base review.
+- Review findings: NVIDIA exact-range review had complete evidence but invalid output contract; Codex exact-range review backend failed. Manual exact-diff fallback found one fail-closed gap for unknown lifecycle strings; fixed with a red regression and rerun checks.
 - Residual risk: provider contract drift remains fail-closed; legacy Work Management findings are reported, not normalized.
-- Closeout state: implementation complete; review/publication/commissioning pending.
+- Closeout state: implementation and local review complete; publication/commissioning pending.

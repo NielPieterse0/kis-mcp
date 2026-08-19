@@ -377,6 +377,22 @@ def test_backlog_readiness_accepts_provider_text_issue_envelope(tmp_path: Path) 
     }
 
 
+def test_backlog_readiness_fails_closed_on_unknown_issue_state(tmp_path: Path) -> None:
+    invoker = FakeInvoker(
+        inventory={"items": [_item(52, blocked_by="#10")], "truncated": False}
+    )
+    invoker.source_states[("nielpieterse0/kis-mcp", 10)] = "unexpected"
+    trigger = HousekeepingTrigger(runner=RunnerKind.BACKLOG_READINESS)
+
+    receipt = asyncio.run(
+        run_backlog_readiness(invoker, _config(tmp_path), trigger)
+    )
+
+    assert receipt.complete is False
+    assert receipt.metrics.source_failures == 1
+    assert "source_evidence_incomplete" in receipt.conflicts
+
+
 def test_backlog_readiness_reports_ambiguous_dependency_text(tmp_path: Path) -> None:
     invoker = FakeInvoker(
         inventory={
