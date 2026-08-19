@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -9,7 +10,10 @@ import pytest
 from fastmcp.exceptions import ToolError
 
 from kis_mcp.projects import GitHubProjectBinding, ProjectDefinition, ProjectRegistry
-from kis_mcp.projects.github_exact import RegisteredGitHubOperations
+from kis_mcp.projects.github_exact import (
+    RegisteredGitHubOperations,
+    _contains_issue_closing_reference,
+)
 
 TARGET = "1111111111111111111111111111111111111111"
 BASE = "2222222222222222222222222222222222222222"
@@ -251,6 +255,128 @@ def test_repository_landing_policy_disables_squash_rebase_and_auto_cleanup() -> 
     assert "allow_squash_merge=false" in patch
     assert "allow_rebase_merge=false" in patch
     assert "delete_branch_on_merge=false" in patch
+
+
+@pytest.mark.parametrize(
+    "keyword",
+    ["close", "closes", "closed", "fix", "fixes", "fixed", "resolve", "resolves", "resolved"],
+)
+@pytest.mark.parametrize("reference", ["#379", "NielPieterse0/kis-mcp#379"])
+@pytest.mark.parametrize("transform", [str.lower, str.upper, str.swapcase])
+def test_issue_closing_reference_detection_covers_keyword_families(
+    keyword: str, reference: str, transform: Callable[[str], str]
+) -> None:
+    assert _contains_issue_closing_reference(f"{transform(keyword)} {reference}") is True
+
+
+@pytest.mark.parametrize("separator", [" ", "  ", "\t", "\n", "\r\n", "\v", "\f"])
+@pytest.mark.parametrize("reference", ["#379", "NielPieterse0/kis-mcp#379"])
+def test_issue_closing_reference_detection_accepts_whitespace_separators(
+    separator: str, reference: str
+) -> None:
+    assert _contains_issue_closing_reference(f"ClOsEs{separator}{reference}") is True
+
+
+def test_issue_closing_reference_detection_allows_normal_references() -> None:
+    for text in (
+        "See #379",
+        "Related: NielPieterse0/kis-mcp#379",
+        "This fixes the regression described in #379",
+        "prefixes #379",
+        "closes#379",
+        "fixesNielPieterse0/kis-mcp#379",
+    ):
+        assert _contains_issue_closing_reference(text) is False
+
+
+def test_merge_rejects_closing_reference_in_pull_request_body_before_mutation() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "OPEN",
+        "isDraft": False,
+        "body": "Closes #379",
+        "commits": [],
+    }
+    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="ISSUE_CLOSING_REFERENCE_BLOCKED"):
+        operations.merge_pull_request(
+            project_id="college",
+            pull_number=7,
+            expected_head=TARGET,
+            merge_method="merge",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
+
+
+def test_merge_rejects_closing_reference_in_commit_message_before_mutation() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "OPEN",
+        "isDraft": False,
+        "body": "Related: #379",
+        "commits": [
+            {"messageHeadline": "Guard merge boundary", "messageBody": "FiXeS NielPieterse0/kis-mcp#379"}
+        ],
+    }
+    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="ISSUE_CLOSING_REFERENCE_BLOCKED"):
+        operations.merge_pull_request(
+            project_id="college",
+            pull_number=7,
+            expected_head=TARGET,
+            merge_method="merge",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
+
+
+@pytest.mark.parametrize(
+    ("override", "error"),
+    [
+        ({"body": 7}, "pull request body is not text"),
+        ({"commits": "not-a-list"}, "pull request commits are not a list"),
+        ({"commits": ["not-an-object"]}, "pull request commit is not an object"),
+        (
+            {"commits": [{"messageHeadline": 7, "messageBody": ""}]},
+            "commit message is not text",
+        ),
+        (
+            {"commits": [{"messageHeadline": "ok", "messageBody": 7}]},
+            "commit message is not text",
+        ),
+    ],
+)
+def test_merge_rejects_unverifiable_pr_payload_before_mutation(
+    override: dict[str, object], error: str
+) -> None:
+    before: dict[str, object] = {
+        "headRefOid": TARGET,
+        "state": "OPEN",
+        "isDraft": False,
+        "body": "Related: #379",
+        "commits": [],
+    }
+    before.update(override)
+    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match=error):
+        operations.merge_pull_request(
+            project_id="college",
+            pull_number=7,
+            expected_head=TARGET,
+            merge_method="merge",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
 
 
 def test_merge_is_approval_gated_exact_head_and_never_admin() -> None:

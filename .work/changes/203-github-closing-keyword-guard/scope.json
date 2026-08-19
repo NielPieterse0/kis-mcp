@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "203-github-closing-keyword-guard",
+  "status": "active",
+  "branch": "change/203-github-closing-keyword-guard",
+  "worktree": ".work/worktrees/203-github-closing-keyword-guard",
+  "base": "main",
+  "outcome": "Reject GitHub issue-closing keyword references in registered pull-request bodies and commit messages before merge execution while preserving normal issue references and Work Management terminal authority.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    ".work/changes/203-github-closing-keyword-guard/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "df71d4b86f5751e4bf49abb50bf12dc3dea27920",
+    "local_tree": "a34331b0d625512ef60bfbec4eda9fe4a169f21e",
+    "upstream_sha": "df71d4b86f5751e4bf49abb50bf12dc3dea27920",
+    "upstream_tree": "a34331b0d625512ef60bfbec4eda9fe4a169f21e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-364",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 364,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
