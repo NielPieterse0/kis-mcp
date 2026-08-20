@@ -1,4 +1,4 @@
-from .client import NvidiaNimClient, NvidiaNimError
+from .client import NvidiaNimClient, NvidiaNimError, NvidiaStreamResult
 from .provider import nvidia_provider_descriptor, register_nvidia_provider
 from .settings import (
     NvidiaModelProfile,
@@ -12,6 +12,7 @@ __all__ = [
     "NvidiaModelProfile",
     "NvidiaNimClient",
     "NvidiaNimError",
+    "NvidiaStreamResult",
     "NvidiaSettings",
     "NvidiaSettingsError",
     "disabled_nvidia_settings",

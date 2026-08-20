@@ -43,12 +43,13 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
         """Review one bounded Git change source without modifying it.
 
         review_type is code-quality (default), safety-security, architecture,
-        performance, test-quality, documentation, or api-contracts. For NVIDIA
-        NIM, model may be nano, super, or ultra: nano is for fast focused
-        iteration, super is the default substantive review, and ultra is for
-        the deepest high-impact analysis. Supplying model selects NVIDIA
-        explicitly; NVIDIA model aliases are invalid with the Codex backend.
-        Supplying backend=codex-cli invokes Codex directly without fallback.
+        performance, test-quality, documentation, or api-contracts. With no
+        backend/model override, KIS selects the qualified purpose-specific
+        NVIDIA route, streams provider deltas for liveness, validates the strict
+        result contract, and uses only that lane's qualified model fallback.
+        Explicit legacy model aliases nano, super, or ultra select NVIDIA
+        directly for compatibility. Supplying backend=codex-cli invokes Codex
+        directly without fallback and is not an automatic production fallback.
         """
 
         try:

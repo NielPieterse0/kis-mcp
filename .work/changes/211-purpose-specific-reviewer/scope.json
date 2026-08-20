@@ -1,0 +1,54 @@
+{
+  "schema_version": 4,
+  "change_id": "211-purpose-specific-reviewer",
+  "status": "active",
+  "branch": "change/211-purpose-specific-reviewer",
+  "worktree": ".work/worktrees/211-purpose-specific-reviewer",
+  "base": "main",
+  "outcome": "Replace the obsolete generic reviewer path with the qualified purpose-specific external reviewer architecture for issue #403, including deterministic lane routing/evidence shaping, SSE liveness, strict result/tool validation, typed fallback policy, security cascade, and reviewer telemetry.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/code_review/**",
+    "src/kis_mcp/providers/nvidia/**",
+    "tests/workflows/code_review/**",
+    "tests/providers/nvidia/**",
+    "settings/agents/code-review-agent.settings.json",
+    "contracts/agents/code-review-agent.settings.schema.json",
+    "docs/operations/review-agent.md",
+    "SPEC.md",
+    "docs/PROVIDER-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/211-purpose-specific-reviewer/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/discover/**",
+    "src/kis_mcp/providers/serena/**",
+    "tests/discover/**",
+    "tests/providers/serena/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "local_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "upstream_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-403",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 403,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}

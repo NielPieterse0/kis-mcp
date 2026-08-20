@@ -14,6 +14,8 @@ class ReviewEvidence:
     included_files: tuple[str, ...]
     omitted_files: tuple[str, ...]
     complete: bool
+    ignored_files: tuple[str, ...] = ()
+    projector: str = "changed-code-tests"
     commit_ref: str | None = None
     base_ref: str | None = None
     head_ref: str | None = None
@@ -26,6 +28,8 @@ class ReviewEvidence:
             "changed_files": list(self.changed_files),
             "included_files": list(self.included_files),
             "omitted_files": list(self.omitted_files),
+            "ignored_files": list(self.ignored_files),
+            "evidence_projector": self.projector,
             "evidence_complete": self.complete,
             "evidence_chars": len(self.content),
         }
@@ -59,6 +63,7 @@ class EvidenceCollector(Protocol):
         commit_ref: str | None = None,
         base_ref: str | None = None,
         head_ref: str | None = None,
+        review_type: str = "code-quality",
     ) -> ReviewEvidence: ...
 
 

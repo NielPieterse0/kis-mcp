@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from kis_mcp.providers.nvidia import NvidiaNimError, nvidia_settings_from_mapping
+from kis_mcp.providers.nvidia import NvidiaNimError, NvidiaStreamResult, nvidia_settings_from_mapping
 from kis_mcp.tools.codex_cli import CodexCliError, CodexSettings
 from kis_mcp.workflows.code_review.contracts import ReviewEvidence
 from kis_mcp.workflows.code_review.reviewer import CodeReviewAgent
@@ -28,6 +28,7 @@ class FakeCollector:
         commit_ref: str | None = None,
         base_ref: str | None = None,
         head_ref: str | None = None,
+        review_type: str = "code-quality",
     ) -> ReviewEvidence:
         self.paths.append(path)
         self.requests.append(
@@ -80,6 +81,7 @@ class FakeNvidiaBackend(FakeBackend):
     def __init__(self, *, available: bool = True, output: str = "") -> None:
         super().__init__("nvidia-nim", available=available, output=output)
         self.model_calls: list[tuple[Path, str, str, float | None]] = []
+        self.stream_calls: list[dict[str, object]] = []
         self.benchmark_calls: list[tuple[str, str]] = []
 
     def review_with_model(
@@ -94,6 +96,17 @@ class FakeNvidiaBackend(FakeBackend):
         if isinstance(self.output, Exception):
             raise self.output
         return self.output
+
+    def complete_stream(self, prompt: str, **kwargs: object) -> NvidiaStreamResult:
+        self.stream_calls.append({"prompt": prompt, **kwargs})
+        if isinstance(self.output, Exception):
+            raise self.output
+        return NvidiaStreamResult(
+            content=self.output,
+            finish_reason="stop",
+            tool_calls=(),
+            telemetry={"transport": "sse", "delta_count": 1},
+        )
 
     def benchmark_model(self, prompt: str, model_alias: str) -> str:
         self.benchmark_calls.append((prompt, model_alias))
@@ -138,6 +151,16 @@ class SequenceBackend:
     ) -> str:
         self.model_calls.append((project_path, prompt, model_profile, timeout_seconds))
         return self._next()
+
+    def complete_stream(self, prompt: str, **kwargs: object) -> NvidiaStreamResult:
+        self.calls.append((Path("."), prompt, kwargs.get("timeout_seconds")))
+        output = self._next()
+        return NvidiaStreamResult(
+            content=output,
+            finish_reason="stop",
+            tool_calls=(),
+            telemetry={"transport": "sse", "delta_count": 1},
+        )
 
 
 def _nvidia_settings():
@@ -351,10 +374,13 @@ def test_agent_uses_default_super_model_and_returns_provenance(tmp_path: Path) -
     assert result["findings"][0]["severity"] == "medium"
     assert result["unknowns"] == ["runtime behavior not exercised"]
     assert codex.calls == []
-    assert nvidia.model_calls[0][2] == "super"
-    assert "bounded evidence" in nvidia.model_calls[0][1]
-    assert "focus on errors" in nvidia.model_calls[0][1]
-    assert "Do not modify files" in nvidia.model_calls[0][1]
+    assert nvidia.model_calls == []
+    assert nvidia.stream_calls[0]["model"] == "nvidia/nemotron-3-super-120b-a12b"
+    prompt = str(nvidia.stream_calls[0]["prompt"])
+    assert "bounded evidence" in prompt
+    assert "focus on errors" in prompt
+    assert "untrusted DATA" in prompt
+    assert "PURPOSE FENCE" in prompt
 
 
 def test_agent_explicit_model_without_backend_forces_nvidia(tmp_path: Path) -> None:
@@ -446,12 +472,11 @@ def test_agent_falls_back_when_preferred_backend_is_unavailable_without_model(tm
 
     result = agent.review(tmp_path)
 
-    assert result["status"] == "failed"
-    assert result["backend"] == "codex-cli"
-    assert result["summary"] == "Review output was not a structured JSON object."
-    assert result["diagnostics"] == ["AGENT_OUTPUT_NOT_STRUCTURED"]
+    assert result["status"] == "unavailable"
+    assert result["backend"] == "nvidia-nim"
+    assert result["diagnostics"] == ["AGENT_BACKEND_UNAVAILABLE"]
     assert result["manual_fallback"]["mode"] == "exact-diff"
-    assert "model_profile" not in result
+    assert codex.calls == []
 
 
 def test_agent_explicit_backend_does_not_silently_switch(tmp_path: Path) -> None:
@@ -484,7 +509,7 @@ def test_agent_returns_bounded_failure_without_exception_text(tmp_path: Path) ->
 
     assert result["status"] == "failed"
     assert result["backend"] == "nvidia-nim"
-    assert result["diagnostics"] == ["AGENT_BACKENDS_FAILED"]
+    assert result["diagnostics"] == ["AGENT_QUALIFIED_ROUTES_FAILED"]
     assert result["manual_fallback"]["required"] is True
     assert "secret upstream detail" not in str(result)
 
@@ -665,14 +690,15 @@ def test_agent_uses_implicit_fallback_after_invalid_preferred_backend_output(
 
     result = agent.review(tmp_path, review_type="architecture")
 
-    assert result["status"] == "completed"
-    assert result["backend"] == "codex-cli"
-    assert result["attempts"] == [
-        {"backend": "nvidia-nim", "attempt": 1, "status": "invalid"},
-        {"backend": "codex-cli", "attempt": 1, "status": "completed"},
+    assert result["status"] == "failed"
+    assert result["backend"] == "nvidia-nim"
+    assert result["diagnostics"] == ["AGENT_QUALIFIED_ROUTES_FAILED"]
+    assert [item["model_profile"] for item in result["attempts"]] == [
+        "ultra", "ultra", "super", "super"
     ]
-    assert len(nvidia.model_calls) == 1
-    assert len(codex.calls) == 1
+    assert all(item["status"] == "invalid" for item in result["attempts"])
+    assert len(nvidia.stream_calls) == 4
+    assert codex.calls == []
 
 
 def test_agent_dual_backend_failure_requires_manual_exact_diff_fallback(
@@ -698,13 +724,15 @@ def test_agent_dual_backend_failure_requires_manual_exact_diff_fallback(
     result = agent.review(tmp_path, review_type="architecture")
 
     assert result["status"] == "failed"
-    assert result["diagnostics"] == ["AGENT_BACKENDS_FAILED"]
+    assert result["diagnostics"] == ["AGENT_QUALIFIED_ROUTES_FAILED"]
     assert [item["backend"] for item in result["attempts"]] == [
         "nvidia-nim",
         "nvidia-nim",
-        "codex-cli",
+        "nvidia-nim",
     ]
+    assert [item["model_profile"] for item in result["attempts"]] == ["ultra", "ultra", "super"]
     assert [item["retryable"] for item in result["attempts"]] == [True, True, False]
+    assert codex.calls == []
     assert result["manual_fallback"] == {
         "required": True,
         "mode": "exact-diff",

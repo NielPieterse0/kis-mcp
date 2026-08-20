@@ -7,7 +7,8 @@
   "required": [
     "schema_version", "enabled", "agent_id", "preferred_backend",
     "fallback_backend", "max_evidence_chars", "max_output_chars",
-    "max_backend_attempts", "review_deadline_seconds", "nvidia", "codex"
+    "max_backend_attempts", "review_deadline_seconds", "soft_stall_seconds",
+    "hard_stall_seconds", "nvidia", "codex"
   ],
   "properties": {
     "schema_version": {"const": 1},
@@ -19,6 +20,8 @@
     "max_output_chars": {"type": "integer", "minimum": 1000, "maximum": 100000},
     "max_backend_attempts": {"type": "integer", "minimum": 1, "maximum": 3},
     "review_deadline_seconds": {"type": "integer", "minimum": 1, "maximum": 300},
+    "soft_stall_seconds": {"type": "integer", "minimum": 1, "maximum": 120},
+    "hard_stall_seconds": {"type": "integer", "minimum": 2, "maximum": 180},
     "nvidia": {"$ref": "#/$defs/nvidia"},
     "codex": {"$ref": "#/$defs/codex"}
   },
