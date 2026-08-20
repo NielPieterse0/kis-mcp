@@ -6,7 +6,7 @@
 - [x] Update `SPEC.md` current behavior.
 - [x] Run focused command-service tests.
 - [x] Run `pwsh -File scripts/change-workflow.ps1 check`.
-- [ ] Complete required review and resolve findings.
+- [x] Complete required review and resolve findings.
 - [ ] Commit and publish exact head.
 - [ ] Obtain exact-head GitHub Actions success.
 - [ ] Merge through Work Management readiness gate.

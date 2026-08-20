@@ -95,6 +95,22 @@ def test_command_plane_settings_reject_alias_shadowing_declared_state(tmp_path: 
         load_command_plane_settings(candidate)
 
 
+def test_command_plane_settings_fail_closed_for_unknown_intake_alias() -> None:
+    settings = load_command_plane_settings(SETTINGS_PATH)
+    assert settings.intake_state("Tood") is None
+
+
+def test_command_plane_settings_allow_multiple_aliases_to_same_intake_state(tmp_path: Path) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    document["intake_aliases"]["backlog"] = "inbox"
+    candidate = tmp_path / "command-plane.json"
+    candidate.write_text(json.dumps(document), encoding="utf-8")
+
+    settings = load_command_plane_settings(candidate)
+    assert settings.intake_state("Todo") is LifecycleState.INBOX
+    assert settings.intake_state("backlog") is LifecycleState.INBOX
+
+
 def test_command_plane_settings_reject_unknown_ranking_key(tmp_path: Path) -> None:
     document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     document["queue"]["ranking"] = ["magic"]
