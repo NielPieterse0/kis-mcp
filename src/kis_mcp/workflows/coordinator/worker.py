@@ -66,8 +66,13 @@ _ALLOWED_TRANSITIONS = {
 @dataclass(frozen=True, slots=True)
 class ExecutionIdentity:
     execution_id: str
+    run_id: str
     packet_id: str
+    project_id: str
+    change_id: str
     task_id: str
+    governed_worktree: str
+    lifecycle_phase: str
     assignment_generation: int
     reservation_id: str
     authority_revision: int
@@ -79,7 +84,8 @@ class ExecutionIdentity:
 
     def __post_init__(self) -> None:
         for label in (
-            "execution_id", "packet_id", "task_id", "reservation_id",
+            "execution_id", "run_id", "packet_id", "project_id", "change_id", "task_id",
+            "governed_worktree", "lifecycle_phase", "reservation_id",
             "lease_id", "worker_id", "attempt_id",
         ):
             _require_non_empty(getattr(self, label), label)
@@ -90,8 +96,13 @@ class ExecutionIdentity:
     def to_json_dict(self) -> dict[str, Any]:
         return {
             "execution_id": self.execution_id,
+            "run_id": self.run_id,
             "packet_id": self.packet_id,
+            "project_id": self.project_id,
+            "change_id": self.change_id,
             "task_id": self.task_id,
+            "governed_worktree": self.governed_worktree,
+            "lifecycle_phase": self.lifecycle_phase,
             "assignment_generation": self.assignment_generation,
             "reservation_id": self.reservation_id,
             "authority_revision": self.authority_revision,
@@ -110,8 +121,13 @@ class ExecutionIdentity:
                 raise ValueError("runtime_binding must be an object")
             return cls(
                 execution_id=value["execution_id"],
+                run_id=value["run_id"],
                 packet_id=value["packet_id"],
+                project_id=value["project_id"],
+                change_id=value["change_id"],
                 task_id=value["task_id"],
+                governed_worktree=value["governed_worktree"],
+                lifecycle_phase=value["lifecycle_phase"],
                 assignment_generation=value["assignment_generation"],
                 reservation_id=value["reservation_id"],
                 authority_revision=value["authority_revision"],
@@ -253,8 +269,8 @@ class WorkerExecution:
         if self.last_event_id is not None:
             last_event = {"event_id": self.last_event_id, "digest": self.last_event_digest}
         return {
-            "schema_version": 2,
-            "contract": "coordinator-worker-execution-v2",
+            "schema_version": 3,
+            "contract": "coordinator-worker-execution-v3",
             "identity": self.identity.to_json_dict(),
             "state": self.state.value,
             "sequence": self.sequence,
@@ -271,7 +287,7 @@ class WorkerExecution:
     @classmethod
     def from_json_dict(cls, value: Mapping[str, Any]) -> WorkerExecution:
         try:
-            if value.get("schema_version") != 2 or value.get("contract") != "coordinator-worker-execution-v2":
+            if value.get("schema_version") != 3 or value.get("contract") != "coordinator-worker-execution-v3":
                 raise ValueError("worker execution contract identity is invalid")
             identity_value = value["identity"]
             accepted_value = value["accepted_events"]
@@ -348,13 +364,18 @@ class WorkerLifecycle:
         status = _handoff_status(execution.state)
         identity = execution.identity
         return {
-            "schema_version": 2,
-            "contract": "coordinator-worker-handoff-v2",
+            "schema_version": 3,
+            "contract": "coordinator-worker-handoff-v3",
             "handoff_id": handoff_id,
             "execution_id": identity.execution_id,
+            "run_id": identity.run_id,
             "attempt_id": identity.attempt_id,
             "packet_id": identity.packet_id,
+            "project_id": identity.project_id,
+            "change_id": identity.change_id,
             "task_id": identity.task_id,
+            "governed_worktree": identity.governed_worktree,
+            "lifecycle_phase": identity.lifecycle_phase,
             "assignment_generation": identity.assignment_generation,
             "reservation_id": identity.reservation_id,
             "authority_revision": identity.authority_revision,
@@ -959,9 +980,19 @@ def _validate_execution_packet(
         packet_binding_ref = _runtime_binding_ref(packet_binding)
     except ValueError as exc:
         raise ReservationAdmissionError("WORKER_PACKET_INVALID", str(exc)) from exc
+    governed = packet.get("governed")
+    if not isinstance(governed, Mapping):
+        raise ReservationAdmissionError(
+            "WORKER_PACKET_INVALID", "Work packet governed envelope is required."
+        )
     if (
-        identity.packet_id != packet.get("packet_id")
+        identity.run_id != packet.get("run_id")
+        or identity.packet_id != packet.get("packet_id")
+        or identity.project_id != packet.get("project_id")
+        or identity.change_id != packet.get("change_id")
         or identity.task_id != packet.get("task_id")
+        or identity.governed_worktree != governed.get("worktree")
+        or identity.lifecycle_phase != packet.get("lifecycle_phase")
         or expected_authority != dict(authority)
         or dict(identity.runtime_binding) != packet_binding_ref
     ):

@@ -32,6 +32,11 @@ _REQUIRED_HANDOFF_FIELDS = tuple(
             "evidence",
             "exact_head",
             "execution_id",
+            "run_id",
+            "project_id",
+            "change_id",
+            "governed_worktree",
+            "lifecycle_phase",
             "fence_token",
             "handoff_id",
             "observed_at",
@@ -158,6 +163,21 @@ class WorkPacketService:
             "dependencies": sorted(task.dependencies),
             "acceptance_checks": sorted(task.acceptance_checks),
             "exact_base": exact_base,
+            "governed": {
+                "root": request.governed_root,
+                "worktree": request.governed_worktree,
+                "base_revision": exact_base,
+            },
+            "lifecycle_phase": request.lifecycle_phase,
+            "authority_references": sorted(request.authority_references),
+            "work_management": (
+                dict(request.work_management) if request.work_management is not None else None
+            ),
+            "external_provenance": (
+                dict(request.external_provenance)
+                if request.external_provenance is not None
+                else None
+            ),
             "verification_requirement_ids": sorted(
                 request.verification_requirement_ids
             ),
@@ -177,11 +197,22 @@ class WorkPacketService:
             raise ReservationAdmissionError(
                 "ASSIGNMENT_KEY_INVALID", "Assignment key factory returned an invalid key."
             )
+        assignment_key_sha256 = hashlib.sha256(assignment_key.encode("utf-8")).hexdigest()
+        run_id = _stable_id(
+            "run",
+            {
+                "packet_id": packet_id,
+                "assignment_generation": 1,
+                "assignment_key_sha256": assignment_key_sha256,
+            },
+        )
         issued_at = _timestamp(self._clock())
         packet = {
-            "schema_version": 2,
-            "contract": "coordinator-work-packet-v2",
+            "schema_version": 3,
+            "contract": "coordinator-work-packet-v3",
             "packet_id": packet_id,
+            "run_id": run_id,
+            "predecessor_run_id": None,
             "work_id": request.work_id,
             "project_id": request.project_id,
             "change_id": request.change_id,
@@ -193,7 +224,17 @@ class WorkPacketService:
             "dependencies": stable_identity["dependencies"],
             "acceptance_checks": stable_identity["acceptance_checks"],
             "exact_base": exact_base,
+            "governed": stable_identity["governed"],
+            "lifecycle_phase": stable_identity["lifecycle_phase"],
+            "authority_references": stable_identity["authority_references"],
+            "work_management": stable_identity["work_management"],
+            "external_provenance": stable_identity["external_provenance"],
             "authority": normalized_authority,
+            "executor": {
+                "worker_id": binding["worker_id"],
+                "profile": binding["binding"],
+                "runtime_id": binding["runtime_id"],
+            },
             "runtime_binding": binding_ref,
             "verification_requirement_ids": stable_identity[
                 "verification_requirement_ids"
@@ -214,14 +255,140 @@ class WorkPacketService:
             },
             "assignment": {
                 "generation": 1,
-                "key_sha256": hashlib.sha256(
-                    assignment_key.encode("utf-8")
-                ).hexdigest(),
+                "run_id": run_id,
+                "predecessor_run_id": None,
+                "key_sha256": assignment_key_sha256,
                 "state": "active",
             },
             "issued_at": issued_at,
         }
         _write_json_once(issued_path, stored)
+        return {"packet": packet, "runtime_binding": binding}
+
+    def reassign(
+        self,
+        *,
+        packet_id: str,
+        authority: Mapping[str, Any],
+        expected_generation: int,
+        predecessor_run_id: str,
+    ) -> dict[str, Any]:
+        if not isinstance(packet_id, str) or not packet_id.strip():
+            raise ValueError("packet_id must be a non-empty string")
+        if not isinstance(predecessor_run_id, str) or not predecessor_run_id.strip():
+            raise ValueError("predecessor_run_id must be a non-empty string")
+        if isinstance(expected_generation, bool) or not isinstance(expected_generation, int) or expected_generation < 1:
+            raise ValueError("expected_generation must be a positive integer")
+        packet_root = self._state_root / "coordinator" / "packets" / packet_id
+        events = sorted(packet_root.glob("[0-9][0-9][0-9]-*.json"))
+        if not events:
+            raise ReservationAdmissionError(
+                "WORK_PACKET_NOT_FOUND", f"Work packet {packet_id} has no durable issuance evidence."
+            )
+        try:
+            previous = json.loads(events[-1].read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise ReservationAdmissionError("WORK_PACKET_EVIDENCE_INVALID", str(exc)[:1000]) from exc
+        previous_packet = previous.get("packet")
+        previous_assignment = previous.get("assignment")
+        if not isinstance(previous_packet, Mapping) or not isinstance(previous_assignment, Mapping):
+            raise ReservationAdmissionError(
+                "WORK_PACKET_EVIDENCE_INVALID", "Durable packet assignment evidence is incomplete."
+            )
+        if previous_assignment.get("state") != "active":
+            raise ReservationAdmissionError(
+                "WORK_PACKET_ASSIGNMENT_NOT_ACTIVE", "Only the current active assignment can be reassigned."
+            )
+        if previous_assignment.get("generation") != expected_generation:
+            raise ReservationAdmissionError(
+                "STALE_ASSIGNMENT_GENERATION", "Assignment generation is no longer current."
+            )
+        if previous_assignment.get("run_id") != predecessor_run_id:
+            raise ReservationAdmissionError(
+                "STALE_RUN_ID", "Predecessor run is no longer the active assignment."
+            )
+        previous_authority = previous_packet.get("authority")
+        if not isinstance(previous_authority, Mapping):
+            raise ReservationAdmissionError(
+                "WORK_PACKET_EVIDENCE_INVALID", "Previous packet authority is missing."
+            )
+        normalized_previous_authority = _authority_identity(previous_authority)
+        normalized_authority = _authority_identity(authority)
+        if (
+            normalized_authority["reservation_id"]
+            != normalized_previous_authority["reservation_id"]
+            or normalized_authority["authority_revision"]
+            <= normalized_previous_authority["authority_revision"]
+            or normalized_authority["fence_token"]
+            <= normalized_previous_authority["fence_token"]
+            or normalized_authority["lease_id"]
+            == normalized_previous_authority["lease_id"]
+        ):
+            raise ReservationAdmissionError(
+                "REASSIGNMENT_AUTHORITY_NOT_ADVANCED",
+                "Reassignment requires the same reservation with a higher authority revision/fence and a new lease.",
+            )
+        required_capabilities = previous_packet.get("required_capabilities")
+        if not isinstance(required_capabilities, Sequence) or isinstance(
+            required_capabilities, (str, bytes, bytearray)
+        ) or any(not isinstance(item, str) or not item.strip() for item in required_capabilities):
+            raise ReservationAdmissionError(
+                "WORK_PACKET_EVIDENCE_INVALID", "Required capabilities are invalid."
+            )
+        binding = self._runtime_binding(tuple(sorted(required_capabilities)))
+        binding_ref = {
+            "binding_id": binding["binding_id"],
+            "binding_fingerprint": binding["binding_fingerprint"],
+        }
+        assignment_key = self._token_factory()
+        if not isinstance(assignment_key, str) or not assignment_key.strip():
+            raise ReservationAdmissionError(
+                "ASSIGNMENT_KEY_INVALID", "Assignment key factory returned an invalid key."
+            )
+        generation = expected_generation + 1
+        key_sha256 = hashlib.sha256(assignment_key.encode("utf-8")).hexdigest()
+        run_id = _stable_id(
+            "run",
+            {
+                "packet_id": packet_id,
+                "assignment_generation": generation,
+                "assignment_key_sha256": key_sha256,
+            },
+        )
+        issued_at = _timestamp(self._clock())
+        packet = {
+            **dict(previous_packet),
+            "run_id": run_id,
+            "predecessor_run_id": predecessor_run_id,
+            "authority": normalized_authority,
+            "executor": {
+                "worker_id": binding["worker_id"],
+                "profile": binding["binding"],
+                "runtime_id": binding["runtime_id"],
+            },
+            "runtime_binding": binding_ref,
+            "assignment": {"generation": generation, "key": assignment_key},
+            "issued_at": issued_at,
+        }
+        self._persist_runtime_binding(binding)
+        ordinal = len(events) + 1
+        path = packet_root / f"{ordinal:03d}-reassigned.json"
+        stored = {
+            "schema_version": 1,
+            "contract": "coordinator-work-packet-assigned-v1",
+            "packet_id": packet_id,
+            "packet": {key: value for key, value in packet.items() if key != "assignment"},
+            "previous_assignment": {**dict(previous_assignment), "state": "revoked"},
+            "assignment": {
+                "generation": generation,
+                "run_id": run_id,
+                "predecessor_run_id": predecessor_run_id,
+                "key_sha256": key_sha256,
+                "state": "active",
+            },
+            "issued_at": issued_at,
+        }
+        _write_json_once(path, stored)
         return {"packet": packet, "runtime_binding": binding}
 
     def _runtime_binding(

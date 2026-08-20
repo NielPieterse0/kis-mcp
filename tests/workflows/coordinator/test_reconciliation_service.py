@@ -57,9 +57,11 @@ def _packet(
     dependencies: tuple[str, ...] = (),
 ) -> dict[str, object]:
     packet = {
-        "schema_version": 2,
-        "contract": "coordinator-work-packet-v2",
+        "schema_version": 3,
+        "contract": "coordinator-work-packet-v3",
         "packet_id": packet_id,
+        "run_id": "run-1",
+        "predecessor_run_id": None,
         "work_id": "work-1",
         "project_id": "kis-mcp",
         "change_id": "150-parallel-agent-coordinator",
@@ -75,11 +77,25 @@ def _packet(
         "dependencies": list(dependencies),
         "acceptance_checks": ["reconciliation passes"],
         "exact_base": BASE,
+        "governed": {
+            "root": "C:/Projects/kis-mcp",
+            "worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+            "base_revision": BASE,
+        },
+        "lifecycle_phase": "implementation",
+        "authority_references": ["AGENTS.md", "issue:#252"],
+        "work_management": {"record_id": "TASK-252"},
+        "external_provenance": {"session_id": "chat-252"},
         "authority": {
             "reservation_id": "reservation-1",
             "authority_revision": 3,
             "lease_id": "lease-1",
             "fence_token": 7,
+        },
+        "executor": {
+            "worker_id": "worker-1",
+            "profile": "development",
+            "runtime_id": "kis-dev",
         },
         "runtime_binding": RUNTIME,
         "verification_requirement_ids": [],
@@ -94,6 +110,8 @@ def _packet(
         "packet": {key: value for key, value in packet.items() if key != "assignment"},
         "assignment": {
             "generation": 1,
+            "run_id": "run-1",
+            "predecessor_run_id": None,
             "key_sha256": hashlib.sha256(KEY.encode()).hexdigest(),
             "state": "active",
         },
@@ -136,13 +154,18 @@ def _claims() -> list[dict[str, object]]:
 
 def _handoff(*, handoff_id: str = "handoff-1") -> dict[str, object]:
     return {
-        "schema_version": 2,
-        "contract": "coordinator-worker-handoff-v2",
+        "schema_version": 3,
+        "contract": "coordinator-worker-handoff-v3",
         "handoff_id": handoff_id,
         "execution_id": "execution-1",
+        "run_id": "run-1",
         "attempt_id": "attempt-1",
         "packet_id": "packet-1",
+        "project_id": "kis-mcp",
+        "change_id": "150-parallel-agent-coordinator",
         "task_id": "reconcile",
+        "governed_worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+        "lifecycle_phase": "implementation",
         "assignment_generation": 1,
         "reservation_id": "reservation-1",
         "authority_revision": 3,
@@ -171,12 +194,17 @@ def _observed() -> dict[str, object]:
 
 def _execution(*, residual_state: tuple[str, ...] = ()) -> dict[str, object]:
     return {
-        "schema_version": 2,
-        "contract": "coordinator-worker-execution-v2",
+        "schema_version": 3,
+        "contract": "coordinator-worker-execution-v3",
         "identity": {
             "execution_id": "execution-1",
+            "run_id": "run-1",
             "packet_id": "packet-1",
+            "project_id": "kis-mcp",
+            "change_id": "150-parallel-agent-coordinator",
             "task_id": "reconcile",
+            "governed_worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+            "lifecycle_phase": "implementation",
             "assignment_generation": 1,
             "reservation_id": "reservation-1",
             "authority_revision": 3,

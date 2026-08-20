@@ -167,6 +167,12 @@ class PlannerRequest:
     revision: int
     exact_base: Mapping[str, str]
     tasks: tuple[PlannerTask, ...]
+    governed_root: str = "."
+    governed_worktree: str = "."
+    lifecycle_phase: str = "implementation"
+    authority_references: tuple[str, ...] = ()
+    work_management: Mapping[str, Any] | None = None
+    external_provenance: Mapping[str, Any] | None = None
     verification_requirement_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -180,7 +186,22 @@ class PlannerRequest:
                 raise ValueError(f"{label} must be a non-empty string")
         if isinstance(self.revision, bool) or not isinstance(self.revision, int) or self.revision < 1:
             raise ValueError("revision must be a positive integer")
+        for label in ("governed_root", "governed_worktree", "lifecycle_phase"):
+            value = getattr(self, label)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{label} must be a non-empty string")
         object.__setattr__(self, "exact_base", MappingProxyType(dict(self.exact_base)))
+        object.__setattr__(self, "authority_references", tuple(self.authority_references))
+        if len(set(self.authority_references)) != len(self.authority_references) or any(
+            not isinstance(item, str) or not item.strip() for item in self.authority_references
+        ):
+            raise ValueError("authority_references must contain unique non-empty strings")
+        for label in ("work_management", "external_provenance"):
+            value = getattr(self, label)
+            if value is not None:
+                if not isinstance(value, Mapping):
+                    raise ValueError(f"{label} must be an object when supplied")
+                object.__setattr__(self, label, MappingProxyType(dict(value)))
         if not isinstance(self.tasks, Sequence) or isinstance(
             self.tasks, (str, bytes, bytearray)
         ):

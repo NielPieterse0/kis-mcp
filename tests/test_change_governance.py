@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -107,6 +108,23 @@ def test_schema_v2_claim_validates_work_management_evidence() -> None:
         module.ChangeClaim.from_mapping(data, source=Path("001-alpha/scope.json"))
 
 
+def test_schema_v4_work_management_can_bind_execution_owner() -> None:
+    module = load_module()
+    current = claim(
+        module,
+        "001-alpha",
+        schema_version=4,
+        complexity="medium",
+        risk_triggers=[],
+        base_evidence=base_evidence(),
+        work_management=work_management_evidence(execution_owner="codex"),
+    )
+
+    assert current.work_management is not None
+    assert current.work_management.execution_owner == "codex"
+    assert current.to_mapping()["work_management"]["execution_owner"] == "codex"
+
+
 def test_schema_v3_claim_remains_valid_with_legacy_risk_profile() -> None:
     module = load_module()
 
@@ -186,6 +204,22 @@ def test_exclusive_path_overlap_is_rejected() -> None:
     conflicts = module.find_claim_conflicts([first, second])
 
     assert any("EXCLUSIVE_PATH_OVERLAP" in conflict for conflict in conflicts)
+    assert any("intersection=src/kis_mcp/server.py" in conflict for conflict in conflicts)
+
+
+def test_recursive_path_overlap_reports_exact_intersection() -> None:
+    module = load_module()
+    first = claim(module, "001-alpha", owned_paths=["src/**"])
+    second = claim(module, "002-beta", owned_paths=["src/kis_mcp/**"])
+
+    conflicts = module.find_claim_conflicts([first, second])
+
+    assert conflicts == [
+        (
+            "EXCLUSIVE_PATH_OVERLAP: 001-alpha:src/** overlaps "
+            "002-beta:src/kis_mcp/**; intersection=src/kis_mcp/**"
+        )
+    ]
 
 
 def test_pull_request_claim_projection_releases_landed_schema_v3_claims() -> None:
@@ -336,6 +370,50 @@ def initialize_repository(tmp_path: Path) -> Path:
     run_git(repository, "add", ".")
     run_git(repository, "commit", "-m", "test: initialize repository")
     return repository
+
+
+def run_concurrent_new(
+    repository: Path,
+    state_root: Path,
+    changes: list[tuple[str, str, str]],
+    *,
+    allocate_next: bool = False,
+) -> list[subprocess.CompletedProcess[str]]:
+    environment = {**os.environ, "KIS_STATE_ROOT": str(state_root)}
+    processes = [
+        subprocess.Popen(
+            [
+                sys.executable,
+                str(SCRIPT_PATH),
+                "--repository",
+                str(repository),
+                "new",
+                change_id,
+                *(["--allocate-next"] if allocate_next else []),
+                "--outcome",
+                outcome,
+                "--owned",
+                owned_path,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=environment,
+        )
+        for change_id, outcome, owned_path in changes
+    ]
+    results = []
+    for process in processes:
+        stdout, stderr = process.communicate(timeout=30)
+        results.append(
+            subprocess.CompletedProcess(
+                process.args,
+                process.returncode,
+                stdout=stdout,
+                stderr=stderr,
+            )
+        )
+    return results
 
 
 def set_change_status(target: Path, change_id: str, status: str) -> None:
@@ -576,6 +654,144 @@ def test_create_change_worktree_rejects_duplicate_active_outcome(
             outcome="  implement   ALPHA ",
             owned_paths=["src/beta/**"],
         )
+
+
+def test_create_change_worktree_rejects_historical_numeric_prefix_reuse(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    change_root = repository / ".work" / "changes" / "001-historical"
+    change_root.mkdir(parents=True)
+    historical = claim(module, "001-historical", status="closed")
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(historical.to_mapping()) + "\n",
+        encoding="utf-8",
+    )
+    run_git(repository, "add", ".work/changes/001-historical/scope.json")
+    run_git(repository, "commit", "-m", "test: preserve historical change identity")
+
+    with pytest.raises(module.ClaimError, match="DUPLICATE_CHANGE_NUMBER: 001"):
+        create_registered_change(
+            module,
+            repository,
+            change_id="001-new",
+            outcome="Implement new work",
+            owned_paths=["src/new/**"],
+        )
+
+
+def test_create_change_worktree_rejects_numeric_prefix_from_branch_ref(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    run_git(repository, "branch", "change/002-legacy", "main")
+
+    with pytest.raises(module.ClaimError, match="DUPLICATE_CHANGE_NUMBER: 002"):
+        create_registered_change(
+            module,
+            repository,
+            change_id="002-new",
+            outcome="Implement new work",
+            owned_paths=["src/new/**"],
+        )
+
+
+def test_create_change_worktree_rejects_numeric_prefix_from_detached_worktree(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    legacy = repository / ".work" / "worktrees" / "003-legacy"
+    run_git(repository, "worktree", "add", "--detach", str(legacy), "main")
+
+    with pytest.raises(module.ClaimError, match="DUPLICATE_CHANGE_NUMBER: 003"):
+        create_registered_change(
+            module,
+            repository,
+            change_id="003-new",
+            outcome="Implement new work",
+            owned_paths=["src/new/**"],
+        )
+
+
+def test_allocate_next_uses_highest_governed_numeric_identity(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    run_git(repository, "branch", "change/003-legacy", "main")
+
+    target = module.create_change_worktree(
+        repository,
+        change_id="allocated-work",
+        outcome="Implement allocated work",
+        owned_paths=["src/allocated/**"],
+        allocate_next=True,
+    )
+
+    assert target.name == "004-allocated-work"
+    assert run_git(repository, "branch", "--show-current").stdout.strip() == "main"
+
+
+def test_concurrent_allocate_next_creators_receive_distinct_prefixes(
+    tmp_path: Path,
+) -> None:
+    repository = initialize_repository(tmp_path)
+    results = run_concurrent_new(
+        repository,
+        tmp_path / "state",
+        [
+            ("alpha", "Implement alpha", "src/alpha/**"),
+            ("beta", "Implement beta", "src/beta/**"),
+        ],
+        allocate_next=True,
+    )
+
+    assert [result.returncode for result in results] == [0, 0]
+    allocated = sorted(json.loads(result.stdout)["change_id"] for result in results)
+    assert allocated == ["001-alpha", "002-beta"] or allocated == ["001-beta", "002-alpha"]
+
+
+def test_concurrent_explicit_duplicate_prefix_allows_only_one_creator(
+    tmp_path: Path,
+) -> None:
+    repository = initialize_repository(tmp_path)
+    results = run_concurrent_new(
+        repository,
+        tmp_path / "state",
+        [
+            ("010-alpha", "Implement alpha", "src/alpha/**"),
+            ("010-beta", "Implement beta", "src/beta/**"),
+        ],
+    )
+
+    assert sorted(result.returncode for result in results) == [0, 1]
+    failure = next(result for result in results if result.returncode != 0)
+    assert "DUPLICATE_CHANGE_NUMBER: 010" in failure.stderr
+
+
+def test_three_concurrent_scopes_never_admit_intersecting_ownership(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    results = run_concurrent_new(
+        repository,
+        tmp_path / "state",
+        [
+            ("011-alpha", "Implement alpha", "src/alpha/**"),
+            ("012-beta", "Implement beta", "src/beta/**"),
+            ("013-gamma", "Implement gamma", "src/**"),
+        ],
+    )
+
+    failures = [result for result in results if result.returncode != 0]
+    assert failures
+    assert all("EXCLUSIVE_PATH_OVERLAP" in result.stderr for result in failures)
+    claims = module.load_worktree_claims(repository)
+    assert not module.find_claim_conflicts(claims)
 
 
 def test_create_change_worktree_rejects_existing_unregistered_worktree(

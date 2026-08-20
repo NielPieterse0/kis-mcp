@@ -63,10 +63,10 @@ The detailed verification contract and change-worktree lifecycle are in [`operat
 Create a governed change only when version-controlled repository content changes. From a clean primary `main` checkout, create the isolated change with the repository workflow:
 
 ```powershell
-pwsh -File .\scripts\change-workflow.ps1 new 002-example-change --outcome "Implement one bounded result" --complexity small --owned "src/example/**"
+pwsh -File .\scripts\change-workflow.ps1 new example-change --allocate-next --outcome "Implement one bounded result" --complexity small --owned "src/example/**"
 ```
 
-Before publication, run `pwsh -File .\scripts\change-workflow.ps1 check` from the change worktree. After verified merge, run `pwsh -File .\scripts\change-workflow.ps1 cleanup 002-example-change` from clean primary `main`.
+`--allocate-next` atomically assigns the numeric prefix and prints the resulting canonical change ID. Before publication, run `pwsh -File .\scripts\change-workflow.ps1 check` from that change worktree. After verified merge, run `pwsh -File .\scripts\change-workflow.ps1 cleanup <change-id>` from clean primary `main`.
 
 Use [`../AGENTS.md`](../AGENTS.md) for governing semantics and [`operations/verification-changes.md`](operations/verification-changes.md) for the operator procedure.
 
