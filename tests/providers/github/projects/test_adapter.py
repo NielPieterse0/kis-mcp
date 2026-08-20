@@ -134,7 +134,7 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
                 "owner": "ExampleOwner",
                 "owner_type": "user",
                 "project_number": 12,
-                "per_page": 50,
+                "per_page": 25,
                 "query": "repo:ExampleOwner/alpha",
                 "field_names": ["Status"],
             },
@@ -371,7 +371,7 @@ def test_inventory_paginates_and_reports_truncation() -> None:
 
     assert [item.item_id for item in inventory.items] == ["I_1", "I_2", "I_3"]
     assert inventory.truncated is True
-    assert inventory.next_cursor == "CURSOR_3"
+    assert inventory.next_cursor == "CURSOR_2"
 
     assert caller.calls[-1] == (
         "projects_list",
@@ -380,11 +380,42 @@ def test_inventory_paginates_and_reports_truncation() -> None:
             "owner": "ExampleOwner",
             "owner_type": "user",
             "project_number": 12,
-            "per_page": 2,
+            "per_page": 1,
             "after": "CURSOR_2",
             "query": "repo:ExampleOwner/alpha",
         },
     )
+
+
+def test_inventory_stops_at_exact_limit_with_resume_cursor() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {
+            "items": [
+                {"id": "I_1", "type": "ISSUE", "content": {"title": "One", "number": 1, "repository": "ExampleOwner/alpha"}},
+                {"id": "I_2", "type": "ISSUE", "content": {"title": "Two", "number": 2, "repository": "ExampleOwner/alpha"}},
+            ],
+            "pageInfo": page_info(True, "CURSOR_2"),
+        },
+        {
+            "items": [
+                {"id": "I_3", "type": "ISSUE", "content": {"title": "Three", "number": 3, "repository": "ExampleOwner/alpha"}},
+            ],
+            "pageInfo": page_info(False),
+        },
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller, page_size=2).read_inventory(
+            binding(), item_limit=2
+        )
+    )
+
+    assert [item.item_id for item in inventory.items] == ["I_1", "I_2"]
+    assert inventory.truncated is True
+    assert inventory.next_cursor == "CURSOR_2"
+    assert len(caller.calls) == 4
 
 
 def test_inventory_accepts_list_field_values_and_result_objects() -> None:

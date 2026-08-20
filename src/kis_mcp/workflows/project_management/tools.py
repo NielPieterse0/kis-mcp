@@ -78,7 +78,7 @@ def register_project_management_tools(
     async def project_management_inventory(
         project_id: str,
         field_names: list[str] | None = None,
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> dict[str, Any]:
         """Read one configured Project inventory with bounded fields and items."""
 
@@ -134,7 +134,7 @@ def register_project_management_tools(
     @tool_server.tool(annotations=_EXTERNAL_READ)
     async def project_management_next_work(
         project_id: str,
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> dict[str, Any]:
         """Select the next eligible Ready and unclaimed Project issue deterministically."""
 
@@ -150,7 +150,7 @@ def register_project_management_tools(
         execution_owner: str,
         apply: bool = False,
         idempotency_key: str | None = None,
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> dict[str, Any]:
         """Select and preview/claim the next eligible Ready issue in one bounded workflow."""
 

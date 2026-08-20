@@ -1,0 +1,45 @@
+{
+  "schema_version": 4,
+  "change_id": "211-work-management-pagination",
+  "status": "active",
+  "branch": "change/211-work-management-pagination",
+  "worktree": ".work/worktrees/211-work-management-pagination",
+  "base": "main",
+  "outcome": "Make default public Work Management reads traverse GitHub Project pagination deterministically up to a bounded hard limit, preserving exact-target semantics and reporting truncation only when the hard bound is exhausted.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "src/kis_mcp/work_management/service.py",
+    "src/kis_mcp/workflows/project_management/enhanced_tools.py",
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/work_management/test_command_service.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    "tests/workflows/project_management/test_tools.py",
+    ".work/changes/211-work-management-pagination/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "local_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "upstream_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-406",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 406,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
