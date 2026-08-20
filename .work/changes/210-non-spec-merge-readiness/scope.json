@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "210-non-spec-merge-readiness",
+  "status": "active",
+  "branch": "change/210-non-spec-merge-readiness",
+  "worktree": ".work/worktrees/210-non-spec-merge-readiness",
+  "base": "main",
+  "outcome": "Allow exact-head Work Management merge readiness and documentation lifecycle to use authoritative Defect, Task, and Specification Slice implementation identities without fabricated SPEC records.",
+  "owned_paths": [
+    "src/kis_mcp/work_management/**",
+    "src/kis_mcp/workflows/project_management/**",
+    "tests/work_management/**",
+    "tests/workflows/project_management/**",
+    ".work/changes/210-non-spec-merge-readiness/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "596a24e4a7ff21ebe97e56149f07a64bb3a4ecdc",
+    "local_tree": "95808913648e7f5f8a7f39526f5a811dc0a16fbc",
+    "upstream_sha": "596a24e4a7ff21ebe97e56149f07a64bb3a4ecdc",
+    "upstream_tree": "95808913648e7f5f8a7f39526f5a811dc0a16fbc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-309",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 309,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}

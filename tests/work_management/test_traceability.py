@@ -184,10 +184,17 @@ def test_active_traceability_reports_missing_and_contradictory_core_links() -> N
 
     assert report.valid is False
     assert issue_codes(report) == {
-        "missing_specification_record",
+        "missing_implementation_record",
         "branch_change_mismatch",
         "worktree_change_mismatch",
     }
+    with pytest.raises(ValueError, match="implementation record evidence"):
+        create_documentation_reconciliation_due(
+            value,
+            63,
+            "TASK-053",
+            ("Reconcile documentation",),
+        )
 
 
 def test_review_and_merge_ready_require_pr_and_exact_verification() -> None:
@@ -630,3 +637,132 @@ def test_completed_documentation_event_must_match_due_event_identity() -> None:
 
     with pytest.raises(ValueError, match="event identity"):
         apply_documentation_reconciliation_event(current, different_event)
+
+
+@pytest.mark.parametrize(
+    ("record_id", "record_type"),
+    (("BUG-309", RecordType.DEFECT), ("TASK-309", RecordType.TASK)),
+)
+def test_non_spec_record_identity_can_reach_merge_ready(
+    record_id: str,
+    record_type: RecordType,
+) -> None:
+    pr = PullRequestEvidence(
+        repository="NielPieterse0/kis-mcp",
+        number=404,
+        head_branch="change/210-non-spec-merge-readiness",
+        head_revision=revision("a"),
+        base_branch="main",
+        state=PullRequestState.OPEN,
+    )
+    value = ImplementationTrace(
+        project_id="kis-mcp",
+        implementation_record_id=record_id,
+        specification_record_id=None,
+        change_id="210-non-spec-merge-readiness",
+        branch=pr.head_branch,
+        worktree=".work/worktrees/210-non-spec-merge-readiness",
+        pull_requests=(pr,),
+        verifications=(
+            verification(
+                evidence_id="verify-210-head",
+                pull_request_number=pr.number,
+                tested_revision=pr.head_revision,
+                source="github_actions",
+                reference="run:210",
+            ),
+        ),
+    )
+    work = record(record_id=record_id, record_type=record_type)
+
+    readiness = evaluate_merge_readiness(work, value, pr.number)
+
+    assert readiness.ready is True
+    assert readiness.blocking_reasons == ()
+    payload = value.to_json_dict()
+    assert payload["implementation_record_id"] == record_id
+    assert payload["specification_record_id"] is None
+
+
+def test_specification_identity_remains_spec_only_when_present() -> None:
+    with pytest.raises(ValueError, match="SPEC"):
+        ImplementationTrace(
+            project_id="kis-mcp",
+            implementation_record_id="BUG-309",
+            specification_record_id="BUG-309",
+            change_id="210-non-spec-merge-readiness",
+            branch="change/210-non-spec-merge-readiness",
+            worktree=".work/worktrees/210-non-spec-merge-readiness",
+        )
+
+
+def test_non_spec_documentation_event_tracks_implementation_identity() -> None:
+    base = ImplementationTrace(
+        project_id="kis-mcp",
+        implementation_record_id="BUG-309",
+        specification_record_id=None,
+        change_id="210-non-spec-merge-readiness",
+        branch="change/210-non-spec-merge-readiness",
+        worktree=".work/worktrees/210-non-spec-merge-readiness",
+        pull_requests=(
+            PullRequestEvidence(
+                repository="NielPieterse0/kis-mcp",
+                number=404,
+                head_branch="change/210-non-spec-merge-readiness",
+                head_revision=revision("a"),
+                base_branch="main",
+                state=PullRequestState.MERGED,
+            ),
+        ),
+        merges=(
+            MergeEvidence(
+                pull_request_number=404,
+                merge_commit=revision("b"),
+                head_revision=revision("a"),
+            ),
+        ),
+    )
+
+    event = create_documentation_reconciliation_due(
+        base,
+        404,
+        "TASK-410",
+        ("Reconcile documentation",),
+    )
+
+    assert event.implementation_record_id == "BUG-309"
+    assert event.specification_record_id is None
+    updated = apply_documentation_reconciliation_event(
+        record(record_id="BUG-309", record_type=RecordType.DEFECT),
+        event,
+    )
+    assert updated.documentation_event_id == event.event_id
+
+
+def test_legacy_spec_trace_falls_back_to_implementation_identity() -> None:
+    legacy = trace()
+
+    assert legacy.implementation_record_id == "SPEC-053"
+    readiness = evaluate_merge_readiness(record(), merge_ready_trace(), 63)
+    assert readiness.ready is True
+    payload = legacy.to_json_dict()
+    assert payload["implementation_record_id"] == "SPEC-053"
+    assert payload["specification_record_id"] == "SPEC-053"
+
+
+@pytest.mark.parametrize(
+    "implementation_record_id",
+    ("bug-309", "BUG309", "BUG--309", "BUG-"),
+)
+def test_implementation_identity_rejects_malformed_record_ids(
+    implementation_record_id: str,
+) -> None:
+    with pytest.raises(ValueError, match="implementation_record_id"):
+        ImplementationTrace(
+            project_id="kis-mcp",
+            implementation_record_id=implementation_record_id,
+            specification_record_id=None,
+            change_id="210-non-spec-merge-readiness",
+            branch="change/210-non-spec-merge-readiness",
+            worktree=".work/worktrees/210-non-spec-merge-readiness",
+        )
