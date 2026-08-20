@@ -9,7 +9,7 @@
 - [x] Add adversarial routing, fallback, stall, stale, tool-call, security, and result-contract tests.
 - [x] Reconcile `SPEC.md`, provider product spec, tool help, and operator runbook.
 - [x] Run focused pytest, Ruff, and `scripts/change-workflow.ps1 check`.
-- [ ] Record independent review and resolve findings.
+- [x] Record independent review and resolve findings.
 - [ ] Commit and publish the exact governed head; open the reviewable PR.
 - [ ] Run canonical GitHub Actions verification against the exact PR head.
 - [ ] Record merge/documentation/Work Management closeout and clean the merged worktree from `main`.

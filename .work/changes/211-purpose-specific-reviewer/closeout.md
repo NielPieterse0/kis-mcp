@@ -17,8 +17,10 @@
 
 ## Review
 
-- Independent findings: pending.
-- Resolutions: pending.
+- Independent code-quality: NVIDIA Super on exact commit `3c91f938bdb166cb9fc30b27237d2ecfc4bedad7` — completed, zero findings.
+- Independent safety/security: NVIDIA Super on the same exact commit — completed, zero findings.
+- Non-evidence attempts: Codex CLI failed with `CODEX_CLI_PROCESS_FAILED` on both live runtimes; Ultra safety returned provider HTTP 400. Neither was counted as a review pass.
+- Resolutions: no blocking findings were produced.
 
 ## Git and merge
 
