@@ -226,6 +226,15 @@ class SerenaRuntimeAdapter:
     def state_fingerprint(self) -> str:
         return f"{self.settings.source_revision}:{self.settings.package_sha256}:offline"
 
+    def public_runtime_tools(self) -> tuple[Any, ...]:
+        """Project only the explicitly approved public Serena read surface."""
+
+        return tuple(
+            tool
+            for tool in self.runtime_tools.snapshot()
+            if str(getattr(tool, "name", "")).strip() in _PUBLIC_READ_TOOLS
+        )
+
     def _publish_active_client(self, client: Any) -> None:
         self._active_client = client
         self._loop = asyncio.get_running_loop()

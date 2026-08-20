@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "214-serena-capability-boundary",
+  "status": "active",
+  "branch": "change/214-serena-capability-boundary",
+  "worktree": ".work/worktrees/214-serena-capability-boundary",
+  "base": "main",
+  "outcome": "Close Serena public capability leakage so only the approved read-only semantic operations are discoverable and dispatchable through KIS",
+  "owned_paths": [
+    "src/kis_mcp/providers/serena/adapter.py",
+    "src/kis_mcp/providers/serena/provider.py",
+    "tests/providers/test_context7_serena_providers.py",
+    "tests/capabilities/test_serena_capability_boundary.py",
+    ".work/changes/214-serena-capability-boundary/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/agents/**",
+    "src/kis_mcp/discover/**",
+    "src/kis_mcp/work_management/**",
+    "policy/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "local_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "upstream_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_ref": "refs/heads/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-408",
+    "source_repository": "nielpieterse0/kis-mcp",
+    "source_number": 408,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}
