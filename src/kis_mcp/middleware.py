@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import json
-from copy import deepcopy
 from collections.abc import Callable, Mapping, Sequence
+from copy import deepcopy
 from typing import Any
 
-from fastmcp.exceptions import ToolError
+from fastmcp.exceptions import ToolError, ValidationError
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.tools.tool import ToolResult
 
@@ -22,7 +23,6 @@ from .runtime_observability import (
     boundary_request_context,
     get_runtime_observability,
 )
-
 
 QuarantinePaths = Callable[[Sequence[str]], Sequence[Mapping[str, Any]]]
 _BOUNDARY_METHODS = frozenset({"initialize", "tools/list", "tools/call"})
@@ -46,6 +46,41 @@ class BoundaryObservabilityMiddleware(Middleware):
         with boundary_request_context(request_id):
             try:
                 result = await call_next(context)
+            except asyncio.CancelledError as exc:
+                self.observability.record_boundary_request(
+                    method=method,
+                    outcome="cancelled",
+                    tool_name=tool_name,
+                    error_type=type(exc).__name__,
+                    request_id=request_id,
+                )
+                raise
+            except ValidationError as exc:
+                self.observability.record_boundary_request(
+                    method=method,
+                    outcome="rejected",
+                    tool_name=tool_name,
+                    error_type=type(exc).__name__,
+                    request_id=request_id,
+                )
+                raise
+            except ToolError as exc:
+                message = str(exc)
+                rejected = message.startswith(
+                    ("HR-", "UNSUPPORTED_PROVIDER_", "PROVIDER_CONFIGURATION_INVARIANT")
+                )
+                cause = exc.__cause__ or exc.__context__
+                # Direct policy rejections intentionally retain the safe ToolError
+                # abstraction; wrapped failures retain only the underlying class name.
+                error_type = type(cause).__name__ if cause is not None else type(exc).__name__
+                self.observability.record_boundary_request(
+                    method=method,
+                    outcome="rejected" if rejected else "error",
+                    tool_name=tool_name,
+                    error_type=error_type,
+                    request_id=request_id,
+                )
+                raise
             except Exception as exc:
                 self.observability.record_boundary_request(
                     method=method,
@@ -310,7 +345,7 @@ class ThreeRuleMiddleware(Middleware):
         if hasattr(tool, "model_copy"):
             return tool.model_copy(update=updates)
         setattr(tool, field, schema)
-        setattr(tool, "description", updates["description"])
+        tool.description = updates["description"]
         return tool
 
     @staticmethod
