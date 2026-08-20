@@ -42,7 +42,9 @@ def test_auth_script_starts_kis_op_without_printing_or_forwarding_pat() -> None:
     assert "start-chatgpt.ps1" in source
     assert "-Instance operation" in source
     assert "owned by the kis-op runtime" in source
-    assert "Stopping or restarting kis-op requires one new" in source
+    assert "reuses valid GitHub CLI authentication" in source
+    assert "browser/device OAuth fallback" in source
+    assert "repeats this reuse-first authentication decision" in source
     assert "kis_mcp.providers.github.commission" not in source
     assert "Write-Output $env:GITHUB_PERSONAL_ACCESS_TOKEN" not in source
     assert "GITHUB_PERSONAL_ACCESS_TOKEN=" not in source

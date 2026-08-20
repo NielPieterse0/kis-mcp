@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +29,7 @@ from kis_mcp.providers.client_runtime import (
 )
 from kis_mcp.repositories import load_repository_settings
 
+from .auth import GitHubAuthDecision, resolve_github_shared_auth
 from .routing import (
     GitHubRepositoryRouting,
     GitHubRepositoryRoutingMiddleware,
@@ -54,6 +57,9 @@ class GitHubProviderHealth:
     pat_override_present: bool
     authenticated: str
     toolsets: tuple[str, ...]
+    auth_source: str = "runtime_evaluation_pending"
+    auth_decision: str = "runtime_evaluation_pending"
+    auth_reason: str = "runtime_not_started"
     client_lifetime: str = "runtime"
     auth_bootstrap_tool: str = "get_me"
     schema_version: int = 3
@@ -76,6 +82,7 @@ def github_provider_health(
     settings: GitHubProviderSettings,
     environ: Mapping[str, str] | None = None,
     startup_state: ProviderStartupState | None = None,
+    auth_decision: GitHubAuthDecision | None = None,
 ) -> GitHubProviderHealth:
     source = os.environ if environ is None else environ
     executable_present = Path(settings.executable).is_file()
@@ -100,6 +107,15 @@ def github_provider_health(
         pat_override_present=pat_override_present,
         authenticated=authenticated,
         toolsets=settings.toolsets,
+        auth_source=(
+            auth_decision.source if auth_decision is not None else "runtime_evaluation_pending"
+        ),
+        auth_decision=(
+            auth_decision.state if auth_decision is not None else "runtime_evaluation_pending"
+        ),
+        auth_reason=(
+            auth_decision.reason if auth_decision is not None else "runtime_not_started"
+        ),
     )
 
 
@@ -127,11 +143,6 @@ def github_provider_readiness(
         f"the current {runtime_surface} runtime"
         if runtime_surface is not None
         else "the current KIS runtime"
-    )
-    startup_runtime = (
-        f"when {runtime_surface} starts"
-        if runtime_surface is not None
-        else "when the KIS runtime starts"
     )
     if not health.ready:
         state = ProviderState.UNAVAILABLE
@@ -188,19 +199,22 @@ def github_provider_readiness(
         }
     else:
         state = ProviderState.READY
-        summary = f"GitHub MCP is ready; one OAuth login is required {startup_runtime}."
+        summary = (
+            "GitHub MCP is ready; runtime startup will reuse valid shared GitHub CLI auth, "
+            "otherwise interactive OAuth is required."
+        )
         user_status = {
-            "state": "ready_authentication_required",
-            "label": "Ready — authentication required",
+            "state": "ready_authentication_bootstrap",
+            "label": "Ready — authentication bootstrap pending",
             "required_action": (
-                f"Sign in once {startup_runtime}; GitHub operations then reuse the "
-                "runtime-scoped connection."
+                "Start the selected KIS runtime; KIS will reuse valid GitHub CLI auth first "
+                "and request interactive OAuth only as fallback."
             ),
         }
         commissioning = {
             "installed": "ready",
             "configured": "ready",
-            "authenticated": "required_at_runtime_start",
+            "authenticated": "bootstrap_pending",
             "upstream_connected": "pending_authentication",
             "tools_discovered": "pending_authentication",
             "live_verified": "pending_authentication",
@@ -234,6 +248,8 @@ def build_github_provider_server(
     client_factory: Callable[[Any], Any] = Client,
     startup_state: ProviderStartupState | None = None,
     runtime_tools: ProviderRuntimeToolState | None = None,
+    github_cli_config_dir: str | None = None,
+    auth_runner: Callable[..., Any] = subprocess.run,
 ) -> FastMCP:
     runtime = settings or load_github_provider_settings()
     executable = Path(runtime.executable)
@@ -243,7 +259,20 @@ def build_github_provider_server(
             "to install the pinned official release."
         )
 
-    provider_environment = github_provider_environment(runtime, environ)
+    resolved_auth = resolve_github_shared_auth(
+        runtime,
+        github_cli_config_dir=github_cli_config_dir,
+        environ=environ,
+        runner=auth_runner,
+    )
+    provider_environment = dict(resolved_auth.child_environment)
+    print(
+        "github_auth="
+        f"{resolved_auth.decision.state} "
+        f"source={resolved_auth.decision.source} "
+        f"reason={resolved_auth.decision.reason}",
+        file=sys.stderr,
+    )
     transport = StdioTransport(
         command=runtime.executable,
         args=list(runtime.launch_args()),
@@ -268,7 +297,12 @@ def build_github_provider_server(
     def kis_github_health() -> GitHubProviderHealth:
         """Report redacted GitHub MCP installation and OAuth preflight state."""
 
-        return github_provider_health(runtime, environ, provider.startup_state)
+        return github_provider_health(
+            runtime,
+            environ,
+            provider.startup_state,
+            resolved_auth.decision,
+        )
 
     return server
 

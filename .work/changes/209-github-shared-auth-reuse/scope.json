@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "209-github-shared-auth-reuse",
+  "status": "active",
+  "branch": "change/209-github-shared-auth-reuse",
+  "worktree": ".work/worktrees/209-github-shared-auth-reuse",
+  "base": "main",
+  "outcome": "Reuse valid shared GitHub CLI OAuth credentials for the GitHub MCP child without persisting new secrets, fall back to interactive OAuth only when shared auth is unavailable, and make the startup auth decision observable.",
+  "owned_paths": [
+    "settings/providers/github-mcp.provider.json",
+    "contracts/providers/github/provider-settings.schema.json",
+    "src/kis_mcp/providers/github/**",
+    "tests/providers/github/**",
+    "scripts/auth-github-mcp.ps1",
+    "scripts/smoke-github-mcp.ps1",
+    "docs/operations/providers.md",
+    "SPEC.md",
+    ".work/changes/209-github-shared-auth-reuse/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state",
+    "secrets",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "00996bebba601c819018f438b19aad58e18520ee",
+    "local_tree": "53042afe9f66619b8ad8f00373f47056925ee177",
+    "upstream_sha": "00996bebba601c819018f438b19aad58e18520ee",
+    "upstream_tree": "53042afe9f66619b8ad8f00373f47056925ee177",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-228",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 228,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}
