@@ -185,7 +185,11 @@ def implementation_trace_from_json(value: Any) -> ImplementationTrace:
             schema_version=item.get("schema_version", 1),
             event_id=item["event_id"],
             project_id=item["project_id"],
-            specification_record_id=item["specification_record_id"],
+            implementation_record_id=item.get(
+                "implementation_record_id",
+                item.get("specification_record_id"),
+            ),
+            specification_record_id=item.get("specification_record_id"),
             change_id=item["change_id"],
             pull_request_number=item["pull_request_number"],
             merge_commit=item["merge_commit"],
@@ -203,6 +207,10 @@ def implementation_trace_from_json(value: Any) -> ImplementationTrace:
     return ImplementationTrace(
         schema_version=document.get("schema_version", 1),
         project_id=document["project_id"],
+        implementation_record_id=document.get(
+            "implementation_record_id",
+            document.get("specification_record_id"),
+        ),
         specification_record_id=document.get("specification_record_id"),
         change_id=document["change_id"],
         branch=document.get("branch"),

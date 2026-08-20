@@ -247,7 +247,7 @@ class CloseoutEvidence:
 class DocumentationReconciliationEvent:
     event_id: str
     project_id: str
-    specification_record_id: str
+    specification_record_id: str | None
     change_id: str
     pull_request_number: int
     merge_commit: str
@@ -256,16 +256,24 @@ class DocumentationReconciliationEvent:
     state: DocumentationMilestoneState
     completion_revision: str | None = None
     schema_version: int = PUBLIC_SCHEMA_VERSION
+    implementation_record_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.schema_version != PUBLIC_SCHEMA_VERSION:
             raise ValueError("documentation event schema_version must be 1")
         object.__setattr__(self, "event_id", _required_text(self.event_id, "event_id"))
         object.__setattr__(self, "project_id", _project_id(self.project_id))
+        specification_record_id = self.specification_record_id
+        if specification_record_id is not None:
+            specification_record_id = _specification_record_id(specification_record_id)
+        object.__setattr__(self, "specification_record_id", specification_record_id)
+        implementation_record_id = self.implementation_record_id or specification_record_id
+        if implementation_record_id is None:
+            raise ValueError("implementation_record_id is required")
         object.__setattr__(
             self,
-            "specification_record_id",
-            _specification_record_id(self.specification_record_id),
+            "implementation_record_id",
+            _record_id(implementation_record_id, "implementation_record_id"),
         )
         object.__setattr__(self, "change_id", _change_id(self.change_id))
         object.__setattr__(
@@ -303,6 +311,7 @@ class DocumentationReconciliationEvent:
             "schema_version": self.schema_version,
             "event_id": self.event_id,
             "project_id": self.project_id,
+            "implementation_record_id": self.implementation_record_id,
             "specification_record_id": self.specification_record_id,
             "change_id": self.change_id,
             "pull_request_number": self.pull_request_number,
@@ -321,6 +330,7 @@ class ImplementationTrace:
     change_id: str
     branch: str | None
     worktree: str | None
+    implementation_record_id: str | None = None
     pull_requests: tuple[PullRequestEvidence, ...] = ()
     verifications: tuple[VerificationEvidence, ...] = ()
     merges: tuple[MergeEvidence, ...] = ()
@@ -338,6 +348,13 @@ class ImplementationTrace:
                 specification_record_id
             )
         object.__setattr__(self, "specification_record_id", specification_record_id)
+        implementation_record_id = self.implementation_record_id or specification_record_id
+        if implementation_record_id is not None:
+            implementation_record_id = _record_id(
+                implementation_record_id,
+                "implementation_record_id",
+            )
+        object.__setattr__(self, "implementation_record_id", implementation_record_id)
         object.__setattr__(self, "change_id", _change_id(self.change_id))
         object.__setattr__(self, "branch", _optional_text(self.branch, "branch"))
         worktree = _optional_text(self.worktree, "worktree")
@@ -370,6 +387,7 @@ class ImplementationTrace:
         return {
             "schema_version": self.schema_version,
             "project_id": self.project_id,
+            "implementation_record_id": self.implementation_record_id,
             "specification_record_id": self.specification_record_id,
             "change_id": self.change_id,
             "branch": self.branch,
@@ -504,12 +522,12 @@ def evaluate_traceability(
             )
         )
 
-    if trace.specification_record_id is None:
+    if trace.implementation_record_id is None:
         add(
             TraceabilityIssueKind.MISSING,
-            "missing_specification_record",
+            "missing_implementation_record",
             trace.change_id,
-            "The change is not linked to a specification-slice record.",
+            "The change is not linked to its authoritative Work record.",
         )
     expected_branch = f"change/{trace.change_id}"
     expected_worktree = f".work/worktrees/{trace.change_id}"
@@ -683,6 +701,7 @@ def evaluate_traceability(
         )
         if (
             event.project_id != trace.project_id
+            or event.implementation_record_id != trace.implementation_record_id
             or event.specification_record_id != trace.specification_record_id
             or event.change_id != trace.change_id
         ):
@@ -875,8 +894,8 @@ def evaluate_merge_readiness(
 
     if record.project_id != trace.project_id:
         blocking.add("record_project_mismatch")
-    if record.record_id != trace.specification_record_id:
-        blocking.add("record_specification_mismatch")
+    if record.record_id != trace.implementation_record_id:
+        blocking.add("record_implementation_mismatch")
 
     matching_pull_requests = [
         pull_request
@@ -933,8 +952,8 @@ def create_documentation_reconciliation_due(
         pull_request_number,
         "pull_request_number",
     )
-    if trace.specification_record_id is None:
-        raise ValueError("specification record evidence is required")
+    if trace.implementation_record_id is None:
+        raise ValueError("implementation record evidence is required")
     merges = [
         merge
         for merge in trace.merges
@@ -958,6 +977,7 @@ def create_documentation_reconciliation_due(
     return DocumentationReconciliationEvent(
         event_id=f"doc-{trace.change_id}-pr-{pull_request_number}",
         project_id=trace.project_id,
+        implementation_record_id=trace.implementation_record_id,
         specification_record_id=trace.specification_record_id,
         change_id=trace.change_id,
         pull_request_number=pull_request_number,
@@ -999,7 +1019,7 @@ def apply_documentation_reconciliation_event(
         raise ValueError("event must be a DocumentationReconciliationEvent")
     if (
         record.project_id != event.project_id
-        or record.record_id != event.specification_record_id
+        or record.record_id != event.implementation_record_id
     ):
         raise ValueError("documentation event identity does not match record")
     if (
