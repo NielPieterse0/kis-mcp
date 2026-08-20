@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "change_id": "212-merge-commit-delta-inspection",
+  "status": "active",
+  "branch": "change/212-merge-commit-delta-inspection",
+  "worktree": ".work/worktrees/212-merge-commit-delta-inspection",
+  "base": "main",
+  "outcome": "Retain the actual merged payload for two-parent merge commits across inspect, analyze, verification, and review evidence while failing closed for unsupported multi-parent commits and preserving non-merge behavior.",
+  "owned_paths": [
+    "src/kis_mcp/discover/change_targets.py",
+    "src/kis_mcp/discover/git_change_reader.py",
+    "src/kis_mcp/discover/change_service.py",
+    "tests/discover/test_change_targets.py",
+    ".work/changes/212-merge-commit-delta-inspection/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/workflows/code_review/**",
+    "tests/workflows/code_review/**"
+  ],
+  "dependencies": [
+    "211-purpose-specific-reviewer"
+  ],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "local_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_sha": "2ff18633dd5e9facdc64838135922961a35d129d",
+    "upstream_tree": "f58abc48e70cabc3ba697aaa306453790c8e5be7",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-407",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 407,
+    "source_kind": "issue",
+    "documentation_impact": "none"
+  }
+}

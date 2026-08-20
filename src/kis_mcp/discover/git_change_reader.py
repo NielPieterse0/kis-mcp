@@ -22,6 +22,7 @@ _FATAL_MESSAGES = {
     "GIT_NOT_REPOSITORY": "No local Git repository metadata was found.",
     "GIT_REPOSITORY_OUTSIDE_BOUNDARY": "Git resolved a repository outside the configured project boundary.",
     "GIT_TARGET_INVALID": "The requested local Git target could not be resolved.",
+    "GIT_UNSUPPORTED_MERGE_COMMIT": "Merge commits with more than two parents are not supported for bounded change inspection.",
     "GIT_TIMEOUT": "Local Git evidence exceeded the configured time limit.",
     "GIT_UNAVAILABLE": "The Git executable is unavailable.",
 }
@@ -129,11 +130,40 @@ class GitChangeReader:
                 if request.source == "staged"
                 else None
             )
-            target_result = self._git._run(
-                root,
-                build_target_arguments(resolved_request),
-                deadline,
-            )
+            target_arguments = build_target_arguments(resolved_request)
+            if request.source == "commit":
+                assert resolved_request.commit_ref is not None
+                identity = self._commit_identity(root, resolved_request.commit_ref, deadline)
+                if identity is None:
+                    return _unavailable(
+                        request,
+                        project.canonical_path,
+                        "GIT_TARGET_INVALID",
+                        repository_root=repository_root,
+                    )
+                commit_identity, parents = identity
+                if len(parents) > 2:
+                    return _unavailable(
+                        request,
+                        project.canonical_path,
+                        "GIT_UNSUPPORTED_MERGE_COMMIT",
+                        repository_root=repository_root,
+                    )
+                if len(parents) == 2:
+                    target_arguments = (
+                        "diff",
+                        "--no-ext-diff",
+                        "--no-textconv",
+                        "--name-status",
+                        "-z",
+                        "--find-renames",
+                        "--find-copies",
+                        "--end-of-options",
+                        parents[0],
+                        commit_identity,
+                        "--",
+                    )
+            target_result = self._git._run(root, target_arguments, deadline)
             source_fingerprint = self._target_fingerprint(
                 root,
                 resolved_request,
@@ -256,6 +286,33 @@ class GitChangeReader:
             base_ref=base,
             head_ref=head,
         )
+
+    def _commit_identity(
+        self,
+        root: Path,
+        commit_ref: str,
+        deadline: float,
+    ) -> tuple[str, tuple[str, ...]] | None:
+        result = self._git._run(
+            root,
+            ("rev-list", "--parents", "-n", "1", commit_ref),
+            deadline,
+        )
+        if result.returncode != 0 or result.truncated:
+            return None
+        parts = result.stdout.decode("ascii", errors="ignore").strip().casefold().split()
+        if not parts:
+            return None
+        commit_identity = parts[0]
+        parents = tuple(parts[1:])
+        identities = (commit_identity, *parents)
+        if any(
+            len(identity) not in {40, 64}
+            or any(char not in "0123456789abcdef" for char in identity)
+            for identity in identities
+        ):
+            return None
+        return commit_identity, parents
 
     def _resolve_commit(self, root: Path, ref: str, deadline: float) -> str | None:
         result = self._git._run(
