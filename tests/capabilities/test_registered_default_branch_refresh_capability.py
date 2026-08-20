@@ -37,9 +37,9 @@ def test_safe_closeout_refreshes_tracking_immediately_after_merge() -> None:
         "kis_github_merge_registered_pull_request"
     )
     assert closeout.required_steps[merge_index + 1] == REFRESH
-    assert closeout.required_steps.index(REFRESH) < closeout.required_steps.index(
-        "kis_github_delete_registered_branch"
-    )
+    assert "kis_github_delete_registered_branch" not in closeout.required_steps
+    assert "operation.kis_github_delete_registered_branch" not in closeout.capabilities
+    assert "remote review branch is retained" in closeout.completion_criteria
     assert (
         "operation.kis_github_refresh_registered_default_branch"
         in closeout.capabilities

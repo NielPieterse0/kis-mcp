@@ -384,7 +384,6 @@ def test_all_registered_virtual_mutations_use_schema_bound_supervised_approval()
         "kis_github_commission_registered_project_schema",
         "kis_github_merge_registered_pull_request",
         "kis_github_refresh_registered_default_branch",
-        "kis_github_delete_registered_branch",
         "kis_acquire_registered_evidence",
         "kis_github_merge_queue_enqueue",
         "kis_github_merge_queue_reconcile",

@@ -1646,44 +1646,11 @@ class RegisteredGitHubOperations:
         expected_head: str,
         approved: bool,
     ) -> dict[str, object]:
-        self._require_approval(approved)
-        project, repository, remote_url = self._target(project_id)
-        expected_sha = self._require_sha(expected_head, "expected_head")
-        cwd = Path(project.local_root)
-        branch_name = self._validate_branch(branch, cwd)
-        self._authenticate(cwd)
-        if branch_name.casefold() == self._default_branch(remote_url, cwd).casefold():
-            raise ToolError("DEFAULT_BRANCH_DELETE_BLOCKED: refusing to delete the repository default branch")
-
-        ref = f"refs/heads/{branch_name}"
-        observed = self._remote_branch_sha(remote_url, ref, cwd)
-        if observed is None:
-            raise ToolError(f"REMOTE_BRANCH_NOT_FOUND: {branch_name}")
-        if observed != expected_sha:
-            raise ToolError(
-                f"REMOTE_HEAD_MISMATCH: expected {expected_sha}, observed {observed}"
-            )
-        self._run(
-            (
-                *self._git_network_prefix(),
-                "push",
-                f"--force-with-lease={ref}:{expected_sha}",
-                remote_url,
-                f":{ref}",
-            ),
-            cwd,
+        del project_id, branch, expected_head, approved
+        raise ToolError(
+            "REMOTE_BRANCH_DELETE_PROHIBITED: HR-003 requires recoverable disposition; "
+            "remote review branches are retained"
         )
-        if self._remote_branch_sha(remote_url, ref, cwd) is not None:
-            raise ToolError("BRANCH_DELETE_NOT_VERIFIED: remote branch still exists")
-        return {
-            "schema_version": 1,
-            "state": "deleted",
-            "project_id": project.project_id,
-            "repository": repository,
-            "branch": branch_name,
-            "deleted_head": expected_sha,
-            "recovery_sha": expected_sha,
-        }
 
     def commission_project_schema(
         self,
@@ -1854,17 +1821,6 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
         ],
         "additionalProperties": False,
     },
-    "kis_github_delete_registered_branch": {
-        "type": "object",
-        "properties": {
-            "project_id": {"type": "string"},
-            "branch": {"type": "string"},
-            "expected_head": {"type": "string"},
-            "approved": {"type": "boolean"},
-        },
-        "required": ["project_id", "branch", "expected_head", "approved"],
-        "additionalProperties": False,
-    },
 }
 
 
@@ -2005,12 +1961,7 @@ def execute_registered_github_operation(
             merge_method=values["merge_method"],
             approved=values["approved"],
         )
-    return service.delete_remote_branch(
-        project_id=values["project_id"],
-        branch=values["branch"],
-        expected_head=values["expected_head"],
-        approved=values["approved"],
-    )
+    raise ToolError(f"UNKNOWN_REGISTERED_GITHUB_OPERATION: {operation}")
 
 
 __all__ = [

@@ -11,8 +11,10 @@ from fastmcp.exceptions import ToolError
 
 from kis_mcp.projects import GitHubProjectBinding, ProjectDefinition, ProjectRegistry
 from kis_mcp.projects.github_exact import (
+    REGISTERED_GITHUB_OPERATION_SCHEMAS,
     RegisteredGitHubOperations,
     _contains_issue_closing_reference,
+    execute_registered_github_operation,
 )
 
 TARGET = "1111111111111111111111111111111111111111"
@@ -451,61 +453,47 @@ def test_merge_rejects_stale_head_before_mutation() -> None:
     assert len(runner.calls) == 2
 
 
-def test_delete_remote_branch_refuses_default_branch() -> None:
-    runner = QueueRunner(
-        (
-            Result(),
-            Result(),
-            Result(stdout="ref: refs/heads/main\tHEAD\n"),
+def test_remote_branch_delete_is_not_a_registered_github_operation() -> None:
+    operation = "kis_github_delete_registered_branch"
+    assert operation not in REGISTERED_GITHUB_OPERATION_SCHEMAS
+
+    runner = QueueRunner(())
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+    with pytest.raises(ToolError) as captured:
+        execute_registered_github_operation(
+            operation,
+            {
+                "project_id": "college",
+                "branch": "feature/example",
+                "expected_head": TARGET,
+                "approved": True,
+            },
+            operations=operations,
         )
+
+    assert str(captured.value) == (
+        "UNKNOWN_REGISTERED_GITHUB_OPERATION: kis_github_delete_registered_branch"
     )
+    assert runner.calls == []
+
+
+def test_direct_remote_branch_delete_compatibility_stub_rejects_without_side_effects() -> None:
+    runner = QueueRunner(())
     operations = RegisteredGitHubOperations(registry(), runner=runner)
 
-    with pytest.raises(ToolError, match="DEFAULT_BRANCH_DELETE_BLOCKED"):
+    with pytest.raises(ToolError) as captured:
         operations.delete_remote_branch(
             project_id="college",
-            branch="main",
+            branch="feature/example",
             expected_head=TARGET,
             approved=True,
         )
 
-    assert len(runner.calls) == 3
-
-
-def test_delete_remote_branch_requires_exact_head_and_verifies_absence() -> None:
-    remote_ref = "refs/heads/feature/example"
-    runner = QueueRunner(
-        (
-            Result(),
-            Result(),
-            Result(stdout="ref: refs/heads/main\tHEAD\n"),
-            Result(stdout=f"{TARGET}\t{remote_ref}\n"),
-            Result(),
-            Result(stdout=""),
-        )
+    assert str(captured.value) == (
+        "REMOTE_BRANCH_DELETE_PROHIBITED: HR-003 requires recoverable disposition; "
+        "remote review branches are retained"
     )
-    operations = RegisteredGitHubOperations(registry(), runner=runner)
-
-    result = operations.delete_remote_branch(
-        project_id="college",
-        branch="feature/example",
-        expected_head=TARGET,
-        approved=True,
-    )
-
-    assert result == {
-        "schema_version": 1,
-        "state": "deleted",
-        "project_id": "college",
-        "repository": "nielpieterse0/college",
-        "branch": "feature/example",
-        "deleted_head": TARGET,
-        "recovery_sha": TARGET,
-    }
-    delete = runner.calls[4][0]
-    assert "--force-with-lease=refs/heads/feature/example:" + TARGET in delete
-    assert ":refs/heads/feature/example" in delete
-    assert runner.results == []
+    assert runner.calls == []
 
 
 

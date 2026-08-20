@@ -25,8 +25,8 @@ EXACT_OPERATIONS = {
     "kis_github_configure_registered_repository",
     "kis_github_commission_registered_project_schema",
     "kis_github_merge_registered_pull_request",
-    "kis_github_delete_registered_branch",
 }
+REMOVED_DESTRUCTIVE_OPERATION = "kis_github_delete_registered_branch"
 
 
 def test_exact_registered_github_operations_do_not_expand_direct_profile() -> None:
@@ -54,11 +54,12 @@ def test_platform_registration_preserves_existing_local_tool_surface() -> None:
     assert EXACT_OPERATIONS.isdisjoint(names)
 
 
-def test_capability_control_declares_virtual_exact_github_operations() -> None:
+def test_capability_control_declares_only_non_destructive_virtual_exact_github_operations() -> None:
     contribution = capability_control_contribution()
     operations = {item.name: item for item in contribution.operations}
 
     assert EXACT_OPERATIONS.issubset(operations)
+    assert REMOVED_DESTRUCTIVE_OPERATION not in operations
     for name in EXACT_OPERATIONS:
         operation = operations[name]
         assert operation.effects == (OperationEffect.EXTERNAL,)
@@ -98,6 +99,7 @@ def test_runtime_surface_preserves_capability_control_virtual_operations() -> No
     operations = {item.name: item for item in control.operations}
 
     assert EXACT_OPERATIONS.issubset(operations)
+    assert REMOVED_DESTRUCTIVE_OPERATION not in operations
     assert all(operations[name].enabled is True for name in EXACT_OPERATIONS)
 
 
@@ -117,5 +119,7 @@ def test_workflow_descriptors_route_publish_and_closeout_to_virtual_operations()
     )
     assert "run_verification" not in closeout.required_steps
     assert "kis_github_merge_registered_pull_request" in closeout.required_steps
-    assert "kis_github_delete_registered_branch" in closeout.required_steps
+    assert REMOVED_DESTRUCTIVE_OPERATION not in closeout.required_steps
+    assert "operation.kis_github_delete_registered_branch" not in closeout.capabilities
+    assert "remote review branch is retained" in closeout.completion_criteria
     assert "github_merge_pull_request" not in closeout.required_steps

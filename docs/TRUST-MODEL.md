@@ -20,7 +20,7 @@ That contract is intentional for supervised direct calls. Operation-specific inv
 
 | Approval-required family | Direct-call approval source | Additional mechanical authority | Classification |
 | --- | --- | --- | --- |
-| Registered GitHub exact mutations: publish/reconcile commit, create PR, configure repository, commission Project schema, merge PR, refresh default tracking ref, delete branch | Required `approved=true` self-attestation on the registered virtual schema | Registered target plus exact branch/SHA/default-ref invariants; mutation-specific verification | Intentionally supervised/self-attested |
+| Registered GitHub exact mutations: publish/reconcile commit, create PR, configure repository, commission Project schema, merge PR, refresh default tracking ref | Required `approved=true` self-attestation on the registered virtual schema | Registered target plus exact branch/SHA/default-ref invariants; mutation-specific verification | Intentionally supervised/self-attested |
 | Registered acquisition | Required `approved=true` self-attestation on the registered virtual schema | Registered project/profile, immutable recipe hash, bounded authorized parameters | Intentionally supervised/self-attested |
 | Merge queue enqueue and land | Required `approved=true` self-attestation | Fresh Work Management record/trace are independently recomputed into exact-head merge-readiness governance receipts; landing also revalidates queue generation, base, members, and successful exact candidate checks | Mechanically gated beyond self-attestation |
 | Merge queue reconcile and dequeue | Required `approved=true` self-attestation | Registered queue identity plus live base/head/generation invariants; no separate Work approval record is required for these maintenance transitions | Intentionally supervised/self-attested with exact-state fencing |
@@ -105,6 +105,8 @@ C:\Projects\.kis-mcp\quarantine\<operation-id>\
 Each operation stores the target intact and writes bounded restoration metadata. Restoration must not overwrite an existing original path.
 
 If the target is outside the approved boundary, cannot be moved intact, or cannot be recorded safely, reject the operation. Permanent disposal of quarantine contents is an operator action outside normal Work.
+
+For remote Git refs, retaining only the commit SHA is not quarantine of the ref. Normal KIS pull-request closeout therefore retains the remote review branch after merge rather than deleting it. Any future remote-ref disposal path must first provide a recoverable ref-level disposition with bounded restoration evidence, or reject the delete-like intent; it must not be part of ordinary Work cleanup.
 
 ## Non-rules
 
