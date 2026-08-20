@@ -87,7 +87,7 @@ def serena_provider_descriptor(adapter: SerenaRuntimeAdapter) -> ProviderDescrip
         ),
         builder=adapter.build_server,
         readiness_probe=lambda: serena_readiness(adapter),
-        runtime_tools_probe=adapter.runtime_tools.snapshot,
+        runtime_tools_probe=adapter.public_runtime_tools,
         enabled=adapter.settings.enabled,
     )
 
