@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from kis_mcp import runtime_observability
 from kis_mcp.runtime_observability import RuntimeObservability
+
+
+def test_public_exports_are_unique() -> None:
+    assert len(runtime_observability.__all__) == len(set(runtime_observability.__all__))
 
 
 def test_recent_calls_are_bounded_newest_first_and_store_only_argument_keys() -> None:
