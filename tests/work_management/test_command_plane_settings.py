@@ -33,6 +33,8 @@ def test_command_plane_settings_define_directional_authority_and_queue() -> None
     assert settings.queue.priority_order == ("critical", "high", "medium", "low")
     assert settings.queue.effort_order == ("tiny", "small", "medium", "large")
     assert settings.claim.auto_expiry is False
+    assert settings.intake_state("Todo") is LifecycleState.INBOX
+    assert settings.intake_state("ready") is None
     assert settings.required_fields_for_transition(LifecycleState.ON_HOLD) == (
         "Review Trigger",
     )
@@ -70,6 +72,27 @@ def test_command_plane_settings_match_checked_in_schema() -> None:
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     payload = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     assert list(Draft202012Validator(schema).iter_errors(payload)) == []
+
+
+def test_command_plane_settings_allow_missing_intake_aliases_for_compatibility(tmp_path: Path) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    del document["intake_aliases"]
+    candidate = tmp_path / "command-plane.json"
+    candidate.write_text(json.dumps(document), encoding="utf-8")
+
+    settings = load_command_plane_settings(candidate)
+    assert settings.intake_aliases == ()
+    assert settings.intake_state("Todo") is None
+
+
+def test_command_plane_settings_reject_alias_shadowing_declared_state(tmp_path: Path) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    document["intake_aliases"]["ready"] = "inbox"
+    candidate = tmp_path / "command-plane.json"
+    candidate.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must not shadow declared work states"):
+        load_command_plane_settings(candidate)
 
 
 def test_command_plane_settings_reject_unknown_ranking_key(tmp_path: Path) -> None:

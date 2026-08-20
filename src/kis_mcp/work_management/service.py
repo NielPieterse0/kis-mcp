@@ -357,6 +357,9 @@ class WorkManagementService:
         )
         if value is None:
             raise ValueError("Project item has no Work State")
+        intake_state = settings.intake_state(value)
+        if intake_state is not None:
+            return intake_state
         try:
             state = LifecycleState(value)
         except ValueError as exc:

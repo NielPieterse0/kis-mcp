@@ -29,6 +29,7 @@
     "Repository": {"authority": "github", "direction": "evidence"}
   },
   "work_states": ["inbox", "triage", "proposed", "approved", "ready", "active", "blocked", "on_hold", "deferred", "rejected", "superseded", "done"],
+  "intake_aliases": {"todo": "inbox"},
   "transitions": {
     "inbox": ["triage", "deferred", "rejected", "superseded"],
     "triage": ["proposed", "approved", "deferred", "rejected", "superseded"],
