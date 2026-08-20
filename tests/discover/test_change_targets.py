@@ -314,6 +314,78 @@ def test_reader_inspects_commit_range_and_branch_targets(
     assert commit.repository_root == str(project_root)
 
 
+def test_reader_inspects_two_parent_merge_as_first_parent_delta(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    (project_root / "base.txt").write_text("base\n", encoding="utf-8")
+    _commit(project_root, "initial")
+    _git(project_root, "switch", "-c", "feature")
+    (project_root / "feature.txt").write_text("feature\n", encoding="utf-8")
+    _commit(project_root, "feature")
+    _git(project_root, "switch", "main")
+    (project_root / "main.txt").write_text("main\n", encoding="utf-8")
+    _commit(project_root, "main work")
+    _git(project_root, "merge", "--no-ff", "feature", "-m", "merge feature")
+    merge_commit = _git(project_root, "rev-parse", "HEAD").stdout.strip()
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    result = reader.inspect_change_target(
+        InspectChangeRequest(path=str(project_root), source="commit", commit_ref=merge_commit)
+    )
+
+    assert [item.path for item in result.changes] == ["feature.txt"]
+    assert result.diagnostics == ()
+
+
+def test_reader_rejects_multi_parent_merge_commit(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _git(project_root, "init", "-b", "main")
+    _git(project_root, "config", "user.name", "Discover Tests")
+    _git(project_root, "config", "user.email", "discover@example.invalid")
+    (project_root / "base.txt").write_text("base\n", encoding="utf-8")
+    base = _commit(project_root, "initial")
+    parents = [base]
+    for index in range(2):
+        branch = f"feature-{index}"
+        _git(project_root, "switch", "-c", branch, base)
+        (project_root / f"feature-{index}.txt").write_text(f"{index}\n", encoding="utf-8")
+        parents.append(_commit(project_root, branch))
+    tree = _git(project_root, "rev-parse", f"{base}^{{tree}}").stdout.strip()
+    merge_commit = _git(
+        project_root,
+        "commit-tree",
+        tree,
+        "-p",
+        parents[0],
+        "-p",
+        parents[1],
+        "-p",
+        parents[2],
+        "-m",
+        "synthetic three-parent merge",
+    ).stdout.strip()
+
+    reader = GitChangeReader(
+        authority=ReadAuthority(Path(r"C:\Projects"), discover_settings),
+        settings=discover_settings,
+    )
+    result = reader.inspect_change_target(
+        InspectChangeRequest(path=str(project_root), source="commit", commit_ref=merge_commit)
+    )
+
+    assert result.changes == ()
+    assert result.diagnostics[0]["code"] == "GIT_UNSUPPORTED_MERGE_COMMIT"
+
+
 def test_working_tree_inspection_rejects_inventory_fingerprint_race(
     project_root: Path,
     discover_settings,
