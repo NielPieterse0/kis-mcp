@@ -10,6 +10,7 @@ from typing import Any, Protocol
 from ...discover.change_inspection_contracts import InspectChangeRequest
 from ...discover.change_snapshot import collect_mutable_source_snapshot
 from .contracts import ReviewEvidence
+from .routing import route_for
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -29,6 +30,27 @@ def _inside(path: Path, boundary: Path) -> bool:
         ) == os.path.normcase(str(boundary))
     except ValueError:
         return False
+
+
+def _project_path(path: str, projector: str) -> bool:
+    normalized = path.replace("\\", "/").casefold()
+    is_docs = normalized.startswith("docs/") or normalized.endswith(".md")
+    is_tests = normalized.startswith("tests/")
+    is_source = normalized.startswith("src/")
+    is_contract = normalized.startswith(("contracts/", "settings/", "policy/"))
+    if projector == "security-boundary":
+        return is_source or is_tests or is_contract or normalized.endswith("trust-model.md")
+    if projector == "architecture-boundary":
+        return is_source or is_contract or is_docs
+    if projector == "hot-path":
+        return is_source or is_tests or "benchmark" in normalized or "perf" in normalized
+    if projector == "tests-and-behavior":
+        return is_tests or is_source
+    if projector == "docs-authority":
+        return is_docs or is_source or is_contract
+    if projector == "literal-contract":
+        return is_contract or is_source or is_tests or "api" in normalized or "contract" in normalized
+    return not is_docs or is_tests or is_contract
 
 
 def _resolved_evidence_request(
@@ -105,6 +127,7 @@ class GitReviewEvidenceCollector:
         commit_ref: str | None = None,
         base_ref: str | None = None,
         head_ref: str | None = None,
+        review_type: str = "code-quality",
     ) -> ReviewEvidence:
         project = path.resolve()
         if not project.is_dir():
@@ -172,20 +195,31 @@ class GitReviewEvidenceCollector:
             or final_fingerprint != fingerprint
         ):
             diagnostics.append("AGENT_EVIDENCE_SOURCE_CHANGED")
+        route = route_for(review_type)
+        projector = route.projector
+        projected_sections = [item for item in sections if _project_path(item[0], projector)]
+        if not projected_sections and sections:
+            projected_sections = list(sections)
+        projected_paths = {path for path, _ in projected_sections}
+        ignored = [path for path in changed_files if path not in projected_paths]
         included: list[str] = []
-        omitted: list[str] = list(changed_files)
+        omitted: list[str] = [path for path, _ in projected_sections]
         include_instructions = bool(instructions)
+        lane_budget = min(self.max_chars, max(12000, int(self.max_chars * 0.75)))
 
         def render() -> str:
             manifest = {
                 "source": request.source,
                 "source_fingerprint": evidence_fingerprint,
+                "review_type": review_type,
+                "projector": projector,
                 "commit_ref": evidence_request.commit_ref,
                 "base_ref": evidence_request.base_ref,
                 "head_ref": evidence_request.head_ref,
                 "changed_files": list(changed_files),
                 "included_files": list(included),
                 "omitted_files": list(omitted),
+                "ignored_files": list(ignored),
                 "instructions_included": include_instructions,
                 "complete": not diagnostics and not omitted and (not instructions or include_instructions),
                 "diagnostics": list(diagnostics),
@@ -193,18 +227,18 @@ class GitReviewEvidenceCollector:
             parts = ["# Review evidence manifest\n" + json.dumps(manifest, sort_keys=True, separators=(",", ":"))]
             if include_instructions and instructions:
                 parts.append("# Repository instructions\n" + instructions.rstrip())
-            for file_path, section in sections:
+            for file_path, section in projected_sections:
                 if file_path in included:
                     parts.append(section.rstrip())
             return "\n\n".join(parts).rstrip()
 
-        if include_instructions and len(render()) > self.max_chars:
+        if include_instructions and len(render()) > lane_budget:
             include_instructions = False
             diagnostics.append("AGENT_REPOSITORY_INSTRUCTIONS_OMITTED")
-        for file_path, _ in sections:
+        for file_path, _ in projected_sections:
             included.append(file_path)
             omitted.remove(file_path)
-            if len(render()) > self.max_chars:
+            if len(render()) > lane_budget:
                 included.pop()
                 omitted.insert(0, file_path)
         content = render()
@@ -222,6 +256,8 @@ class GitReviewEvidenceCollector:
             included_files=tuple(included),
             omitted_files=tuple(omitted),
             complete=complete,
+            ignored_files=tuple(ignored),
+            projector=projector,
             commit_ref=evidence_request.commit_ref,
             base_ref=evidence_request.base_ref,
             head_ref=evidence_request.head_ref,

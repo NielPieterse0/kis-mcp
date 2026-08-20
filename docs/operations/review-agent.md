@@ -4,7 +4,7 @@
 
 ## Configure and use the code-review agent
 
-Use [`../../settings/agents/code-review-agent.settings.json`](../../settings/agents/code-review-agent.settings.json) to inspect the currently configured backends, preferred/fallback order, models/profiles, budgets, and non-secret credential references. Do not duplicate those values here.
+Use [`../../settings/agents/code-review-agent.settings.json`](../../settings/agents/code-review-agent.settings.json) to inspect reviewer budgets, liveness thresholds, backend readiness, and non-secret credential references. Automatic production review routing is purpose-specific and code-owned; it does not use the legacy preferred/fallback backend order as a universal reviewer policy.
 
 ### Configure NVIDIA credentials
 
@@ -45,13 +45,15 @@ Invoke `review_change_with_agent` against the intended project/change source. A 
 }
 ```
 
-Add a configured backend/model or specialist review type only when needed, using the operation schema and current agent settings as the accepted-value authority. Explicit backend selection is useful when verifying one reviewer independently.
+Normally set only `review_type`; KIS then uses the qualified purpose-specific NVIDIA primary/backup route and SSE liveness handling for that lane. Explicit `backend` or legacy `model` selection is a compatibility/diagnostic override and disables automatic purpose-route fallback. Explicit `backend="codex-cli"` is direct only.
 
 Treat review provenance as part of the evidence:
 
 - the review must cover the intended source/fingerprint;
 - incomplete/omitted evidence is not a pass;
-- timeout or invalid backend output is not a pass;
+- timeout, hard stall, truncation, unexpected tool calls, or invalid backend output are not a pass;
+- automatic results include bounded SSE liveness telemetry; provider deltas are the heartbeat source;
+- safety/security findings must survive deterministic corroboration and complete Super/Ultra adjudication cardinality;
 - findings must be resolved or explicitly dispositioned before closeout;
 - any source edit invalidates the affected review and requires re-review.
 

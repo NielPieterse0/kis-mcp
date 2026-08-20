@@ -237,7 +237,7 @@ Normal onboarding states include:
 - **GitHub — Ready, authentication required:** executable, configuration, OAuth mode, and mount prerequisites are ready; supervised sign-in remains.
 - **Supabase — Ready, authentication required:** the unscoped account endpoint, Windows credential storage, and provider configuration are ready; one browser OAuth login remains for the running KIS runtime.
 - **Supabase — Ready, authenticated:** the persistent runtime client is connected and tools are discovered; explicit registered-project live verification may still be pending.
-- **NVIDIA NIM — unavailable or degraded without `NVIDIA_API_KEY`:** the optional review backend may fall back to Codex; the gateway remains available.
+- **NVIDIA NIM — unavailable or degraded without `NVIDIA_API_KEY`:** automatic production review is unavailable and fails closed; explicit Codex review remains a separate direct compatibility/diagnostic path. The gateway itself remains available.
 
 Use degraded, unavailable, build-failed, or mount-failed states for genuine local faults. Do not present expected onboarding as breakage.
 
@@ -277,7 +277,7 @@ Supabase is an approved external connector with an unscoped hosted account-OAuth
 
 ### 10.9 NVIDIA NIM
 
-NVIDIA NIM is an approved external provider used by `review_change_with_agent`. The adapter reads the API key only from the configured environment-variable name, uses the fixed OpenAI-compatible chat-completions endpoint and model settings, and is not mounted for arbitrary provider passthrough.
+NVIDIA NIM is an approved external provider used by `review_change_with_agent`. The adapter reads the API key only from the configured environment-variable name, uses the fixed OpenAI-compatible chat-completions endpoint, and is not mounted for arbitrary provider passthrough. Automatic production review uses reviewer-owned purpose-specific model/profile routes and SSE transport with provider-delta liveness; the provider adapter returns only bounded content/tool metadata and telemetry, while strict result acceptance, evidence projection, fallback policy, and security adjudication remain workflow responsibilities.
 
 ### 10.10 Codex CLI exclusion
 

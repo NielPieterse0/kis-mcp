@@ -31,6 +31,8 @@ _ROOT_KEYS = frozenset(
         "max_output_chars",
         "max_backend_attempts",
         "review_deadline_seconds",
+        "soft_stall_seconds",
+        "hard_stall_seconds",
         "nvidia",
         "codex",
     }
@@ -89,6 +91,8 @@ class AgentSettings:
     review_deadline_seconds: int
     nvidia: NvidiaSettings
     codex: CodexSettings
+    soft_stall_seconds: int = 10
+    hard_stall_seconds: int = 30
 
 
 def disabled_agent_settings(repository_root: Path | None = None) -> AgentSettings:
@@ -104,6 +108,8 @@ def disabled_agent_settings(repository_root: Path | None = None) -> AgentSetting
         max_output_chars=30000,
         max_backend_attempts=2,
         review_deadline_seconds=120,
+        soft_stall_seconds=10,
+        hard_stall_seconds=30,
         nvidia=disabled_nvidia_settings(),
         codex=disabled_codex_settings(root),
     )
@@ -142,6 +148,10 @@ def load_agent_settings(repository_root: Path | None = None) -> AgentSettings:
         codex = codex_settings_from_mapping(document["codex"], root)
     except (NvidiaSettingsError, CodexSettingsError) as exc:
         raise AgentSettingsError(str(exc)) from exc
+    soft_stall_seconds = _int(document["soft_stall_seconds"], "soft_stall_seconds", 1, 120)
+    hard_stall_seconds = _int(document["hard_stall_seconds"], "hard_stall_seconds", 2, 180)
+    if hard_stall_seconds <= soft_stall_seconds:
+        raise AgentSettingsError("hard_stall_seconds must be greater than soft_stall_seconds")
     return AgentSettings(
         enabled=_bool(document["enabled"], "enabled"),
         agent_id=agent_id,
@@ -151,6 +161,8 @@ def load_agent_settings(repository_root: Path | None = None) -> AgentSettings:
         max_output_chars=_int(document["max_output_chars"], "max_output_chars", 1000, 100000),
         max_backend_attempts=_int(document["max_backend_attempts"], "max_backend_attempts", 1, 3),
         review_deadline_seconds=_int(document["review_deadline_seconds"], "review_deadline_seconds", 1, 300),
+        soft_stall_seconds=soft_stall_seconds,
+        hard_stall_seconds=hard_stall_seconds,
         nvidia=nvidia,
         codex=codex,
     )

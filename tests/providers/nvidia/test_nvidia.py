@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -312,3 +314,119 @@ def test_nvidia_client_classifies_http_failures(status: int, expected_code: str)
 
     assert exc_info.value.code == expected_code
     assert exc_info.value.details == {"status": status}
+
+
+def test_nvidia_stream_collects_sse_content_and_liveness_telemetry() -> None:
+    payloads: list[dict[str, object]] = []
+
+    def stream_send(request: Request, timeout: float):
+        payloads.append(json.loads(request.data.decode("utf-8")))
+        body = (
+            'data: {"choices":[{"delta":{"reasoning_content":"thinking"},"finish_reason":null}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"{\\"summary\\":\\"ok\\","},"finish_reason":null}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"\\"findings\\":[],\\"unknowns\\":[]}"},"finish_reason":"stop"}]}\n\n'
+            'data: [DONE]\n\n'
+        ).encode("utf-8")
+        return io.BytesIO(body)
+
+    client = NvidiaNimClient(_settings(), api_key="secret-value", stream_sender=stream_send)
+    result = client.complete_stream(
+        "review", model="nvidia/example", temperature=0, top_p=1, max_tokens=1024,
+        reasoning_budget=0, enable_thinking=False, timeout_seconds=5,
+        soft_stall_seconds=0.5, hard_stall_seconds=1,
+    )
+
+    assert json.loads(result.content)["summary"] == "ok"
+    assert result.finish_reason == "stop"
+    assert result.telemetry["transport"] == "sse"
+    assert result.telemetry["reasoning_delta_count"] == 1
+    assert result.telemetry["content_delta_count"] == 2
+    assert payloads[0]["stream"] is True
+
+
+class _StallingStream:
+    def readline(self) -> bytes:
+        time.sleep(0.2)
+        return b""
+
+    def close(self) -> None:
+        return None
+
+
+def test_nvidia_stream_hard_stall_is_typed_and_bounded() -> None:
+    client = NvidiaNimClient(
+        _settings(), api_key="secret-value", stream_sender=lambda request, timeout: _StallingStream()
+    )
+
+    with pytest.raises(NvidiaNimError) as exc_info:
+        client.complete_stream(
+            "review", model="nvidia/example", temperature=0, top_p=1, max_tokens=1024,
+            reasoning_budget=0, enable_thinking=False, timeout_seconds=1,
+            soft_stall_seconds=0.01, hard_stall_seconds=0.03,
+        )
+
+    assert exc_info.value.code == "NVIDIA_NIM_HARD_STALL"
+    assert exc_info.value.details == {"soft_stall_seconds": 0.01, "hard_stall_seconds": 0.03}
+
+
+def test_nvidia_stream_rejects_length_finish_reason() -> None:
+    body = b'data: {"choices":[{"delta":{"content":"partial"},"finish_reason":"length"}]}\n\ndata: [DONE]\n\n'
+    client = NvidiaNimClient(_settings(), api_key="secret-value", stream_sender=lambda request, timeout: io.BytesIO(body))
+
+    with pytest.raises(NvidiaNimError) as exc_info:
+        client.complete_stream(
+            "review", model="nvidia/example", temperature=0, top_p=1, max_tokens=1024,
+            reasoning_budget=0, enable_thinking=False, timeout_seconds=1,
+            soft_stall_seconds=0.1, hard_stall_seconds=0.2,
+        )
+
+    assert exc_info.value.code == "NVIDIA_NIM_TRUNCATED"
+    assert exc_info.value.details == {"finish_reason": "length"}
+
+
+def test_nvidia_stream_classifies_rate_capacity_and_degraded_http() -> None:
+    cases = (
+        (429, b"rate limited", "NVIDIA_NIM_RATE_LIMITED"),
+        (503, b"capacity", "NVIDIA_NIM_CAPACITY_PRESSURE"),
+        (400, b"DEGRADED function cannot be invoked", "NVIDIA_NIM_PROVIDER_DEGRADED"),
+        (404, b"not found", "NVIDIA_NIM_PROVIDER_UNAVAILABLE"),
+        (400, b"invalid request", "NVIDIA_NIM_HTTP_FAILED"),
+    )
+    for status, body, expected in cases:
+        def fail(request: Request, timeout: float, *, code: int = status, data: bytes = body):
+            raise HTTPError(request.full_url, code, "provider error", hdrs=None, fp=io.BytesIO(data))
+
+        client = NvidiaNimClient(_settings(), api_key="secret-value", stream_sender=fail)
+        with pytest.raises(NvidiaNimError) as exc_info:
+            client.complete_stream(
+                "review", model="nvidia/example", temperature=0, top_p=1, max_tokens=1024,
+                reasoning_budget=0, enable_thinking=False, timeout_seconds=1,
+                soft_stall_seconds=0.1, hard_stall_seconds=0.2,
+            )
+        assert exc_info.value.code == expected
+
+
+class _CommentOnlyStream:
+    def __init__(self) -> None:
+        self.closed = False
+
+    def readline(self) -> bytes:
+        time.sleep(0.005)
+        return b"" if self.closed else b": keepalive\n"
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_nvidia_stream_comments_do_not_count_as_heartbeats() -> None:
+    stream = _CommentOnlyStream()
+    client = NvidiaNimClient(
+        _settings(), api_key="secret-value", stream_sender=lambda request, timeout: stream
+    )
+    with pytest.raises(NvidiaNimError) as exc_info:
+        client.complete_stream(
+            "review", model="nvidia/example", temperature=0, top_p=1, max_tokens=1024,
+            reasoning_budget=0, enable_thinking=False, timeout_seconds=1,
+            soft_stall_seconds=0.01, hard_stall_seconds=0.03,
+        )
+    assert exc_info.value.code == "NVIDIA_NIM_HARD_STALL"
