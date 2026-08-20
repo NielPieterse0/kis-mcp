@@ -10,7 +10,7 @@
 - [x] Complete code-quality, safety/security, API-contract, and test-quality reviews; resolve the compatibility finding and rerun affected gates.
 - [x] Run full `scripts/verify.ps1` successfully.
 - [x] Audit other exposed destructive external operations and raise bounded follow-up #432.
-- [ ] Re-run verification after final closeout/task evidence edits.
+- [x] Re-run verification after final closeout/task evidence edits.
 - [ ] Commit exact Change 218 tree and prepare the governed review branch/PR.
 - [ ] Require exact-head GitHub Actions and Work Management merge readiness.
 - [ ] Merge only the approved head, refresh `main`, reconcile documentation/Work state, and perform governed local cleanup without remote branch deletion.
