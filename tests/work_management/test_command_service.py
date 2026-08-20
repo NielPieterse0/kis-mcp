@@ -49,6 +49,11 @@ def project_fields() -> tuple[ProjectField, ...]:
         field(
             "Status",
             ProjectFieldKind.SINGLE_SELECT,
+            "Todo",
+            "Inbox",
+            "Triage",
+            "Proposed",
+            "Approved",
             "Ready",
             "Active",
             "On Hold",
@@ -436,6 +441,33 @@ def test_next_work_reads_live_project_command_fields() -> None:
 
     assert result.selected is not None
     assert result.selected.number == 177
+
+
+def test_provider_todo_intake_can_progress_through_command_plane_to_ready() -> None:
+    backend = Backend(project_item(status="Todo"))
+    service = WorkManagementService(wm_settings(), {"github": backend})
+
+    asyncio.run(
+        service.transition_work(
+            "alpha-project", "owner/alpha", 177, LifecycleState.TRIAGE,
+            apply=True, idempotency_key="todo-triage",
+        )
+    )
+    asyncio.run(
+        service.transition_work(
+            "alpha-project", "owner/alpha", 177, LifecycleState.APPROVED,
+            apply=True, idempotency_key="triage-approved",
+        )
+    )
+    asyncio.run(
+        service.transition_work(
+            "alpha-project", "owner/alpha", 177, LifecycleState.READY,
+            apply=True, idempotency_key="approved-ready",
+        )
+    )
+
+    values = {value.field_name: value.value for value in backend.item.field_values}
+    assert values["Status"] == "Ready"
 
 
 def test_claim_is_two_phase_and_verifies_owner_before_activation() -> None:

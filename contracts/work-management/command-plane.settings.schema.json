@@ -29,6 +29,11 @@
       "uniqueItems": true,
       "items": {"$ref": "#/$defs/state"}
     },
+    "intake_aliases": {
+      "type": "object",
+      "propertyNames": {"type": "string", "minLength": 1},
+      "additionalProperties": {"$ref": "#/$defs/state"}
+    },
     "transitions": {
       "type": "object",
       "additionalProperties": {

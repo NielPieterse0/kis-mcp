@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "change_id": "216-work-management-todo-intake",
+  "status": "active",
+  "branch": "change/216-work-management-todo-intake",
+  "worktree": ".work/worktrees/216-work-management-todo-intake",
+  "base": "main",
+  "outcome": "Make Work Management capture and transitions safely normalize provider Todo intake for issue #415",
+  "owned_paths": [
+    "src/kis_mcp/work_management/service.py",
+    "src/kis_mcp/work_management/command_settings.py",
+    "settings/work-management/command-plane.settings.json",
+    "contracts/work-management/command-plane.settings.schema.json",
+    "tests/work_management/test_command_service.py",
+    "tests/work_management/test_command_plane_settings.py",
+    "tests/workflows/project_management/test_tools.py",
+    "SPEC.md",
+    ".work/changes/216-work-management-todo-intake/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "40d2a358098260d4d348c644322edffa01138c08",
+    "local_tree": "af5477af4820540fe0c41f2aecf338c121f4e64e",
+    "upstream_sha": "40d2a358098260d4d348c644322edffa01138c08",
+    "upstream_tree": "af5477af4820540fe0c41f2aecf338c121f4e64e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-415",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 415,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

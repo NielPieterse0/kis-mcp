@@ -143,6 +143,7 @@ class CompletionSettings:
 class CommandPlaneSettings:
     field_authority: tuple[tuple[str, FieldAuthority], ...]
     work_states: tuple[LifecycleState, ...]
+    intake_aliases: tuple[tuple[str, LifecycleState], ...]
     transitions: tuple[tuple[LifecycleState, tuple[LifecycleState, ...]], ...]
     queue: QueueSettings
     readiness: ReadinessSettings
@@ -158,6 +159,13 @@ class CommandPlaneSettings:
             if name.casefold() == key:
                 return spec
         raise KeyError(field_name)
+
+    def intake_state(self, value: str) -> LifecycleState | None:
+        key = _text(value, "intake state").casefold().replace(" ", "_").replace("-", "_")
+        for alias, state in self.intake_aliases:
+            if alias == key:
+                return state
+        return None
 
     def transition_targets(self, state: LifecycleState) -> tuple[LifecycleState, ...]:
         for source, targets in self.transitions:
@@ -192,6 +200,18 @@ def _field_authority(value: Any) -> tuple[tuple[str, FieldAuthority], ...]:
     if len(set(names)) != len(names):
         raise ValueError("field_authority names must be unique")
     return tuple(sorted(result, key=lambda item: item[0].casefold()))
+
+
+def _intake_aliases(value: Any) -> tuple[tuple[str, LifecycleState], ...]:
+    mapping = _object(value, "intake_aliases")
+    result: list[tuple[str, LifecycleState]] = []
+    for raw_alias, raw_state in mapping.items():
+        alias = _text(raw_alias, "intake alias").casefold().replace(" ", "_").replace("-", "_")
+        result.append((alias, LifecycleState(_text(raw_state, f"intake_aliases.{raw_alias}"))))
+    aliases = [alias for alias, _state in result]
+    if len(set(aliases)) != len(aliases):
+        raise ValueError("intake_aliases must contain unique aliases")
+    return tuple(sorted(result, key=lambda item: item[0]))
 
 
 def _transitions(
@@ -246,7 +266,8 @@ def load_command_plane_settings(path: Path | None = None) -> CommandPlaneSetting
         "delivery",
         "completion",
     }
-    if set(root) != required:
+    allowed = required | {"intake_aliases"}
+    if not required.issubset(root) or not set(root).issubset(allowed):
         raise ValueError("command-plane settings keys do not match the contract")
     if root["schema_version"] != 1:
         raise ValueError("command-plane schema_version must be 1")
@@ -261,6 +282,7 @@ def load_command_plane_settings(path: Path | None = None) -> CommandPlaneSetting
             LifecycleState(item)
             for item in _strings(root["work_states"], "work_states")
         ),
+        intake_aliases=_intake_aliases(root.get("intake_aliases", {})),
         transitions=_transitions(root["transitions"]),
         queue=QueueSettings(
             state_field=_text(queue["state_field"], "queue.state_field"),
@@ -346,6 +368,11 @@ def load_command_plane_settings(path: Path | None = None) -> CommandPlaneSetting
     }
     if undeclared:
         raise ValueError("transitions contain undeclared work states")
+    if any(state not in declared for _alias, state in settings.intake_aliases):
+        raise ValueError("intake_aliases must target declared work states")
+    declared_alias_keys = {state.value.casefold() for state in declared}
+    if any(alias in declared_alias_keys for alias, _state in settings.intake_aliases):
+        raise ValueError("intake_aliases must not shadow declared work states")
     return settings
 
 
