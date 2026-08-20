@@ -219,7 +219,7 @@ class WorkManagementService:
         project_id: str,
         *,
         field_names: tuple[str, ...] = (),
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> ProjectInventory:
         project, binding = self._project_and_binding(project_id)
         backend = self._backend(project, binding)
@@ -258,7 +258,7 @@ class WorkManagementService:
         self,
         project_id: str,
         *,
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> ProjectWorkSelection:
         settings = self._command_settings()
         inventory = await self.read_inventory(
@@ -275,7 +275,7 @@ class WorkManagementService:
         *,
         apply: bool = False,
         idempotency_key: str | None = None,
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> dict[str, Any]:
         selection = await self.next_work(project_id, item_limit=item_limit)
         if selection.selected is None:

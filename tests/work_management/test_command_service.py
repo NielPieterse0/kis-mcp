@@ -417,7 +417,7 @@ def test_exact_target_resolution_rejects_duplicate_matches_beyond_first_page() -
 
 def test_next_work_keeps_default_fail_closed_inventory_bound() -> None:
     backend = BoundedInventoryBackend(
-        tuple(project_item(number=number) for number in range(1, 102))
+        tuple(project_item(number=number) for number in range(1, 1002))
     )
     service = WorkManagementService(wm_settings(), {"github": backend})
 
@@ -425,7 +425,7 @@ def test_next_work_keeps_default_fail_closed_inventory_bound() -> None:
 
     assert result.complete is False
     assert result.reasons == ("inventory_truncated",)
-    assert backend.read_limits == [100]
+    assert backend.read_limits == [1000]
 
 
 def test_next_work_reads_live_project_command_fields() -> None:

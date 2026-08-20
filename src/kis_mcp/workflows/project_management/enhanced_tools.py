@@ -41,7 +41,7 @@ def register_project_management_enhancement_tools(
     async def project_management_current_work(
         project_id: str,
         execution_owner: str,
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> dict[str, Any]:
         """Resume already-claimed Active work without changing claim or lifecycle state."""
 
@@ -78,7 +78,7 @@ def register_project_management_enhancement_tools(
         owner: str | None = None,
         query: str | None = None,
         group_by: str = "state",
-        item_limit: int = 100,
+        item_limit: int = 1000,
     ) -> dict[str, Any]:
         """Read one normalized active-first Work board projection from authoritative Project inventory."""
 

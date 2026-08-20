@@ -129,6 +129,7 @@ def test_current_work_returns_provenance_envelope_without_mutating_claim() -> No
     assert result["result"]["status"] == "current"
     assert result["result"]["selected"]["change_id"] == "140-project-tasks-improvement-programme"
     assert service.calls[0][0] == "kis-mcp"
+    assert service.calls[0][2] == 1000
 
 
 def test_board_data_publishes_exact_derived_snapshot_to_bridge() -> None:
