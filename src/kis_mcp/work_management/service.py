@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
 import json
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -14,6 +14,7 @@ from .backend import (
 )
 from .command_settings import CommandPlaneSettings, load_command_plane_settings
 from .contracts import LifecycleState, ManagedProject, WorkRecord
+from .evidence import EvidenceWriteResult, ReviewEvidenceStore
 from .lifecycle import evaluate_transition
 from .project_commands import (
     ProjectWorkSelection,
@@ -21,7 +22,6 @@ from .project_commands import (
     find_issue_item,
     select_next_project_item,
 )
-from .evidence import EvidenceWriteResult, ReviewEvidenceStore
 from .reconciliation import (
     DesiredProjection,
     ObservedProjection,
@@ -85,6 +85,54 @@ class WorkManagementUnavailable(RuntimeError):
 EvidenceStoreFactory = Callable[[ManagedProject, EvidenceSettings], ReviewEvidenceStore]
 
 _EXACT_TARGET_ITEM_LIMIT = 1000
+
+
+def _active_worktree_scope_path(project_root: Path, change_id: str) -> Path:
+    worktrees_root = project_root / ".work" / "worktrees"
+    if not worktrees_root.is_dir():
+        raise ValueError(f"authoritative change scope does not exist: {change_id}")
+
+    candidates: list[Path] = []
+    rejected: list[str] = []
+    for worktree in sorted(worktrees_root.iterdir(), key=lambda path: path.name.casefold()):
+        scope_path = worktree / ".work" / "changes" / change_id / "scope.json"
+        if not scope_path.is_file():
+            continue
+        try:
+            document = json.loads(scope_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError) as exc:
+            rejected.append(f"{worktree.name}: unreadable scope ({type(exc).__name__})")
+            continue
+        expected_worktree = f".work/worktrees/{worktree.name}"
+        if not isinstance(document, dict) or document.get("change_id") != change_id:
+            rejected.append(f"{worktree.name}: change identity mismatch")
+            continue
+        if document.get("status") != "active":
+            rejected.append(f"{worktree.name}: scope is not active")
+            continue
+        if str(document.get("worktree", "")).replace("\\", "/") != expected_worktree:
+            rejected.append(f"{worktree.name}: worktree identity mismatch")
+            continue
+        if not (worktree / ".git").exists():
+            rejected.append(f"{worktree.name}: governed worktree marker is missing")
+            continue
+        candidates.append(scope_path)
+
+    if len(candidates) > 1:
+        names = ", ".join(path.parents[3].name for path in candidates)
+        raise ValueError(f"authoritative active change scope is ambiguous: {change_id} ({names})")
+    if len(candidates) == 1:
+        return candidates[0]
+    if rejected:
+        raise ValueError(
+            f"authoritative active change scope is invalid: {change_id} ({'; '.join(rejected)})"
+        )
+    raise ValueError(f"authoritative change scope does not exist: {change_id}")
+
+
+def _change_scope_path(project_root: Path, change_id: str) -> Path:
+    primary = project_root / ".work" / "changes" / change_id / "scope.json"
+    return primary if primary.is_file() else _active_worktree_scope_path(project_root, change_id)
 
 
 def _normalized_project_choice(value: object) -> str | None:
@@ -604,17 +652,8 @@ class WorkManagementService:
         ):
             raise ValueError("change_id must be one local change identifier")
         project, _binding = self._project_and_binding(project_id)
-        scope_path = (
-            Path(project.local_root)
-            / ".work"
-            / "changes"
-            / normalized_change_id
-            / "scope.json"
-        )
-        if not scope_path.is_file():
-            raise ValueError(
-                f"authoritative change scope does not exist: {normalized_change_id}"
-            )
+        project_root = Path(project.local_root)
+        scope_path = _change_scope_path(project_root, normalized_change_id)
         document = json.loads(scope_path.read_text(encoding="utf-8-sig"))
         if (
             not isinstance(document, dict)

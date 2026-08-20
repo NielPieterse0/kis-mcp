@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import replace
 import json
+from dataclasses import replace
 from pathlib import Path
+
+import pytest
 
 from kis_mcp.work_management import (
     BackendBindingSettings,
@@ -672,3 +674,143 @@ def test_change_classification_projects_authoritative_scope(tmp_path: Path) -> N
     assert values["Complexity"] == "Large"
     assert values["Risk Triggers"] == "architecture_boundary, public_contract"
     assert values["Delivery Stage"] == "Change Created"
+
+
+def _write_active_worktree_scope(
+    root: Path,
+    *,
+    change_id: str,
+    worktree_name: str,
+    status: str = "active",
+    declared_worktree: str | None = None,
+) -> Path:
+    worktree = root / ".work" / "worktrees" / worktree_name
+    worktree.mkdir(parents=True)
+    (worktree / ".git").write_text("gitdir: test", encoding="utf-8")
+    scope_dir = worktree / ".work" / "changes" / change_id
+    scope_dir.mkdir(parents=True)
+    scope_path = scope_dir / "scope.json"
+    scope_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "change_id": change_id,
+                "status": status,
+                "worktree": declared_worktree
+                or f".work/worktrees/{worktree_name}",
+                "complexity": "medium",
+                "risk_triggers": ["persistent_state"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return scope_path
+
+
+def test_change_classification_projects_active_worktree_scope(tmp_path: Path) -> None:
+    change_id = "208-active-classification"
+    _write_active_worktree_scope(
+        tmp_path, change_id=change_id, worktree_name=change_id
+    )
+    backend = Backend(project_item(status="Active", owner="kis-dev/session-1"))
+    service = WorkManagementService(wm_settings(str(tmp_path)), {"github": backend})
+
+    result = asyncio.run(
+        service.sync_change_classification(
+            "alpha-project", "owner/alpha", 177, change_id, apply=False
+        )
+    )
+
+    assert result["classification"] == {
+        "change_id": change_id,
+        "complexity": "medium",
+        "risk_triggers": ["persistent_state"],
+    }
+    assert result["source_scope"] == (
+        f".work/worktrees/{change_id}/.work/changes/{change_id}/scope.json"
+    )
+
+
+def test_change_classification_rejects_stale_active_worktree_scope(tmp_path: Path) -> None:
+    change_id = "208-stale-classification"
+    _write_active_worktree_scope(
+        tmp_path, change_id=change_id, worktree_name=change_id, status="closed"
+    )
+    backend = Backend(project_item(status="Active", owner="kis-dev/session-1"))
+    service = WorkManagementService(wm_settings(str(tmp_path)), {"github": backend})
+
+    with pytest.raises(ValueError, match="scope is not active"):
+        asyncio.run(
+            service.sync_change_classification(
+                "alpha-project", "owner/alpha", 177, change_id
+            )
+        )
+
+
+def test_change_classification_rejects_mismatched_worktree_identity(tmp_path: Path) -> None:
+    change_id = "208-mismatched-classification"
+    _write_active_worktree_scope(
+        tmp_path,
+        change_id=change_id,
+        worktree_name=change_id,
+        declared_worktree=".work/worktrees/different-change",
+    )
+    backend = Backend(project_item(status="Active", owner="kis-dev/session-1"))
+    service = WorkManagementService(wm_settings(str(tmp_path)), {"github": backend})
+
+    with pytest.raises(ValueError, match="worktree identity mismatch"):
+        asyncio.run(
+            service.sync_change_classification(
+                "alpha-project", "owner/alpha", 177, change_id
+            )
+        )
+
+
+def test_change_classification_rejects_ambiguous_active_worktrees(tmp_path: Path) -> None:
+    change_id = "208-ambiguous-classification"
+    _write_active_worktree_scope(
+        tmp_path, change_id=change_id, worktree_name="first-active"
+    )
+    _write_active_worktree_scope(
+        tmp_path, change_id=change_id, worktree_name="second-active"
+    )
+    backend = Backend(project_item(status="Active", owner="kis-dev/session-1"))
+    service = WorkManagementService(wm_settings(str(tmp_path)), {"github": backend})
+
+    with pytest.raises(ValueError, match="scope is ambiguous"):
+        asyncio.run(
+            service.sync_change_classification(
+                "alpha-project", "owner/alpha", 177, change_id
+            )
+        )
+
+
+def test_primary_change_scope_wins_over_active_worktree_fallback(tmp_path: Path) -> None:
+    change_id = "208-landed-classification"
+    primary = tmp_path / ".work" / "changes" / change_id
+    primary.mkdir(parents=True)
+    (primary / "scope.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 4,
+                "change_id": change_id,
+                "complexity": "small",
+                "risk_triggers": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_active_worktree_scope(
+        tmp_path, change_id=change_id, worktree_name="stale-leftover"
+    )
+    backend = Backend(project_item(status="Active", owner="kis-dev/session-1"))
+    service = WorkManagementService(wm_settings(str(tmp_path)), {"github": backend})
+
+    result = asyncio.run(
+        service.sync_change_classification(
+            "alpha-project", "owner/alpha", 177, change_id, apply=False
+        )
+    )
+
+    assert result["classification"]["complexity"] == "small"
+    assert result["source_scope"] == f".work/changes/{change_id}/scope.json"
