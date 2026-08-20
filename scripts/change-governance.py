@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
+from functools import wraps
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Iterator, Mapping, Sequence
 
 
 def _load_change_governance_settings() -> dict[str, Any]:
@@ -31,9 +35,11 @@ def _load_change_governance_settings() -> dict[str, Any]:
 
 
 _CHANGE_GOVERNANCE_SETTINGS = _load_change_governance_settings()
+DEFAULT_STATE_ROOT = Path(r"C:\Projects\.kis-mcp")
 
 
 CHANGE_ID_PATTERN = re.compile(r"^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*$")
+CHANGE_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PROJECT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 WORK_RECORD_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-[0-9]+$")
 SOURCE_REPOSITORY_PATTERN = re.compile(r"^[^/\s]+/[^/\s]+$")
@@ -133,6 +139,7 @@ class WorkManagementClaim:
     source_number: int
     source_kind: str
     documentation_impact: str
+    execution_owner: str | None = None
 
     @classmethod
     def from_mapping(cls, data: Mapping[str, Any]) -> "WorkManagementClaim":
@@ -144,8 +151,9 @@ class WorkManagementClaim:
             "source_kind",
             "documentation_impact",
         }
+        allowed = required | {"execution_owner"}
         missing = sorted(required.difference(data))
-        unknown = sorted(set(data).difference(required))
+        unknown = sorted(set(data).difference(allowed))
         if missing:
             raise ClaimError(f"WORK_MANAGEMENT_FIELDS_MISSING: {', '.join(missing)}")
         if unknown:
@@ -184,6 +192,9 @@ class WorkManagementClaim:
             raise ClaimError(
                 f"WORK_MANAGEMENT_DOCUMENTATION_IMPACT_INVALID: {documentation_impact}"
             )
+        execution_owner = _optional_string(
+            data.get("execution_owner"), "work_management.execution_owner"
+        )
         return cls(
             project_id=project_id,
             record_id=record_id,
@@ -191,10 +202,11 @@ class WorkManagementClaim:
             source_number=source_number,
             source_kind=source_kind,
             documentation_impact=documentation_impact,
+            execution_owner=execution_owner,
         )
 
     def to_mapping(self) -> dict[str, Any]:
-        return {
+        result = {
             "project_id": self.project_id,
             "record_id": self.record_id,
             "source_repository": self.source_repository,
@@ -202,6 +214,9 @@ class WorkManagementClaim:
             "source_kind": self.source_kind,
             "documentation_impact": self.documentation_impact,
         }
+        if self.execution_owner is not None:
+            result["execution_owner"] = self.execution_owner
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -681,6 +696,148 @@ def _capture_base_evidence(
     )
 
 
+def _state_root() -> Path:
+    return Path(os.environ.get("KIS_STATE_ROOT", str(DEFAULT_STATE_ROOT))).resolve()
+
+
+@contextmanager
+def _change_admission_lock(root: Path) -> Iterator[None]:
+    repository_key = hashlib.sha256(
+        str(root.resolve()).casefold().encode("utf-8")
+    ).hexdigest()[:24]
+    lock_path = _state_root() / "change-governance" / f"{repository_key}.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+b") as stream:
+        stream.seek(0)
+        _lock_file(stream)
+        try:
+            stream.seek(0, os.SEEK_END)
+            if stream.tell() == 0:
+                stream.write(b"0")
+                stream.flush()
+                os.fsync(stream.fileno())
+            stream.seek(0)
+            yield
+        finally:
+            _unlock_file(stream)
+
+
+def _lock_file(stream: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_file(stream: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        stream.seek(0)
+        msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+
+
+def _serialized_change_creation(function: Any) -> Any:
+    @wraps(function)
+    def wrapped(repository: Path, *args: Any, **kwargs: Any) -> Path:
+        root = repository_root(repository)
+        with _change_admission_lock(root):
+            return function(root, *args, **kwargs)
+
+    return wrapped
+
+
+def _change_number(change_id: str) -> str:
+    return change_id.split("-", 1)[0]
+
+
+def _governed_ref_change_ids(root: Path) -> tuple[tuple[str, str], ...]:
+    output = _run_git(
+        root,
+        "for-each-ref",
+        "--format=%(refname)",
+        "refs/heads",
+        "refs/remotes",
+    ).stdout
+    found: list[tuple[str, str]] = []
+    for ref in output.splitlines():
+        match = re.search(r"/change/(?P<change_id>[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*)$", ref)
+        if match is not None:
+            found.append((match.group("change_id"), ref))
+    return tuple(found)
+
+
+def _change_number_inventory(
+    root: Path,
+    claims: Sequence[ChangeClaim],
+) -> tuple[tuple[str, str], ...]:
+    identities: set[tuple[str, str]] = set()
+    for claim in claims:
+        identities.add((claim.change_id, f"scope:{claim.source}"))
+    for existing_id, ref in _governed_ref_change_ids(root):
+        identities.add((existing_id, f"ref:{ref}"))
+    for entry in discover_worktrees(root):
+        candidate = entry.path.name
+        if CHANGE_ID_PATTERN.fullmatch(candidate):
+            identities.add((candidate, f"worktree:{entry.path}"))
+    return tuple(sorted(identities))
+
+
+def _require_unique_change_number(
+    root: Path,
+    change_id: str,
+    claims: Sequence[ChangeClaim],
+) -> None:
+    number = _change_number(change_id)
+    conflicts = [
+        f"{source}:{existing_id}"
+        for existing_id, source in _change_number_inventory(root, claims)
+        if _change_number(existing_id) == number
+    ]
+    if conflicts:
+        detail = "; ".join(conflicts)
+        raise ClaimError(
+            f"DUPLICATE_CHANGE_NUMBER: {number} requested by {change_id}; conflicts with {detail}"
+        )
+
+
+def _require_explicit_change_id(
+    root: Path,
+    change_id: str,
+    claims: Sequence[ChangeClaim],
+) -> str:
+    normalized = _require_change_id(change_id, "change_id")
+    _require_unique_change_number(root, normalized, claims)
+    return normalized
+
+
+def _allocate_change_id(
+    root: Path,
+    slug: str,
+    claims: Sequence[ChangeClaim],
+) -> str:
+    normalized_slug = _require_string(slug, "change_slug")
+    if CHANGE_SLUG_PATTERN.fullmatch(normalized_slug) is None:
+        raise ClaimError(f"CHANGE_SLUG_INVALID: {normalized_slug}")
+    numbers = [
+        int(_change_number(existing_id))
+        for existing_id, _source in _change_number_inventory(root, claims)
+    ]
+    next_number = max(numbers, default=0) + 1
+    if next_number > 999:
+        raise ClaimError("CHANGE_NUMBER_EXHAUSTED: no three-digit change number remains")
+    return f"{next_number:03d}-{normalized_slug}"
+
+
+@_serialized_change_creation
 def create_change_worktree(
     repository: Path,
     *,
@@ -698,6 +855,7 @@ def create_change_worktree(
     upstream_tree: str | None = None,
     upstream_ref: str | None = None,
     base: str = "main",
+    allocate_next: bool = False,
 ) -> Path:
     root = repository_root(repository)
     normalized_complexity = _require_string(complexity, "complexity")
@@ -717,6 +875,11 @@ def create_change_worktree(
     _require_worktree_directory_ignored(root)
     _require_template(root)
     existing_claims = validate_repository(root)
+    change_id = (
+        _allocate_change_id(root, change_id, existing_claims)
+        if allocate_next
+        else _require_explicit_change_id(root, change_id, existing_claims)
+    )
     base_evidence = _capture_base_evidence(
         root,
         base,
@@ -952,33 +1115,49 @@ def repository_root(path: Path) -> Path:
     return Path(result.stdout.strip()).resolve()
 
 
+def _path_intersection(left: PathClaim, right: PathClaim) -> str | None:
+    if not left.overlaps(right):
+        return None
+    if not left.recursive and not right.recursive:
+        return left.raw
+    if left.recursive and right.recursive:
+        deeper = left if _is_same_or_descendant(left.prefix, right.prefix) else right
+        return f"{deeper.prefix}/**"
+    recursive = left if left.recursive else right
+    exact = right if left.recursive else left
+    if _is_same_or_descendant(exact.prefix, recursive.prefix):
+        return exact.raw
+    return None
+
+
 def _path_conflicts(left: ChangeClaim, right: ChangeClaim) -> list[str]:
     conflicts: list[str] = []
     for left_owned in left.owned_paths:
         for right_claim in (*right.owned_paths, *right.shared_paths):
-            if left_owned.overlaps(right_claim):
+            intersection = _path_intersection(left_owned, right_claim)
+            if intersection is not None:
                 conflicts.append(
                     "EXCLUSIVE_PATH_OVERLAP: "
                     f"{left.change_id}:{left_owned.raw} overlaps "
-                    f"{right.change_id}:{right_claim.raw}"
+                    f"{right.change_id}:{right_claim.raw}; intersection={intersection}"
                 )
     for right_owned in right.owned_paths:
         for left_shared in left.shared_paths:
-            if right_owned.overlaps(left_shared):
+            intersection = _path_intersection(right_owned, left_shared)
+            if intersection is not None:
                 conflicts.append(
                     "EXCLUSIVE_PATH_OVERLAP: "
                     f"{right.change_id}:{right_owned.raw} overlaps "
-                    f"{left.change_id}:{left_shared.raw}"
+                    f"{left.change_id}:{left_shared.raw}; intersection={intersection}"
                 )
     for left_shared in left.shared_paths:
         for right_shared in right.shared_paths:
-            if left_shared.overlaps(right_shared) and not _claims_are_coordinated(
-                left, right
-            ):
+            intersection = _path_intersection(left_shared, right_shared)
+            if intersection is not None and not _claims_are_coordinated(left, right):
                 conflicts.append(
                     "UNCOORDINATED_SHARED_PATH: "
                     f"{left.change_id}:{left_shared.raw} overlaps "
-                    f"{right.change_id}:{right_shared.raw}"
+                    f"{right.change_id}:{right_shared.raw}; intersection={intersection}"
                 )
     return conflicts
 
@@ -1243,7 +1422,15 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     new = subparsers.add_parser("new", help="Create one validated change worktree.")
-    new.add_argument("change_id")
+    new.add_argument(
+        "change_id",
+        help="Canonical NNN-slug change ID, or slug only when --allocate-next is used.",
+    )
+    new.add_argument(
+        "--allocate-next",
+        action="store_true",
+        help="Atomically allocate the next unused numeric prefix for the supplied slug.",
+    )
     new.add_argument("--outcome", required=True)
     new.add_argument("--owned", action="append", required=True)
     new.add_argument("--shared", action="append", default=[])
@@ -1262,6 +1449,7 @@ def _build_parser() -> argparse.ArgumentParser:
     new.add_argument("--work-source-repository")
     new.add_argument("--work-source-number", type=int)
     new.add_argument("--work-source-kind", choices=sorted(WORK_SOURCE_KINDS))
+    new.add_argument("--work-execution-owner")
     new.add_argument("--documentation-impact", choices=sorted(DOCUMENTATION_IMPACTS))
     new.add_argument("--base", default="main")
 
@@ -1306,6 +1494,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "source_number": args.work_source_number,
                         "source_kind": args.work_source_kind,
                         "documentation_impact": args.documentation_impact,
+                        "execution_owner": args.work_execution_owner,
                     }
                 ),
                 complexity=args.complexity,
@@ -1314,8 +1503,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 upstream_tree=args.upstream_tree,
                 upstream_ref=args.upstream_ref,
                 base=args.base,
+                allocate_next=args.allocate_next,
             )
-            print(json.dumps({"change_id": args.change_id, "worktree": str(target)}))
+            print(json.dumps({"change_id": target.name, "worktree": str(target)}))
         elif args.command == "validate":
             claims = validate_repository(
                 args.repository,

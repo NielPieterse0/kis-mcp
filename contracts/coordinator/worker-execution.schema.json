@@ -5,75 +5,245 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_version", "contract", "identity", "state", "sequence", "observed_at",
-    "progress_id", "result_id", "residual_state", "accepted_events", "last_event"
+    "schema_version",
+    "contract",
+    "identity",
+    "state",
+    "sequence",
+    "observed_at",
+    "progress_id",
+    "result_id",
+    "residual_state",
+    "accepted_events",
+    "last_event"
   ],
   "properties": {
-    "schema_version": {"const": 2},
-    "contract": {"const": "coordinator-worker-execution-v2"},
-    "identity": {"$ref": "#/$defs/identity"},
-    "state": {"enum": ["pending", "running", "waiting_input", "completed", "failed", "cancelled", "recoverable"]},
-    "sequence": {"type": "integer", "minimum": 0},
-    "observed_at": {"type": "string", "format": "date-time"},
-    "progress_id": {"type": ["string", "null"], "minLength": 1},
-    "result_id": {"type": ["string", "null"], "minLength": 1},
-    "residual_state": {"$ref": "#/$defs/strings"},
+    "schema_version": {
+      "const": 3
+    },
+    "contract": {
+      "const": "coordinator-worker-execution-v3"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "state": {
+      "enum": [
+        "pending",
+        "running",
+        "waiting_input",
+        "completed",
+        "failed",
+        "cancelled",
+        "recoverable"
+      ]
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "progress_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "result_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "residual_state": {
+      "$ref": "#/$defs/strings"
+    },
     "accepted_events": {
       "type": "object",
-      "propertyNames": {"$ref": "#/$defs/nonEmpty"},
-      "additionalProperties": {"$ref": "#/$defs/digest"}
+      "propertyNames": {
+        "$ref": "#/$defs/nonEmpty"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/digest"
+      }
     },
-    "last_event": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/eventRef"}]}
+    "last_event": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/eventRef"
+        }
+      ]
+    }
   },
   "$defs": {
-    "nonEmpty": {"type": "string", "minLength": 1},
-    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "strings": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/nonEmpty"}},
+    "nonEmpty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonEmpty"
+      }
+    },
     "runtimeBindingReference": {
-      "type": "object", "additionalProperties": false,
-      "required": ["binding_id", "binding_fingerprint"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "binding_id",
+        "binding_fingerprint"
+      ],
       "properties": {
-        "binding_id": {"$ref": "#/$defs/nonEmpty"},
-        "binding_fingerprint": {"$ref": "#/$defs/digest"}
+        "binding_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "binding_fingerprint": {
+          "$ref": "#/$defs/digest"
+        }
       }
     },
     "identity": {
-      "type": "object", "additionalProperties": false,
+      "type": "object",
+      "additionalProperties": false,
       "required": [
-        "execution_id", "packet_id", "task_id", "assignment_generation", "reservation_id",
-        "authority_revision", "lease_id", "fence_token", "worker_id", "runtime_binding", "attempt_id"
+        "execution_id",
+        "packet_id",
+        "task_id",
+        "assignment_generation",
+        "reservation_id",
+        "authority_revision",
+        "lease_id",
+        "fence_token",
+        "worker_id",
+        "runtime_binding",
+        "attempt_id",
+        "run_id",
+        "project_id",
+        "change_id",
+        "governed_worktree",
+        "lifecycle_phase"
       ],
       "properties": {
-        "execution_id": {"$ref": "#/$defs/nonEmpty"},
-        "packet_id": {"$ref": "#/$defs/nonEmpty"},
-        "task_id": {"$ref": "#/$defs/nonEmpty"},
-        "assignment_generation": {"type": "integer", "minimum": 1},
-        "reservation_id": {"$ref": "#/$defs/nonEmpty"},
-        "authority_revision": {"type": "integer", "minimum": 1},
-        "lease_id": {"$ref": "#/$defs/nonEmpty"},
-        "fence_token": {"type": "integer", "minimum": 1},
-        "worker_id": {"$ref": "#/$defs/nonEmpty"},
-        "runtime_binding": {"$ref": "#/$defs/runtimeBindingReference"},
-        "attempt_id": {"$ref": "#/$defs/nonEmpty"}
+        "execution_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "packet_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "task_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "assignment_generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reservation_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "authority_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "lease_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "fence_token": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "worker_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "runtime_binding": {
+          "$ref": "#/$defs/runtimeBindingReference"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "run_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "project_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "change_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "governed_worktree": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "lifecycle_phase": {
+          "$ref": "#/$defs/nonEmpty"
+        }
       }
     },
     "eventRef": {
-      "type": "object", "additionalProperties": false,
-      "required": ["event_id", "digest"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "digest"
+      ],
       "properties": {
-        "event_id": {"$ref": "#/$defs/nonEmpty"},
-        "digest": {"$ref": "#/$defs/digest"}
+        "event_id": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
       }
     }
   },
   "allOf": [
     {
-      "if": {"properties": {"state": {"const": "completed"}}},
-      "then": {"properties": {"result_id": {"type": "string", "minLength": 1}}}
+      "if": {
+        "properties": {
+          "state": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"state": {"enum": ["failed", "cancelled", "recoverable"]}}},
-      "then": {"properties": {"residual_state": {"minItems": 1}}}
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "failed",
+              "cancelled",
+              "recoverable"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "residual_state": {
+            "minItems": 1
+          }
+        }
+      }
     }
   ]
 }

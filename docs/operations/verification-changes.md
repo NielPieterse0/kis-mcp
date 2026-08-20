@@ -9,7 +9,8 @@
 From a clean primary `main`, create the bounded change:
 
 ```powershell
-pwsh -File .\scripts\change-workflow.ps1 new 002-example-change `
+pwsh -File .\scripts\change-workflow.ps1 new example-change `
+    --allocate-next `
     --outcome "Implement one bounded result" `
     --complexity small `
     --risk-trigger secrets `
@@ -17,6 +18,8 @@ pwsh -File .\scripts\change-workflow.ps1 new 002-example-change `
     --owned "tests/test_example.py" `
     --exclude "policy/**"
 ```
+
+`--allocate-next` reserves the next unused numeric prefix while the repository admission lock is held. Registration re-reads historical/current governed scopes, local and remote-tracking `change/*` refs, governed worktrees, and live path claims before creating the branch/worktree. Numeric-prefix reuse or an uncoordinated exact/recursive path intersection fails before mutation.
 
 Inspect or validate registered claims:
 

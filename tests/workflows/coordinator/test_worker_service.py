@@ -40,8 +40,13 @@ def _schema(name: str) -> dict[str, object]:
 def _identity() -> ExecutionIdentity:
     return ExecutionIdentity(
         execution_id="exec-251-alpha",
+        run_id="run-alpha",
         packet_id="packet-alpha",
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
         task_id="alpha",
+        governed_worktree="C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+        lifecycle_phase="implementation",
         assignment_generation=1,
         reservation_id="res-150",
         authority_revision=4,
@@ -172,7 +177,16 @@ def _packet() -> dict[str, object]:
     binding = _binding()
     return {
         "packet_id": "packet-alpha",
+        "run_id": "run-alpha",
+        "project_id": "kis-mcp",
+        "change_id": "150-parallel-agent-coordinator",
         "task_id": "alpha",
+        "governed": {
+            "root": "C:/Projects/kis-mcp",
+            "worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+            "base_revision": {"commit_sha": SHA, "tree_sha": SHA},
+        },
+        "lifecycle_phase": "implementation",
         "required_capabilities": ["filesystem.read", "filesystem.write"],
         "authority": {
             "reservation_id": "res-150",
@@ -270,6 +284,31 @@ def test_mcp_adapter_filters_before_invocation_and_rechecks_mutation_authority()
         ("read_file", {"path": "SPEC.md"}),
         ("write_file", {"path": "x", "content": "y"}),
     ]
+
+
+def test_reassigned_authority_fences_stale_run_before_tool_exposure() -> None:
+    client = FakeClient()
+    current_authority = {
+        "reservation_id": "res-150",
+        "authority_revision": 5,
+        "lease_id": "lease-151",
+        "fence_token": 5,
+    }
+    adapter = McpWorkerAdapter(
+        client_factory=lambda _binding: client,
+        admit_tool=lambda _packet, _tool: True,
+        assert_authority=lambda _authority: current_authority,
+        is_mutating=lambda _name, _arguments, _tool: True,
+    )
+
+    async def scenario() -> None:
+        await adapter.connect(_binding())
+        with pytest.raises(ReservationAdmissionError, match="WORKER_AUTHORITY_CHANGED"):
+            await adapter.discover(_packet())
+        await adapter.close()
+
+    asyncio.run(scenario())
+    assert client.calls == []
 
 
 def test_reconnect_is_transport_only_and_requires_rediscovery() -> None:

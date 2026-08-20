@@ -300,9 +300,21 @@ class ReconciliationService:
                 )
             )
             validations["reservation"] = "failed"
+        governed = _mapping(packet.get("governed"), "packet.governed")
         expected_pairs = (
+            ("run_id", _required_text(packet.get("run_id"), "packet.run_id")),
             ("packet_id", packet_id),
+            ("project_id", _required_text(packet.get("project_id"), "packet.project_id")),
+            ("change_id", change_id),
             ("task_id", _required_text(packet.get("task_id"), "packet.task_id")),
+            (
+                "governed_worktree",
+                _required_text(governed.get("worktree"), "packet.governed.worktree"),
+            ),
+            (
+                "lifecycle_phase",
+                _required_text(packet.get("lifecycle_phase"), "packet.lifecycle_phase"),
+            ),
             ("reservation_id", _required_text(authority.get("reservation_id"), "authority.reservation_id")),
             ("authority_revision", _positive_int(authority.get("authority_revision"), "authority.authority_revision")),
             ("fence_token", _positive_int(authority.get("fence_token"), "authority.fence_token")),
@@ -1006,8 +1018,8 @@ def _execution_payload(value: object | None) -> dict[str, Any] | None:
             )
         payload = dict(payload)
     if (
-        payload.get("schema_version") != 2
-        or payload.get("contract") != "coordinator-worker-execution-v2"
+        payload.get("schema_version") != 3
+        or payload.get("contract") != "coordinator-worker-execution-v3"
         or not isinstance(payload.get("identity"), Mapping)
     ):
         raise ReservationAdmissionError(
@@ -1027,8 +1039,13 @@ def _execution_matches_handoff(
     authority = _mapping(packet.get("authority"), "packet.authority")
     exact_identity = {
         "execution_id": handoff.get("execution_id"),
+        "run_id": handoff.get("run_id"),
         "packet_id": handoff.get("packet_id"),
+        "project_id": handoff.get("project_id"),
+        "change_id": handoff.get("change_id"),
         "task_id": handoff.get("task_id"),
+        "governed_worktree": handoff.get("governed_worktree"),
+        "lifecycle_phase": handoff.get("lifecycle_phase"),
         "assignment_generation": handoff.get("assignment_generation"),
         "reservation_id": handoff.get("reservation_id"),
         "authority_revision": handoff.get("authority_revision"),

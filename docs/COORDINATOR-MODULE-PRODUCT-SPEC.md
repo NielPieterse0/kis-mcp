@@ -208,6 +208,13 @@ Implemented by #251 on the same parent branch:
 - structured adapter results retain execution/attempt, exact authority facts, runtime binding, packet/task, progress, and result correlation when durable execution identity is supplied;
 - reconnect, discovery, and transport session state remain ephemeral and non-authorizing; durable evidence never creates, renews, or supersedes #248/#249 mutation authority.
 
+Hardened by #412 / Change 215:
+
+- `coordinator-work-packet-v3` adds stable packet/task lineage plus generation-specific `run_id`, predecessor-run lineage, explicit executor/profile, exact governed root/worktree/base/lifecycle envelope, authority references, Work Management identity, and bounded external provenance;
+- `coordinator-worker-execution-v3` and `coordinator-worker-handoff-v3` carry the same project/change/run/worktree/lifecycle identity so stale or cross-assignment evidence cannot be mistaken for the active run;
+- reassignment is an explicit generation transition that requires the same reservation with a strictly higher authority revision/fence and a new lease, records the predecessor run as revoked, and issues a new opaque assignment key/run identity;
+- workers re-check current authority before tool exposure and immediately before mutation, while reconciliation cross-checks run/project/change/worktree/lifecycle identity against durable packet and execution evidence.
+
 Reconstructed by Change 193 from the retained #252 behavior:
 
 - deterministic handoff reconciliation against durable packet issuance, assignment generation/key digest, current reservation revision/fence, runtime binding, worker/task identity, independently observed exact base/head, changed paths, current global claims, local packet scope, and dependency completion;

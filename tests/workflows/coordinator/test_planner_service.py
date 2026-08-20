@@ -35,6 +35,12 @@ def _request(*tasks: PlannerTask) -> PlannerRequest:
         revision=1,
         exact_base={"commit_sha": SHA, "tree_sha": TREE},
         tasks=tasks,
+        governed_root="C:/Projects/kis-mcp",
+        governed_worktree="C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+        lifecycle_phase="implementation",
+        authority_references=("AGENTS.md", "issue:#250"),
+        work_management={"record_id": "TASK-250", "source_number": 250},
+        external_provenance={"session_id": "chat-123", "source": "operator"},
         verification_requirement_ids=("coordinator-planner-tests",),
     )
 
@@ -205,6 +211,22 @@ def test_packet_issuance_freezes_runtime_authority_and_hashes_assignment_key(tmp
     binding = result["runtime_binding"]
 
     assert packet["assignment"] == {"generation": 1, "key": "opaque-assignment-key"}
+    assert packet["run_id"].startswith("run-")
+    assert packet["predecessor_run_id"] is None
+    assert packet["governed"] == {
+        "root": "C:/Projects/kis-mcp",
+        "worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+        "base_revision": {"commit_sha": SHA, "tree_sha": TREE},
+    }
+    assert packet["lifecycle_phase"] == "implementation"
+    assert packet["authority_references"] == ["AGENTS.md", "issue:#250"]
+    assert packet["work_management"] == {"record_id": "TASK-250", "source_number": 250}
+    assert packet["external_provenance"] == {"session_id": "chat-123", "source": "operator"}
+    assert packet["executor"] == {
+        "worker_id": "implementer",
+        "profile": "development",
+        "runtime_id": "kis-dev",
+    }
     handoff_required = sorted(
         set(_schema("worker-handoff")["required"]) - {"schema_version", "contract"}
     )
@@ -281,6 +303,81 @@ def test_packet_id_is_stable_and_duplicate_issue_is_rejected(tmp_path: Path) -> 
         ),
     )
     assert first["packet"]["packet_id"] == second["packet"]["packet_id"]
+
+
+def test_reassignment_preserves_packet_task_lineage_and_fences_prior_run(tmp_path: Path) -> None:
+    task = PlannerTask(
+        task_id="alpha",
+        outcome="Implement alpha",
+        owned_paths=("src/alpha/**",),
+        acceptance_checks=("done",),
+        required_capabilities=("code.change.implement",),
+    )
+    request = _request(task)
+    plan = PlannerService().plan(request)
+    keys = iter(("first-key", "second-key"))
+    candidates = iter(
+        (
+            [_candidate()],
+            [
+                _candidate(
+                    binding_id="kis-op-codex",
+                    runtime_id="kis-op",
+                    endpoint="127.0.0.1:8010/mcp",
+                    binding="operations",
+                    observed_at="2026-08-15T21:00:00Z",
+                )
+            ],
+        )
+    )
+    service = WorkPacketService(
+        state_root=tmp_path,
+        project_boundary=tmp_path,
+        resolve_runtime=lambda _capabilities: next(candidates),
+        token_factory=lambda: next(keys),
+        clock=lambda: datetime(2026, 8, 15, 21, 5, tzinfo=UTC),
+    )
+    first = service.issue(
+        request=request, plan=plan, task_id="alpha", authority=_authority()
+    )["packet"]
+    with pytest.raises(
+        ReservationAdmissionError, match="REASSIGNMENT_AUTHORITY_NOT_ADVANCED"
+    ):
+        service.reassign(
+            packet_id=first["packet_id"],
+            authority=_authority(),
+            expected_generation=1,
+            predecessor_run_id=first["run_id"],
+        )
+    second = service.reassign(
+        packet_id=first["packet_id"],
+        authority=_authority(authority_revision=5, lease_id="lease-151", fence_token=5),
+        expected_generation=1,
+        predecessor_run_id=first["run_id"],
+    )["packet"]
+
+    assert second["packet_id"] == first["packet_id"]
+    assert second["task_id"] == first["task_id"]
+    assert second["assignment"]["generation"] == 2
+    assert second["run_id"] != first["run_id"]
+    assert second["predecessor_run_id"] == first["run_id"]
+    assert second["executor"]["runtime_id"] == "kis-op"
+    events = sorted((tmp_path / "coordinator" / "packets" / first["packet_id"]).glob("*.json"))
+    reassigned = json.loads(events[-1].read_text(encoding="utf-8"))
+    assert reassigned["previous_assignment"]["run_id"] == first["run_id"]
+    assert reassigned["previous_assignment"]["state"] == "revoked"
+    assert reassigned["assignment"]["run_id"] == second["run_id"]
+    assert reassigned["assignment"]["state"] == "active"
+    assert "first-key" not in json.dumps(reassigned)
+    assert "second-key" not in json.dumps(reassigned)
+
+    with pytest.raises(ReservationAdmissionError, match="STALE_ASSIGNMENT_GENERATION"):
+        service.reassign(
+            packet_id=first["packet_id"],
+            authority=_authority(authority_revision=6, lease_id="lease-152", fence_token=6),
+            expected_generation=1,
+            predecessor_run_id=first["run_id"],
+        )
 
 
 def test_runtime_discovery_cannot_grant_mutation_authority(tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ Set-StrictMode -Version Latest
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 & (Join-Path $PSScriptRoot 'configure-repository.ps1')
 $StateRoot = 'C:\Projects\.kis-mcp'
+$env:KIS_STATE_ROOT = $StateRoot
 $env:UV_PROJECT_ENVIRONMENT = Join-Path $StateRoot 'python-env'
 $env:UV_CACHE_DIR = Join-Path $StateRoot 'uv-cache'
 $env:PYTHONPYCACHEPREFIX = Join-Path $StateRoot 'python-cache'

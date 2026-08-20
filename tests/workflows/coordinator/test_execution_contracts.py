@@ -21,13 +21,18 @@ def _errors(name: str, payload: dict[str, object]) -> list[object]:
 
 def test_worker_handoff_can_report_only_worker_completion() -> None:
     payload = {
-        "schema_version": 2,
-        "contract": "coordinator-worker-handoff-v2",
+        "schema_version": 3,
+        "contract": "coordinator-worker-handoff-v3",
         "handoff_id": "handoff-1",
         "execution_id": "execution-1",
+        "run_id": "run-1",
         "attempt_id": "attempt-1",
         "packet_id": "packet-247-1",
+        "project_id": "kis-mcp",
+        "change_id": "150-parallel-agent-coordinator",
         "task_id": "slice-247",
+        "governed_worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+        "lifecycle_phase": "implementation",
         "assignment_generation": 1,
         "reservation_id": "reservation-150-1",
         "authority_revision": 1,
@@ -59,9 +64,11 @@ def test_worker_handoff_can_report_only_worker_completion() -> None:
 
 def test_work_packet_freezes_authority_and_runtime_identity() -> None:
     payload = {
-        "schema_version": 2,
-        "contract": "coordinator-work-packet-v2",
+        "schema_version": 3,
+        "contract": "coordinator-work-packet-v3",
         "packet_id": "packet-247-1",
+        "run_id": "run-1",
+        "predecessor_run_id": None,
         "work_id": "issue-247",
         "project_id": "kis-mcp",
         "change_id": "150-parallel-agent-coordinator",
@@ -77,11 +84,25 @@ def test_work_packet_freezes_authority_and_runtime_identity() -> None:
         "dependencies": [],
         "acceptance_checks": ["all coordinator schemas validate"],
         "exact_base": {"commit_sha": SHA, "tree_sha": SHA},
+        "governed": {
+            "root": "C:/Projects/kis-mcp",
+            "worktree": "C:/Projects/kis-mcp/.work/worktrees/150-parallel-agent-coordinator",
+            "base_revision": {"commit_sha": SHA, "tree_sha": SHA},
+        },
+        "lifecycle_phase": "implementation",
+        "authority_references": ["AGENTS.md", "issue:#247"],
+        "work_management": {"record_id": "TASK-247"},
+        "external_provenance": {"session_id": "chat-1"},
         "authority": {
             "reservation_id": "reservation-150-1",
             "authority_revision": 1,
             "lease_id": "lease-150-1",
             "fence_token": 1,
+        },
+        "executor": {
+            "worker_id": "agent-4",
+            "profile": "development",
+            "runtime_id": "kis-dev",
         },
         "runtime_binding": {
             "binding_id": "runtime-binding-1",

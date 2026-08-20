@@ -1,0 +1,57 @@
+{
+  "schema_version": 4,
+  "change_id": "215-multi-agent-claim-hardening",
+  "status": "active",
+  "branch": "change/215-multi-agent-claim-hardening",
+  "worktree": ".work/worktrees/215-multi-agent-claim-hardening",
+  "base": "main",
+  "outcome": "Make governed change identity and repository path ownership collision-proof before implementation for issue #412",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "scripts/change-workflow.ps1",
+    "tests/test_change_governance.py",
+    "src/kis_mcp/workflows/coordinator/models.py",
+    "src/kis_mcp/workflows/coordinator/planner.py",
+    "src/kis_mcp/workflows/coordinator/worker.py",
+    "src/kis_mcp/workflows/coordinator/reconciliation.py",
+    "contracts/coordinator/work-packet.schema.json",
+    "contracts/coordinator/worker-execution.schema.json",
+    "contracts/coordinator/worker-handoff.schema.json",
+    "tests/workflows/coordinator/test_planner_service.py",
+    "tests/workflows/coordinator/test_worker_service.py",
+    "tests/workflows/coordinator/test_execution_contracts.py",
+    "tests/workflows/coordinator/test_reconciliation_service.py",
+    "AGENTS.md",
+    "docs/COORDINATOR-MODULE-PRODUCT-SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/operations/verification-changes.md",
+    ".work/changes/215-multi-agent-claim-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "f2f765739bad137de8a855ecdea1198e495f85a0",
+    "local_tree": "623f939ff0255f83ae2753d7dd795e677b120e8c",
+    "upstream_sha": "f2f765739bad137de8a855ecdea1198e495f85a0",
+    "upstream_tree": "623f939ff0255f83ae2753d7dd795e677b120e8c",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-412",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 412,
+    "source_kind": "issue",
+    "documentation_impact": "planned"
+  }
+}
