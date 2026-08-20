@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from fastmcp import Client, FastMCP
+from fastmcp.exceptions import ToolError
 
 from kis_mcp.desktop_commander import DesktopCommanderEffectResolver
 from kis_mcp.middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from kis_mcp.policy import ThreeRulePolicy
 from kis_mcp.quarantine import QuarantineError
 from kis_mcp.runtime_observability import RuntimeObservability
-
 
 PROJECT_BOUNDARY = r"C:\Projects"
 QUARANTINE_ROOT = r"C:\Projects\.kis-mcp\quarantine"
@@ -133,7 +134,7 @@ def test_provider_url_mode_is_not_exposed_or_callable() -> None:
     calls: list[object] = []
 
     @server.tool
-    def read_file(path: str, isUrl: bool = False) -> str:  # noqa: N803 - provider contract
+    def read_file(path: str, isUrl: bool = False) -> str:
         calls.append((path, isUrl))
         return path
 
@@ -408,3 +409,122 @@ def test_boundary_middleware_records_initialize_list_and_call_without_payloads()
         for item in records
     )
     assert "do-not-retain" not in str(registry.snapshot().to_dict())
+
+
+def test_boundary_middleware_records_failing_tool_without_error_payload() -> None:
+    server = FastMCP("boundary-failure-test")
+    registry = RuntimeObservability(max_boundary_requests=10)
+
+    @server.tool
+    def explode(secret: str) -> str:
+        raise RuntimeError(f"sensitive failure: {secret}")
+
+    server.add_middleware(BoundaryObservabilityMiddleware(registry))
+
+    async def run() -> None:
+        async with Client(server) as client:
+            with pytest.raises(ToolError):
+                await client.call_tool("explode", {"secret": "do-not-retain-error"})
+
+    asyncio.run(run())
+    record = next(
+        item
+        for item in registry.snapshot().recent_boundary_requests
+        if item.method == "tools/call" and item.tool_name == "explode"
+    )
+    assert record.outcome == "error"
+    assert record.error_type == "RuntimeError"
+    assert "do-not-retain-error" not in str(registry.snapshot().to_dict())
+
+
+def test_boundary_middleware_records_policy_rejection_outside_policy_middleware() -> None:
+    server = FastMCP("boundary-policy-rejection-test")
+    registry = RuntimeObservability(max_boundary_requests=10)
+    resolver = DesktopCommanderEffectResolver(
+        project_boundary=PROJECT_BOUNDARY,
+        provider_state_file=PROVIDER_STATE,
+        observability=registry,
+    )
+
+    @server.tool
+    def execute_command(command: str) -> str:
+        return command
+
+    server.add_middleware(BoundaryObservabilityMiddleware(registry))
+    server.add_middleware(
+        ThreeRuleMiddleware(
+            resolver=resolver,
+            policy=ThreeRulePolicy(
+                project_boundary=PROJECT_BOUNDARY,
+                quarantine_root=QUARANTINE_ROOT,
+            ),
+            quarantine_paths=lambda _paths: [],
+            observability=registry,
+        )
+    )
+
+    async def run() -> None:
+        async with Client(server) as client:
+            with pytest.raises(Exception, match="HR-002"):
+                await client.call_tool(
+                    "execute_command",
+                    {"command": "curl https://example.com/private-boundary-token"},
+                )
+
+    asyncio.run(run())
+    record = next(
+        item
+        for item in registry.snapshot().recent_boundary_requests
+        if item.method == "tools/call" and item.tool_name == "execute_command"
+    )
+    assert record.outcome == "rejected"
+    assert record.error_type == "ToolError"
+    assert "private-boundary-token" not in str(registry.snapshot().to_dict())
+
+
+def test_boundary_middleware_records_malformed_tool_call_as_rejected() -> None:
+    server = FastMCP("boundary-malformed-test")
+    registry = RuntimeObservability(max_boundary_requests=10)
+
+    @server.tool
+    def echo(required_value: str) -> str:
+        return required_value
+
+    server.add_middleware(BoundaryObservabilityMiddleware(registry))
+
+    async def run() -> None:
+        async with Client(server) as client:
+            with pytest.raises(ToolError):
+                await client.call_tool("echo", {})
+
+    asyncio.run(run())
+    record = next(
+        item
+        for item in registry.snapshot().recent_boundary_requests
+        if item.method == "tools/call" and item.tool_name == "echo"
+    )
+    assert record.outcome == "rejected"
+    assert record.error_type == "ValidationError"
+
+
+def test_boundary_middleware_records_cancellation_and_restores_context() -> None:
+    registry = RuntimeObservability(max_boundary_requests=10)
+    middleware = BoundaryObservabilityMiddleware(registry)
+    context = SimpleNamespace(
+        method="tools/call",
+        message=SimpleNamespace(name="slow_tool"),
+    )
+
+    async def cancel(_context: object) -> None:
+        raise asyncio.CancelledError("do-not-retain-cancellation")
+
+    async def run() -> None:
+        with pytest.raises(asyncio.CancelledError):
+            await middleware.on_message(context, cancel)
+
+    asyncio.run(run())
+    record = registry.snapshot().recent_boundary_requests[0]
+    assert record.outcome == "cancelled"
+    assert record.error_type == "CancelledError"
+    assert record.tool_name == "slow_tool"
+    assert "do-not-retain-cancellation" not in str(registry.snapshot().to_dict())
