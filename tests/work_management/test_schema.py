@@ -39,7 +39,7 @@ def test_manifest_matches_approved_programme_shape() -> None:
     manifest = load_project_schema_manifest(SCHEMA_PATH)
 
     assert manifest.portfolio_id == "default"
-    assert len(manifest.fields) == 25
+    assert len(manifest.fields) == 28
     assert len(manifest.views) == 12
     assert manifest.field("Status").kind is ProjectFieldKind.SINGLE_SELECT
     assert manifest.field("Blocked By").kind is ProjectFieldKind.TEXT
@@ -49,6 +49,16 @@ def test_manifest_matches_approved_programme_shape() -> None:
     assert "Documentation" in manifest.field("Delivery Stage").options
     assert manifest.field("Complexity").options == ("Small", "Medium", "Large")
     assert manifest.field("Risk Triggers").kind is ProjectFieldKind.TEXT
+    assert tuple(field.name for field in manifest.fields[-3:]) == (
+        "Live Verification",
+        "Commissioning Key",
+        "Live Verification Evidence",
+    )
+    assert manifest.field("Live Verification").options == (
+        "Not Assessed", "Not Required", "Pending", "Passed", "Failed", "Blocked"
+    )
+    assert manifest.field("Commissioning Key").kind is ProjectFieldKind.TEXT
+    assert manifest.field("Live Verification Evidence").kind is ProjectFieldKind.TEXT
     assert manifest.views[0].name == "01 Inbox"
     assert manifest.views[0].filter == "status:Inbox"
     assert manifest.views[2].name == "03 Delivery Board"
@@ -370,3 +380,17 @@ def test_schema_plan_marks_unsupported_view_semantics_manual() -> None:
     assert [(action.kind, action.target, action.disposition) for action in plan.actions] == [
         ("update_view", "03 Delivery Board:vertical_group_by", "manual")
     ]
+
+
+def test_canonical_manifest_rejects_field_projection_drift(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    document = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    priority = next(field for field in document["fields"] if field["name"] == "Priority")
+    priority["options"] = ["High", "Critical", "Medium", "Low"]
+    path = tmp_path / "schema.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    monkeypatch.setattr(schema_module, "_default_project_schema_path", lambda: path)
+
+    with pytest.raises(ValueError, match="Priority options drift from canonical Work semantics"):
+        load_project_schema_manifest(path)

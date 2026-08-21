@@ -1,0 +1,1013 @@
+{
+  "schema_version": 1,
+  "contract_id": "work-item-semantics",
+  "contexts": [
+    {
+      "id": "ready_metadata",
+      "definition": "Fields required before work is executable from Ready.",
+      "kind": "state_in",
+      "values": [
+        "ready"
+      ]
+    },
+    {
+      "id": "active_claim",
+      "definition": "Fields required for work represented as actively executing.",
+      "kind": "state_in",
+      "values": [
+        "active"
+      ]
+    },
+    {
+      "id": "hold_or_defer",
+      "definition": "Fields required when work is paused or deferred.",
+      "kind": "state_in",
+      "values": [
+        "on_hold",
+        "deferred"
+      ]
+    },
+    {
+      "id": "finding_or_risk",
+      "definition": "Fields required for finding and risk records.",
+      "kind": "record_type_in",
+      "values": [
+        "finding",
+        "security_finding",
+        "risk"
+      ]
+    },
+    {
+      "id": "finding_or_assumption",
+      "definition": "Fields required for finding and assumption records.",
+      "kind": "record_type_in",
+      "values": [
+        "finding",
+        "security_finding",
+        "assumption"
+      ]
+    },
+    {
+      "id": "governed_change",
+      "definition": "Fields required once authoritative governed change identity exists.",
+      "kind": "signal",
+      "values": [
+        "governed_change_exists"
+      ]
+    }
+  ],
+  "fields": [
+    {
+      "id": "status",
+      "name": "Status",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Operational Work lifecycle status.",
+      "vocabulary": "status",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set by explicit Work lifecycle operations."
+    },
+    {
+      "id": "record_type",
+      "name": "Record Type",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Purpose classification of the Work record.",
+      "vocabulary": "record_type",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "ready_metadata"
+      ],
+      "population": "Set during intake/triage and changed only by explicit Work authority."
+    },
+    {
+      "id": "priority",
+      "name": "Priority",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Relative scheduling importance.",
+      "vocabulary": "priority",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "ready_metadata"
+      ],
+      "population": "Set by Work Management and consumed by selection ranking."
+    },
+    {
+      "id": "effort",
+      "name": "Effort",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Relative implementation or coordination effort.",
+      "vocabulary": "effort",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "ready_metadata"
+      ],
+      "population": "Set by Work Management and consumed by selection ranking."
+    },
+    {
+      "id": "delivery_stage",
+      "name": "Delivery Stage",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "derived",
+      "direction": "evidence",
+      "definition": "Evidence-derived governed delivery stage.",
+      "vocabulary": "delivery_stage",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected from repository/GitHub delivery evidence."
+    },
+    {
+      "id": "execution_owner",
+      "name": "Execution Owner",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Stable identity of the current execution claimant.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "active_claim"
+      ],
+      "population": "Set and cleared only by claim/release lifecycle operations."
+    },
+    {
+      "id": "blocked_by",
+      "name": "Blocked By",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "github",
+      "direction": "evidence",
+      "definition": "Provider-observed dependency or blocker reference; explicit empty differs from unavailable evidence.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Read from GitHub Project dependency evidence."
+    },
+    {
+      "id": "documentation_impact",
+      "name": "Documentation Impact",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management_then_repository_change",
+      "direction": "handoff",
+      "definition": "Expected or completed documentation impact for the work/change.",
+      "vocabulary": "documentation_impact",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "ready_metadata"
+      ],
+      "population": "Starts as Work command data and becomes governed change evidence."
+    },
+    {
+      "id": "complexity",
+      "name": "Complexity",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "repository_change",
+      "direction": "evidence",
+      "definition": "Repository change-governance complexity projected into Work.",
+      "vocabulary": "complexity",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected from authoritative schema-v4 governed change scope."
+    },
+    {
+      "id": "risk_triggers",
+      "name": "Risk Triggers",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "repository_change",
+      "direction": "evidence",
+      "definition": "Comma-separated repository change-governance risk-trigger tokens.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected from authoritative governed change scope."
+    },
+    {
+      "id": "project_id",
+      "name": "Project ID",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "derived",
+      "direction": "evidence",
+      "definition": "Stable KIS project registry identity for the work item.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Derived from the registered repository-to-project mapping."
+    },
+    {
+      "id": "repository",
+      "name": "Repository",
+      "provider_type": "repository",
+      "managed": true,
+      "authority": "github",
+      "direction": "evidence",
+      "definition": "GitHub repository identity of the source item.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Read from the GitHub source item/provider binding."
+    },
+    {
+      "id": "module",
+      "name": "Module",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "work_management_then_repository_change",
+      "direction": "handoff",
+      "definition": "Optional bounded module or subsystem context for the work.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set by Work and handed to governed change planning when applicable."
+    },
+    {
+      "id": "change_id",
+      "name": "Change ID",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "repository_change",
+      "direction": "evidence",
+      "definition": "Canonical governed repository change ID once one exists.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "governed_change"
+      ],
+      "population": "Projected from authoritative local change scope."
+    },
+    {
+      "id": "origin",
+      "name": "Origin",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Context that originated the record.",
+      "vocabulary": "origin",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set when the Work record is created or classified."
+    },
+    {
+      "id": "disposition",
+      "name": "Disposition",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Explicit decision disposition for records that use disposition semantics.",
+      "vocabulary": "disposition",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set by explicit Work decision/review operations."
+    },
+    {
+      "id": "verification",
+      "name": "Verification",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "actions",
+      "direction": "evidence",
+      "definition": "Repository/source verification state; never live-runtime commissioning state.",
+      "vocabulary": "verification",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected from provider-native or governed verification evidence."
+    },
+    {
+      "id": "severity",
+      "name": "Severity",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Relative material impact for finding/risk records.",
+      "vocabulary": "severity",
+      "applicable_record_types": [
+        "finding",
+        "security_finding",
+        "risk"
+      ],
+      "required_contexts": [
+        "finding_or_risk"
+      ],
+      "population": "Set when a finding or risk is classified."
+    },
+    {
+      "id": "confidence",
+      "name": "Confidence",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Evidence confidence for finding/assumption records.",
+      "vocabulary": "confidence",
+      "applicable_record_types": [
+        "finding",
+        "security_finding",
+        "assumption"
+      ],
+      "required_contexts": [
+        "finding_or_assumption"
+      ],
+      "population": "Set from the evidence quality supporting the record."
+    },
+    {
+      "id": "review_trigger",
+      "name": "Review Trigger",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Condition or date/event trigger for reconsidering paused work.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [
+        "hold_or_defer"
+      ],
+      "population": "Required when work enters On Hold or Deferred."
+    },
+    {
+      "id": "target_date",
+      "name": "Target Date",
+      "provider_type": "date",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Optional target date for planned work or reconsideration.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set explicitly by Work Management."
+    },
+    {
+      "id": "iteration",
+      "name": "Iteration",
+      "provider_type": "iteration",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Optional provider iteration assignment.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set explicitly by Work Management."
+    },
+    {
+      "id": "source_review",
+      "name": "Source Review",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Reference to the review source that produced or governs the record.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set when review-derived records are captured."
+    },
+    {
+      "id": "authority_revision",
+      "name": "Authority Revision",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "git",
+      "direction": "evidence",
+      "definition": "Revision identity of the authority evidence used for the Work record.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected from Git/provider revision evidence."
+    },
+    {
+      "id": "external_link",
+      "name": "External Link",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "work_management",
+      "direction": "command",
+      "definition": "Optional bounded external reference associated with the work.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Set explicitly by Work Management."
+    },
+    {
+      "id": "created",
+      "name": "Created",
+      "provider_type": "native_datetime",
+      "managed": false,
+      "authority": "github",
+      "direction": "evidence",
+      "definition": "Provider-native creation timestamp used as deterministic age evidence.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Read from GitHub native item metadata."
+    },
+    {
+      "id": "live_verification",
+      "name": "Live Verification",
+      "provider_type": "single_select",
+      "managed": true,
+      "authority": "derived",
+      "direction": "evidence",
+      "definition": "Post-merge live runtime verification state, distinct from source Verification.",
+      "vocabulary": "live_verification",
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected by the deterministic commissioning lifecycle under #419."
+    },
+    {
+      "id": "commissioning_key",
+      "name": "Commissioning Key",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "derived",
+      "direction": "evidence",
+      "definition": "Deterministic idempotency key for one commissioning obligation.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Derived by the commissioning classifier/runner under #419."
+    },
+    {
+      "id": "live_verification_evidence",
+      "name": "Live Verification Evidence",
+      "provider_type": "text",
+      "managed": true,
+      "authority": "derived",
+      "direction": "evidence",
+      "definition": "Compact reference to durable live-verification evidence or linked commissioning work; never free-form logs.",
+      "vocabulary": null,
+      "applicable_record_types": [
+        "*"
+      ],
+      "required_contexts": [],
+      "population": "Projected from commissioning evidence under #419."
+    }
+  ],
+  "vocabularies": [
+    {
+      "id": "status",
+      "definition": "Operational Work lifecycle status projected to GitHub Project Status.",
+      "values": [
+        {
+          "token": "inbox",
+          "label": "Inbox",
+          "definition": "Captured work not yet triaged."
+        },
+        {
+          "token": "triage",
+          "label": "Triage",
+          "definition": "Work being classified and prepared for a disposition."
+        },
+        {
+          "token": "proposed",
+          "label": "Proposed",
+          "definition": "Work proposed for acceptance but not yet approved."
+        },
+        {
+          "token": "approved",
+          "label": "Approved",
+          "definition": "Accepted work that is not yet admitted to the executable queue."
+        },
+        {
+          "token": "ready",
+          "label": "Ready",
+          "definition": "Work admitted for deterministic next-work eligibility subject to readiness, claim, and dependency guards."
+        },
+        {
+          "token": "active",
+          "label": "Active",
+          "definition": "Work currently claimed for execution."
+        },
+        {
+          "token": "blocked",
+          "label": "Blocked",
+          "definition": "Work that cannot proceed because a blocking condition is present."
+        },
+        {
+          "token": "on_hold",
+          "label": "On Hold",
+          "definition": "Work intentionally paused pending a declared review trigger."
+        },
+        {
+          "token": "deferred",
+          "label": "Deferred",
+          "definition": "Work postponed for later reconsideration with a declared review trigger."
+        },
+        {
+          "token": "rejected",
+          "label": "Rejected",
+          "definition": "Work explicitly not accepted for execution in its current form."
+        },
+        {
+          "token": "superseded",
+          "label": "Superseded",
+          "definition": "Work replaced by a newer authoritative record or outcome."
+        },
+        {
+          "token": "done",
+          "label": "Done",
+          "definition": "Work whose required completion and closeout gates are satisfied."
+        }
+      ]
+    },
+    {
+      "id": "record_type",
+      "definition": "Classification of the purpose of a Work record.",
+      "values": [
+        {
+          "token": "idea",
+          "label": "Idea",
+          "definition": "Uncommitted candidate work requiring triage before it becomes actionable."
+        },
+        {
+          "token": "task",
+          "label": "Task",
+          "definition": "A bounded actionable unit of work."
+        },
+        {
+          "token": "specification_slice",
+          "label": "Specification Slice",
+          "definition": "A bounded specification or delivery slice tracked as work."
+        },
+        {
+          "token": "review_run",
+          "label": "Review Run",
+          "definition": "A record representing one review execution and its evidence."
+        },
+        {
+          "token": "finding",
+          "label": "Finding",
+          "definition": "An actionable observation produced by review, verification, audit, or commissioning."
+        },
+        {
+          "token": "decision",
+          "label": "Decision",
+          "definition": "A record of an explicit authoritative choice."
+        },
+        {
+          "token": "assumption",
+          "label": "Assumption",
+          "definition": "A proposition tracked because later evidence may validate or invalidate it."
+        },
+        {
+          "token": "risk",
+          "label": "Risk",
+          "definition": "A potential adverse condition tracked for mitigation or disposition."
+        },
+        {
+          "token": "approval",
+          "label": "Approval",
+          "definition": "A record of an explicit approval decision."
+        },
+        {
+          "token": "hold",
+          "label": "Hold",
+          "definition": "A record whose purpose is to track a pause or hold condition."
+        },
+        {
+          "token": "research",
+          "label": "Research",
+          "definition": "A bounded investigation intended to produce evidence or a decision."
+        },
+        {
+          "token": "defect",
+          "label": "Defect",
+          "definition": "A known incorrect or broken product or system behavior requiring correction."
+        },
+        {
+          "token": "security_finding",
+          "label": "Security Finding",
+          "definition": "A finding whose material impact is security-related."
+        }
+      ]
+    },
+    {
+      "id": "priority",
+      "definition": "Relative scheduling importance used by the current deterministic Work queue.",
+      "values": [
+        {
+          "token": "critical",
+          "label": "Critical",
+          "definition": "Highest configured scheduling importance."
+        },
+        {
+          "token": "high",
+          "label": "High",
+          "definition": "High scheduling importance below Critical."
+        },
+        {
+          "token": "medium",
+          "label": "Medium",
+          "definition": "Normal scheduling importance below High."
+        },
+        {
+          "token": "low",
+          "label": "Low",
+          "definition": "Lowest configured scheduling importance."
+        }
+      ]
+    },
+    {
+      "id": "effort",
+      "definition": "Relative implementation or coordination size used by the current deterministic Work queue.",
+      "values": [
+        {
+          "token": "tiny",
+          "label": "Tiny",
+          "definition": "Smallest configured relative effort."
+        },
+        {
+          "token": "small",
+          "label": "Small",
+          "definition": "Small relative effort."
+        },
+        {
+          "token": "medium",
+          "label": "Medium",
+          "definition": "Moderate relative effort."
+        },
+        {
+          "token": "large",
+          "label": "Large",
+          "definition": "Largest configured relative effort."
+        }
+      ]
+    },
+    {
+      "id": "delivery_stage",
+      "definition": "Evidence-derived stage of governed repository delivery.",
+      "values": [
+        {
+          "token": "none",
+          "label": "None",
+          "definition": "No governed delivery stage has been established."
+        },
+        {
+          "token": "change_created",
+          "label": "Change Created",
+          "definition": "A governed repository change has been created."
+        },
+        {
+          "token": "implementing",
+          "label": "Implementing",
+          "definition": "Implementation is in progress."
+        },
+        {
+          "token": "pr_open",
+          "label": "PR Open",
+          "definition": "A pull request is open for the governed change."
+        },
+        {
+          "token": "review",
+          "label": "Review",
+          "definition": "The governed change is in review."
+        },
+        {
+          "token": "ci_pending",
+          "label": "CI Pending",
+          "definition": "Provider-native verification is pending."
+        },
+        {
+          "token": "ci_failed",
+          "label": "CI Failed",
+          "definition": "Provider-native verification failed."
+        },
+        {
+          "token": "ci_passed",
+          "label": "CI Passed",
+          "definition": "Provider-native verification passed for the applicable head."
+        },
+        {
+          "token": "merged",
+          "label": "Merged",
+          "definition": "The governed change has been observed merged."
+        },
+        {
+          "token": "documentation",
+          "label": "Documentation",
+          "definition": "Post-merge documentation reconciliation is due or in progress."
+        },
+        {
+          "token": "commissioning",
+          "label": "Commissioning",
+          "definition": "Live verification or commissioning is pending or in progress."
+        },
+        {
+          "token": "complete",
+          "label": "Complete",
+          "definition": "Delivery and required closeout evidence are complete."
+        }
+      ]
+    },
+    {
+      "id": "documentation_impact",
+      "definition": "Repository documentation impact projected from Work to governed change and back as evidence.",
+      "values": [
+        {
+          "token": "not_assessed",
+          "label": "Not Assessed",
+          "definition": "Documentation impact has not yet been assessed."
+        },
+        {
+          "token": "none",
+          "label": "None",
+          "definition": "No documentation change is required, with rationale recorded where required."
+        },
+        {
+          "token": "planned",
+          "label": "Planned",
+          "definition": "Documentation changes are planned."
+        },
+        {
+          "token": "in_progress",
+          "label": "In Progress",
+          "definition": "Documentation changes are being implemented."
+        },
+        {
+          "token": "pre_merge_complete",
+          "label": "Pre-merge Complete",
+          "definition": "Required pre-merge documentation work is complete."
+        },
+        {
+          "token": "post_merge_complete",
+          "label": "Post-merge Complete",
+          "definition": "Required post-merge documentation reconciliation is complete."
+        }
+      ]
+    },
+    {
+      "id": "complexity",
+      "definition": "Projection of repository change-governance complexity; detailed classification criteria remain owned by change-governance settings.",
+      "values": [
+        {
+          "token": "small",
+          "label": "Small",
+          "definition": "Repository change-governance Small classification."
+        },
+        {
+          "token": "medium",
+          "label": "Medium",
+          "definition": "Repository change-governance Medium classification."
+        },
+        {
+          "token": "large",
+          "label": "Large",
+          "definition": "Repository change-governance Large classification."
+        }
+      ]
+    },
+    {
+      "id": "origin",
+      "definition": "Source context that caused a Work record to be created.",
+      "values": [
+        {
+          "token": "operator",
+          "label": "Operator",
+          "definition": "Created directly from operator intent."
+        },
+        {
+          "token": "review",
+          "label": "Review",
+          "definition": "Created from review evidence."
+        },
+        {
+          "token": "verification",
+          "label": "Verification",
+          "definition": "Created from verification evidence."
+        },
+        {
+          "token": "implementation",
+          "label": "Implementation",
+          "definition": "Created from implementation activity or discovery."
+        },
+        {
+          "token": "research",
+          "label": "Research",
+          "definition": "Created from research activity or evidence."
+        }
+      ]
+    },
+    {
+      "id": "disposition",
+      "definition": "Current decision disposition for records that require an explicit disposition.",
+      "values": [
+        {
+          "token": "open",
+          "label": "Open",
+          "definition": "No terminal disposition has been selected."
+        },
+        {
+          "token": "accepted",
+          "label": "Accepted",
+          "definition": "The record or proposition is accepted."
+        },
+        {
+          "token": "rejected",
+          "label": "Rejected",
+          "definition": "The record or proposition is rejected."
+        },
+        {
+          "token": "superseded",
+          "label": "Superseded",
+          "definition": "A newer authoritative record replaces this one."
+        },
+        {
+          "token": "mitigated",
+          "label": "Mitigated",
+          "definition": "The tracked risk or finding has been mitigated."
+        },
+        {
+          "token": "deferred",
+          "label": "Deferred",
+          "definition": "Disposition is intentionally postponed."
+        }
+      ]
+    },
+    {
+      "id": "verification",
+      "definition": "Repository/source verification state; it does not represent post-merge live runtime proof.",
+      "values": [
+        {
+          "token": "not_run",
+          "label": "Not Run",
+          "definition": "Repository/source verification has not run."
+        },
+        {
+          "token": "pending",
+          "label": "Pending",
+          "definition": "Repository/source verification is pending or running."
+        },
+        {
+          "token": "passed",
+          "label": "Passed",
+          "definition": "Repository/source verification passed for the applicable evidence identity."
+        },
+        {
+          "token": "failed",
+          "label": "Failed",
+          "definition": "Repository/source verification failed."
+        },
+        {
+          "token": "blocked",
+          "label": "Blocked",
+          "definition": "Repository/source verification cannot currently complete."
+        }
+      ]
+    },
+    {
+      "id": "severity",
+      "definition": "Relative material impact of a finding or risk.",
+      "values": [
+        {
+          "token": "critical",
+          "label": "Critical",
+          "definition": "Highest material impact requiring urgent attention."
+        },
+        {
+          "token": "high",
+          "label": "High",
+          "definition": "High material impact."
+        },
+        {
+          "token": "medium",
+          "label": "Medium",
+          "definition": "Moderate material impact."
+        },
+        {
+          "token": "low",
+          "label": "Low",
+          "definition": "Limited material impact."
+        }
+      ]
+    },
+    {
+      "id": "confidence",
+      "definition": "Relative confidence classification for finding and assumption evidence; current Work authority does not define quantitative or qualitative thresholds.",
+      "values": [
+        {
+          "token": "high",
+          "label": "High",
+          "definition": "Highest configured confidence label; no additional threshold is defined by current Work authority."
+        },
+        {
+          "token": "medium",
+          "label": "Medium",
+          "definition": "Middle configured confidence label; no additional threshold is defined by current Work authority."
+        },
+        {
+          "token": "low",
+          "label": "Low",
+          "definition": "Lowest configured confidence label; no additional threshold is defined by current Work authority."
+        }
+      ]
+    },
+    {
+      "id": "live_verification",
+      "definition": "Post-merge live runtime verification state, distinct from repository/source Verification.",
+      "values": [
+        {
+          "token": "not_assessed",
+          "label": "Not Assessed",
+          "definition": "The need for live verification has not yet been classified."
+        },
+        {
+          "token": "not_required",
+          "label": "Not Required",
+          "definition": "Deterministic classification found no live verification obligation."
+        },
+        {
+          "token": "pending",
+          "label": "Pending",
+          "definition": "Live verification is required and has not yet completed."
+        },
+        {
+          "token": "passed",
+          "label": "Passed",
+          "definition": "Required live verification passed against the actual exposed capability or runtime path."
+        },
+        {
+          "token": "failed",
+          "label": "Failed",
+          "definition": "Required live verification ran and failed its expected invariant."
+        },
+        {
+          "token": "blocked",
+          "label": "Blocked",
+          "definition": "Required live verification cannot currently complete."
+        }
+      ]
+    }
+  ]
+}

@@ -26,7 +26,10 @@
     {"name": "Iteration", "type": "iteration", "options": []},
     {"name": "Source Review", "type": "text", "options": []},
     {"name": "Authority Revision", "type": "text", "options": []},
-    {"name": "External Link", "type": "text", "options": []}
+    {"name": "External Link", "type": "text", "options": []},
+    {"name": "Live Verification", "type": "single_select", "options": ["Not Assessed", "Not Required", "Pending", "Passed", "Failed", "Blocked"]},
+    {"name": "Commissioning Key", "type": "text", "options": []},
+    {"name": "Live Verification Evidence", "type": "text", "options": []}
   ],
   "views": [    {"name":"01 Inbox","purpose":"Untriaged ideas and tasks","layout":"table","filter":"status:Inbox","visible_fields":["Title","Status","Record Type","Priority","Effort","Repository"],"sort_by":[],"group_by":[],"vertical_group_by":[]},
     {"name":"02 Programme Table","purpose":"All active records and key fields","layout":"table","filter":"status:Inbox,Triage,Proposed,Approved,Ready,Active,Blocked,\"On Hold\",Deferred","visible_fields":["Title","Status","Record Type","Priority","Effort","Execution Owner","Repository","Change ID","Delivery Stage"],"sort_by":[],"group_by":[],"vertical_group_by":[]},

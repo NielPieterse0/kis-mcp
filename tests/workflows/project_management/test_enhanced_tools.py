@@ -324,3 +324,31 @@ def test_current_work_filters_unprovisioned_project_fields() -> None:
     assert result["result"]["status"] == "current"
     assert result["result"]["selected"]["number"] == 235
     assert service.caller.calls[-1][1]["field_names"] == ["Status", "Execution Owner"]
+
+
+def test_contract_exposes_canonical_work_semantics_and_fingerprints() -> None:
+    server = FastMCP("root")
+    service = _Service()
+    register_project_management_enhancement_tools(server, service)
+
+    result = asyncio.run(
+        server.call_tool("project_management_contract", {})
+    ).structured_content
+
+    assert result is not None
+    canonical = result["canonical_contracts"]
+    assert set(canonical["fingerprints"]) == {
+        "work_item_semantics",
+        "work_lifecycle_operations",
+        "work_selection",
+    }
+    assert all(len(value) == 64 for value in canonical["fingerprints"].values())
+    fields = canonical["work_item_semantics"]["fields"]
+    assert [item["name"] for item in fields if item["managed"]][-3:] == [
+        "Live Verification", "Commissioning Key", "Live Verification Evidence"
+    ]
+    assert canonical["work_selection"]["ranking"] == [
+        "priority", "effort", "created_order", "record_id"
+    ]
+    assert "work_class" not in canonical["work_selection"]["fields"]
+    assert service.calls == []

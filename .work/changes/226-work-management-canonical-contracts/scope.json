@@ -1,0 +1,51 @@
+{
+  "schema_version": 4,
+  "change_id": "226-work-management-canonical-contracts",
+  "status": "active",
+  "branch": "change/226-work-management-canonical-contracts",
+  "worktree": ".work/worktrees/226-work-management-canonical-contracts",
+  "base": "main",
+  "outcome": "Establish bounded canonical machine-readable Work Management semantics, lifecycle/operation, and selection contracts; validate command-plane and GitHub Project projections against them; reconcile obsolete automation settings; and expose the canonical contract through project_management_contract without changing unapproved selection policy.",
+  "owned_paths": [
+    "settings/work-management/**",
+    "contracts/work-management/**",
+    "src/kis_mcp/work_management/**",
+    "src/kis_mcp/workflows/project_management/**",
+    "tests/work_management/**",
+    "tests/workflows/project_management/**",
+    "tests/project_onboarding/**",
+    "tests/housekeeping_runtime/**",
+    "SPEC.md",
+    "docs/operations/work-discover.md",
+    ".work/changes/226-work-management-canonical-contracts/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "migration",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "3c46f0b275ba2471c6b84268c6360d9d8e0ddf15",
+    "local_tree": "c964fb7eca13a04d9251caefea95b4ec187ef3d5",
+    "upstream_sha": "3c46f0b275ba2471c6b84268c6360d9d8e0ddf15",
+    "upstream_tree": "c964fb7eca13a04d9251caefea95b4ec187ef3d5",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-430",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 430,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

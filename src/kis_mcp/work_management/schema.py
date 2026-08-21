@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .backend import ProjectField, ProjectFieldKind
+from .canonical_contracts import load_canonical_work_contracts
 from .contracts import PUBLIC_SCHEMA_VERSION
 
 _MANIFEST_KEYS = frozenset({"schema_version", "portfolio_id", "fields", "views"})
@@ -337,6 +338,30 @@ def _default_project_schema_path() -> Path:
     )
 
 
+def _validate_canonical_field_projection(manifest: ProjectSchemaManifest) -> None:
+    canonical = load_canonical_work_contracts().work_item
+    expected_names = canonical.managed_fields
+    observed_names = tuple(field.name for field in manifest.fields)
+    if observed_names != expected_names:
+        raise ValueError("canonical Project fields drift from canonical Work semantics")
+
+    for projected in manifest.fields:
+        field = canonical.field(projected.name)
+        if projected.kind.value != field.provider_type:
+            raise ValueError(
+                f"{projected.name} type drifts from canonical Work semantics"
+            )
+        expected_options = ()
+        if field.vocabulary is not None:
+            expected_options = tuple(
+                item.label for item in canonical.vocabulary(field.vocabulary).values
+            )
+        if projected.options != expected_options:
+            raise ValueError(
+                f"{projected.name} options drift from canonical Work semantics"
+            )
+
+
 def _validate_canonical_view_status_filters(manifest: ProjectSchemaManifest) -> None:
     if manifest.portfolio_id.casefold() != "default":
         raise ValueError("canonical project schema portfolio_id must be default")
@@ -394,6 +419,7 @@ def load_project_schema_manifest(path: Path | None = None) -> ProjectSchemaManif
     )
     if target.resolve(strict=False) == canonical_target.resolve(strict=False):
         _validate_canonical_view_status_filters(manifest)
+        _validate_canonical_field_projection(manifest)
     return manifest
 
 

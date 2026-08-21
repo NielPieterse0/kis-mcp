@@ -28,7 +28,6 @@ def test_registry_bridge_preserves_behavior_and_existing_binding_ids() -> None:
     )
 
     assert bridged.features == baseline.features
-    assert bridged.automation == baseline.automation
     assert bridged.gates == baseline.gates
     assert bridged.evidence == baseline.evidence
     assert bridged.enabled == baseline.enabled

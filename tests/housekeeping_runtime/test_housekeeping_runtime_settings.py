@@ -120,12 +120,12 @@ def test_interval_and_repository_boundary_are_bounded(tmp_path: Path) -> None:
         load_housekeeping_runtime_settings(_write(tmp_path, document))
 
 
-def test_checked_in_scheduler_is_independent_of_legacy_work_management_automation() -> None:
+def test_checked_in_scheduler_is_owned_by_housekeeping_runtime() -> None:
     housekeeping = load_housekeeping_runtime_settings()
     work_management = load_work_management_settings()
 
     assert housekeeping.enabled is True
-    assert work_management.automation_enabled("scheduled_reconciliation") is False
+    assert not hasattr(work_management, "automation")
     assert {target.runner.value for target in housekeeping.targets} == {
         "work_management_reconciliation",
         "backlog_readiness",

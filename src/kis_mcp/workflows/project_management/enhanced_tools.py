@@ -12,6 +12,7 @@ from ...work_management.board import (
     select_current_work,
 )
 from ...work_management.board_bridge import get_work_board_bridge
+from ...work_management.canonical_contracts import load_canonical_work_contracts
 from ...work_management.results import error_json, result_envelope
 
 _EXTERNAL_READ = {
@@ -116,10 +117,12 @@ def register_project_management_enhancement_tools(
 
     @tool_server.tool(annotations=_LOCAL_READ)
     def project_management_contract() -> dict[str, Any]:
-        """Describe Work Management action semantics and the normalized result/error contract."""
+        """Describe canonical Work semantics plus action/result/error contracts."""
 
+        canonical = load_canonical_work_contracts()
         return {
             "schema_version": 1,
+            "canonical_contracts": canonical.to_json_dict(),
             "result_envelope": {
                 "fields": [
                     "observed_at",

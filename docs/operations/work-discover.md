@@ -7,8 +7,10 @@
 Use these canonical configuration owners:
 
 - [`../../settings/projects.settings.json`](../../settings/projects.settings.json) for registered project identity/routing;
-- [`../../settings/work-management/github-projects.settings.json`](../../settings/work-management/github-projects.settings.json) for Work Management modes/bindings;
-- [`../../settings/work-management/github-project-schema.json`](../../settings/work-management/github-project-schema.json) for the desired GitHub Project schema/view projection;
+- [`../../settings/work-management/contracts/`](../../settings/work-management/contracts/) for canonical Work item/vocabulary/applicability, lifecycle/operation, and selection semantics;
+- [`../../settings/work-management/github-projects.settings.json`](../../settings/work-management/github-projects.settings.json) for Work Management feature/gate/evidence modes and backend bindings;
+- [`../../settings/work-management/command-plane.settings.json`](../../settings/work-management/command-plane.settings.json) for the compatibility/runtime projection validated against canonical Work semantics;
+- [`../../settings/work-management/github-project-schema.json`](../../settings/work-management/github-project-schema.json) for the desired GitHub Project schema/view projection validated against canonical field/type/option semantics;
 - [`../../settings/housekeeping.settings.json`](../../settings/housekeeping.settings.json) for the `kis-op` housekeeping host, runner cadence, freshness, retention, and bounded execution limits.
 
 Before changing or adding a managed project, register the intended identity/routing, keep stable bindings stable unless an explicit migration is approved, authenticate the runtime provider, and inspect current schema/status before apply.
@@ -24,7 +26,7 @@ pwsh -NoProfile -File .\scripts\project-workflow.ps1 verify-traceability --trace
 pwsh -NoProfile -File .\scripts\project-workflow.ps1 merge-readiness --record .\record.json --trace .\trace.json --pull-request-number 123
 ```
 
-Standalone reconciliation is preview-only. Use the current KIS Work Management operation schemas for live reconciliation/apply, idempotency, merge-readiness, documentation reconciliation, and traceability semantics.
+Standalone reconciliation is preview-only. Use `project_management_contract` for the current canonical machine-readable Work semantics and fingerprints, and use the current KIS Work Management operation schemas for live reconciliation/apply, idempotency, merge-readiness, documentation reconciliation, and traceability effects.
 
 Before schema-dependent mutation, run the current schema-status operation. If it reports the registered Project is not ready, invoke the bounded registered-project commissioner with the intended registered project/binding and explicit approval, then rerun schema status. Use the manifest itself for current field/view counts, types, option values, and layout semantics.
 
@@ -32,7 +34,7 @@ Do not treat historical commissioning records, issue/change numbers, or copied m
 
 ## Operate unattended housekeeping
 
-The scheduler authority is the long-lived `kis-op` runtime (`operation` remote instance). `kis-dev`, stdio, GitHub Actions, and the legacy Work Management `scheduled_reconciliation` automation switch do not run the timer.
+The scheduler authority is the long-lived `kis-op` runtime (`operation` remote instance). Work Management exposes no generic automation-switch object; `kis-dev`, stdio, and GitHub Actions do not run the timer.
 
 After deploying a housekeeping change, restart `kis-op` from the merged revision and complete its normal GitHub OAuth bootstrap. Use `execute_read_action` for `kis_housekeeping_status`. Commissioning requires `active=true`, one active target for each configured runner, and a concrete `next_due_at` for each target.
 

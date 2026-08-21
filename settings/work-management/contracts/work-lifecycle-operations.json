@@ -1,0 +1,397 @@
+{
+  "schema_version": 1,
+  "contract_id": "work-lifecycle-operations",
+  "states": [
+    {
+      "token": "inbox",
+      "label": "Inbox",
+      "definition": "Captured work not yet triaged.",
+      "project_status": true
+    },
+    {
+      "token": "triage",
+      "label": "Triage",
+      "definition": "Work being classified.",
+      "project_status": true
+    },
+    {
+      "token": "proposed",
+      "label": "Proposed",
+      "definition": "Work proposed for approval.",
+      "project_status": true
+    },
+    {
+      "token": "approved",
+      "label": "Approved",
+      "definition": "Accepted work not yet admitted to Ready.",
+      "project_status": true
+    },
+    {
+      "token": "ready",
+      "label": "Ready",
+      "definition": "Executable queue state subject to readiness guards.",
+      "project_status": true
+    },
+    {
+      "token": "active",
+      "label": "Active",
+      "definition": "Claimed execution state.",
+      "project_status": true
+    },
+    {
+      "token": "review",
+      "label": "Review",
+      "definition": "Internal delivery state for review activity.",
+      "project_status": false
+    },
+    {
+      "token": "verification",
+      "label": "Verification",
+      "definition": "Internal delivery state for verification activity.",
+      "project_status": false
+    },
+    {
+      "token": "documentation",
+      "label": "Documentation",
+      "definition": "Internal delivery state for documentation reconciliation.",
+      "project_status": false
+    },
+    {
+      "token": "blocked",
+      "label": "Blocked",
+      "definition": "Execution cannot proceed because a blocker is present.",
+      "project_status": true
+    },
+    {
+      "token": "on_hold",
+      "label": "On Hold",
+      "definition": "Intentionally paused pending a review trigger.",
+      "project_status": true
+    },
+    {
+      "token": "deferred",
+      "label": "Deferred",
+      "definition": "Postponed for later reconsideration.",
+      "project_status": true
+    },
+    {
+      "token": "rejected",
+      "label": "Rejected",
+      "definition": "Not accepted for execution in current form.",
+      "project_status": true
+    },
+    {
+      "token": "superseded",
+      "label": "Superseded",
+      "definition": "Replaced by newer authoritative work.",
+      "project_status": true
+    },
+    {
+      "token": "done",
+      "label": "Done",
+      "definition": "Required completion gates are satisfied.",
+      "project_status": true
+    }
+  ],
+  "intake_aliases": {
+    "todo": "inbox"
+  },
+  "transitions": {
+    "inbox": [
+      "triage",
+      "deferred",
+      "rejected",
+      "superseded"
+    ],
+    "triage": [
+      "proposed",
+      "approved",
+      "deferred",
+      "rejected",
+      "superseded"
+    ],
+    "proposed": [
+      "approved",
+      "deferred",
+      "rejected",
+      "superseded"
+    ],
+    "approved": [
+      "ready",
+      "active",
+      "on_hold",
+      "deferred",
+      "superseded"
+    ],
+    "ready": [
+      "active",
+      "on_hold",
+      "deferred",
+      "superseded"
+    ],
+    "active": [
+      "ready",
+      "review",
+      "blocked",
+      "on_hold",
+      "deferred",
+      "done",
+      "superseded"
+    ],
+    "review": [
+      "active",
+      "verification",
+      "blocked",
+      "on_hold",
+      "superseded"
+    ],
+    "verification": [
+      "active",
+      "documentation",
+      "blocked",
+      "superseded"
+    ],
+    "documentation": [
+      "done",
+      "active",
+      "blocked",
+      "superseded"
+    ],
+    "blocked": [
+      "ready",
+      "active",
+      "on_hold",
+      "deferred",
+      "superseded"
+    ],
+    "on_hold": [
+      "ready",
+      "active",
+      "deferred",
+      "rejected",
+      "superseded"
+    ],
+    "deferred": [
+      "triage",
+      "proposed",
+      "approved",
+      "rejected",
+      "superseded"
+    ],
+    "rejected": [
+      "triage",
+      "superseded"
+    ],
+    "done": [],
+    "superseded": []
+  },
+  "readiness": {
+    "required_project_fields": [
+      "Record Type",
+      "Priority",
+      "Effort",
+      "Documentation Impact"
+    ],
+    "required_issue_sections": [
+      "Outcome",
+      "Acceptance criteria"
+    ],
+    "requires_dependencies_understood": true
+  },
+  "transition_requirements": {
+    "on_hold": [
+      "Review Trigger"
+    ],
+    "deferred": [
+      "Review Trigger"
+    ]
+  },
+  "claim": {
+    "execution_owner_field": "Execution Owner",
+    "auto_expiry": false
+  },
+  "delivery": {
+    "stages": [
+      "none",
+      "change_created",
+      "implementing",
+      "pr_open",
+      "review",
+      "ci_pending",
+      "ci_failed",
+      "ci_passed",
+      "merged",
+      "documentation",
+      "commissioning",
+      "complete"
+    ],
+    "stage_field": "Delivery Stage",
+    "change_id_field": "Change ID",
+    "complexity_field": "Complexity",
+    "risk_triggers_field": "Risk Triggers",
+    "change_created_stage": "change_created",
+    "complete_stage": "complete"
+  },
+  "completion": {
+    "terminal_state": "done",
+    "require_no_active_claim_after_close": false
+  },
+  "guards": [
+    {
+      "id": "approval-before-active",
+      "target": "active",
+      "condition": "approval_required_and_incomplete",
+      "reason_code": "approval_incomplete",
+      "definition": "Reject activation when the record requires approval and approval is incomplete.",
+      "disposition": "reject"
+    },
+    {
+      "id": "completion-no-active-claim",
+      "target": "done",
+      "condition": "completion_requires_no_active_claim_and_claim_present",
+      "reason_code": "active_claim_present",
+      "definition": "When configured, reject completion while an execution claim remains.",
+      "disposition": "reject"
+    },
+    {
+      "id": "completion-documentation-due",
+      "target": "done",
+      "condition": "required_documentation_reconciliation_due",
+      "reason_code": "documentation_reconciliation_due",
+      "definition": "Required post-merge documentation reconciliation must be completed before Done.",
+      "disposition": "reject"
+    },
+    {
+      "id": "completion-documentation-due-advisory",
+      "target": "done",
+      "condition": "advisory_documentation_reconciliation_due",
+      "reason_code": "documentation_reconciliation_advisory_due",
+      "definition": "Advisory post-merge documentation reconciliation may complete with an explicit advisory reason.",
+      "disposition": "allow_with_reason"
+    },
+    {
+      "id": "completion-documentation-unrecorded",
+      "target": "done",
+      "condition": "required_documentation_reconciliation_unrecorded",
+      "reason_code": "documentation_reconciliation_unrecorded",
+      "definition": "Required post-merge documentation milestone must be recorded before Done.",
+      "disposition": "reject"
+    },
+    {
+      "id": "completion-documentation-unrecorded-advisory",
+      "target": "done",
+      "condition": "advisory_documentation_reconciliation_unrecorded",
+      "reason_code": "documentation_reconciliation_advisory_incomplete",
+      "definition": "Advisory documentation reconciliation may complete without a recorded post-merge milestone, with an explicit advisory reason.",
+      "disposition": "allow_with_reason"
+    },
+    {
+      "id": "completion-documentation-incomplete",
+      "target": "done",
+      "condition": "required_documentation_incomplete",
+      "reason_code": "documentation_incomplete",
+      "definition": "Required documentation impact must be complete before Done.",
+      "disposition": "reject"
+    },
+    {
+      "id": "completion-documentation-incomplete-advisory",
+      "target": "done",
+      "condition": "advisory_documentation_incomplete",
+      "reason_code": "documentation_advisory_incomplete",
+      "definition": "Advisory documentation may complete while incomplete, with an explicit advisory reason.",
+      "disposition": "allow_with_reason"
+    }
+  ],
+  "operations": [
+    {
+      "id": "capture_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_reconcile",
+      "definition": "Capture one bounded source record into Work without duplicating source identity."
+    },
+    {
+      "id": "create_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_reconcile",
+      "definition": "Create or reconcile one new Work record through the configured provider boundary."
+    },
+    {
+      "id": "take_next_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_take_next_work",
+      "definition": "Select the next eligible Ready item and establish its execution claim."
+    },
+    {
+      "id": "claim_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_claim_work",
+      "definition": "Establish one execution owner after revision and state guards pass."
+    },
+    {
+      "id": "release_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_release_work",
+      "definition": "Clear an execution claim through the bounded command plane."
+    },
+    {
+      "id": "hold_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_hold_work",
+      "definition": "Move work to On Hold only with the required review trigger."
+    },
+    {
+      "id": "defer_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_defer_work",
+      "definition": "Move work to Deferred only with the required review trigger."
+    },
+    {
+      "id": "complete_work",
+      "effect": "external_or_local_change",
+      "implementation_surface": "project_management_complete_work",
+      "definition": "Complete work only after configured completion and evidence guards pass."
+    },
+    {
+      "id": "readiness",
+      "effect": "read_only",
+      "implementation_surface": "project_management_next_work",
+      "definition": "Evaluate deterministic queue eligibility and readiness evidence."
+    },
+    {
+      "id": "assignment_packet",
+      "effect": "local_change",
+      "implementation_surface": "coordinator_work_packet",
+      "definition": "Bind execution to a generation-specific work packet and reservation fence."
+    },
+    {
+      "id": "verification",
+      "effect": "read_only_or_external_evidence",
+      "implementation_surface": "project_management_merge_readiness",
+      "definition": "Evaluate repository/source verification evidence for the exact delivery identity."
+    },
+    {
+      "id": "commissioning",
+      "effect": "external_or_local_change",
+      "implementation_surface": "issue_419_commissioning",
+      "definition": "Track post-merge live verification separately from source verification."
+    },
+    {
+      "id": "authority_revision",
+      "effect": "read_only",
+      "implementation_surface": "project_management_inventory",
+      "definition": "Retain provider/Git revision evidence used for optimistic concurrency and traceability."
+    }
+  ],
+  "verification_domains": [
+    {
+      "id": "source_verification",
+      "field": "Verification",
+      "definition": "Repository/source verification evidence tied to the delivery identity."
+    },
+    {
+      "id": "live_verification",
+      "field": "Live Verification",
+      "definition": "Post-merge runtime proof tied to the actual exposed capability or runtime path."
+    }
+  ]
+}

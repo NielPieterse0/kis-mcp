@@ -58,7 +58,6 @@ def settings(
             ("reconciliation", reconciliation),
             ("review_import", review_import),
         ),
-        automation=(),
         gates=(("programme_drift", GateMode.ADVISORY),),
         evidence=EvidenceSettings(),
     )

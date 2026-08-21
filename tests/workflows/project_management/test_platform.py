@@ -46,7 +46,6 @@ def settings(enabled: bool) -> WorkManagementSettings:
             ),
         ),
         features=(("programme_status", FeatureMode.ENABLED),),
-        automation=(),
         gates=(("programme_drift", GateMode.ADVISORY),),
         evidence=EvidenceSettings(),
     )

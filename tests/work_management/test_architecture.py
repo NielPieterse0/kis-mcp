@@ -33,6 +33,7 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
         "backend.py",
         "board.py",
         "board_bridge.py",
+        "canonical_contracts.py",
         "contracts.py",
         "command_settings.py",
         "evidence.py",

@@ -48,11 +48,4 @@ def test_shared_github_project_is_commissioned_for_managed_repositories() -> Non
     assert settings.feature_mode("review_import") is FeatureMode.READ_ONLY
     assert settings.feature_mode("reconciliation") is FeatureMode.ENABLED
     assert settings.feature_mode("programme_status") is FeatureMode.ENABLED
-    assert dict(settings.automation) == {
-        "auto_add": False,
-        "close_sync": False,
-        "merge_sync": False,
-        "review_extraction": False,
-        "safe_repair": False,
-        "scheduled_reconciliation": False,
-    }
+    assert not hasattr(settings, "automation")

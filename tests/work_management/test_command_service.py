@@ -155,7 +155,6 @@ def wm_settings(local_root: str = "C:\\Projects\\alpha") -> WorkManagementSettin
             ),
         ),
         features=(("reconciliation", FeatureMode.ENABLED),),
-        automation=(),
         gates=(),
         evidence=EvidenceSettings(),
     )
