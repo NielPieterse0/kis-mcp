@@ -612,7 +612,10 @@ def test_commission_preserves_existing_option_ids_and_verifies_final_state() -> 
 
     result = _client(runner).commission(target, _manifest())
 
+    assert result["scope"] == "full"
     assert result["ready"] is True
+    assert result["fields_ready"] is True
+    assert result["views_ready"] is True
     assert result["created_fields"] == ["Priority"]
     assert result["updated_fields"] == ["Status"]
     assert result["created_views"] == ["01 Inbox"]
@@ -837,6 +840,97 @@ def test_commission_creates_missing_view_with_fixed_rest_semantics() -> None:
     assert "filter=status:Ready" in create
     assert "visible_fields[]=1001" in create
     assert "visible_fields[]=1002" in create
+
+
+def test_fields_scope_commissions_manifest_fields_despite_unrelated_view_drift() -> None:
+    before = _snapshot(
+        priority_type="",
+        include_ready=True,
+        include_view=True,
+        view_filter="",
+        visible_fields=("Status",),
+    )
+    before_view = before["data"]["user"]["projectV2"]["views"]["nodes"][0]
+    before_view["sortByFields"] = {
+        "nodes": [
+            {
+                "direction": "ASC",
+                "field": {"__typename": "ProjectV2Field", "id": "status-id", "name": "Status"},
+            }
+        ],
+        "pageInfo": {"hasNextPage": False},
+    }
+    after = _snapshot(
+        include_ready=True,
+        include_view=True,
+        view_filter="",
+        visible_fields=("Status",),
+    )
+    after_view = after["data"]["user"]["projectV2"]["views"]["nodes"][0]
+    after_view["sortByFields"] = before_view["sortByFields"]
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(before)),
+            Result(stdout="{}"),
+            Result(stdout=json.dumps(after)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    result = _client(runner).commission(target, _manifest(), scope="fields")
+
+    assert result["scope"] == "fields"
+    assert result["ready"] is True
+    assert result["fields_ready"] is True
+    assert result["views_ready"] is None
+    assert result["created_fields"] == ["Priority"]
+    assert result["updated_fields"] == []
+    queries = [call[0][-1].removeprefix("query=") for call in runner.calls]
+    assert any("createProjectV2Field" in query for query in queries)
+    assert not any("updateProjectV2View" in query for query in queries)
+    assert not any("/views/" in part for call in runner.calls for part in call[0])
+
+
+def test_fields_scope_fails_closed_when_created_field_is_not_observed() -> None:
+    before = _snapshot(priority_type="", include_ready=True)
+    still_missing = _snapshot(priority_type="", include_ready=True)
+    runner = QueueRunner(
+        (
+            Result(stdout=json.dumps(before)),
+            Result(stdout="{}"),
+            Result(stdout=json.dumps(still_missing)),
+        )
+    )
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    with pytest.raises(RuntimeError, match="field not ready after creation: Priority"):
+        _client(runner).commission(target, _manifest(), scope="fields")
+
+    assert len(runner.calls) == 3
+    queries = [call[0][-1].removeprefix("query=") for call in runner.calls]
+    assert sum("createProjectV2Field" in query for query in queries) == 1
+    assert not any("updateProjectV2Field" in query for query in queries)
+    assert not any("updateProjectV2View" in query for query in queries)
+
+
+def test_fields_scope_preflights_all_field_refusals_before_any_mutation() -> None:
+    payload = _snapshot(priority_type="", include_ready=True)
+    manifest = ProjectSchemaManifest(
+        portfolio_id="default",
+        fields=(
+            ProjectFieldSpec("Status", ProjectFieldKind.SINGLE_SELECT, ("Todo", "Ready")),
+            ProjectFieldSpec("Priority", ProjectFieldKind.TEXT),
+            ProjectFieldSpec("Repository", ProjectFieldKind.REPOSITORY),
+        ),
+        views=(),
+    )
+    runner = QueueRunner((Result(stdout=json.dumps(payload)),))
+    target = ProjectSchemaTarget(owner="NielPieterse0", owner_type="user", project_number=1)
+
+    with pytest.raises(ValueError, match="built-in repository field cannot be created"):
+        _client(runner).commission(target, manifest, scope="fields")
+
+    assert len(runner.calls) == 1
 
 
 def test_commission_preflights_all_view_refusals_before_any_mutation() -> None:

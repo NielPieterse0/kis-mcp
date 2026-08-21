@@ -1658,8 +1658,13 @@ class RegisteredGitHubOperations:
         project_id: str,
         project_binding_id: str,
         approved: bool,
+        scope: str = "full",
     ) -> dict[str, object]:
         self._require_approval(approved)
+        if scope not in {"full", "fields"}:
+            raise ToolError(
+                "INVALID_REGISTERED_GITHUB_ARGUMENTS: scope must be full or fields"
+            )
         if not isinstance(project_binding_id, str) or not project_binding_id.strip():
             raise ToolError(
                 "INVALID_REGISTERED_GITHUB_ARGUMENTS: project_binding_id must be a non-empty string"
@@ -1697,6 +1702,7 @@ class RegisteredGitHubOperations:
                     project_number=resource.project_number,
                 ),
                 load_project_schema_manifest(),
+                scope=scope,
             )
         except Exception as exc:
             raise ToolError(
@@ -1707,6 +1713,7 @@ class RegisteredGitHubOperations:
             "state": "ready",
             "project_id": project.project_id,
             "project_binding_id": resource.binding_id,
+            "scope": scope,
             "owner": resource.owner,
             "owner_type": resource.owner_type,
             "project_number": resource.project_number,
@@ -1795,6 +1802,7 @@ REGISTERED_GITHUB_OPERATION_SCHEMAS: dict[str, dict[str, object]] = {
         "properties": {
             "project_id": {"type": "string"},
             "project_binding_id": {"type": "string"},
+            "scope": {"type": "string", "enum": ["full", "fields"]},
             "approved": {"type": "boolean"},
         },
         "required": ["project_id", "project_binding_id", "approved"],
@@ -1854,6 +1862,10 @@ def _validated_arguments(
         raise ToolError("INVALID_REGISTERED_GITHUB_ARGUMENTS: status_only must be a boolean")
     if "deadline_ms" in values:
         _validate_deadline_ms(values["deadline_ms"])
+    if "scope" in values and values["scope"] not in {"full", "fields"}:
+        raise ToolError(
+            "INVALID_REGISTERED_GITHUB_ARGUMENTS: scope must be full or fields"
+        )
     for name in (
         "project_id",
         "project_binding_id",
@@ -1952,6 +1964,7 @@ def execute_registered_github_operation(
             project_id=values["project_id"],
             project_binding_id=values["project_binding_id"],
             approved=values["approved"],
+            scope=values.get("scope", "full"),
         )
     if operation == "kis_github_merge_registered_pull_request":
         return service.merge_pull_request(

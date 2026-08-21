@@ -15,6 +15,7 @@ from kis_mcp.projects import (
     ProjectRegistry,
 )
 from kis_mcp.projects.github_exact import (
+    REGISTERED_GITHUB_OPERATION_SCHEMAS,
     RegisteredGitHubOperations,
     execute_registered_github_operation,
 )
@@ -92,9 +93,10 @@ def test_project_schema_commissioning_uses_only_registered_manifest(monkeypatch)
         def __init__(self, **kwargs):
             captured["client"] = kwargs
 
-        def commission(self, target, manifest):
+        def commission(self, target, manifest, *, scope="full"):
             captured["target"] = target
             captured["manifest"] = manifest
+            captured["scope"] = scope
             return {
                 "ready": True,
                 "project_node_id": "project-id",
@@ -122,7 +124,35 @@ def test_project_schema_commissioning_uses_only_registered_manifest(monkeypatch)
     assert captured["target"].project_number == 1
     assert captured["target"].owner == "NielPieterse0"
     assert captured["manifest"].portfolio_id == "default"
+    assert captured["scope"] == "full"
     assert runner.calls[0][0][:3] == ("gh", "auth", "status")
+
+
+def test_project_schema_operation_declares_bounded_commissioning_scope() -> None:
+    schema = REGISTERED_GITHUB_OPERATION_SCHEMAS[
+        "kis_github_commission_registered_project_schema"
+    ]
+
+    assert schema["properties"]["scope"] == {
+        "type": "string",
+        "enum": ["full", "fields"],
+    }
+    assert "scope" not in schema["required"]
+
+
+def test_project_schema_operation_rejects_invalid_scope_before_dispatch() -> None:
+    with pytest.raises(ToolError, match="scope must be full or fields"):
+        execute_registered_github_operation(
+            "kis_github_commission_registered_project_schema",
+            {
+                "project_id": "kis-mcp",
+                "project_binding_id": "work-management",
+                "approved": True,
+                "scope": "views",
+            },
+            operations=RegisteredGitHubOperations(_registry()),
+        )
+
 
 def test_project_schema_operation_rejects_arbitrary_api_inputs_before_dispatch() -> None:
     with pytest.raises(ToolError, match="unknown fields: query"):
