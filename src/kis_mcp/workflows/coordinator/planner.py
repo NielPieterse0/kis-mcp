@@ -15,6 +15,7 @@ from .models import (
     PlannerTask,
     ReservationAdmissionError,
 )
+from .provenance import GitHubProvenanceService, ResolveGitHubProvenance
 from .service import _overlaps, _path_claim
 
 
@@ -32,6 +33,7 @@ _REQUIRED_HANDOFF_FIELDS = tuple(
             "evidence",
             "exact_head",
             "execution_id",
+            "external_provenance",
             "run_id",
             "project_id",
             "change_id",
@@ -102,6 +104,7 @@ class WorkPacketService:
         state_root: Path,
         project_boundary: Path,
         resolve_runtime: ResolveRuntime,
+        resolve_provenance: ResolveGitHubProvenance | None = None,
         token_factory: TokenFactory | None = None,
         clock: Clock | None = None,
     ) -> None:
@@ -115,6 +118,7 @@ class WorkPacketService:
                 f"state_root must remain inside {self._project_boundary}.",
             )
         self._resolve_runtime = resolve_runtime
+        self._resolve_provenance = resolve_provenance
         self._token_factory = token_factory or (lambda: secrets.token_urlsafe(32))
         self._clock = clock or (lambda: datetime.now(UTC))
 
@@ -147,6 +151,7 @@ class WorkPacketService:
             "binding_id": binding["binding_id"],
             "binding_fingerprint": binding["binding_fingerprint"],
         }
+        verified_provenance = self._verified_provenance(request.external_provenance)
         stable_identity = {
             "project_id": request.project_id,
             "change_id": request.change_id,
@@ -173,11 +178,7 @@ class WorkPacketService:
             "work_management": (
                 dict(request.work_management) if request.work_management is not None else None
             ),
-            "external_provenance": (
-                dict(request.external_provenance)
-                if request.external_provenance is not None
-                else None
-            ),
+            "external_provenance": verified_provenance,
             "verification_requirement_ids": sorted(
                 request.verification_requirement_ids
             ),
@@ -390,6 +391,22 @@ class WorkPacketService:
         }
         _write_json_once(path, stored)
         return {"packet": packet, "runtime_binding": binding}
+
+    def _verified_provenance(
+        self, claim: Mapping[str, Any] | None
+    ) -> dict[str, Any] | None:
+        if claim is None:
+            return None
+        if claim.get("provider") != "github":
+            return dict(claim)
+        if self._resolve_provenance is None:
+            raise ReservationAdmissionError(
+                "GITHUB_PROVENANCE_RESOLVER_REQUIRED",
+                "External GitHub provenance requires a live provider resolver.",
+            )
+        return GitHubProvenanceService(
+            resolve_provider=self._resolve_provenance
+        ).verify(claim)
 
     def _runtime_binding(
         self, required_capabilities: tuple[str, ...]

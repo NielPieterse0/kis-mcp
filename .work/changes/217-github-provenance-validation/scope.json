@@ -1,0 +1,43 @@
+{
+  "schema_version": 4,
+  "change_id": "217-github-provenance-validation",
+  "status": "active",
+  "branch": "change/217-github-provenance-validation",
+  "worktree": ".work/worktrees/217-github-provenance-validation",
+  "base": "main",
+  "outcome": "Make GitHub issue/PR/SHA provenance machine-verifiable and fail closed before narrative status can become coordinator audit or merge evidence.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/coordinator/**",
+    "tests/workflows/coordinator/**",
+    "contracts/coordinator/**",
+    "SPEC.md",
+    ".work/changes/217-github-provenance-validation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "94ea6b0f2b4f10aeb0ca9da56bd23e3a4f6ee6c3",
+    "local_tree": "45460cb1f60987b0a695b66245be5869ab298c3d",
+    "upstream_sha": "94ea6b0f2b4f10aeb0ca9da56bd23e3a4f6ee6c3",
+    "upstream_tree": "45460cb1f60987b0a695b66245be5869ab298c3d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-413",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 413,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

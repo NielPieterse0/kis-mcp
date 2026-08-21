@@ -46,6 +46,13 @@
       "type": "string",
       "format": "date-time"
     },
+    "external_provenance": {
+      "oneOf": [
+        {"$ref": "#/$defs/githubProvenanceEvidence"},
+        {"$ref": "#/$defs/legacyExternalProvenance"},
+        {"type": "null"}
+      ]
+    },
     "progress_id": {
       "type": [
         "string",
@@ -91,6 +98,42 @@
     "digest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
+    },
+    "sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "githubProvenanceTuple": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "repository", "issue_number", "pull_number", "head_sha", "merge_sha"],
+      "properties": {
+        "provider": {"const": "github"},
+        "repository": {"type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$"},
+        "issue_number": {"type": "integer", "minimum": 1},
+        "pull_number": {"type": "integer", "minimum": 1},
+        "head_sha": {"$ref": "#/$defs/sha"},
+        "merge_sha": {"oneOf": [{"$ref": "#/$defs/sha"}, {"type": "null"}]}
+      }
+    },
+    "githubProvenanceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "contract", "status", "tuple", "claim_sha256"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "contract": {"const": "github-provenance-evidence-v1"},
+        "status": {"const": "verified"},
+        "tuple": {"$ref": "#/$defs/githubProvenanceTuple"},
+        "claim_sha256": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "legacyExternalProvenance": {
+      "type": "object",
+      "allOf": [
+        {"not": {"required": ["provider"], "properties": {"provider": {"const": "github"}}}},
+        {"not": {"required": ["contract"], "properties": {"contract": {"const": "github-provenance-evidence-v1"}}}}
+      ]
     },
     "strings": {
       "type": "array",

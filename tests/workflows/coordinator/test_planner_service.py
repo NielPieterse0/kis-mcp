@@ -227,10 +227,13 @@ def test_packet_issuance_freezes_runtime_authority_and_hashes_assignment_key(tmp
         "profile": "development",
         "runtime_id": "kis-dev",
     }
-    handoff_required = sorted(
-        set(_schema("worker-handoff")["required"]) - {"schema_version", "contract"}
+    handoff_schema_required = set(_schema("worker-handoff")["required"]) - {
+        "schema_version",
+        "contract",
+    }
+    assert packet["required_handoff_fields"] == sorted(
+        handoff_schema_required | {"external_provenance"}
     )
-    assert packet["required_handoff_fields"] == handoff_required
     assert binding["grants_mutation_authority"] is False
     assert binding["worker_id"] == "implementer"
     assert binding["endpoint"] == "127.0.0.1:8011/mcp"

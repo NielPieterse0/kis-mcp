@@ -32,6 +32,25 @@ DIGEST = "d" * 64
 NOW = datetime(2026, 8, 16, 4, 55, tzinfo=UTC)
 
 
+def _github_provenance() -> dict[str, object]:
+    tuple_value: dict[str, object] = {
+        "provider": "github",
+        "repository": "nielpieterse0/kis-mcp",
+        "issue_number": 413,
+        "pull_number": 427,
+        "head_sha": SHA,
+        "merge_sha": None,
+    }
+    canonical = json.dumps(tuple_value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return {
+        "schema_version": 1,
+        "contract": "github-provenance-evidence-v1",
+        "status": "verified",
+        "tuple": tuple_value,
+        "claim_sha256": hashlib.sha256(canonical.encode("utf-8")).hexdigest(),
+    }
+
+
 def _schema(name: str) -> dict[str, object]:
     path = ROOT / "contracts" / "coordinator" / f"{name}.schema.json"
     return json.loads(path.read_text(encoding="utf-8"))
@@ -198,6 +217,7 @@ def _packet() -> dict[str, object]:
             "binding_id": binding["binding_id"],
             "binding_fingerprint": binding["binding_fingerprint"],
         },
+        "external_provenance": _github_provenance(),
     }
 
 
@@ -343,7 +363,11 @@ def test_reconnect_is_transport_only_and_requires_rediscovery() -> None:
 
 
 def test_worker_execution_and_handoff_validate_strict_contracts() -> None:
-    pending = WorkerExecution.pending(_identity(), observed_at=NOW)
+    pending = WorkerExecution.pending(
+        _identity_for_packet(),
+        observed_at=NOW,
+        external_provenance=_github_provenance(),
+    )
     running = WorkerLifecycle.transition(pending, _event("start-contract", WorkerExecutionState.RUNNING))
     completed = WorkerLifecycle.transition(
         running,
@@ -391,6 +415,7 @@ def test_worker_execution_and_handoff_validate_strict_contracts() -> None:
     assert handoff_errors == []
     assert handoff["execution_id"] == "exec-251-alpha"
     assert handoff["result_id"] == "result-contract"
+    assert handoff["external_provenance"] == _github_provenance()
 
 
 def test_mcp_adapter_rejects_packet_bound_to_different_runtime() -> None:
@@ -847,6 +872,32 @@ def test_worker_execution_store_uses_278_namespace_and_recovers_idempotently(tmp
     duplicate = restarted.apply(_identity(), resumed_event, initial_observed_at=NOW)
     assert running.identity == resumed.identity
     assert resumed == duplicate
+
+
+def test_worker_execution_freezes_packet_provenance_at_admission(tmp_path: Path) -> None:
+    store = WorkerExecutionStore(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        namespace_resolver=FakeNamespaceResolver(tmp_path / "resolved"),  # type: ignore[arg-type]
+    )
+    packet = _packet()
+    running = store.apply(
+        _identity_for_packet(),
+        _event("provenance-start", WorkerExecutionState.RUNNING),
+        initial_observed_at=NOW,
+        packet=packet,
+    )
+    assert running.to_json_dict()["external_provenance"] == _github_provenance()
+
+    changed_packet = _packet()
+    changed_packet["external_provenance"] = None
+    with pytest.raises(ReservationAdmissionError, match="WORKER_PACKET_PROVENANCE_MISMATCH"):
+        store.apply(
+            _identity_for_packet(),
+            _event("provenance-next", WorkerExecutionState.WAITING_INPUT, expected_sequence=1),
+            initial_observed_at=NOW,
+            packet=changed_packet,
+        )
 
 
 def test_durable_mutation_retry_reuses_completed_receipt_after_restart(tmp_path: Path) -> None:

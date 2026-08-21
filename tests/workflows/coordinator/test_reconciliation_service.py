@@ -19,6 +19,28 @@ BASE = {"commit_sha": "a" * 40, "tree_sha": "b" * 40}
 HEAD = {"commit_sha": "c" * 40, "tree_sha": "d" * 40}
 RUNTIME = {"binding_id": "runtime-1", "binding_fingerprint": "e" * 64}
 KEY = "assignment-secret"
+PROVENANCE_TUPLE = {
+    "provider": "github",
+    "repository": "nielpieterse0/kis-mcp",
+    "issue_number": 413,
+    "pull_number": 428,
+    "head_sha": HEAD["commit_sha"],
+    "merge_sha": None,
+}
+PROVENANCE = {
+    "schema_version": 1,
+    "contract": "github-provenance-evidence-v1",
+    "status": "verified",
+    "tuple": PROVENANCE_TUPLE,
+    "claim_sha256": hashlib.sha256(
+        json.dumps(
+            PROVENANCE_TUPLE,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest(),
+}
 
 
 class _Namespace:
@@ -85,7 +107,7 @@ def _packet(
         "lifecycle_phase": "implementation",
         "authority_references": ["AGENTS.md", "issue:#252"],
         "work_management": {"record_id": "TASK-252"},
-        "external_provenance": {"session_id": "chat-252"},
+        "external_provenance": PROVENANCE,
         "authority": {
             "reservation_id": "reservation-1",
             "authority_revision": 3,
@@ -172,6 +194,7 @@ def _handoff(*, handoff_id: str = "handoff-1") -> dict[str, object]:
         "fence_token": 7,
         "worker_id": "worker-1",
         "runtime_binding": RUNTIME,
+        "external_provenance": PROVENANCE,
         "result_id": "result-1",
         "exact_head": HEAD,
         "changed_paths": ["src/kis_mcp/workflows/coordinator/reconciliation.py"],
@@ -458,6 +481,7 @@ def _accepted_reconciliation(reconciliation_id: str) -> dict[str, object]:
         "authority_revision": 3,
         "fence_token": 7,
         "runtime_binding": RUNTIME,
+        "external_provenance": None,
         "validations": {
             "reservation": "passed",
             "runtime_binding": "passed",
@@ -465,6 +489,7 @@ def _accepted_reconciliation(reconciliation_id: str) -> dict[str, object]:
             "global_claims": "passed",
             "local_scope": "passed",
             "exact_head": "passed",
+            "provenance": "passed",
         },
         "status": "accepted",
         "violations": [],
@@ -475,6 +500,85 @@ def _accepted_reconciliation(reconciliation_id: str) -> dict[str, object]:
             "merge_authority_granted": False,
         },
     }
+
+
+def test_reconciliation_rejects_handoff_provenance_that_differs_from_packet(
+    tmp_path: Path,
+) -> None:
+    packet = _packet(tmp_path)
+    handoff = _handoff()
+    handoff["external_provenance"] = {
+        **PROVENANCE,
+        "tuple": {**PROVENANCE_TUPLE, "issue_number": 88},
+    }
+
+    result = _service(tmp_path).reconcile(
+        packet=packet,
+        handoff=handoff,
+        assignment_key=KEY,
+        observed_change=_observed(),
+    )
+
+    assert result["reconciliation"]["status"] == "rejected"
+    assert result["reconciliation"]["validations"]["provenance"] == "failed"
+    assert any(
+        item["code"] == "GITHUB_PROVENANCE_EVIDENCE_INVALID"
+        for item in result["reconciliation"]["violations"]
+    )
+    assert "integration_queue_item" not in result
+
+
+def test_integration_queue_preserves_frozen_provenance_through_delivery(
+    tmp_path: Path,
+) -> None:
+    queue = IntegrationQueueService(
+        project_id="kis-mcp",
+        change_id="150-parallel-agent-coordinator",
+        authority_preflight=lambda: None,
+        namespace_resolver=_Resolver(tmp_path / "evidence"),
+    )
+    reconciliation = _accepted_reconciliation("provenance")
+    reconciliation["external_provenance"] = PROVENANCE
+    item = queue.enqueue(
+        reconciliation=reconciliation,
+        candidate_head=HEAD["commit_sha"],
+    )
+    assert item["external_provenance"] == PROVENANCE
+    authorized = queue.authorize_delivery(
+        item["queue_item_id"],
+        verification={
+            "revision": HEAD["commit_sha"],
+            "status": "passed",
+            "source": "github_actions",
+            "reference": "actions:run-provenance",
+        },
+    )
+    with pytest.raises(
+        ReservationAdmissionError, match="GITHUB_PROVENANCE_DELIVERY_REQUIRED"
+    ):
+        queue.mark_delivered(item["queue_item_id"], merged_revision="1" * 40)
+    with pytest.raises(
+        ReservationAdmissionError, match="GITHUB_PROVENANCE_DELIVERY_MISMATCH"
+    ):
+        queue.mark_delivered(
+            item["queue_item_id"],
+            merged_revision="1" * 40,
+            provider_provenance={
+                **PROVENANCE_TUPLE,
+                "head_sha": "9" * 40,
+                "merge_sha": "1" * 40,
+            },
+        )
+    delivered = queue.mark_delivered(
+        item["queue_item_id"],
+        merged_revision="1" * 40,
+        provider_provenance={**PROVENANCE_TUPLE, "merge_sha": "1" * 40},
+    )
+    assert delivered["state"] == "delivered"
+    assert delivered["external_provenance"] == PROVENANCE
+    assert delivered["external_provenance"]["tuple"]["merge_sha"] is None
+    assert delivered["delivery_provenance"]["tuple"]["merge_sha"] == "1" * 40
+    assert authorized["external_provenance"] == PROVENANCE
 
 
 def test_integration_queue_requires_exact_github_actions_verification(tmp_path: Path) -> None:

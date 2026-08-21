@@ -55,6 +55,7 @@ def test_slice_six_runtime_surface_stops_before_telemetry() -> None:
         "authority.py",
         "models.py",
         "planner.py",
+        "provenance.py",
         "reconciliation.py",
         "service.py",
         "worker.py",

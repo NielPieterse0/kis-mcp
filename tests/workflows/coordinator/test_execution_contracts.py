@@ -8,6 +8,20 @@ from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).parents[3]
 SHA = "b" * 40
+PROVENANCE = {
+    "schema_version": 1,
+    "contract": "github-provenance-evidence-v1",
+    "status": "verified",
+    "tuple": {
+        "provider": "github",
+        "repository": "nielpieterse0/kis-mcp",
+        "issue_number": 413,
+        "pull_number": 427,
+        "head_sha": SHA,
+        "merge_sha": None,
+    },
+    "claim_sha256": "e" * 64,
+}
 
 
 def _schema(name: str) -> dict[str, object]:
@@ -42,6 +56,7 @@ def test_worker_handoff_can_report_only_worker_completion() -> None:
             "binding_id": "runtime-binding-1",
             "binding_fingerprint": "d" * 64,
         },
+        "external_provenance": PROVENANCE,
         "result_id": "result-1",
         "exact_head": {"commit_sha": SHA, "tree_sha": SHA},
         "changed_paths": ["contracts/coordinator/work-packet.schema.json"],
@@ -53,6 +68,9 @@ def test_worker_handoff_can_report_only_worker_completion() -> None:
         "observed_at": "2026-08-14T19:50:00Z",
     }
     assert _errors("worker-handoff", payload) == []
+    prior_v3 = json.loads(json.dumps(payload))
+    prior_v3.pop("external_provenance")
+    assert _errors("worker-handoff", prior_v3) == []
     legacy = {**payload, "schema_version": 1, "contract": "coordinator-worker-handoff-v1"}
     assert _errors("worker-handoff", legacy)
     payload["runtime_binding"].pop("binding_fingerprint")
@@ -92,7 +110,7 @@ def test_work_packet_freezes_authority_and_runtime_identity() -> None:
         "lifecycle_phase": "implementation",
         "authority_references": ["AGENTS.md", "issue:#247"],
         "work_management": {"record_id": "TASK-247"},
-        "external_provenance": {"session_id": "chat-1"},
+        "external_provenance": PROVENANCE,
         "authority": {
             "reservation_id": "reservation-150-1",
             "authority_revision": 1,
@@ -133,6 +151,7 @@ def test_reconciliation_acceptance_does_not_grant_merge_authority() -> None:
             "binding_id": "runtime-binding-1",
             "binding_fingerprint": "d" * 64,
         },
+        "external_provenance": None,
         "validations": {
             "reservation": "passed",
             "runtime_binding": "passed",
@@ -140,6 +159,7 @@ def test_reconciliation_acceptance_does_not_grant_merge_authority() -> None:
             "global_claims": "passed",
             "local_scope": "passed",
             "exact_head": "passed",
+            "provenance": "passed",
         },
         "status": "accepted",
         "violations": [],
@@ -151,6 +171,10 @@ def test_reconciliation_acceptance_does_not_grant_merge_authority() -> None:
         },
     }
     assert _errors("reconciliation-result", payload) == []
+    prior_v1 = json.loads(json.dumps(payload))
+    prior_v1.pop("external_provenance")
+    prior_v1["validations"].pop("provenance")
+    assert _errors("reconciliation-result", prior_v1) == []
     payload["integration"]["queue_state"] = "integrated"
     assert _errors("reconciliation-result", payload)
     payload["integration"]["queue_state"] = "not_queued"
@@ -179,6 +203,7 @@ def test_rejected_reconciliation_requires_a_violation() -> None:
             "binding_id": "runtime-binding-1",
             "binding_fingerprint": "d" * 64,
         },
+        "external_provenance": None,
         "validations": {
             "reservation": "passed",
             "runtime_binding": "passed",
@@ -186,6 +211,7 @@ def test_rejected_reconciliation_requires_a_violation() -> None:
             "global_claims": "passed",
             "local_scope": "passed",
             "exact_head": "passed",
+            "provenance": "passed",
         },
         "status": "rejected",
         "violations": [{"code": "STALE_FENCE", "reason": "worker fence is stale"}],
