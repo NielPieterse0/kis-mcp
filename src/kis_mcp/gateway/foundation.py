@@ -14,13 +14,13 @@ from ..config import RuntimeConfig
 from ..models import HealthResponse, PolicyRuleResponse, QuarantineResponse
 from ..quarantine import QuarantineRecord
 
-
 _SERVER_INSTANCE_ID = uuid4().hex
 _SERVER_STARTED_AT = datetime.now(UTC).isoformat()
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 _RUNTIME_GENERATION_FILES = (
     "settings/kis-mcp.settings.json",
     "settings/housekeeping.settings.json",
+    "settings/post-merge-commissioning.settings.json",
     "settings/projects.settings.json",
     "settings/capabilities.settings.json",
     "settings/work-management/command-plane.settings.json",
@@ -350,9 +350,9 @@ def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> Health
 __all__ = [
     "ensure_state_directories",
     "health_response",
-    "remote_mcp_implementation_status",
-    "remote_mcp_runtime_evidence",
     "provider_environment",
     "quarantine_payload",
     "quarantine_response",
+    "remote_mcp_implementation_status",
+    "remote_mcp_runtime_evidence",
 ]

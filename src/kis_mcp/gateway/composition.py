@@ -16,6 +16,10 @@ from ..capabilities.runtime import CapabilityRuntimeState
 from ..capabilities.settings import load_capability_settings
 from ..capabilities.surface import capability_control_contribution
 from ..capabilities.tools import register_capability_tools
+from ..commissioning_runtime.capability import (
+    post_merge_commissioning_capability_contribution,
+)
+from ..commissioning_runtime.platform import compose_post_merge_commissioning_runtime
 from ..config import RuntimeConfig, load_runtime_config
 from ..desktop_commander import DesktopCommanderEffectResolver
 from ..discover.platform import (
@@ -28,10 +32,10 @@ from ..line_endings import RepositoryLineEndingNormalizer
 from ..middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
 from ..process_environment import RepositoryProcessEnvironmentNormalizer
-from ..provider_lifecycle import prepare_provider_launch
-from ..provider_readiness import validate_provider_offline_readiness
 from ..projects import load_project_registry_settings
 from ..projects.platform import project_capability_contribution, register_project_tools
+from ..provider_lifecycle import prepare_provider_launch
+from ..provider_readiness import validate_provider_offline_readiness
 from ..providers.platform import (
     ProviderRuntimeSettings,
     ProviderService,
@@ -137,6 +141,11 @@ def compose_gateway(
         runtime,
         environment=os.environ,
     )
+    compose_post_merge_commissioning_runtime(
+        server,
+        runtime,
+        environment=os.environ,
+    )
 
     resolver = DesktopCommanderEffectResolver(
         project_boundary=runtime.project_boundary,
@@ -173,6 +182,7 @@ def compose_gateway(
         *discover_capability_contributions(),
         project_capability_contribution(),
         housekeeping_capability_contribution(),
+        post_merge_commissioning_capability_contribution(),
         capability_control_contribution(),
     )
     def current_skill_contributions():

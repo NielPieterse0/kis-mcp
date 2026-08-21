@@ -20,7 +20,6 @@ from kis_mcp.discover.errors import DiscoverError
 from kis_mcp.server import build_server
 from kis_mcp.skills import SKILLS_TOOL_NAMES
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CONFIG = load_runtime_config(REPOSITORY_ROOT)
 
@@ -279,6 +278,8 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "kis_housekeeping_status",
         "kis_housekeeping_receipt",
         "kis_housekeeping_apply_receipt",
+        "kis_post_merge_commissioning_status",
+        "kis_post_merge_commissioning_receipt",
         "kis_list_projects",
         "kis_project_status",
         "kis_list_quarantine",

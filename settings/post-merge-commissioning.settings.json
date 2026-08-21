@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "host_instance": "kis-op",
+  "state_namespace": "post-merge-commissioning",
+  "receipt_retention": 120,
+  "freshness_stale_after_seconds": 5400,
+  "poll_interval_seconds": 300,
+  "initial_delay_seconds": 30,
+  "overlap_seconds": 900,
+  "max_candidates": 50,
+  "max_external_reads": 200,
+  "max_mutations": 20,
+  "ambiguous_risk_triggers": [
+    "architecture_boundary",
+    "deployment",
+    "destructive",
+    "external_action",
+    "migration",
+    "money",
+    "persistent_state",
+    "public_contract",
+    "secrets",
+    "security",
+    "sensitive_data"
+  ],
+  "targets": [
+    {
+      "project_id": "kis-mcp",
+      "repository": "NielPieterse0/kis-mcp",
+      "default_branch": "main"
+    }
+  ],
+  "surfaces": [
+    {
+      "id": "coordinator-runtime",
+      "path_patterns": [
+        "src/kis_mcp/govern/**",
+        "src/kis_mcp/workflows/**",
+        "settings/agents/**"
+      ],
+      "risk_triggers": [],
+      "runtime_instance": "kis-op",
+      "refresh_rule": "restart",
+      "verification_procedure": "Restart kis-op and exercise the affected coordinator or orchestration path through its exposed KIS workflow.",
+      "expected_invariant": "The affected orchestration path operates against the landed merge without stale authority or lifecycle errors.",
+      "evidence_target": "linked commissioning issue evidence",
+      "terminal_success_criterion": "The real exposed coordinator or workflow path succeeds for the exact landed merge SHA."
+    },
+    {
+      "id": "gateway-runtime",
+      "path_patterns": [
+        "src/kis_mcp/gateway/**",
+        "src/kis_mcp/capabilities/**",
+        "src/kis_mcp/server.py",
+        "src/kis_mcp/remote_runtime.py",
+        "settings/capabilities.settings.json",
+        "settings/kis-mcp.settings.json"
+      ],
+      "risk_triggers": [],
+      "runtime_instance": "kis-op",
+      "refresh_rule": "restart",
+      "verification_procedure": "Restart kis-op and invoke the affected gateway or capability surface through the real exposed MCP path.",
+      "expected_invariant": "Gateway composition, capability exposure, and the affected operation succeed on the landed source generation.",
+      "evidence_target": "linked commissioning issue evidence",
+      "terminal_success_criterion": "The affected exposed gateway or capability path succeeds for the exact landed merge SHA."
+    },
+    {
+      "id": "housekeeping-runner",
+      "path_patterns": [
+        "src/kis_mcp/housekeeping/**",
+        "src/kis_mcp/housekeeping_runtime/**",
+        "settings/housekeeping.settings.json"
+      ],
+      "risk_triggers": [],
+      "runtime_instance": "kis-op",
+      "refresh_rule": "restart",
+      "verification_procedure": "Restart kis-op and observe the affected housekeeping preview/status path through the exposed KIS runtime.",
+      "expected_invariant": "Housekeeping remains preview-only on schedule and its affected status or receipt path succeeds on landed code.",
+      "evidence_target": "linked commissioning issue evidence",
+      "terminal_success_criterion": "The affected housekeeping path passes live verification without timer-driven apply authority."
+    },
+    {
+      "id": "provider-runtime",
+      "path_patterns": [
+        "src/kis_mcp/providers/**",
+        "src/kis_mcp/provider_*.py",
+        "settings/providers/**"
+      ],
+      "risk_triggers": [
+        "secrets",
+        "security",
+        "sensitive_data"
+      ],
+      "runtime_instance": "kis-op",
+      "refresh_rule": "restart",
+      "verification_procedure": "Restart kis-op and exercise the affected provider capability through the mounted KIS provider path.",
+      "expected_invariant": "Provider startup/authentication state and the affected exposed provider capability succeed on the landed code.",
+      "evidence_target": "linked commissioning issue evidence",
+      "terminal_success_criterion": "The affected provider path passes live verification for the exact landed merge SHA."
+    },
+    {
+      "id": "post-merge-observer",
+      "path_patterns": [
+        "src/kis_mcp/commissioning/**",
+        "src/kis_mcp/commissioning_runtime/**",
+        "settings/post-merge-commissioning.settings.json"
+      ],
+      "risk_triggers": [],
+      "runtime_instance": "kis-op",
+      "refresh_rule": "restart",
+      "verification_procedure": "Restart kis-op, verify observer status/checkpoint readiness, then observe a fresh governed runtime-affecting merge through the real post-merge intake path.",
+      "expected_invariant": "The observer accounts for the fresh exact merge once, derives the configured live-surface obligation, and creates or reuses exactly one deterministic commissioning key without historical backfill.",
+      "evidence_target": "linked commissioning issue evidence",
+      "terminal_success_criterion": "A fresh governed merge is observed on landed code and yields exactly one durable intake result per deterministic commissioning key."
+    },
+    {
+      "id": "work-management",
+      "path_patterns": [
+        "src/kis_mcp/work_management/**",
+        "src/kis_mcp/providers/github/projects/**",
+        "src/kis_mcp/projects/github_exact.py",
+        "settings/work-management/**"
+      ],
+      "risk_triggers": [],
+      "runtime_instance": "kis-op",
+      "refresh_rule": "restart",
+      "verification_procedure": "Restart kis-op and exercise the affected Work Management capability through the real exposed command or read path.",
+      "expected_invariant": "The affected Work Management capability uses the landed canonical contract and provider projection without runtime errors.",
+      "evidence_target": "linked commissioning issue evidence",
+      "terminal_success_criterion": "The real exposed Work Management path passes against the exact landed merge SHA."
+    }
+  ]
+}
