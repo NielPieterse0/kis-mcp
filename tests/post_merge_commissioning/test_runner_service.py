@@ -22,6 +22,15 @@ from kis_mcp.commissioning_runtime.state import (
     CommissioningStateStore,
     ExecutionResult,
 )
+from kis_mcp.work_management.contracts import (
+    DocumentationImpact,
+    DocumentationMode,
+    Effort,
+    LifecycleState,
+    Priority,
+    RecordType,
+    WorkRecord,
+)
 
 MERGE = "a" * 40
 KEY = f"commission:nielpieterse0/kis-mcp:{MERGE}:work-management"
@@ -134,6 +143,23 @@ class FakeInvoker:
         if operation == "project_management_reconcile":
             return {"outcomes": [{"success": True, "applied": True}]}
         if operation == "project_management_complete_work":
+            record = arguments["record"]
+            assert record["record_id"] == f"TASK-{arguments['issue_number']}"
+            WorkRecord(
+                record_id=record["record_id"],
+                project_id=record["project_id"],
+                title=record["title"],
+                record_type=RecordType(record["record_type"]),
+                state=LifecycleState(record["state"]),
+                priority=Priority(record["priority"]),
+                effort=Effort(record["effort"]),
+                execution_owner=record["execution_owner"],
+                documentation_mode=DocumentationMode(record["documentation_mode"]),
+                documentation_impact=DocumentationImpact(record["documentation_impact"]),
+                documentation_rationale=record["documentation_rationale"],
+                documentation_reviewer=record["documentation_reviewer"],
+                traceability_required=record["traceability_required"],
+            )
             self.work_state = "done"
             return {
                 "mode": "apply",
