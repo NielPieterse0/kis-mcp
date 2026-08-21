@@ -674,6 +674,117 @@ class GitHubProjectSchemaClient:
         )
 
     @staticmethod
+    def _preflight_field_mutations(
+        snapshot: _Snapshot,
+        manifest: ProjectSchemaManifest,
+    ) -> dict[str, _Field]:
+        actual_by_name = {field.name.casefold(): field for field in snapshot.fields}
+        for expected in manifest.fields:
+            actual = actual_by_name.get(expected.name.casefold())
+            if actual is not None:
+                if actual.kind is not expected.kind:
+                    raise ValueError(
+                        f"field type mismatch for {expected.name}: "
+                        f"{actual.kind.value}->{expected.kind.value}"
+                    )
+                continue
+            if expected.kind is ProjectFieldKind.REPOSITORY:
+                raise ValueError(
+                    "built-in repository field cannot be created by schema commissioning"
+                )
+            if expected.kind not in _CUSTOM_KIND:
+                raise ValueError(
+                    f"unsupported project field type: {expected.kind.value}"
+                )
+            if expected.kind is ProjectFieldKind.SINGLE_SELECT and not expected.options:
+                raise ValueError(
+                    f"single-select field requires options: {expected.name}"
+                )
+        return actual_by_name
+
+    def _create_missing_fields(
+        self,
+        target: ProjectSchemaTarget,
+        snapshot: _Snapshot,
+        manifest: ProjectSchemaManifest,
+    ) -> tuple[_Snapshot, list[str]]:
+        actual_by_name = self._preflight_field_mutations(snapshot, manifest)
+        created_fields: list[str] = []
+        for expected in manifest.fields:
+            if expected.name.casefold() in actual_by_name:
+                continue
+            self._create_field(snapshot.project_id, expected)
+            created_fields.append(expected.name)
+
+        if not created_fields:
+            return snapshot, created_fields
+        snapshot = self.read_snapshot(target)
+        actual_by_name = {field.name.casefold(): field for field in snapshot.fields}
+        for expected in manifest.fields:
+            actual = actual_by_name.get(expected.name.casefold())
+            if actual is None or actual.kind is not expected.kind:
+                raise RuntimeError(
+                    f"GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: field not ready after creation: {expected.name}"
+                )
+        return snapshot, created_fields
+
+    def _update_field_options(
+        self,
+        target: ProjectSchemaTarget,
+        snapshot: _Snapshot,
+        manifest: ProjectSchemaManifest,
+    ) -> tuple[_Snapshot, list[str]]:
+        actual_by_name = {field.name.casefold(): field for field in snapshot.fields}
+        updated_fields: list[str] = []
+        for expected in manifest.fields:
+            actual = actual_by_name.get(expected.name.casefold())
+            if actual is None:
+                raise RuntimeError(
+                    f"GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: field unavailable before option update: {expected.name}"
+                )
+            if expected.kind is not ProjectFieldKind.SINGLE_SELECT:
+                continue
+            available = {option.name.casefold() for option in actual.options}
+            if any(option.casefold() not in available for option in expected.options):
+                self._update_select_options(actual, expected.options)
+                updated_fields.append(expected.name)
+        if updated_fields:
+            snapshot = self.read_snapshot(target)
+        return snapshot, updated_fields
+
+    @staticmethod
+    def _verify_fields(snapshot: _Snapshot, manifest: ProjectSchemaManifest) -> None:
+        status = compare_project_schema(
+            manifest,
+            snapshot.work_fields(),
+            project_id="registered-project",
+            views_observed=None,
+        )
+        if status.fields_ready:
+            return
+        details = [*status.missing_fields, *status.type_mismatches, *status.missing_options]
+        suffix = f": {', '.join(details)}" if details else ""
+        raise RuntimeError(
+            "GITHUB_PROJECT_SCHEMA_VERIFY_FAILED: canonical fields remained incomplete"
+            + suffix
+        )
+
+    def _commission_fields(
+        self,
+        target: ProjectSchemaTarget,
+        snapshot: _Snapshot,
+        manifest: ProjectSchemaManifest,
+    ) -> tuple[_Snapshot, list[str], list[str]]:
+        snapshot, created_fields = self._create_missing_fields(
+            target, snapshot, manifest
+        )
+        snapshot, updated_fields = self._update_field_options(
+            target, snapshot, manifest
+        )
+        self._verify_fields(snapshot, manifest)
+        return snapshot, created_fields, updated_fields
+
+    @staticmethod
     def _view_field_ids(snapshot: _Snapshot, names: tuple[str, ...]) -> tuple[str, ...]:
         by_name = {field.name.casefold(): field.field_id for field in snapshot.fields}
         missing = tuple(name for name in names if name.casefold() not in by_name)
@@ -783,8 +894,30 @@ class GitHubProjectSchemaClient:
         self,
         target: ProjectSchemaTarget,
         manifest: ProjectSchemaManifest,
+        *,
+        scope: str = "full",
     ) -> dict[str, Any]:
+        if scope not in {"full", "fields"}:
+            raise ValueError("scope must be full or fields")
         snapshot = self.read_snapshot(target)
+        if scope == "fields":
+            final, created_fields, updated_fields = self._commission_fields(
+                target, snapshot, manifest
+            )
+            return {
+                "scope": "fields",
+                "ready": True,
+                "fields_ready": True,
+                "views_ready": None,
+                "project_node_id": final.project_id,
+                "created_fields": created_fields,
+                "updated_fields": updated_fields,
+                "created_views": [],
+                "updated_views": [],
+                "field_count": len(final.fields),
+                "view_count": len(final.views),
+                "view_behavior": [],
+            }
         actual_by_name = {field.name.casefold(): field for field in snapshot.fields}
         for expected in manifest.fields:
             actual = actual_by_name.get(expected.name.casefold())
@@ -980,7 +1113,10 @@ class GitHubProjectSchemaClient:
                 + suffix
             )
         return {
+            "scope": "full",
             "ready": True,
+            "fields_ready": True,
+            "views_ready": True,
             "project_node_id": final.project_id,
             "created_fields": created_fields,
             "updated_fields": updated_fields,

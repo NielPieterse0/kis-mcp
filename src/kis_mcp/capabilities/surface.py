@@ -188,7 +188,7 @@ def capability_control_contribution() -> CapabilityContribution:
         OperationDescriptor(
             operation_id="capability-control.kis-github-commission-registered-project-schema",
             name="kis_github_commission_registered_project_schema",
-            description="Provision and verify one centrally registered GitHub Project against the canonical Work Management schema without exposing arbitrary Project administration.",
+            description="Provision and verify one centrally registered GitHub Project against the canonical Work Management schema, optionally limiting mutation and verification to canonical fields, without exposing arbitrary Project administration.",
             capabilities=("operation.kis_github_commission_registered_project_schema",),
             effects=(OperationEffect.EXTERNAL,),
             dependencies=(),
