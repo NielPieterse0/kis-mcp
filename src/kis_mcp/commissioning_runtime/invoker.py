@@ -109,15 +109,29 @@ class CommissioningFastMCPInvoker:
                 return payload
         raise RuntimeError(f"{operation} returned no supported bounded result")
 
-    async def external(self, operation: str, arguments: dict[str, Any]) -> Any:
+    async def _dispatch(
+        self,
+        control_tool: str,
+        operation: str,
+        arguments: dict[str, Any],
+    ) -> Any:
         try:
             result = await self._server.call_tool(
-                "execute_external_action",
+                control_tool,
                 {"operation": operation, "arguments": dict(arguments)},
             )
         except FastMCPError as exc:
             raise RuntimeError(f"{operation} provider call failed") from exc
         return await self._payload(operation, result)
+
+    async def external(self, operation: str, arguments: dict[str, Any]) -> Any:
+        return await self._dispatch("execute_external_action", operation, arguments)
+
+    async def read(self, operation: str, arguments: dict[str, Any]) -> Any:
+        return await self._dispatch("execute_read_action", operation, arguments)
+
+    async def change(self, operation: str, arguments: dict[str, Any]) -> Any:
+        return await self._dispatch("execute_change_action", operation, arguments)
 
 
 __all__ = ["CommissioningFastMCPInvoker"]

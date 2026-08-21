@@ -16,7 +16,7 @@ from kis_mcp.commissioning.settings import (
 
 def _document() -> dict[str, object]:
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "enabled": True,
         "host_instance": "kis-op",
         "state_namespace": "post-merge-commissioning",
@@ -43,6 +43,7 @@ def _document() -> dict[str, object]:
                 "risk_triggers": [],
                 "runtime_instance": "kis-op",
                 "refresh_rule": "restart",
+                "probe_id": "work-management-contract",
                 "verification_procedure": "Restart kis-op and exercise the affected Work Management capability.",
                 "expected_invariant": "The exposed Work Management capability uses the landed contract without runtime errors.",
                 "evidence_target": "linked commissioning issue evidence",
@@ -54,6 +55,7 @@ def _document() -> dict[str, object]:
                 "risk_triggers": ["security"],
                 "runtime_instance": "kis-op",
                 "refresh_rule": "restart",
+                "probe_id": "provider-status",
                 "verification_procedure": "Restart kis-op and exercise the affected provider capability.",
                 "expected_invariant": "Provider startup and the affected exposed capability succeed on the landed code.",
                 "evidence_target": "linked commissioning issue evidence",
@@ -111,6 +113,22 @@ def test_unknown_keys_duplicate_surfaces_and_invalid_globs_are_rejected(tmp_path
     assert isinstance(surfaces, list) and isinstance(surfaces[0], dict)
     surfaces[0]["path_patterns"] = ["../outside/**"]
     with pytest.raises(PostMergeCommissioningSettingsError, match="path_patterns"):
+        load_post_merge_commissioning_settings(_write(tmp_path, document))
+
+
+def test_probe_id_is_required_and_uses_closed_vocabulary(tmp_path: Path) -> None:
+    document = _document()
+    surfaces = document["surfaces"]
+    assert isinstance(surfaces, list) and isinstance(surfaces[0], dict)
+    del surfaces[0]["probe_id"]
+    with pytest.raises(PostMergeCommissioningSettingsError, match="missing required keys"):
+        load_post_merge_commissioning_settings(_write(tmp_path, document))
+
+    document = _document()
+    surfaces = document["surfaces"]
+    assert isinstance(surfaces, list) and isinstance(surfaces[0], dict)
+    surfaces[0]["probe_id"] = "arbitrary-tool"
+    with pytest.raises(PostMergeCommissioningSettingsError, match="probe_id"):
         load_post_merge_commissioning_settings(_write(tmp_path, document))
 
 

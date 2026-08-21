@@ -34,6 +34,7 @@ _SURFACE_KEYS = frozenset(
         "risk_triggers",
         "runtime_instance",
         "refresh_rule",
+        "probe_id",
         "verification_procedure",
         "expected_invariant",
         "evidence_target",
@@ -46,6 +47,16 @@ _REPOSITORY = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _BRANCH = re.compile(r"^[A-Za-z0-9._/-]+$")
 _SURFACE_ID = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _REFRESH_RULES = frozenset({"none", "refresh", "restart"})
+_PROBE_IDS = frozenset(
+    {
+        "coordinator-work-board",
+        "gateway-health",
+        "housekeeping-status",
+        "provider-status",
+        "post-merge-observer-status",
+        "work-management-contract",
+    }
+)
 
 
 class PostMergeCommissioningSettingsError(RuntimeError):
@@ -143,6 +154,7 @@ class CommissioningSurfaceSettings:
     risk_triggers: tuple[str, ...]
     runtime_instance: str
     refresh_rule: str
+    probe_id: str
     verification_procedure: str
     expected_invariant: str
     evidence_target: str
@@ -161,10 +173,16 @@ class CommissioningSurfaceSettings:
             raise PostMergeCommissioningSettingsError(
                 f"surface {surface_id}.refresh_rule is invalid"
             )
+        probe_id = _text(self.probe_id, f"surface {surface_id}.probe_id")
+        if probe_id not in _PROBE_IDS:
+            raise PostMergeCommissioningSettingsError(
+                f"surface {surface_id}.probe_id is invalid"
+            )
         object.__setattr__(self, "id", surface_id)
         object.__setattr__(self, "path_patterns", tuple(sorted(self.path_patterns)))
         object.__setattr__(self, "risk_triggers", tuple(sorted(self.risk_triggers)))
         object.__setattr__(self, "refresh_rule", refresh_rule)
+        object.__setattr__(self, "probe_id", probe_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,11 +201,11 @@ class PostMergeCommissioningSettings:
     ambiguous_risk_triggers: tuple[str, ...]
     targets: tuple[PostMergeTargetSettings, ...]
     surfaces: tuple[CommissioningSurfaceSettings, ...]
-    schema_version: int = 1
+    schema_version: int = 2
 
     def __post_init__(self) -> None:
-        if self.schema_version != 1:
-            raise PostMergeCommissioningSettingsError("schema_version must be 1")
+        if self.schema_version != 2:
+            raise PostMergeCommissioningSettingsError("schema_version must be 2")
         if not isinstance(self.enabled, bool):
             raise PostMergeCommissioningSettingsError("enabled must be a boolean")
         if self.host_instance != "kis-op":
@@ -262,6 +280,7 @@ def _surface(value: Any, index: int) -> CommissioningSurfaceSettings:
         risk_triggers=risks,
         runtime_instance=_text(value["runtime_instance"], f"{label}.runtime_instance"),
         refresh_rule=_text(value["refresh_rule"], f"{label}.refresh_rule"),
+        probe_id=_text(value["probe_id"], f"{label}.probe_id"),
         verification_procedure=_text(
             value["verification_procedure"], f"{label}.verification_procedure"
         ),
@@ -285,8 +304,8 @@ def load_post_merge_commissioning_settings(
     )
     document = _load_document(target)
     _exact_keys(document, _ROOT_KEYS, "root")
-    if document["schema_version"] != 1:
-        raise PostMergeCommissioningSettingsError("schema_version must be 1")
+    if document["schema_version"] != 2:
+        raise PostMergeCommissioningSettingsError("schema_version must be 2")
     targets = document["targets"]
     surfaces = document["surfaces"]
     if not isinstance(targets, Sequence) or isinstance(targets, (str, bytes, bytearray)):
@@ -298,7 +317,7 @@ def load_post_merge_commissioning_settings(
         "ambiguous_risk_triggers",
     )
     return PostMergeCommissioningSettings(
-        schema_version=1,
+        schema_version=2,
         enabled=document["enabled"],
         host_instance=_text(document["host_instance"], "host_instance"),
         state_namespace=_text(document["state_namespace"], "state_namespace"),

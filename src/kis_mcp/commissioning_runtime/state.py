@@ -7,6 +7,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,24 @@ class ReceiptReference:
     receipt_id: str
     path: str
     sha256: str
+
+
+class ExecutionResult(str, Enum):
+    PENDING = "pending"
+    PASSED = "passed"
+    FAILED = "failed"
+    BLOCKED = "blocked"
+
+
+@dataclass(frozen=True, slots=True)
+class ExecutionState:
+    commissioning_key: str
+    contract_fingerprint: str
+    attempt: int
+    phase: str
+    result: ExecutionResult
+    receipt_id: str | None
+    updated_at: datetime
 
 
 def _canonical(value: Any) -> bytes:
@@ -69,6 +88,14 @@ def _repository_key(repository: str) -> str:
     return hashlib.sha256(repository.strip().casefold().encode("utf-8")).hexdigest()[:24]
 
 
+def _execution_key(commissioning_key: str) -> str:
+    if not isinstance(commissioning_key, str) or not commissioning_key.startswith("commission:"):
+        raise CommissioningStateError("execution_key_invalid", "commissioning key is invalid")
+    if len(commissioning_key) > 512:
+        raise CommissioningStateError("execution_key_invalid", "commissioning key is too long")
+    return hashlib.sha256(commissioning_key.encode("utf-8")).hexdigest()
+
+
 class CommissioningStateStore:
     def __init__(self, root: Path, *, retention: int) -> None:
         if retention <= 0:
@@ -86,6 +113,22 @@ class CommissioningStateStore:
     def checkpoint_path(self, repository: str) -> Path:
         return self.root / "checkpoints" / f"{_repository_key(repository)}.json"
 
+    def execution_path(self, commissioning_key: str) -> Path:
+        return self.root / "executions" / f"{_execution_key(commissioning_key)}.json"
+
+    @staticmethod
+    def _execution_payload(state: ExecutionState) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "commissioning_key": state.commissioning_key,
+            "contract_fingerprint": state.contract_fingerprint,
+            "attempt": state.attempt,
+            "phase": state.phase,
+            "result": state.result.value,
+            "receipt_id": state.receipt_id,
+            "updated_at": _iso(state.updated_at),
+        }
+
     def _checkpoint_payload(
         self, repository: str, initialized_at: datetime, checkpoint_at: datetime
     ) -> dict[str, Any]:
@@ -95,6 +138,93 @@ class CommissioningStateStore:
             "initialized_at": _iso(initialized_at),
             "checkpoint_at": _iso(checkpoint_at),
         }
+
+    def load_execution_state(self, commissioning_key: str) -> ExecutionState | None:
+        path = self.execution_path(commissioning_key)
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return None
+        except json.JSONDecodeError as exc:
+            raise CommissioningStateError("execution_state_invalid", "execution state is not valid JSON") from exc
+        expected = {
+            "schema_version", "commissioning_key", "contract_fingerprint", "attempt",
+            "phase", "result", "receipt_id", "updated_at",
+        }
+        if not isinstance(value, Mapping) or set(value) != expected or value.get("schema_version") != 1:
+            raise CommissioningStateError("execution_state_invalid", "execution state shape is invalid")
+        if value.get("commissioning_key") != commissioning_key:
+            raise CommissioningStateError("execution_state_invalid", "commissioning key mismatches execution path")
+        fingerprint = value.get("contract_fingerprint")
+        attempt = value.get("attempt")
+        phase = value.get("phase")
+        receipt_id = value.get("receipt_id")
+        if not isinstance(fingerprint, str) or len(fingerprint) != 64:
+            raise CommissioningStateError("execution_state_invalid", "contract fingerprint is invalid")
+        if type(attempt) is not int or attempt <= 0 or not isinstance(phase, str) or not phase:
+            raise CommissioningStateError("execution_state_invalid", "execution attempt or phase is invalid")
+        if receipt_id is not None and not isinstance(receipt_id, str):
+            raise CommissioningStateError("execution_state_invalid", "receipt id is invalid")
+        try:
+            result = ExecutionResult(str(value.get("result")))
+            updated_at = datetime.fromisoformat(str(value.get("updated_at"))).astimezone(UTC)
+        except (ValueError, TypeError) as exc:
+            raise CommissioningStateError("execution_state_invalid", "execution result/timestamp is invalid") from exc
+        return ExecutionState(commissioning_key, fingerprint, attempt, phase, result, receipt_id, updated_at)
+
+    def begin_execution(
+        self,
+        commissioning_key: str,
+        contract_fingerprint: str,
+        now: datetime,
+        *,
+        retry: bool = False,
+    ) -> ExecutionState:
+        if len(contract_fingerprint) != 64 or any(char not in "0123456789abcdef" for char in contract_fingerprint):
+            raise CommissioningStateError("execution_contract_invalid", "contract fingerprint must be lowercase sha256")
+        existing = self.load_execution_state(commissioning_key)
+        if existing is not None:
+            if existing.contract_fingerprint != contract_fingerprint:
+                raise CommissioningStateError("execution_contract_mismatch", "frozen commissioning contract changed")
+            if existing.phase == "terminal" and existing.result is ExecutionResult.PASSED:
+                return existing
+            if existing.phase == "terminal" and existing.result in {ExecutionResult.FAILED, ExecutionResult.BLOCKED}:
+                if not retry:
+                    return existing
+                state = ExecutionState(
+                    commissioning_key, contract_fingerprint, existing.attempt + 1,
+                    "initialized", ExecutionResult.PENDING, None, now.astimezone(UTC),
+                )
+                self._write_json(self.execution_path(commissioning_key), self._execution_payload(state))
+                return state
+            return existing
+        state = ExecutionState(
+            commissioning_key, contract_fingerprint, 1,
+            "initialized", ExecutionResult.PENDING, None, now.astimezone(UTC),
+        )
+        self._write_json(self.execution_path(commissioning_key), self._execution_payload(state))
+        return state
+
+    def update_execution(
+        self,
+        state: ExecutionState,
+        *,
+        phase: str,
+        result: ExecutionResult,
+        receipt_id: str | None,
+        updated_at: datetime,
+    ) -> ExecutionState:
+        current = self.load_execution_state(state.commissioning_key)
+        if current != state:
+            raise CommissioningStateError("execution_state_conflict", "execution state changed before update")
+        if not isinstance(phase, str) or not phase.strip():
+            raise CommissioningStateError("execution_state_invalid", "phase must be non-empty")
+        updated = ExecutionState(
+            state.commissioning_key, state.contract_fingerprint, state.attempt,
+            phase.strip(), result, receipt_id, updated_at.astimezone(UTC),
+        )
+        self._write_json(self.execution_path(state.commissioning_key), self._execution_payload(updated))
+        return updated
 
     def load_checkpoint_state(self, repository: str) -> CheckpointState | None:
         path = self.checkpoint_path(repository)
@@ -226,5 +356,7 @@ __all__ = [
     "CheckpointState",
     "CommissioningStateError",
     "CommissioningStateStore",
+    "ExecutionResult",
+    "ExecutionState",
     "ReceiptReference",
 ]

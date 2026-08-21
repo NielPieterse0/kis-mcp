@@ -6,8 +6,14 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from kis_mcp.commissioning.settings import load_post_merge_commissioning_settings
-from kis_mcp.commissioning_runtime.service import CommissioningRuntimeService
+from kis_mcp.commissioning_runtime.service import (
+    BudgetedInvoker,
+    CommissioningBudgetError,
+    CommissioningRuntimeService,
+)
 from kis_mcp.commissioning_runtime.state import CommissioningStateStore
 
 REPOSITORY = "NielPieterse0/kis-mcp"
@@ -279,3 +285,32 @@ def test_status_reports_activation_boundary_and_freshness(tmp_path: Path) -> Non
     stale = service.status()["targets"][0]
     assert stale["freshness"] == "stale"
     assert stale["age_seconds"] == service.settings.freshness_stale_after_seconds + 1
+
+
+class PlaneInvoker:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+
+    async def external(self, operation: str, _arguments: dict[str, Any]) -> Any:
+        self.calls.append(("external", operation))
+        return {"ok": True}
+
+    async def read(self, operation: str, _arguments: dict[str, Any]) -> Any:
+        self.calls.append(("read", operation))
+        return {"ok": True}
+
+    async def change(self, operation: str, _arguments: dict[str, Any]) -> Any:
+        self.calls.append(("change", operation))
+        return {"outcomes": [{"success": True}]}
+
+
+def test_budget_wrapper_counts_read_and_change_control_planes() -> None:
+    inner = PlaneInvoker()
+    bounded = BudgetedInvoker(inner, max_external_reads=1, max_mutations=1)
+    assert asyncio.run(bounded.read("project_management_board_data", {}))["ok"] is True
+    assert asyncio.run(bounded.change("project_management_reconcile", {}))["outcomes"]
+
+    with pytest.raises(CommissioningBudgetError, match="read budget"):
+        asyncio.run(bounded.read("project_management_contract", {}))
+    with pytest.raises(CommissioningBudgetError, match="mutation budget"):
+        asyncio.run(bounded.change("project_management_reconcile", {}))

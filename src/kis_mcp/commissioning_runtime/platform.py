@@ -15,6 +15,7 @@ from kis_mcp.config import RuntimeConfig
 from .invoker import CommissioningFastMCPInvoker
 from .processor import CommissioningCandidateProcessor
 from .provider import CommissioningLifecycleProvider, normalized_runtime_instance
+from .runner import CommissioningRunnerService
 from .service import CommissioningRuntimeService
 from .state import CommissioningStateStore
 
@@ -22,6 +23,7 @@ from .state import CommissioningStateStore
 def register_commissioning_tools(
     server: FastMCP,
     service: CommissioningRuntimeService,
+    runner: CommissioningRunnerService,
 ) -> None:
     @server.tool
     def kis_post_merge_commissioning_status() -> dict:
@@ -38,6 +40,34 @@ def register_commissioning_tools(
                 f"POST_MERGE_COMMISSIONING_RECEIPT_NOT_FOUND: {receipt_id}"
             ) from exc
 
+    @server.tool
+    def kis_post_merge_commissioning_execution(commissioning_key: str) -> dict:
+        """Read one bounded commissioning execution state and proof receipt."""
+        try:
+            return runner.execution(commissioning_key)
+        except (KeyError, ValueError) as exc:
+            raise ToolError(
+                f"POST_MERGE_COMMISSIONING_EXECUTION_NOT_FOUND: {commissioning_key}"
+            ) from exc
+
+    @server.tool
+    async def kis_post_merge_commissioning_run(
+        repository: str,
+        commissioning_issue: int,
+        execution_owner: str,
+        retry: bool = False,
+    ) -> dict:
+        """Execute one claimed deterministic commissioning obligation."""
+        try:
+            return await runner.run(
+                repository,
+                commissioning_issue,
+                execution_owner=execution_owner,
+                retry=retry,
+            )
+        except (KeyError, RuntimeError, ValueError) as exc:
+            raise ToolError(f"POST_MERGE_COMMISSIONING_RUN_REJECTED: {exc}") from exc
+
 
 def compose_post_merge_commissioning_runtime(
     server: FastMCP,
@@ -52,15 +82,21 @@ def compose_post_merge_commissioning_runtime(
         state_root,
         retention=selected.receipt_retention,
     )
+    invoker = CommissioningFastMCPInvoker(server)
     service = CommissioningRuntimeService(
         selected,
         store,
-        invoker=CommissioningFastMCPInvoker(server),
+        invoker=invoker,
         processor=CommissioningCandidateProcessor(selected),
         current_instance=normalized_runtime_instance(environment),
     )
+    runner = CommissioningRunnerService(
+        selected,
+        store,
+        invoker=invoker,
+    )
     server.add_provider(CommissioningLifecycleProvider(service))
-    register_commissioning_tools(server, service)
+    register_commissioning_tools(server, service, runner)
     return service
 
 

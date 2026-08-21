@@ -21,6 +21,12 @@ def post_merge_commissioning_capability_contribution() -> CapabilityContribution
         reliability=95,
         workflow_integration=100,
     )
+    runner_quality = default_quality(
+        context_cost=10,
+        reversibility=80,
+        reliability=95,
+        workflow_integration=100,
+    )
     operations = (
         OperationDescriptor(
             operation_id="post-merge-commissioning.status",
@@ -42,6 +48,27 @@ def post_merge_commissioning_capability_contribution() -> CapabilityContribution
             exposure=exposure,
             quality=quality,
         ),
+        OperationDescriptor(
+            operation_id="post-merge-commissioning.execution",
+            name="kis_post_merge_commissioning_execution",
+            description="Read one bounded commissioning execution state and proof receipt.",
+            capabilities=("commissioning.execution.read",),
+            effects=(OperationEffect.READ_ONLY,),
+            dependencies=(),
+            exposure=exposure,
+            quality=quality,
+        ),
+        OperationDescriptor(
+            operation_id="post-merge-commissioning.run",
+            name="kis_post_merge_commissioning_run",
+            description="Execute one claimed deterministic commissioning obligation with resumable evidence.",
+            capabilities=("commissioning.execution.run",),
+            effects=(OperationEffect.EXTERNAL,),
+            dependencies=(),
+            exposure=exposure,
+            quality=runner_quality,
+            approval_required=True,
+        ),
     )
     contribution_id = "post-merge-commissioning-runtime"
     return CapabilityContribution(
@@ -53,7 +80,7 @@ def post_merge_commissioning_capability_contribution() -> CapabilityContribution
         ),
         operations=operations,
         dependencies=(),
-        effects=(OperationEffect.READ_ONLY,),
+        effects=(OperationEffect.READ_ONLY, OperationEffect.EXTERNAL),
         readiness_probe=lambda: ReadinessSnapshot(
             contribution_id=contribution_id,
             state=ReadinessState.READY,
