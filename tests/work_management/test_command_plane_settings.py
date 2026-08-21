@@ -9,6 +9,7 @@ from jsonschema import Draft202012Validator
 from kis_mcp.work_management import (
     DeliveryStage,
     Effort,
+    FieldAuthority,
     LifecycleState,
     Priority,
     load_command_plane_settings,
@@ -100,15 +101,14 @@ def test_command_plane_settings_fail_closed_for_unknown_intake_alias() -> None:
     assert settings.intake_state("Tood") is None
 
 
-def test_command_plane_settings_allow_multiple_aliases_to_same_intake_state(tmp_path: Path) -> None:
+def test_command_plane_settings_rejects_unapproved_alias_extension(tmp_path: Path) -> None:
     document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
     document["intake_aliases"]["backlog"] = "inbox"
     candidate = tmp_path / "command-plane.json"
     candidate.write_text(json.dumps(document), encoding="utf-8")
 
-    settings = load_command_plane_settings(candidate)
-    assert settings.intake_state("Todo") is LifecycleState.INBOX
-    assert settings.intake_state("backlog") is LifecycleState.INBOX
+    with pytest.raises(ValueError, match="intake_aliases drifts from canonical Work contract"):
+        load_command_plane_settings(candidate)
 
 
 def test_command_plane_settings_reject_unknown_ranking_key(tmp_path: Path) -> None:
@@ -159,3 +159,41 @@ def test_runtime_vocabulary_matches_settings_authority() -> None:
         LifecycleState.SUPERSEDED,
         LifecycleState.DONE,
     }
+
+
+def test_command_plane_projection_rejects_priority_order_drift(tmp_path: Path) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    document["queue"]["priority_order"] = ["high", "critical", "medium", "low"]
+    candidate = tmp_path / "command-plane.json"
+    candidate.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="queue.priority_order drifts from canonical Work contract"):
+        load_command_plane_settings(candidate)
+
+
+def test_command_plane_projection_rejects_transition_drift(tmp_path: Path) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    document["transitions"]["ready"] = ["on_hold"]
+    candidate = tmp_path / "command-plane.json"
+    candidate.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="transitions drifts from canonical Work contract"):
+        load_command_plane_settings(candidate)
+
+
+def test_command_plane_projection_requires_canonical_field_authority(tmp_path: Path) -> None:
+    document = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    document["field_authority"]["Priority"]["authority"] = "derived"
+    candidate = tmp_path / "command-plane.json"
+    candidate.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="field_authority drifts from canonical Work contract"):
+        load_command_plane_settings(candidate)
+
+
+def test_command_plane_projects_live_verification_authority() -> None:
+    settings = load_command_plane_settings(SETTINGS_PATH)
+
+    assert settings.authority("Live Verification") == FieldAuthority("derived", "evidence")
+    assert settings.authority("Commissioning Key") == FieldAuthority("derived", "evidence")
+    assert settings.authority("Live Verification Evidence") == FieldAuthority("derived", "evidence")

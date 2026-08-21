@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from .canonical_contracts import load_canonical_work_contracts
 from .command_settings import CommandPlaneSettings, load_command_plane_settings
 from .contracts import (
     DocumentationImpact,
@@ -37,6 +38,42 @@ def _documentation_complete(record: WorkRecord) -> bool:
     )
 
 
+def _guard_applies(condition: str, record: WorkRecord, configured: CommandPlaneSettings) -> bool:
+    if condition == "approval_required_and_incomplete":
+        return record.approval_required and not record.approval_complete
+    if condition == "completion_requires_no_active_claim_and_claim_present":
+        return configured.completion.require_no_active_claim_after_close and record.execution_owner is not None
+    if condition == "required_documentation_reconciliation_due":
+        return (
+            record.traceability_required
+            and record.documentation_milestone is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+            and record.documentation_mode is DocumentationMode.REQUIRED
+        )
+    if condition == "advisory_documentation_reconciliation_due":
+        return (
+            record.traceability_required
+            and record.documentation_milestone is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
+            and record.documentation_mode is DocumentationMode.ADVISORY
+        )
+    if condition == "required_documentation_reconciliation_unrecorded":
+        return (
+            record.traceability_required
+            and record.documentation_mode is DocumentationMode.REQUIRED
+            and record.documentation_milestone is not DocumentationMilestoneState.POST_MERGE_COMPLETE
+        )
+    if condition == "advisory_documentation_reconciliation_unrecorded":
+        return (
+            record.traceability_required
+            and record.documentation_mode is DocumentationMode.ADVISORY
+            and record.documentation_milestone is not DocumentationMilestoneState.POST_MERGE_COMPLETE
+        )
+    if condition == "required_documentation_incomplete":
+        return record.documentation_mode is DocumentationMode.REQUIRED and not _documentation_complete(record)
+    if condition == "advisory_documentation_incomplete":
+        return record.documentation_mode is DocumentationMode.ADVISORY and not _documentation_complete(record)
+    raise ValueError(f"unsupported canonical lifecycle guard condition: {condition}")
+
+
 def evaluate_transition(
     record: WorkRecord,
     target: LifecycleState,
@@ -57,93 +94,18 @@ def evaluate_transition(
             reasons=("transition_not_declared",),
         )
 
-    if (
-        target is LifecycleState.ACTIVE
-        and record.approval_required
-        and not record.approval_complete
-    ):
+    canonical = load_canonical_work_contracts().lifecycle
+    for guard in canonical.guards:
+        if guard.target != target.value:
+            continue
+        if not _guard_applies(guard.condition, record, configured):
+            continue
         return TransitionDecision(
-            allowed=False,
+            allowed=guard.disposition == "allow_with_reason",
             source=record.state,
             target=target,
-            reasons=("approval_incomplete",),
+            reasons=(guard.reason_code,),
         )
-
-    if (
-        target is LifecycleState.DONE
-        and configured.completion.require_no_active_claim_after_close
-        and record.execution_owner is not None
-    ):
-        return TransitionDecision(
-            allowed=False,
-            source=record.state,
-            target=target,
-            reasons=("active_claim_present",),
-        )
-
-    if target is LifecycleState.DONE and record.traceability_required:
-        if (
-            record.documentation_milestone
-            is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
-        ):
-            if record.documentation_mode is DocumentationMode.REQUIRED:
-                return TransitionDecision(
-                    allowed=False,
-                    source=record.state,
-                    target=target,
-                    reasons=("documentation_reconciliation_due",),
-                )
-            if record.documentation_mode is DocumentationMode.ADVISORY:
-                return TransitionDecision(
-                    allowed=True,
-                    source=record.state,
-                    target=target,
-                    reasons=("documentation_reconciliation_advisory_due",),
-                )
-        if (
-            record.documentation_mode is DocumentationMode.REQUIRED
-            and record.documentation_milestone
-            is not DocumentationMilestoneState.POST_MERGE_COMPLETE
-        ):
-            return TransitionDecision(
-                allowed=False,
-                source=record.state,
-                target=target,
-                reasons=("documentation_reconciliation_unrecorded",),
-            )
-        if (
-            record.documentation_mode is DocumentationMode.ADVISORY
-            and record.documentation_milestone
-            is not DocumentationMilestoneState.POST_MERGE_COMPLETE
-        ):
-            return TransitionDecision(
-                allowed=True,
-                source=record.state,
-                target=target,
-                reasons=("documentation_reconciliation_advisory_incomplete",),
-            )
-
-    if target is LifecycleState.DONE:
-        if (
-            record.documentation_mode is DocumentationMode.REQUIRED
-            and not _documentation_complete(record)
-        ):
-            return TransitionDecision(
-                allowed=False,
-                source=record.state,
-                target=target,
-                reasons=("documentation_incomplete",),
-            )
-        if (
-            record.documentation_mode is DocumentationMode.ADVISORY
-            and not _documentation_complete(record)
-        ):
-            return TransitionDecision(
-                allowed=True,
-                source=record.state,
-                target=target,
-                reasons=("documentation_advisory_incomplete",),
-            )
 
     return TransitionDecision(allowed=True, source=record.state, target=target)
 

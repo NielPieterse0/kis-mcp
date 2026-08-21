@@ -26,7 +26,10 @@
     "Authority Revision": {"authority": "git", "direction": "evidence"},
     "Verification": {"authority": "actions", "direction": "evidence"},
     "Delivery Stage": {"authority": "derived", "direction": "evidence"},
-    "Repository": {"authority": "github", "direction": "evidence"}
+    "Repository": {"authority": "github", "direction": "evidence"},
+    "Live Verification": {"authority": "derived", "direction": "evidence"},
+    "Commissioning Key": {"authority": "derived", "direction": "evidence"},
+    "Live Verification Evidence": {"authority": "derived", "direction": "evidence"}
   },
   "work_states": ["inbox", "triage", "proposed", "approved", "ready", "active", "blocked", "on_hold", "deferred", "rejected", "superseded", "done"],
   "intake_aliases": {"todo": "inbox"},

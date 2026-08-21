@@ -10,7 +10,6 @@
     "managed_projects",
     "backend_bindings",
     "features",
-    "automation",
     "gates",
     "evidence"
   ],
@@ -34,11 +33,6 @@
       "additionalProperties": {
         "enum": ["disabled", "read_only", "enabled"]
       }
-    },
-    "automation": {
-      "type": "object",
-      "propertyNames": {"$ref": "#/$defs/settingName"},
-      "additionalProperties": {"type": "boolean"}
     },
     "gates": {
       "type": "object",

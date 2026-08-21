@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "contract_id": "work-selection",
+  "fields": {
+    "state": "Status",
+    "priority": "Priority",
+    "effort": "Effort",
+    "created": "Created",
+    "blocked_by": "Blocked By",
+    "execution_owner": "Execution Owner"
+  },
+  "eligible_states": [
+    "ready"
+  ],
+  "priority_order": [
+    "critical",
+    "high",
+    "medium",
+    "low"
+  ],
+  "effort_order": [
+    "tiny",
+    "small",
+    "medium",
+    "large"
+  ],
+  "ranking": [
+    "priority",
+    "effort",
+    "created_order",
+    "record_id"
+  ],
+  "dependency_evidence": [
+    "unavailable",
+    "partial",
+    "observed"
+  ],
+  "rules": [
+    {
+      "id": "SEL-001",
+      "kind": "source_issue",
+      "reason_code": "not_issue",
+      "definition": "Only issue records are eligible in the provider-backed next-work queue."
+    },
+    {
+      "id": "SEL-002",
+      "kind": "source_open",
+      "reason_code": "source_not_open",
+      "definition": "Provider-backed source issues must remain open."
+    },
+    {
+      "id": "SEL-003",
+      "kind": "project_match",
+      "reason_code": "project_mismatch",
+      "definition": "Normalized-domain selection respects an explicit project scope."
+    },
+    {
+      "id": "SEL-004",
+      "kind": "eligible_state",
+      "reason_code": "state_not_ready",
+      "definition": "Candidate state must be one of the configured eligible states; domain adapters may preserve their existing equivalent reason code."
+    },
+    {
+      "id": "SEL-005",
+      "kind": "valid_priority",
+      "reason_code": "missing_or_invalid:{field}",
+      "definition": "Priority must be present in the canonical priority order."
+    },
+    {
+      "id": "SEL-006",
+      "kind": "valid_effort",
+      "reason_code": "missing_or_invalid:{field}",
+      "definition": "Effort must be present in the canonical effort order."
+    },
+    {
+      "id": "SEL-007",
+      "kind": "required_fields",
+      "reason_code": "missing_required:{field}",
+      "definition": "Configured readiness fields must be present before provider-backed selection."
+    },
+    {
+      "id": "SEL-008",
+      "kind": "unclaimed",
+      "reason_code": "already_claimed:{owner}",
+      "definition": "Already claimed work is excluded from next-work selection."
+    },
+    {
+      "id": "SEL-009",
+      "kind": "approval_complete",
+      "reason_code": "approval_incomplete",
+      "definition": "Normalized-domain records that require approval must have completed approval."
+    },
+    {
+      "id": "SEL-010",
+      "kind": "dependency_evidence",
+      "reason_code": "dependency_evidence_unavailable",
+      "definition": "Required provider dependency evidence must be observable."
+    },
+    {
+      "id": "SEL-011",
+      "kind": "dependencies_clear",
+      "reason_code": "native_dependency_blocking",
+      "definition": "Provider-native blocker evidence must be empty; normalized-domain adapters preserve dependency-specific reason codes."
+    },
+    {
+      "id": "SEL-012",
+      "kind": "ranking",
+      "reason_code": null,
+      "definition": "Eligible candidates rank by Priority, Effort, creation order, then stable record identity."
+    }
+  ],
+  "profiles": {
+    "provider_project": {
+      "rules": [
+        "source_issue",
+        "source_open",
+        "eligible_state",
+        "valid_priority",
+        "valid_effort",
+        "required_fields",
+        "unclaimed",
+        "dependency_evidence",
+        "dependencies_clear"
+      ],
+      "reason_overrides": {
+        "eligible_state": "state_not_ready",
+        "dependencies_clear": "native_dependency_blocking"
+      }
+    },
+    "normalized_domain": {
+      "rules": [
+        "project_match",
+        "eligible_state",
+        "unclaimed",
+        "approval_complete",
+        "dependencies_clear"
+      ],
+      "reason_overrides": {
+        "eligible_state": "state_not_executable",
+        "dependencies_clear": "dependency_incomplete:{dependency_id}"
+      }
+    }
+  }
+}

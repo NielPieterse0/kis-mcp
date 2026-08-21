@@ -26,7 +26,6 @@ _TOP_LEVEL_KEYS = frozenset(
         "managed_projects",
         "backend_bindings",
         "features",
-        "automation",
         "gates",
         "evidence",
     }
@@ -163,7 +162,6 @@ class WorkManagementSettings:
     managed_projects: tuple[ManagedProject, ...]
     backend_bindings: tuple[BackendBindingSettings, ...]
     features: tuple[tuple[str, FeatureMode], ...]
-    automation: tuple[tuple[str, bool], ...]
     gates: tuple[tuple[str, GateMode], ...]
     evidence: EvidenceSettings
     schema_version: int = PUBLIC_SCHEMA_VERSION
@@ -211,28 +209,20 @@ class WorkManagementSettings:
             tuple(sorted(self.backend_bindings, key=lambda item: item.binding_id)),
         )
         feature_names = [name for name, _mode in self.features]
-        automation_names = [name for name, _enabled in self.automation]
         gate_names = [name for name, _mode in self.gates]
         if len(set(feature_names)) != len(feature_names):
             raise ValueError("feature names must be unique")
-        if len(set(automation_names)) != len(automation_names):
-            raise ValueError("automation names must be unique")
         if len(set(gate_names)) != len(gate_names):
             raise ValueError("gate names must be unique")
         for name, mode in self.features:
             _setting_name(name, "feature name")
             if not isinstance(mode, FeatureMode):
                 raise ValueError("feature mode must be a FeatureMode value")
-        for name, enabled in self.automation:
-            _setting_name(name, "automation name")
-            if not isinstance(enabled, bool):
-                raise ValueError("automation values must be booleans")
         for name, mode in self.gates:
             _setting_name(name, "gate name")
             if not isinstance(mode, GateMode):
                 raise ValueError("gate mode must be a GateMode value")
         object.__setattr__(self, "features", tuple(sorted(self.features)))
-        object.__setattr__(self, "automation", tuple(sorted(self.automation)))
         object.__setattr__(self, "gates", tuple(sorted(self.gates)))
         if not isinstance(self.evidence, EvidenceSettings):
             raise ValueError("evidence must be EvidenceSettings")
@@ -259,10 +249,6 @@ class WorkManagementSettings:
         normalized = _setting_name(name, "gate name")
         return dict(self.gates).get(normalized, GateMode.OFF)
 
-    def automation_enabled(self, name: str) -> bool:
-        normalized = _setting_name(name, "automation name")
-        return dict(self.automation).get(normalized, False)
-
     def to_json_dict(self) -> dict[str, Any]:
         return {
             "schema_version": self.schema_version,
@@ -271,7 +257,6 @@ class WorkManagementSettings:
             "managed_projects": [item.to_json_dict() for item in self.managed_projects],
             "backend_bindings": [item.to_json_dict() for item in self.backend_bindings],
             "features": {name: mode.value for name, mode in self.features},
-            "automation": dict(self.automation),
             "gates": {name: mode.value for name, mode in self.gates},
             "evidence": {
                 "max_file_bytes": self.evidence.max_file_bytes,
@@ -456,7 +441,6 @@ def _bridge_project_registry(
         managed_projects=tuple(bridged_projects),
         backend_bindings=tuple(bridged_bindings),
         features=settings.features,
-        automation=settings.automation,
         gates=settings.gates,
         evidence=settings.evidence,
         schema_version=settings.schema_version,
@@ -485,13 +469,6 @@ def load_work_management_settings(
         raise ValueError("managed_projects must be an array")
     if not isinstance(bindings, list):
         raise ValueError("backend_bindings must be an array")
-    automation = _object(root["automation"], "automation")
-    normalized_automation: list[tuple[str, bool]] = []
-    for raw_name, enabled in automation.items():
-        name = _setting_name(raw_name, "automation name")
-        if not isinstance(enabled, bool):
-            raise ValueError(f"automation value for {name} must be a boolean")
-        normalized_automation.append((name, enabled))
     evidence = _object(root["evidence"], "evidence")
     _exact_keys(evidence, _EVIDENCE_KEYS, "evidence")
     settings = WorkManagementSettings(
@@ -506,7 +483,6 @@ def load_work_management_settings(
                 root["features"], label="features", enum_type=FeatureMode
             )
         ),
-        automation=tuple(normalized_automation),
         gates=tuple(
             (name, GateMode(mode))
             for name, mode in _enum_mapping(

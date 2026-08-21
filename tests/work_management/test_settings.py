@@ -40,10 +40,6 @@ def document() -> dict[str, object]:
             "intake": "enabled",
             "review_import": "read_only",
         },
-        "automation": {
-            "scheduled_reconciliation": False,
-            "safe_repair": False,
-        },
         "gates": {
             "project_settings": "required",
             "programme_drift": "advisory",
@@ -148,5 +144,15 @@ def test_checked_in_settings_and_schema_are_parseable() -> None:
     assert settings.binding("github-default").project_number == 1
     assert settings.feature_mode("reconciliation") is FeatureMode.ENABLED
     assert settings.feature_mode("review_import") is FeatureMode.READ_ONLY
-    assert not any(dict(settings.automation).values())
+    assert not hasattr(settings, "automation")
+    assert "automation" not in schema["required"]
+    assert "automation" not in schema["properties"]
     assert schema["additionalProperties"] is False
+
+
+def test_rejects_obsolete_automation_object(tmp_path: Path) -> None:
+    value = document()
+    value["automation"] = {"scheduled_reconciliation": False}
+
+    with pytest.raises(ValueError, match="unknown settings keys: automation"):
+        load_work_management_settings(write_document(tmp_path, value))

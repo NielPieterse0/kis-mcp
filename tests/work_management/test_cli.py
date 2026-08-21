@@ -35,7 +35,6 @@ def settings_document(root: Path) -> dict[str, object]:
             }
         ],
         "features": {"programme_status": "enabled"},
-        "automation": {"scheduled_reconciliation": False},
         "gates": {"change_traceability": "required"},
         "evidence": {"max_file_bytes": 1024, "max_total_bytes": 4096},
     }
@@ -191,7 +190,7 @@ def test_schema_manifest_command_validates_repository_contract(
     assert exit_code == 0
     assert payload["ok"] is True
     assert payload["schema"]["portfolio_id"] == "default"
-    assert len(payload["schema"]["fields"]) == 25
+    assert len(payload["schema"]["fields"]) == 28
     assert payload["schema"]["fields"][6]["name"] == "Blocked By"
     assert [field["name"] for field in payload["schema"]["fields"]][8:10] == [
         "Complexity",

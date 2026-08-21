@@ -5,6 +5,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .canonical_contracts import (
+    load_canonical_work_contracts,
+    validate_command_plane_projection,
+    validate_runtime_vocabulary,
+)
 from .contracts import DeliveryStage, LifecycleState
 
 _ALLOWED_AUTHORITIES = frozenset(
@@ -373,6 +378,9 @@ def load_command_plane_settings(path: Path | None = None) -> CommandPlaneSetting
     declared_alias_keys = {state.value.casefold() for state in declared}
     if any(alias in declared_alias_keys for alias, _state in settings.intake_aliases):
         raise ValueError("intake_aliases must not shadow declared work states")
+    canonical = load_canonical_work_contracts()
+    validate_runtime_vocabulary(canonical)
+    validate_command_plane_projection(root, canonical)
     return settings
 
 

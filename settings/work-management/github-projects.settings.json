@@ -54,14 +54,6 @@
     "reconciliation": "enabled",
     "programme_status": "enabled"
   },
-  "automation": {
-    "auto_add": false,
-    "close_sync": false,
-    "merge_sync": false,
-    "review_extraction": false,
-    "scheduled_reconciliation": false,
-    "safe_repair": false
-  },
   "gates": {
     "project_settings": "required",
     "project_schema_drift": "advisory",
