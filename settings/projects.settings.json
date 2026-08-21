@@ -104,6 +104,27 @@
       "dockerhub": null
     },
     {
+      "project_id": "kis-mcp-doc",
+      "display_name": "kis-mcp-doc",
+      "local_root": "C:\\Projects\\kis-mcp-doc",
+      "github": {
+        "repository": "NielPieterse0/kis-mcp-doc",
+        "projects": []
+      },
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
+    },
+    {
+      "project_id": "kis-mcp-gov",
+      "display_name": "kis-mcp-gov",
+      "local_root": "C:\\Projects\\kis-mcp-gov",
+      "github": null,
+      "supabase": null,
+      "databases": [],
+      "dockerhub": null
+    },
+    {
       "project_id": "app-builder",
       "display_name": "app-builder",
       "local_root": "C:\\Projects\\app-builder",

@@ -19,6 +19,7 @@ def test_shared_github_project_is_commissioned_for_managed_repositories() -> Non
         "college": "nielpieterse0/college",
         "commodity": "nielpieterse0/commodity",
         "kis-mcp": "nielpieterse0/kis-mcp",
+        "kis-mcp-doc": "nielpieterse0/kis-mcp-doc",
     }
 
     for project_id, repository in expected_repositories.items():
@@ -35,8 +36,13 @@ def test_shared_github_project_is_commissioned_for_managed_repositories() -> Non
     )
     assert all(
         not registry.project(project_id).github.projects
-        for project_id in ("chatgpt-skill", "college", "commodity")
+        for project_id in ("chatgpt-skill", "college", "commodity", "kis-mcp-doc")
     )
+    doc_registered = registry.project("kis-mcp-doc")
+    doc_managed = settings.project("kis-mcp-doc")
+    assert doc_managed.local_root == doc_registered.local_root
+    assert doc_managed.repository == doc_registered.github.repository
+    assert doc_managed.backend_binding == "github-default"
 
     binding = settings.binding("github-default")
     assert binding.provider == "github-mcp"

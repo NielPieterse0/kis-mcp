@@ -37,6 +37,13 @@
       "repository": "NielPieterse0/kis-mcp",
       "backend_binding": "github-default",
       "display_name": "kis-mcp"
+    },
+    {
+      "project_id": "kis-mcp-doc",
+      "local_root": "C:\\Projects\\kis-mcp-doc",
+      "repository": "NielPieterse0/kis-mcp-doc",
+      "backend_binding": "github-default",
+      "display_name": "kis-mcp-doc"
     }
   ],
   "backend_bindings": [

@@ -1,0 +1,34 @@
+{
+  "schema_version": 4,
+  "change_id": "219-kis-mcp-doc-bootstrap",
+  "status": "active",
+  "branch": "change/219-kis-mcp-doc-bootstrap",
+  "worktree": ".work/worktrees/219-kis-mcp-doc-bootstrap",
+  "base": "main",
+  "outcome": "Register kis-mcp-doc and kis-mcp-gov as independently routable KIS tool-user projects, and register kis-mcp-doc as a Work Management managed repository, so the child repository can publish and continue through normal KIS Work workflows.",
+  "owned_paths": [
+    "settings/projects.settings.json",
+    "tests/projects/test_project_registry.py",
+    "tests/projects/test_project_registry_platform.py",
+    "tests/projects/test_project_registry_settings.py",
+    "tests/repositories/test_project_registry_settings.py",
+    "settings/work-management/github-projects.settings.json",
+    "tests/project_onboarding/test_github_project_commissioning.py",
+    ".work/changes/219-kis-mcp-doc-bootstrap/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "94ea6b0f2b4f10aeb0ca9da56bd23e3a4f6ee6c3",
+    "local_tree": "45460cb1f60987b0a695b66245be5869ab298c3d",
+    "upstream_sha": "94ea6b0f2b4f10aeb0ca9da56bd23e3a4f6ee6c3",
+    "upstream_tree": "45460cb1f60987b0a695b66245be5869ab298c3d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

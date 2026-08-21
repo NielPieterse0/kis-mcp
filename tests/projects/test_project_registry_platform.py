@@ -34,6 +34,8 @@ def test_project_tools_are_bounded_read_only_catalogue_operations() -> None:
         "gpt-os",
         "import-isolate",
         "kis-mcp",
+        "kis-mcp-doc",
+        "kis-mcp-gov",
         "mi-fi",
         "prose2llm",
         "signal",
