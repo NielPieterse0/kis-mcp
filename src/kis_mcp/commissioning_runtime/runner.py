@@ -297,7 +297,7 @@ class CommissioningRunnerService:
         execution_owner: str,
     ) -> None:
         record = {
-            "record_id": f"WORK-{frozen.commissioning_issue}",
+            "record_id": f"TASK-{frozen.commissioning_issue}",
             "project_id": target.project_id,
             "title": str(claim.get("title") or f"Commissioning {frozen.surface_id}"),
             "record_type": str(claim.get("record_type") or "task"),

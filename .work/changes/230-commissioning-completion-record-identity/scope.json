@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "230-commissioning-completion-record-identity",
+  "status": "active",
+  "branch": "change/230-commissioning-completion-record-identity",
+  "worktree": ".work/worktrees/230-commissioning-completion-record-identity",
+  "base": "main",
+  "outcome": "Fix commissioning runner terminal Work completion to emit a task-compatible record identity and prove the live Change 229 commissioning can resume to completion.",
+  "owned_paths": [
+    "src/kis_mcp/commissioning_runtime/runner.py",
+    "tests/post_merge_commissioning/test_runner_service.py",
+    ".work/changes/230-commissioning-completion-record-identity/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "fb527962f69a863d0d8bfbf651129eb83f387861",
+    "local_tree": "5459eb8c3c7cd92b70af636c7bfd80cad05d0dc2",
+    "upstream_sha": "fb527962f69a863d0d8bfbf651129eb83f387861",
+    "upstream_tree": "5459eb8c3c7cd92b70af636c7bfd80cad05d0dc2",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-464",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 464,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
