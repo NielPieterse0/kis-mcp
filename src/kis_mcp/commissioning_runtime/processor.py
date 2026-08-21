@@ -6,6 +6,7 @@ from kis_mcp.commissioning.classifier import classify_change
 from kis_mcp.commissioning.evidence import MergedChangeResolver
 from kis_mcp.commissioning.intake import CommissioningIntakeService
 from kis_mcp.commissioning.models import ClassificationState
+from kis_mcp.commissioning.projection import project_classification_state
 from kis_mcp.commissioning.settings import PostMergeCommissioningSettings
 
 
@@ -27,6 +28,23 @@ class CommissioningCandidateProcessor:
         intake = await CommissioningIntakeService(invoker).intake(
             evidence,
             classification,
+        )
+        target = next(
+            (
+                item
+                for item in self.settings.targets
+                if item.repository.casefold() == evidence.repository.casefold()
+            ),
+            None,
+        )
+        if target is None:
+            raise RuntimeError("commissioning target disappeared after evidence resolution")
+        await project_classification_state(
+            invoker,
+            project_id=target.project_id,
+            evidence=evidence,
+            classification=classification,
+            intake=intake,
         )
         return {
             "pull_number": pull_number,

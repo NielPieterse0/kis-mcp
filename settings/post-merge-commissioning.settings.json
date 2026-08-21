@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "enabled": true,
   "host_instance": "kis-op",
   "state_namespace": "post-merge-commissioning",
@@ -45,7 +45,8 @@
       "verification_procedure": "Restart kis-op and exercise the affected coordinator or orchestration path through its exposed KIS workflow.",
       "expected_invariant": "The affected orchestration path operates against the landed merge without stale authority or lifecycle errors.",
       "evidence_target": "linked commissioning issue evidence",
-      "terminal_success_criterion": "The real exposed coordinator or workflow path succeeds for the exact landed merge SHA."
+      "terminal_success_criterion": "The real exposed coordinator or workflow path succeeds for the exact landed merge SHA.",
+      "probe_id": "coordinator-work-board"
     },
     {
       "id": "gateway-runtime",
@@ -63,7 +64,8 @@
       "verification_procedure": "Restart kis-op and invoke the affected gateway or capability surface through the real exposed MCP path.",
       "expected_invariant": "Gateway composition, capability exposure, and the affected operation succeed on the landed source generation.",
       "evidence_target": "linked commissioning issue evidence",
-      "terminal_success_criterion": "The affected exposed gateway or capability path succeeds for the exact landed merge SHA."
+      "terminal_success_criterion": "The affected exposed gateway or capability path succeeds for the exact landed merge SHA.",
+      "probe_id": "gateway-health"
     },
     {
       "id": "housekeeping-runner",
@@ -78,7 +80,8 @@
       "verification_procedure": "Restart kis-op and observe the affected housekeeping preview/status path through the exposed KIS runtime.",
       "expected_invariant": "Housekeeping remains preview-only on schedule and its affected status or receipt path succeeds on landed code.",
       "evidence_target": "linked commissioning issue evidence",
-      "terminal_success_criterion": "The affected housekeeping path passes live verification without timer-driven apply authority."
+      "terminal_success_criterion": "The affected housekeeping path passes live verification without timer-driven apply authority.",
+      "probe_id": "housekeeping-status"
     },
     {
       "id": "provider-runtime",
@@ -97,7 +100,8 @@
       "verification_procedure": "Restart kis-op and exercise the affected provider capability through the mounted KIS provider path.",
       "expected_invariant": "Provider startup/authentication state and the affected exposed provider capability succeed on the landed code.",
       "evidence_target": "linked commissioning issue evidence",
-      "terminal_success_criterion": "The affected provider path passes live verification for the exact landed merge SHA."
+      "terminal_success_criterion": "The affected provider path passes live verification for the exact landed merge SHA.",
+      "probe_id": "provider-status"
     },
     {
       "id": "post-merge-observer",
@@ -112,7 +116,8 @@
       "verification_procedure": "Restart kis-op, verify observer status/checkpoint readiness, then observe a fresh governed runtime-affecting merge through the real post-merge intake path.",
       "expected_invariant": "The observer accounts for the fresh exact merge once, derives the configured live-surface obligation, and creates or reuses exactly one deterministic commissioning key without historical backfill.",
       "evidence_target": "linked commissioning issue evidence",
-      "terminal_success_criterion": "A fresh governed merge is observed on landed code and yields exactly one durable intake result per deterministic commissioning key."
+      "terminal_success_criterion": "A fresh governed merge is observed on landed code and yields exactly one durable intake result per deterministic commissioning key.",
+      "probe_id": "post-merge-observer-status"
     },
     {
       "id": "work-management",
@@ -128,7 +133,8 @@
       "verification_procedure": "Restart kis-op and exercise the affected Work Management capability through the real exposed command or read path.",
       "expected_invariant": "The affected Work Management capability uses the landed canonical contract and provider projection without runtime errors.",
       "evidence_target": "linked commissioning issue evidence",
-      "terminal_success_criterion": "The real exposed Work Management path passes against the exact landed merge SHA."
+      "terminal_success_criterion": "The real exposed Work Management path passes against the exact landed merge SHA.",
+      "probe_id": "work-management-contract"
     }
   ]
 }

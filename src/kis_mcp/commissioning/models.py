@@ -32,6 +32,7 @@ class CommissioningObligation:
     commissioning_key: str
     runtime_instance: str
     refresh_rule: str
+    probe_id: str
     verification_procedure: str
     expected_invariant: str
     evidence_target: str

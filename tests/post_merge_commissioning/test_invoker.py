@@ -153,3 +153,29 @@ def test_fastmcp_tool_error_is_normalized_to_runtime_failure() -> None:
         assert str(exc) == "github_pull_request_read provider call failed"
     else:
         raise AssertionError("FastMCP provider errors must be normalized")
+
+
+def test_read_and_change_dispatch_use_exact_kis_control_planes() -> None:
+    read_server = FakeServer(ToolResult(content=[_text('{"schema_version":1,"ready":true}')]))
+    read_invoker = CommissioningFastMCPInvoker(read_server)
+    assert asyncio.run(read_invoker.read("kis_health", {}))["ready"] is True
+    assert read_server.calls == [
+        ("execute_read_action", {"operation": "kis_health", "arguments": {}})
+    ]
+
+    change_server = FakeServer(ToolResult(content=[_text('{"mode":"apply"}')]))
+    change_invoker = CommissioningFastMCPInvoker(change_server)
+    assert asyncio.run(
+        change_invoker.change(
+            "project_management_transition_work", {"issue_number": 460}
+        )
+    ) == {"mode": "apply"}
+    assert change_server.calls == [
+        (
+            "execute_change_action",
+            {
+                "operation": "project_management_transition_work",
+                "arguments": {"issue_number": 460},
+            },
+        )
+    ]

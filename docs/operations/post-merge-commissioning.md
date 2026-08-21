@@ -1,68 +1,109 @@
-# Post-Merge Commissioning Observer
+# Post-Merge Commissioning
 
 ## Authority and scope
 
-This runbook covers the deterministic post-merge observer and commissioning-issue intake owned by `settings/post-merge-commissioning.settings.json`.
+This runbook covers the deterministic post-merge observer, commissioning-issue intake, live-verification runner, durable evidence, and source projection owned by `settings/post-merge-commissioning.settings.json`.
 
-The observer is separate from housekeeping. Housekeeping remains scheduled preview-only and `kis_housekeeping_apply_receipt` remains explicit supervised apply. The commissioning observer has no housekeeping apply authority.
+The commissioning lifecycle is separate from housekeeping. Housekeeping remains scheduled preview-only and `kis_housekeeping_apply_receipt` remains explicit supervised apply. Commissioning has no housekeeping apply authority.
 
-Only `kis-op` schedules post-merge observation. `kis-dev` exposes the same read-only diagnostic tools but does not schedule commissioning mutations.
+Only `kis-op` schedules merged-PR observation. `kis-dev` exposes the same commissioning diagnostics and runner contract but does not schedule observer mutations.
 
-This slice creates deterministic commissioning issues only. It does not execute live verification or project `Live Verification` evidence; that lifecycle belongs to the later commissioning-runner work. Historical backfill is also separate.
+Source repository delivery and live commissioning are separate domains. A source issue may remain delivered/Done while its `Live Verification` field is Pending, Failed, or Blocked. Commissioning never rewrites source `Verification`.
 
-## Deterministic identity
+## Deterministic merge and obligation identity
 
-Candidate search is discovery only. Each candidate must be re-read from GitHub and report `merged=true`.
+Candidate search is discovery only. Each candidate is re-read from GitHub and must report `merged=true`.
 
 The exact merge SHA is resolved from the registered default branch and must be the unique merge commit whose message identifies the same pull request. The PR source head is never accepted as merge identity.
 
-The PR body must contain exactly one `Issue: #N` marker and one `Change: <change-id>` marker. The observer then reads `.work/changes/<change-id>/scope.json` at the exact merge SHA and requires schema version 4 plus matching Work source repository/issue identity.
+The PR body must contain exactly one `Issue: #N` marker and one `Change: <change-id>` marker. The observer reads `.work/changes/<change-id>/scope.json` at the exact merge SHA and requires schema version 4 plus matching Work source identity.
 
-## Classification and intake
-
-Classification is machine-owned by the checked-in settings document. It uses only exact changed paths plus governed change risk triggers.
-
-Configured live surfaces produce commissioning obligations. Documentation/test/governance-only changes with no configured live surface are `not_required`. A configured ambiguous high-risk trigger with no resolvable surface is `blocked_ambiguous`; it is never silently interpreted as not required.
-
-Each obligation key is:
+Classification is machine-owned by the checked-in settings document. Each live surface has path/risk matchers, a runtime instance, a machine-readable refresh rule, and a closed `probe_id` selecting one code-owned read-only probe profile.
+Each per-surface obligation key is:
 
 ```text
 commission:<normalized-owner/repo>:<exact-merge-sha>:<surface-id>
 ```
 
-Before creation, the observer searches repository issues across open and closed state for the exact key. A match is reused as the existing obligation. A newly created issue is re-read and must retain the same key before the candidate is considered accounted for.
+Before creation, the observer searches open and closed repository issues for the exact key. Existing matches are reused; newly created issues are re-read and must retain the deterministic title/body contract.
 
-Commissioning intake does not reopen, close, or otherwise rewrite the source delivery issue.
+## Source classification projection
 
-## Startup and checkpoint behavior
+After exact classification and intake, the observer projects only the three live fields through canonical `project_management_reconcile` using fresh Project revision evidence:
 
-The observer persists its state beneath the configured KIS state root and `state_namespace`. Checkpoints are repository-specific and receipts are retention-bounded.
+- required obligations → `Live Verification = Pending`, deterministic source Commissioning Key, and sorted commissioning-issue linkage;
+- no obligations → `Live Verification = Not Required` and no Commissioning Key;
+- ambiguous high-risk classification → `Live Verification = Blocked`, no invented key, and compact exact-merge classification evidence.
 
-On first activation, the observer records the current time as the checkpoint and performs no historical scan. This is intentional: explicit historical assessment/backfill is a separately governed operation.
+`Verification` is never included in this reconciliation write set.
 
-Subsequent runs search from `checkpoint - overlap_seconds`. A checkpoint advances only after the bounded candidate scan completes and every discovered candidate has a durable outcome. Provider, evidence, budget, or intake failure leaves the prior checkpoint in place so the overlap window can replay safely.
+For a single required surface, the source Commissioning Key is the exact per-surface key. For multiple surfaces, source projection uses `commission:<repo>:<merge-sha>:set-<digest24>`, with the digest derived deterministically from the sorted obligation keys.
+
+## Runner admission and runtime generation
+
+`kis_post_merge_commissioning_run` accepts only repository, commissioning issue number, execution owner, and optional explicit retry. It does not accept arbitrary operation names, commands, predicates, procedures, or refresh actions.
+
+Before any live proof, the runner re-reads and strictly parses the generated issue, re-resolves the source PR/merge/scope, reclassifies the merge, freezes the matching obligation, and requires exactly one current Active Work card claimed by the supplied execution owner.
+For `refresh_rule=none`, no runtime-generation ancestry check is required. For `refresh` or `restart`, the runner reads the real `kis_health` path, verifies the configured runtime identity, and checks that the frozen merge is an ancestor of the running source revision in the governed local repository.
+
+A stale generation records `Blocked/runtime_refresh_required` before the live probe. The runner never stops or restarts its own hosting `kis-op` process. Restart/refresh is performed through the normal supervised launcher, then the same obligation is retried explicitly with `retry=true`.
+
+## Closed live probe profiles
+
+The settings `probe_id` is a closed vocabulary. Current profiles dispatch only through `execute_read_action`:
+
+- `coordinator-work-board` → exact claimed commissioning card through `project_management_board_data`;
+- `gateway-health` → ready runtime identity/source revision through `kis_health`;
+- `housekeeping-status` → active host/schedulers through `kis_housekeeping_status`;
+- `provider-status` → ready provider platform with zero unavailable providers through `kis_provider_status`;
+- `post-merge-observer-status` → active/fresh observer and scheduler through `kis_post_merge_commissioning_status`;
+- `work-management-contract` → canonical distinct source/live verification domains through `project_management_contract`.
+
+Unknown profiles and mutation-capable/generic executable probes are not accepted.
+
+## Durable execution and retry
+
+Per-obligation execution state and immutable receipts are stored beneath the existing commissioning state namespace. Each attempt freezes its contract fingerprint, attempt number, phase, result, and proof receipt reference.
+
+A completed Passed obligation replays without another probe or duplicate mutation. Failed and Blocked outcomes also replay unchanged unless the caller explicitly uses `retry=true`; retry first revalidates exact obligation identity and then creates the next attempt.
+
+Interrupted execution resumes from the persisted phase. In particular, a persisted proof is not re-probed merely because source projection or Work closeout was interrupted.
+## Aggregate source evidence and terminal lifecycle
+
+After proof persistence, the runner recomputes the complete classifier obligation set for the frozen merge. Latest per-obligation states are aggregated with deterministic precedence: Failed > Blocked > Pending > Passed; Passed requires every required obligation to have passed.
+
+The aggregate receipt contains the exact merge identity and ordered obligation key/state/receipt references. Project `Live Verification Evidence` stores only a compact `commissioning-evidence:<sha256>` reference to that durable receipt.
+
+Terminal behavior is intentionally asymmetric:
+
+- Passed → source aggregate projection, canonical `project_management_complete_work`, then close only the generated commissioning issue;
+- Failed → source aggregate becomes Failed while commissioning Work/issue remain open for explicit retry;
+- Blocked → source aggregate becomes Blocked and commissioning Work transitions to Blocked; the issue remains open.
+
+Source delivery remains closed/delivered throughout these outcomes.
 
 ## Diagnostics
 
-Use the read-only tools:
+Use the commissioning tools:
 
-- `kis_post_merge_commissioning_status` — reports configured host/current instance, scheduler activation, target repository/default branch, checkpoint state, and checkpoint time.
-- `kis_post_merge_commissioning_receipt` — reads one persisted bounded run receipt by deterministic receipt ID.
+- `kis_post_merge_commissioning_status` — read observer host, scheduler/checkpoint, and freshness status;
+- `kis_post_merge_commissioning_receipt` — read one bounded observer or aggregate/execution receipt by deterministic receipt ID;
+- `kis_post_merge_commissioning_execution` — read the latest bounded execution state/proof for one commissioning key;
+- `kis_post_merge_commissioning_run` — approval-required execution of one currently claimed commissioning issue.
 
-A run receipt contains only bounded identities, classification/intake references, counts, timestamps, and typed error names. Provider response bodies, exception messages, credentials, prompts, and free-form logs are not persisted.
+Receipts retain bounded identities, hashes, selected assertions, timestamps, and typed result/error codes. They do not retain credentials, prompts, free-form runtime logs, or complete provider response bodies.
 
-The observer enforces configured external-read and mutation budgets for each run. Exceeding either budget fails the run without advancing the checkpoint.
+## Startup, checkpoint, and recovery
 
-## Corrupt checkpoint recovery
+On first observer activation, the current time becomes the repository checkpoint and no historical scan is performed. Subsequent runs search from `checkpoint - overlap_seconds`; the checkpoint advances only after the bounded scan and all discovered candidates complete deterministic processing.
 
-Malformed checkpoint state fails closed. The observer retains the corrupt checkpoint as timestamped recovery evidence, establishes a new current-time checkpoint, performs no backfill, and reports an incomplete recovery run.
-
-Do not edit a checkpoint to force historical scanning. Use the separately governed backfill workflow when historical merges must be assessed.
-
+Malformed checkpoint state fails closed. Recovery retains the corrupt checkpoint as timestamped evidence, establishes a new current-time checkpoint, performs no historical backfill, and reports an incomplete recovery run. Do not edit checkpoints to force history; #455 owns deterministic historical backfill.
 ## Live release verification
 
-After a change that introduces or changes this observer is merged, restart/refresh `kis-op` so the runtime generation includes the new source and settings.
+After a commissioning runtime change merges, restart/refresh `kis-op` so its source revision contains the merge. Do not alter the observer checkpoint.
 
-First activation should show an initialized current-time checkpoint with no historical candidate processing. Then land one fresh governed runtime-affecting PR after that checkpoint. The observer must discover the merge independently of the KIS merge command, resolve its exact merge SHA and landed scope, classify the configured live surface, and create or reuse exactly one commissioning issue for each deterministic key.
+A fresh governed runtime-affecting merge after the activation boundary must be discovered independently by the observer. Verify its exact merge SHA, classified live surface, deterministic commissioning key, generated/reused issue, observer receipt, and source Pending projection.
 
-Record the resulting observer receipt, source PR, exact merge SHA, commissioning key, and commissioning issue reference in the governing issue/change evidence. Failure leaves the governing work incomplete; do not reinterpret the already-merged source delivery as unmerged.
+Transition/claim the generated commissioning issue through canonical Work Management, then invoke `kis_post_merge_commissioning_run` through the live `kis-op` runtime. A successful smoke must retain the execution receipt and aggregate receipt, set source `Live Verification = Passed`, complete the commissioning Work item, and close only that commissioning issue.
+
+If the runner reports `runtime_refresh_required`, perform the supervised `kis-op` restart and explicitly retry the same issue. Failed or Blocked evidence remains visible and must not be rewritten as source delivery failure.

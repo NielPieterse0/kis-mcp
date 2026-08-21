@@ -9,6 +9,7 @@ import pytest
 from kis_mcp.commissioning_runtime.state import (
     CommissioningStateError,
     CommissioningStateStore,
+    ExecutionResult,
 )
 
 
@@ -91,3 +92,67 @@ def test_checkpoint_payload_rejects_unknown_or_unbounded_shape(tmp_path: Path) -
 
     with pytest.raises(CommissioningStateError, match="checkpoint_invalid"):
         store.load_checkpoint(repository)
+
+
+def test_execution_state_is_resumable_and_terminal_replay_is_idempotent(tmp_path: Path) -> None:
+    store = CommissioningStateStore(tmp_path, retention=4)
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    key = "commission:nielpieterse0/kis-mcp:" + "a" * 40 + ":work-management"
+
+    initial = store.begin_execution(key, "f" * 64, now)
+    assert initial.attempt == 1
+    assert initial.phase == "initialized"
+    assert initial.result is ExecutionResult.PENDING
+
+    proof = store.update_execution(
+        initial,
+        phase="proof_persisted",
+        result=ExecutionResult.PENDING,
+        receipt_id="post-merge-commissioning:" + "b" * 64,
+        updated_at=now + timedelta(seconds=1),
+    )
+    resumed = store.begin_execution(key, "f" * 64, now + timedelta(seconds=2))
+    assert resumed == proof
+
+    passed = store.update_execution(
+        resumed,
+        phase="terminal",
+        result=ExecutionResult.PASSED,
+        receipt_id=resumed.receipt_id,
+        updated_at=now + timedelta(seconds=3),
+    )
+    replay = store.begin_execution(key, "f" * 64, now + timedelta(minutes=1), retry=True)
+    assert replay == passed
+
+
+def test_failed_or_blocked_execution_requires_explicit_retry(tmp_path: Path) -> None:
+    store = CommissioningStateStore(tmp_path, retention=4)
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    key = "commission:nielpieterse0/kis-mcp:" + "c" * 40 + ":gateway-runtime"
+    state = store.begin_execution(key, "d" * 64, now)
+    blocked = store.update_execution(
+        state,
+        phase="terminal",
+        result=ExecutionResult.BLOCKED,
+        receipt_id="post-merge-commissioning:" + "e" * 64,
+        updated_at=now + timedelta(seconds=1),
+    )
+
+    assert store.begin_execution(key, "d" * 64, now + timedelta(seconds=2)) == blocked
+    retried = store.begin_execution(
+        key, "d" * 64, now + timedelta(seconds=3), retry=True
+    )
+    assert retried.attempt == 2
+    assert retried.phase == "initialized"
+    assert retried.result is ExecutionResult.PENDING
+    assert retried.receipt_id is None
+
+
+def test_execution_contract_fingerprint_cannot_drift(tmp_path: Path) -> None:
+    store = CommissioningStateStore(tmp_path, retention=4)
+    now = datetime(2026, 8, 21, 16, 0, tzinfo=UTC)
+    key = "commission:nielpieterse0/kis-mcp:" + "f" * 40 + ":provider-runtime"
+    store.begin_execution(key, "1" * 64, now)
+
+    with pytest.raises(CommissioningStateError, match="execution_contract_mismatch"):
+        store.begin_execution(key, "2" * 64, now + timedelta(seconds=1))

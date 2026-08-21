@@ -57,6 +57,7 @@ def classify_change(
                 ),
                 runtime_instance=surface.runtime_instance,
                 refresh_rule=surface.refresh_rule,
+                probe_id=surface.probe_id,
                 verification_procedure=surface.verification_procedure,
                 expected_invariant=surface.expected_invariant,
                 evidence_target=surface.evidence_target,

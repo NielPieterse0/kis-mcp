@@ -1,0 +1,25 @@
+# Tasks: Commissioning Runner Evidence Lifecycle
+
+- [x] Confirm repository authority, #419/#454 requirements, and Change 228 boundaries.
+- [x] Classify as Complex and record risk triggers.
+- [x] Write detailed specification with R1-R17 and explicit exclusions/recovery.
+- [x] Write traceable T1-T10 implementation plan.
+- [x] Record user approval to continue through the Complex specification/plan gate.
+- [x] T1: Add strict machine-readable probe policy and tests.
+- [x] T2: Parse/revalidate/freeze generated commissioning identity and tests.
+- [x] T3: Add durable execution/aggregate evidence and replay/retry tests.
+- [x] T4: Add runtime-generation gate and real bounded probes.
+- [x] T5: Add source classification/aggregate projection without touching Verification.
+- [x] T6: Reuse canonical Work lifecycle for commissioning task states.
+- [x] T7: Expose approval-required runner and read-only evidence operations.
+- [x] T8: Preserve observer behavior while initializing source live state.
+- [x] T9: Reconcile canonical Work contract text and operational/product docs.
+- [x] Run focused tests, Ruff, `git diff --check`, and change scope check.
+- [x] Run required specialist review projectors and complete the mandated exact-diff fallback; resolve all findings.
+- [ ] Publish exact commit/PR and require exact-head Canonical Verification + merge-readiness.
+- [ ] Merge approved head and complete post-merge documentation reconciliation.
+- [ ] Prove Change 228 observer discovers the fresh Change 229 merge exactly once.
+- [ ] Refresh `kis-op`, claim generated commissioning issue, and run live runner smoke.
+- [ ] Record source live-field readback proving Verification remained unchanged.
+- [ ] Close #453/#454 only after their respective acceptance gates.
+- [ ] Clean Change 229 from synced primary `main` while retaining remote review branch.

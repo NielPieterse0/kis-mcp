@@ -13,12 +13,14 @@ from kis_mcp.commissioning.settings import (
 from .state import CommissioningStateError, CommissioningStateStore
 
 
-class ExternalOperationInvoker(Protocol):
+class CommissioningOperationInvoker(Protocol):
     async def external(self, operation: str, arguments: dict[str, Any]) -> Any: ...
+    async def read(self, operation: str, arguments: dict[str, Any]) -> Any: ...
+    async def change(self, operation: str, arguments: dict[str, Any]) -> Any: ...
 
 
 CandidateProcessor = Callable[
-    [str, int, ExternalOperationInvoker], Awaitable[dict[str, Any]]
+    [str, int, CommissioningOperationInvoker], Awaitable[dict[str, Any]]
 ]
 Clock = Callable[[], datetime]
 Sleep = Callable[[float], Awaitable[None]]
@@ -38,7 +40,7 @@ def utc_now() -> datetime:
 class BudgetedInvoker:
     def __init__(
         self,
-        inner: ExternalOperationInvoker,
+        inner: CommissioningOperationInvoker,
         *,
         max_external_reads: int,
         max_mutations: int,
@@ -59,6 +61,18 @@ class BudgetedInvoker:
             if self.external_reads > self.max_external_reads:
                 raise CommissioningBudgetError("external read budget exceeded")
         return await self.inner.external(operation, arguments)
+
+    async def read(self, operation: str, arguments: dict[str, Any]) -> Any:
+        self.external_reads += 1
+        if self.external_reads > self.max_external_reads:
+            raise CommissioningBudgetError("external read budget exceeded")
+        return await self.inner.read(operation, arguments)
+
+    async def change(self, operation: str, arguments: dict[str, Any]) -> Any:
+        self.mutations += 1
+        if self.mutations > self.max_mutations:
+            raise CommissioningBudgetError("mutation budget exceeded")
+        return await self.inner.change(operation, arguments)
 
 
 def _iso(value: datetime) -> str:
@@ -133,7 +147,7 @@ class CommissioningRuntimeService:
         settings: PostMergeCommissioningSettings,
         store: CommissioningStateStore,
         *,
-        invoker: ExternalOperationInvoker,
+        invoker: CommissioningOperationInvoker,
         processor: CandidateProcessor,
         clock: Clock = utc_now,
         sleep: Sleep = asyncio.sleep,
@@ -417,6 +431,6 @@ __all__ = [
     "BudgetedInvoker",
     "CandidateProcessor",
     "CommissioningBudgetError",
+    "CommissioningOperationInvoker",
     "CommissioningRuntimeService",
-    "ExternalOperationInvoker",
 ]

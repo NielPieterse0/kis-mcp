@@ -491,13 +491,13 @@
       "managed": true,
       "authority": "derived",
       "direction": "evidence",
-      "definition": "Deterministic idempotency key for one commissioning obligation.",
+      "definition": "Deterministic commissioning identity: the exact obligation key for one required surface, or the deterministic set key for a source merge with multiple required surfaces.",
       "vocabulary": null,
       "applicable_record_types": [
         "*"
       ],
       "required_contexts": [],
-      "population": "Derived by the commissioning classifier/runner under #419."
+      "population": "Derived by the commissioning classifier/runner under #419; source projection uses a set-<digest24> key when multiple obligations must be aggregated."
     },
     {
       "id": "live_verification_evidence",

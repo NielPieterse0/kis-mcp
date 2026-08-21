@@ -1,0 +1,52 @@
+{
+  "schema_version": 4,
+  "change_id": "229-commissioning-runner-evidence-lifecycle",
+  "status": "active",
+  "branch": "change/229-commissioning-runner-evidence-lifecycle",
+  "worktree": ".work/worktrees/229-commissioning-runner-evidence-lifecycle",
+  "base": "main",
+  "outcome": "Implement #454 as an explicit resumable commissioning runner that consumes only deterministic commissioning issues, revalidates frozen landed identity, executes a canonical live probe on the required runtime generation, persists compact evidence, and projects Live Verification fields without changing source Verification.",
+  "owned_paths": [
+    "settings/post-merge-commissioning.settings.json",
+    "src/kis_mcp/commissioning/**",
+    "src/kis_mcp/commissioning_runtime/**",
+    "tests/post_merge_commissioning/**",
+    "tests/discover/test_tool_registration.py",
+    "tests/capabilities/test_gateway_composition.py",
+    "settings/work-management/contracts/work-item-semantics.json",
+    "tests/work_management/test_canonical_contracts.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/229-commissioning-runner-evidence-lifecycle/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "7ae6db902a15f85ea6a768b57a42d3ee0224ee7b",
+    "local_tree": "5579e39ad4f5ea74ab49186eb46a7f3fb8f5e1e0",
+    "upstream_sha": "7ae6db902a15f85ea6a768b57a42d3ee0224ee7b",
+    "upstream_tree": "5579e39ad4f5ea74ab49186eb46a7f3fb8f5e1e0",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-454",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 454,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
