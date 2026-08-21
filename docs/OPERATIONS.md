@@ -18,6 +18,7 @@ Load only the runbook needed for the operator task. Do not read every runbook by
 | Provider status, DBHub/Docker Hub activation and commissioning, GitHub OAuth, Supabase OAuth | [`operations/providers.md`](operations/providers.md) |
 | NVIDIA/Codex advisory review-agent setup and use | [`operations/review-agent.md`](operations/review-agent.md) |
 | Work Management and Discover operator workflows | [`operations/work-discover.md`](operations/work-discover.md) |
+| Deterministic post-merge commissioning observer, receipts, recovery, and live-intake verification | [`operations/post-merge-commissioning.md`](operations/post-merge-commissioning.md) |
 | Local ChatGPT HTTP smoke, tunnel profiles, `kis-op` / `kis-dev`, ChatGPT app commissioning | [`operations/chatgpt-remote.md`](operations/chatgpt-remote.md) |
 | Governed parallel changes and repository verification | [`operations/verification-changes.md`](operations/verification-changes.md) |
 | Quarantine, restore, and troubleshooting | [`operations/recovery-troubleshooting.md`](operations/recovery-troubleshooting.md) |

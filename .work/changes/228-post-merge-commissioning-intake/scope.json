@@ -1,0 +1,55 @@
+{
+  "schema_version": 4,
+  "change_id": "228-post-merge-commissioning-intake",
+  "status": "active",
+  "branch": "change/228-post-merge-commissioning-intake",
+  "worktree": ".work/worktrees/228-post-merge-commissioning-intake",
+  "base": "main",
+  "outcome": "Implement #453 as a deterministic post-merge observer/classifier/intake that reacts only to exact merged-PR evidence, derives idempotent commissioning obligations from governed change evidence, and creates at most one linked commissioning issue per repo/merge-SHA/live-surface without weakening kis-op housekeeping authority.",
+  "owned_paths": [
+    "settings/post-merge-commissioning.settings.json",
+    "src/kis_mcp/commissioning/**",
+    "src/kis_mcp/commissioning_runtime/**",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/gateway/foundation.py",
+    "tests/post_merge_commissioning/**",
+    "tests/gateway/test_composition.py",
+    "tests/discover/test_tool_registration.py",
+    "tests/capabilities/test_gateway_composition.py",
+    "SPEC.md",
+    "docs/OPERATIONS.md",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/228-post-merge-commissioning-intake/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "deployment",
+    "external_action",
+    "persistent_state",
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "fd4f2e6d6bacd7301bc365537be1baeeee89fbcf",
+    "local_tree": "bac08054b900b3809906884d60d3a14044fe7f5f",
+    "upstream_sha": "fd4f2e6d6bacd7301bc365537be1baeeee89fbcf",
+    "upstream_tree": "bac08054b900b3809906884d60d3a14044fe7f5f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-453",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 453,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
