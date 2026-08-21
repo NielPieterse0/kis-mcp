@@ -20,6 +20,7 @@ from kis_mcp.state import (
 )
 
 from .models import ReservationAdmissionError
+from .provenance import validate_external_provenance
 
 
 class WorkerExecutionState(StrEnum):
@@ -192,6 +193,7 @@ class WorkerExecution:
     state: WorkerExecutionState
     sequence: int
     observed_at: str
+    external_provenance: Mapping[str, Any] | None = None
     progress_id: str | None = None
     result_id: str | None = None
     residual_state: tuple[str, ...] = ()
@@ -214,6 +216,15 @@ class WorkerExecution:
             raise ValueError("observed_at must be a timezone-aware date-time") from exc
         if observed.tzinfo is None or observed.utcoffset() is None:
             raise ValueError("observed_at must be a timezone-aware date-time")
+        try:
+            provenance = validate_external_provenance(self.external_provenance)
+        except ReservationAdmissionError as exc:
+            raise ValueError("external_provenance is invalid") from exc
+        object.__setattr__(
+            self,
+            "external_provenance",
+            None if provenance is None else _freeze_json_value(provenance),
+        )
         for label, value in (("progress_id", self.progress_id), ("result_id", self.result_id)):
             if value is not None:
                 _require_non_empty(value, label)
@@ -256,12 +267,19 @@ class WorkerExecution:
             raise ValueError("residual_state is required for failed, cancelled, or recoverable state")
 
     @classmethod
-    def pending(cls, identity: ExecutionIdentity, *, observed_at: datetime) -> WorkerExecution:
+    def pending(
+        cls,
+        identity: ExecutionIdentity,
+        *,
+        observed_at: datetime,
+        external_provenance: Mapping[str, Any] | None = None,
+    ) -> WorkerExecution:
         return cls(
             identity=identity,
             state=WorkerExecutionState.PENDING,
             sequence=0,
             observed_at=_timestamp(observed_at),
+            external_provenance=external_provenance,
         )
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -275,6 +293,7 @@ class WorkerExecution:
             "state": self.state.value,
             "sequence": self.sequence,
             "observed_at": self.observed_at,
+            "external_provenance": _thaw_json_value(self.external_provenance),
             "progress_id": self.progress_id,
             "result_id": self.result_id,
             "residual_state": list(self.residual_state),
@@ -302,6 +321,7 @@ class WorkerExecution:
                 state=WorkerExecutionState(value["state"]),
                 sequence=value["sequence"],
                 observed_at=value["observed_at"],
+                external_provenance=value.get("external_provenance"),
                 progress_id=value.get("progress_id"),
                 result_id=value.get("result_id"),
                 residual_state=tuple(value.get("residual_state", ())),
@@ -341,6 +361,7 @@ class WorkerLifecycle:
             state=event.state,
             sequence=execution.sequence + 1,
             observed_at=_timestamp(event.observed_at),
+            external_provenance=execution.external_provenance,
             progress_id=event.progress_id,
             result_id=event.result_id,
             residual_state=event.residual_state,
@@ -362,6 +383,7 @@ class WorkerLifecycle:
         _require_non_empty(handoff_id, "handoff_id")
         head = _git_identity(exact_head)
         status = _handoff_status(execution.state)
+        provenance = _thaw_json_value(execution.external_provenance)
         identity = execution.identity
         return {
             "schema_version": 3,
@@ -382,6 +404,7 @@ class WorkerLifecycle:
             "fence_token": identity.fence_token,
             "worker_id": identity.worker_id,
             "runtime_binding": dict(identity.runtime_binding),
+            "external_provenance": provenance,
             "result_id": execution.result_id,
             "exact_head": head,
             "changed_paths": _unique_strings(changed_paths, "changed_paths"),
@@ -468,15 +491,33 @@ class WorkerExecutionStore:
         event: ExecutionEvent,
         *,
         initial_observed_at: datetime,
+        packet: Mapping[str, Any] | None = None,
     ) -> WorkerExecution:
+        admitted_provenance = None
+        if packet is not None:
+            _validate_execution_packet(
+                WorkerExecution.pending(identity, observed_at=initial_observed_at),
+                packet,
+                _packet_authority(packet),
+            )
+            admitted_provenance = validate_external_provenance(packet.get("external_provenance"))
         with self._execution_lock(identity.execution_id):
             current = self.load(identity.execution_id)
             if current is None:
-                current = WorkerExecution.pending(identity, observed_at=initial_observed_at)
+                current = WorkerExecution.pending(
+                    identity,
+                    observed_at=initial_observed_at,
+                    external_provenance=admitted_provenance,
+                )
             elif current.identity != identity:
                 raise ReservationAdmissionError(
                     "WORKER_EXECUTION_IDENTITY_CONFLICT",
                     "Durable execution identity changed across restart/retry.",
+                )
+            elif packet is not None and _thaw_json_value(current.external_provenance) != admitted_provenance:
+                raise ReservationAdmissionError(
+                    "WORKER_PACKET_PROVENANCE_MISMATCH",
+                    "Work packet provenance differs from the provenance frozen at worker admission.",
                 )
             updated = WorkerLifecycle.transition(current, event)
             return self._save_locked(updated)
@@ -1393,6 +1434,22 @@ def _timestamp(value: datetime) -> str:
     if value.tzinfo is None or value.utcoffset() is None:
         raise ValueError("worker timestamps must be timezone-aware")
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _freeze_json_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({str(key): _freeze_json_value(item) for key, item in value.items()})
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return tuple(_freeze_json_value(item) for item in value)
+    return value
+
+
+def _thaw_json_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _thaw_json_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_json_value(item) for item in value]
+    return value
 
 
 def _canonical(value: Any) -> str:

@@ -17,6 +17,11 @@ from kis_mcp.state import (
 from kis_mcp.workflows.change_controls import select_change_controls
 
 from .models import ReservationAdmissionError
+from .provenance import (
+    github_provenance_evidence,
+    validate_delivery_provenance,
+    validate_external_provenance,
+)
 from .service import _overlaps, _path_claim, _validate_candidate
 
 
@@ -283,6 +288,7 @@ class ReconciliationService:
             "global_claims": "passed",
             "local_scope": "passed",
             "exact_head": "passed",
+            "provenance": "passed",
         }
         packet_id = _required_text(packet.get("packet_id"), "packet.packet_id")
         change_id = _required_text(packet.get("change_id"), "packet.change_id")
@@ -300,6 +306,22 @@ class ReconciliationService:
                 )
             )
             validations["reservation"] = "failed"
+        packet_provenance: dict[str, Any] | None = None
+        try:
+            packet_provenance = validate_external_provenance(
+                packet.get("external_provenance")
+            )
+            handoff_provenance = validate_external_provenance(
+                handoff.get("external_provenance")
+            )
+            if packet_provenance != handoff_provenance:
+                raise ReservationAdmissionError(
+                    "GITHUB_PROVENANCE_EVIDENCE_MISMATCH",
+                    "worker handoff provenance differs from the frozen work packet",
+                )
+        except ReservationAdmissionError as exc:
+            violations.append(_violation(exc.code, exc.reason))
+            validations["provenance"] = "failed"
         governed = _mapping(packet.get("governed"), "packet.governed")
         expected_pairs = (
             ("run_id", _required_text(packet.get("run_id"), "packet.run_id")),
@@ -483,6 +505,7 @@ class ReconciliationService:
             "authority_revision": int(authority["authority_revision"]),
             "fence_token": int(authority["fence_token"]),
             "runtime_binding": dict(packet_runtime),
+            "external_provenance": packet_provenance,
             "validations": validations,
             "status": status,
             "violations": violations,
@@ -747,6 +770,15 @@ class IntegrationQueueService:
                 "Only accepted reconciliation may enter the integration queue.",
             )
         candidate = _sha(candidate_head, "candidate_head")
+        external_provenance = validate_external_provenance(
+            reconciliation.get("external_provenance")
+        )
+        provenance = github_provenance_evidence(external_provenance)
+        if provenance is not None and provenance["tuple"]["head_sha"] != candidate:
+            raise ReservationAdmissionError(
+                "GITHUB_PROVENANCE_HEAD_MISMATCH",
+                "integration candidate head differs from frozen GitHub provenance",
+            )
         integration = _mapping(reconciliation.get("integration"), "reconciliation.integration")
         owner = _required_text(integration.get("owner_change_id"), "integration.owner_change_id")
         reconciliation_id = _required_text(
@@ -771,6 +803,8 @@ class IntegrationQueueService:
                 "reconciliation_id": reconciliation_id,
                 "owner_change_id": owner,
                 "candidate_head": candidate,
+                "external_provenance": external_provenance,
+                "delivery_provenance": None,
                 "state": "queued",
                 "verification": None,
                 "merged_revision": None,
@@ -822,6 +856,7 @@ class IntegrationQueueService:
         queue_item_id: str,
         *,
         merged_revision: str,
+        provider_provenance: Mapping[str, Any] | None = None,
     ) -> dict[str, Any]:
         merged = _sha(merged_revision, "merged_revision")
         with _file_lock(self._state_root / "integration.lock"):
@@ -838,9 +873,26 @@ class IntegrationQueueService:
                     "INTEGRATION_DELIVERY_NOT_AUTHORIZED",
                     "Repository delivery requires exact-head GitHub Actions verification authorization.",
                 )
+            frozen = github_provenance_evidence(current.get("external_provenance"))
+            delivery_provenance = None
+            if frozen is not None:
+                if provider_provenance is None:
+                    raise ReservationAdmissionError(
+                        "GITHUB_PROVENANCE_DELIVERY_REQUIRED",
+                        "provider-observed GitHub provenance is required before delivery",
+                    )
+                delivery_provenance = validate_delivery_provenance(
+                    frozen, provider_provenance
+                )
+                if delivery_provenance["tuple"]["merge_sha"] != merged:
+                    raise ReservationAdmissionError(
+                        "GITHUB_PROVENANCE_MERGE_SHA_MISMATCH",
+                        "merged revision differs from provider-observed merge SHA",
+                    )
             payload = {
                 **current,
                 "state": "delivered",
+                "delivery_provenance": delivery_provenance,
                 "merged_revision": merged,
                 "observed_at": _timestamp(self._clock()),
             }

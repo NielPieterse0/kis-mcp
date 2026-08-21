@@ -9,6 +9,12 @@ from .models import (
     ScopeRevisionRequest,
 )
 from .planner import PlannerService, WorkPacketService
+from .provenance import (
+    GitHubProvenanceService,
+    ResolveGitHubProvenance,
+    validate_delivery_provenance,
+    validate_provenance_evidence,
+)
 from .reconciliation import (
     IntegrationQueueService,
     ReconciliationService,
@@ -28,21 +34,25 @@ __all__ = [
     "AuthorityService",
     "ExecutionEvent",
     "ExecutionIdentity",
+    "GitHubProvenanceService",
     "IntegrationQueueService",
     "LocalGovernanceAdapter",
     "McpWorkerAdapter",
     "PlannerRequest",
     "PlannerService",
     "PlannerTask",
+    "ReconciliationService",
     "ReservationAdmissionError",
     "ReservationRequest",
     "ReservationResult",
     "ReservationService",
-    "ReconciliationService",
+    "ResolveGitHubProvenance",
     "ScopeRevisionRequest",
     "VerificationRequirementService",
+    "WorkPacketService",
     "WorkerExecution",
     "WorkerExecutionState",
     "WorkerLifecycle",
-    "WorkPacketService",
+    "validate_delivery_provenance",
+    "validate_provenance_evidence",
 ]
