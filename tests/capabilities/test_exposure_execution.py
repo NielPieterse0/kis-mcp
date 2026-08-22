@@ -344,9 +344,8 @@ def test_schema_bound_approval_dispatches_only_registered_virtual_operation(
 
     monkeypatch.setattr(
         execution_module,
-        "execute_registered_github_operation",
+        "execute_runtime_registered_github_operation",
         execute_virtual,
-        raising=False,
     )
     router = CapabilityExecutionRouter(server, state(virtual))
 

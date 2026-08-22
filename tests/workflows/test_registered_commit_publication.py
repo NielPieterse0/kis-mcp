@@ -16,6 +16,7 @@ from kis_mcp.projects.github_exact import (
     _contains_issue_closing_reference,
     execute_registered_github_operation,
 )
+from kis_mcp.projects.post_land import PostLandHooks
 
 TARGET = "1111111111111111111111111111111111111111"
 BASE = "2222222222222222222222222222222222222222"
@@ -26,6 +27,16 @@ BASE_TREE = "6666666666666666666666666666666666666666"
 OTHER_TREE = "7777777777777777777777777777777777777777"
 RECONCILED = "8888888888888888888888888888888888888888"
 MERGED_TREE = "9999999999999999999999999999999999999999"
+
+
+def _post_land_hooks(
+    dispatcher: Callable[..., None],
+    failure_recorder: Callable[..., None] | None = None,
+) -> PostLandHooks:
+    return PostLandHooks(
+        dispatcher=dispatcher,
+        failure_recorder=failure_recorder or (lambda *args: None),
+    )
 
 
 @dataclass(frozen=True)
@@ -415,6 +426,134 @@ def test_merge_is_approval_gated_exact_head_and_never_admin() -> None:
         "--merge",
     )
     assert "--admin" not in merge
+
+
+def test_kis_mcp_merge_schedules_development_restart(tmp_path: Path) -> None:
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=json.dumps({"headRefOid": TARGET, "state": "OPEN", "isDraft": False, "baseRefName": "main"}) + "\n"),
+            Result(stdout="merged\n"),
+            Result(stdout=json.dumps({"headRefOid": TARGET, "state": "MERGED", "isDraft": False, "baseRefName": "main", "mergeCommit": {"oid": REMOTE_DEFAULT}}) + "\n"),
+        )
+    )
+    projects = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(ProjectDefinition(
+            project_id="kis-mcp",
+            display_name="KIS MCP",
+            local_root=str(tmp_path),
+            github=GitHubProjectBinding(repository="NielPieterse0/kis-mcp"),
+        ),),
+    )
+    calls: list[tuple[object, ...]] = []
+    hook = lambda *args: calls.append(args) or {"state": "scheduled", "pid": 123}
+    result = RegisteredGitHubOperations(
+        projects, runner=runner, post_land_hooks=_post_land_hooks(hook)
+    ).merge_pull_request(
+        project_id="kis-mcp", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
+    )
+    assert set(result) == {
+        "schema_version", "state", "project_id", "repository", "pull_number", "authorized_head", "merge_method"
+    }
+    assert calls == [("kis-mcp", tmp_path, "main", REMOTE_DEFAULT)]
+
+
+def test_kis_mcp_merge_preserves_success_when_dispatcher_raises(tmp_path: Path) -> None:
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps({"headRefOid": TARGET, "state": "OPEN", "isDraft": False, "baseRefName": "main"}) + "\n"),
+        Result(stdout="merged\n"),
+        Result(stdout=json.dumps({"headRefOid": TARGET, "state": "MERGED", "isDraft": False, "baseRefName": "main", "mergeCommit": {"oid": REMOTE_DEFAULT}}) + "\n"),
+    ))
+    projects = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(ProjectDefinition(
+            project_id="kis-mcp", display_name="KIS MCP", local_root=str(tmp_path),
+            github=GitHubProjectBinding(repository="NielPieterse0/kis-mcp"),
+        ),),
+    )
+    failures: list[tuple[object, ...]] = []
+    result = RegisteredGitHubOperations(
+        projects,
+        runner=runner,
+        post_land_hooks=_post_land_hooks(
+            lambda *args: (_ for _ in ()).throw(RuntimeError("boom")),
+            lambda *args: failures.append(args),
+        ),
+    ).merge_pull_request(
+        project_id="kis-mcp", pull_number=7, expected_head=TARGET,
+        merge_method="merge", approved=True,
+    )
+    assert result["state"] == "merged"
+    assert set(result) == {
+        "schema_version", "state", "project_id", "repository", "pull_number", "authorized_head", "merge_method"
+    }
+    assert len(failures) == 1
+    assert isinstance(failures[0][-1], RuntimeError)
+
+
+def test_kis_mcp_merge_missing_merge_commit_emits_missing_identity(
+    tmp_path: Path,
+) -> None:
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=json.dumps({"headRefOid": TARGET, "state": "OPEN", "isDraft": False, "baseRefName": "main"}) + "\n"),
+            Result(stdout="merged\n"),
+            Result(stdout=json.dumps({"headRefOid": TARGET, "state": "MERGED", "isDraft": False, "baseRefName": "main"}) + "\n"),
+        )
+    )
+    projects = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(ProjectDefinition(
+            project_id="kis-mcp", display_name="KIS MCP", local_root=str(tmp_path),
+            github=GitHubProjectBinding(repository="NielPieterse0/kis-mcp"),
+        ),),
+    )
+    calls: list[tuple[object, ...]] = []
+    result = RegisteredGitHubOperations(
+        projects,
+        runner=runner,
+        post_land_hooks=_post_land_hooks(lambda *args: calls.append(args)),
+    ).merge_pull_request(
+        project_id="kis-mcp", pull_number=7, expected_head=TARGET,
+        merge_method="merge", approved=True,
+    )
+    assert result["state"] == "merged"
+    assert calls == [("kis-mcp", tmp_path, "main", None)]
+    assert not any(call[0][0] == "git" and "ls-remote" in call[0] for call in runner.calls)
+
+
+def test_kis_mcp_merge_malformed_merge_commit_emits_missing_identity(
+    tmp_path: Path,
+) -> None:
+    runner = QueueRunner(
+        (
+            Result(),
+            Result(stdout=json.dumps({"headRefOid": TARGET, "state": "OPEN", "isDraft": False, "baseRefName": "main"}) + "\n"),
+            Result(stdout="merged\n"),
+            Result(stdout=json.dumps({"headRefOid": TARGET, "state": "MERGED", "isDraft": False, "baseRefName": "main", "mergeCommit": {"oid": "bad"}}) + "\n"),
+        )
+    )
+    projects = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(ProjectDefinition(
+            project_id="kis-mcp", display_name="KIS MCP", local_root=str(tmp_path),
+            github=GitHubProjectBinding(repository="NielPieterse0/kis-mcp"),
+        ),),
+    )
+    calls: list[tuple[object, ...]] = []
+    result = RegisteredGitHubOperations(
+        projects,
+        runner=runner,
+        post_land_hooks=_post_land_hooks(lambda *args: calls.append(args)),
+    ).merge_pull_request(
+        project_id="kis-mcp", pull_number=7, expected_head=TARGET,
+        merge_method="merge", approved=True,
+    )
+    assert result["state"] == "merged"
+    assert calls == [("kis-mcp", tmp_path, "main", None)]
 
 
 def test_merge_rejects_squash_and_rebase_methods_before_mutation() -> None:
@@ -987,3 +1126,66 @@ def test_create_registered_pull_request_rejects_unverified_created_head() -> Non
     assert result["state"] == "failed"
     assert result["operation_state"] == "failed"
     assert runner.results == []
+
+
+def test_kis_mcp_merge_never_dispatches_before_merge_mutation(tmp_path: Path) -> None:
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps({
+            "headRefOid": OTHER, "state": "OPEN", "isDraft": False,
+            "baseRefName": "main",
+        }) + "\n"),
+    ))
+    projects = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(ProjectDefinition(
+            project_id="kis-mcp", display_name="KIS MCP",
+            local_root=str(tmp_path),
+            github=GitHubProjectBinding(repository="NielPieterse0/kis-mcp"),
+        ),),
+    )
+    calls: list[tuple[object, ...]] = []
+    operations = RegisteredGitHubOperations(
+        projects, runner=runner, post_land_hooks=_post_land_hooks(lambda *args: calls.append(args))
+    )
+    with pytest.raises(ToolError, match="PULL_REQUEST_HEAD_MISMATCH"):
+        operations.merge_pull_request(
+            project_id="kis-mcp", pull_number=7, expected_head=TARGET,
+            merge_method="merge", approved=True,
+        )
+    assert calls == []
+
+
+def test_kis_mcp_merge_never_dispatches_when_post_merge_verification_fails(
+    tmp_path: Path,
+) -> None:
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps({
+            "headRefOid": TARGET, "state": "OPEN", "isDraft": False,
+            "baseRefName": "main",
+        }) + "\n"),
+        Result(stdout="merged\n"),
+        Result(stdout=json.dumps({
+            "headRefOid": TARGET, "state": "OPEN", "isDraft": False,
+            "baseRefName": "main",
+        }) + "\n"),
+    ))
+    projects = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(ProjectDefinition(
+            project_id="kis-mcp", display_name="KIS MCP",
+            local_root=str(tmp_path),
+            github=GitHubProjectBinding(repository="NielPieterse0/kis-mcp"),
+        ),),
+    )
+    calls: list[tuple[object, ...]] = []
+    operations = RegisteredGitHubOperations(
+        projects, runner=runner, post_land_hooks=_post_land_hooks(lambda *args: calls.append(args))
+    )
+    with pytest.raises(ToolError, match="MERGE_NOT_VERIFIED"):
+        operations.merge_pull_request(
+            project_id="kis-mcp", pull_number=7, expected_head=TARGET,
+            merge_method="merge", approved=True,
+        )
+    assert calls == []

@@ -17,6 +17,7 @@ from ..projects.github_merge_queue import (
 )
 from ..projects.settings import load_project_registry_settings
 from ..work_management import evaluate_merge_readiness
+from .post_land import build_kis_post_land_hooks
 from .project_management import implementation_trace_from_json, work_record_from_json
 
 
@@ -71,6 +72,7 @@ def execute_governed_github_merge_queue_operation(
         projects,
         gh_config_dir=Path(runtime.github_cli_config_dir),
         governance_validator=_governance_receipt,
+        post_land_hooks=build_kis_post_land_hooks(runtime),
     )
     return execute_registered_github_merge_queue_operation(
         operation,

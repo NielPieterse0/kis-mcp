@@ -1,0 +1,62 @@
+{
+  "schema_version": 4,
+  "change_id": "231-issue-close-readback-confirmation",
+  "status": "active",
+  "branch": "change/231-issue-close-readback-confirmation",
+  "worktree": ".work/worktrees/231-issue-close-readback-confirmation",
+  "base": "main",
+  "outcome": "Confirm commissioning issue closure by authoritative read-back and automatically refresh/restart only kis-dev after kis-mcp pull-request landing on main.",
+  "owned_paths": [
+    "SPEC.md",
+    "src/kis_mcp/commissioning_runtime/runner.py",
+    "src/kis_mcp/capabilities/execution.py",
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/projects/github_merge_queue.py",
+    "src/kis_mcp/projects/post_land.py",
+    "src/kis_mcp/post_land_restart.py",
+    "src/kis_mcp/workflows/merge_queue.py",
+    "src/kis_mcp/workflows/post_land.py",
+    "src/kis_mcp/workflows/registered_github.py",
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/post_merge_commissioning/test_runner_service.py",
+    "tests/capabilities/test_exposure_execution.py",
+    "tests/capabilities/test_registered_github_runtime_dispatch.py",
+    "tests/projects/test_post_land_restart.py",
+    "tests/workflows/test_post_land_composition.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    "tests/projects/test_github_merge_queue.py",
+    "docs/operations/chatgpt-remote.md",
+    ".work/changes/231-issue-close-readback-confirmation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "settings/kis-mcp.settings.json"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "deployment",
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "dcba16cbd567055f4e869577a00baf8a4626c2f7",
+    "local_tree": "73dc2255f837e82deec4667f875f147d9e0e2f68",
+    "upstream_sha": "dcba16cbd567055f4e869577a00baf8a4626c2f7",
+    "upstream_tree": "73dc2255f837e82deec4667f875f147d9e0e2f68",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-467",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 467,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
