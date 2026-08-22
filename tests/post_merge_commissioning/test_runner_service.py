@@ -34,6 +34,7 @@ from kis_mcp.work_management.contracts import (
 
 MERGE = "a" * 40
 KEY = f"commission:nielpieterse0/kis-mcp:{MERGE}:work-management"
+_DEFAULT_READBACK = object()
 
 
 def _frozen(*, refresh_rule: str = "none", probe_id: str = "work-management-contract") -> FrozenCommissioningExecution:
@@ -93,10 +94,24 @@ async def _identity(_repository: str, _issue: int, _invoker: Any) -> tuple:
 
 
 class FakeInvoker:
-    def __init__(self, *, probe_passes: bool = True) -> None:
+    def __init__(
+        self,
+        *,
+        probe_passes: bool = True,
+        close_readback_state: str | None = None,
+        close_readback_number: int | None = None,
+        close_readback_payload: Any = _DEFAULT_READBACK,
+        close_write_error: BaseException | None = None,
+        close_readback_error: BaseException | None = None,
+    ) -> None:
         self.probe_passes = probe_passes
         self.work_state = "active"
         self.source_state = "open"
+        self.close_readback_state = close_readback_state
+        self.close_readback_number = close_readback_number
+        self.close_readback_payload = close_readback_payload
+        self.close_write_error = close_write_error
+        self.close_readback_error = close_readback_error
         self.read_calls: list[tuple[str, dict[str, Any]]] = []
         self.change_calls: list[tuple[str, dict[str, Any]]] = []
         self.external_calls: list[tuple[str, dict[str, Any]]] = []
@@ -174,8 +189,22 @@ class FakeInvoker:
     async def external(self, operation: str, arguments: dict[str, Any]) -> Any:
         self.external_calls.append((operation, dict(arguments)))
         if operation == "github_issue_write":
+            if self.close_write_error is not None:
+                raise self.close_write_error
             self.source_state = "closed"
-            return {"number": arguments["issue_number"], "state": "closed"}
+            return {
+                "id": f"ISSUE-{arguments['issue_number']}",
+                "url": f"https://github.com/{arguments['owner']}/{arguments['repo']}/issues/{arguments['issue_number']}",
+            }
+        if operation == "github_issue_read":
+            if self.close_readback_error is not None:
+                raise self.close_readback_error
+            if self.close_readback_payload is not _DEFAULT_READBACK:
+                return self.close_readback_payload
+            return {
+                "number": self.close_readback_number or arguments["issue_number"],
+                "state": self.close_readback_state or self.source_state,
+            }
         raise AssertionError(operation)
 
 
@@ -211,8 +240,116 @@ def test_passed_runner_projects_source_completes_work_and_closes_issue(tmp_path:
     )
     assert "Verification" not in projection["supported_fields"]
     assert projection["desired"][0]["fields"]["Live Verification"] == "Passed"
-    assert invoker.external_calls[-1][0] == "github_issue_write"
-    assert invoker.external_calls[-1][1]["state"] == "closed"
+    assert invoker.external_calls[-2][0] == "github_issue_write"
+    assert invoker.external_calls[-2][1]["state"] == "closed"
+    assert invoker.external_calls[-1] == (
+        "github_issue_read",
+        {
+            "method": "get",
+            "owner": "NielPieterse0",
+            "repo": "kis-mcp",
+            "issue_number": 460,
+        },
+    )
+
+
+def test_close_readback_must_confirm_exact_closed_issue(tmp_path: Path) -> None:
+    for kwargs in (
+        {"close_readback_state": "open"},
+        {"close_readback_number": 999},
+        {"close_readback_payload": None},
+        {"close_readback_payload": []},
+        {"close_readback_payload": "closed"},
+        {"close_readback_payload": {"number": 454}},
+        {"close_readback_payload": {"state": "closed"}},
+    ):
+        invoker = FakeInvoker(**kwargs)
+        with pytest.raises(RuntimeError, match="issue close was not confirmed"):
+            asyncio.run(
+                _service(tmp_path, invoker).run(
+                    "NielPieterse0/kis-mcp", 460, execution_owner="codex"
+                )
+            )
+        assert [name for name, _ in invoker.external_calls][-2:] == [
+            "github_issue_write",
+            "github_issue_read",
+        ]
+
+
+def test_close_readback_failure_resumes_from_work_completed(tmp_path: Path) -> None:
+    invoker = FakeInvoker(close_readback_state="open")
+    service = _service(tmp_path, invoker)
+
+    with pytest.raises(RuntimeError, match="issue close was not confirmed"):
+        asyncio.run(
+            service.run("NielPieterse0/kis-mcp", 460, execution_owner="codex")
+        )
+    assert service.execution(KEY)["phase"] == "work_completed"
+    assert invoker.source_state == "closed"
+    completed_calls = sum(
+        name == "project_management_complete_work" for name, _ in invoker.change_calls
+    )
+
+    invoker.close_readback_state = "closed"
+    result = asyncio.run(
+        service.run("NielPieterse0/kis-mcp", 460, execution_owner="codex")
+    )
+    assert result["result"] == "passed"
+    assert service.execution(KEY)["phase"] == "terminal"
+    assert sum(name == "project_management_complete_work" for name, _ in invoker.change_calls) == completed_calls
+    assert [name for name, _ in invoker.external_calls].count("github_issue_write") == 2
+    assert [name for name, _ in invoker.external_calls].count("github_issue_read") == 2
+
+
+def test_close_readback_exception_resumes_from_work_completed(tmp_path: Path) -> None:
+    invoker = FakeInvoker(close_readback_error=RuntimeError("provider unavailable"))
+    service = _service(tmp_path, invoker)
+
+    with pytest.raises(RuntimeError, match="provider unavailable"):
+        asyncio.run(
+            service.run("NielPieterse0/kis-mcp", 460, execution_owner="codex")
+        )
+    assert service.execution(KEY)["phase"] == "work_completed"
+    completed_calls = sum(
+        name == "project_management_complete_work" for name, _ in invoker.change_calls
+    )
+
+    invoker.close_readback_error = None
+    result = asyncio.run(
+        service.run("NielPieterse0/kis-mcp", 460, execution_owner="codex")
+    )
+    assert result["result"] == "passed"
+    assert service.execution(KEY)["phase"] == "terminal"
+    assert sum(name == "project_management_complete_work" for name, _ in invoker.change_calls) == completed_calls
+    assert [name for name, _ in invoker.external_calls].count("github_issue_write") == 2
+    assert [name for name, _ in invoker.external_calls].count("github_issue_read") == 2
+
+
+def test_close_write_exception_resumes_from_work_completed_without_readback(
+    tmp_path: Path,
+) -> None:
+    invoker = FakeInvoker(close_write_error=RuntimeError("write unavailable"))
+    service = _service(tmp_path, invoker)
+
+    with pytest.raises(RuntimeError, match="write unavailable"):
+        asyncio.run(
+            service.run("NielPieterse0/kis-mcp", 460, execution_owner="codex")
+        )
+    assert service.execution(KEY)["phase"] == "work_completed"
+    assert [name for name, _ in invoker.external_calls] == ["github_issue_write"]
+    completed_calls = sum(
+        name == "project_management_complete_work" for name, _ in invoker.change_calls
+    )
+
+    invoker.close_write_error = None
+    result = asyncio.run(
+        service.run("NielPieterse0/kis-mcp", 460, execution_owner="codex")
+    )
+    assert result["result"] == "passed"
+    assert service.execution(KEY)["phase"] == "terminal"
+    assert sum(name == "project_management_complete_work" for name, _ in invoker.change_calls) == completed_calls
+    assert [name for name, _ in invoker.external_calls].count("github_issue_write") == 2
+    assert [name for name, _ in invoker.external_calls].count("github_issue_read") == 1
 
 
 def test_failed_probe_stays_visible_and_does_not_close_issue(tmp_path: Path) -> None:
@@ -283,7 +420,7 @@ def test_blocked_runtime_refresh_stays_open_then_explicit_retry_passes(
     )
     assert second["result"] == "passed"
     assert second["attempt"] == 2
-    assert invoker.external_calls[-1][0] == "github_issue_write"
+    assert invoker.external_calls[-1][0] == "github_issue_read"
 
 def test_failed_probe_requires_explicit_retry_before_later_pass(tmp_path: Path) -> None:
     invoker = FakeInvoker(probe_passes=False)
@@ -307,7 +444,7 @@ def test_failed_probe_requires_explicit_retry_before_later_pass(tmp_path: Path) 
     )
     assert retried["result"] == "passed"
     assert retried["attempt"] == 2
-    assert invoker.external_calls[-1][0] == "github_issue_write"
+    assert invoker.external_calls[-1][0] == "github_issue_read"
 
 def test_interrupted_proof_persisted_resume_does_not_repeat_live_probe(tmp_path: Path) -> None:
     invoker = FakeInvoker()
@@ -336,7 +473,7 @@ def test_interrupted_proof_persisted_resume_does_not_repeat_live_probe(tmp_path:
     )
     assert result["result"] == "passed"
     assert all(name != "project_management_contract" for name, _ in invoker.read_calls)
-    assert invoker.external_calls[-1][0] == "github_issue_write"
+    assert invoker.external_calls[-1][0] == "github_issue_read"
 
 def test_initial_execution_requires_open_claimed_commissioning_issue(
     tmp_path: Path,
@@ -384,7 +521,7 @@ def test_resume_after_work_completion_skips_duplicate_complete_work(
     )
     assert result["result"] == "passed"
     assert all(name != "project_management_complete_work" for name, _ in invoker.change_calls)
-    assert invoker.external_calls[-1][0] == "github_issue_write"
+    assert invoker.external_calls[-1][0] == "github_issue_read"
 
 def test_resume_after_block_transition_skips_duplicate_transition(
     tmp_path: Path,

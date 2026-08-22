@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from hashlib import sha1
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,14 +18,26 @@ from kis_mcp.projects.github_merge_queue import (
     QueueStateStore,
     QueueTarget,
     RegisteredGitHubMergeQueueBackend,
+    RegisteredGitHubMergeQueueOperations,
     load_merge_queue_settings,
 )
+from kis_mcp.projects.post_land import PostLandHooks
 
 BASE = "1" * 40
 H1 = "2" * 40
 H2 = "3" * 40
 H3 = "4" * 40
 H4 = "5" * 40
+
+
+def _post_land_hooks(
+    dispatcher: Callable[..., None],
+    failure_recorder: Callable[..., None] | None = None,
+) -> PostLandHooks:
+    return PostLandHooks(
+        dispatcher=dispatcher,
+        failure_recorder=failure_recorder or (lambda *args: None),
+    )
 
 
 class FakeBackend:
@@ -254,13 +266,102 @@ def test_land_requires_allgreen_exact_generation_and_fast_forward_membership(tmp
     with pytest.raises(ToolError, match="QUEUE_GENERATION_MISMATCH"):
         queue.land(project_id="kis-mcp", expected_generation=ready["generation"] + 1, expected_base=BASE)
 
-    landed = queue.land(project_id="kis-mcp", expected_generation=ready["generation"], expected_base=BASE)
+    landed, landed_sha = queue.land_with_identity(
+        project_id="kis-mcp", expected_generation=ready["generation"], expected_base=BASE
+    )
+    assert set(landed) == {
+        "schema_version", "state", "landed_pull_numbers", "candidate_sha", "queue"
+    }
     assert landed["state"] == "landed"
     assert landed["landed_pull_numbers"] == [1, 2]
     assert backend.land_calls == [("main", BASE, second["candidate_sha"])]
+    assert landed_sha == second["candidate_sha"]
     assert landed["queue"]["base_sha"] == second["candidate_sha"]
     assert landed["queue"]["entries"] == []
     assert landed["queue"]["generation"] == ready["generation"] + 1
+
+
+def test_registered_queue_land_schedules_development_restart(
+    tmp_path: Path,
+) -> None:
+    operations = object.__new__(RegisteredGitHubMergeQueueOperations)
+    operations.settings = SimpleNamespace(target_branch="main")
+    operations.backend = SimpleNamespace(
+        _require_approval=lambda approved: None,
+        target=lambda project_id: QueueTarget(
+            project_id,
+            "NielPieterse0/kis-mcp",
+            tmp_path,
+            "https://github.com/NielPieterse0/kis-mcp.git",
+        ),
+    )
+    operations.coordinator = SimpleNamespace(
+        preview_land=lambda **kwargs: {"entries": [{"pull_number": 1, "head_sha": H1}]},
+        land_with_identity=lambda **kwargs: (
+            {
+                "schema_version": 1,
+                "state": "landed",
+                "landed_pull_numbers": [1],
+                "candidate_sha": H2,
+                "queue": {"base_sha": H2},
+            },
+            H2,
+        ),
+    )
+    operations.governance_validator = lambda *args: {"ready": True}
+    calls: list[tuple[object, ...]] = []
+    operations.post_land_hooks = _post_land_hooks(
+        lambda *args: calls.append(args) or {"state": "scheduled", "pid": 321}
+    )
+    result = operations.land(
+        project_id="kis-mcp",
+        expected_generation=1,
+        expected_base=BASE,
+        governance=[{"pull_number": 1, "record": {}, "trace": {}}],
+        approved=True,
+    )
+    assert set(result) == {
+        "schema_version", "state", "landed_pull_numbers", "candidate_sha", "queue", "governance"
+    }
+    assert calls == [("kis-mcp", tmp_path, "main", H2)]
+
+
+def test_registered_queue_land_preserves_success_when_dispatcher_raises(
+    tmp_path: Path,
+) -> None:
+    operations = object.__new__(RegisteredGitHubMergeQueueOperations)
+    operations.settings = SimpleNamespace(target_branch="main")
+    operations.backend = SimpleNamespace(
+        _require_approval=lambda approved: None,
+        target=lambda project_id: QueueTarget(
+            project_id, "NielPieterse0/kis-mcp", tmp_path,
+            "https://github.com/NielPieterse0/kis-mcp.git",
+        ),
+    )
+    landed = {
+        "schema_version": 1, "state": "landed", "landed_pull_numbers": [1],
+        "candidate_sha": H2, "queue": {"base_sha": H2},
+    }
+    operations.coordinator = SimpleNamespace(
+        preview_land=lambda **kwargs: {"entries": [{"pull_number": 1, "head_sha": H1}]},
+        land_with_identity=lambda **kwargs: (landed, H2),
+    )
+    operations.governance_validator = lambda *args: {"ready": True}
+    failures: list[tuple[object, ...]] = []
+    operations.post_land_hooks = _post_land_hooks(
+        lambda *args: (_ for _ in ()).throw(RuntimeError("boom")),
+        lambda *args: failures.append(args),
+    )
+    result = operations.land(
+        project_id="kis-mcp", expected_generation=1, expected_base=BASE,
+        governance=[{"pull_number": 1, "record": {}, "trace": {}}], approved=True,
+    )
+    assert result["state"] == "landed"
+    assert set(result) == {
+        "schema_version", "state", "landed_pull_numbers", "candidate_sha", "queue", "governance"
+    }
+    assert len(failures) == 1
+    assert isinstance(failures[0][-1], RuntimeError)
 
 
 def test_land_stops_at_first_non_green_entry(tmp_path: Path) -> None:
@@ -430,3 +531,146 @@ def test_registered_backend_reuses_exact_publication_for_base_advance(monkeypatc
             "approved": True,
         }
     ]
+
+
+def test_land_with_identity_uses_internal_landing_identity_not_public_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    queue, _ = coordinator(tmp_path)
+    expected = {"candidate_sha": "bad", "queue": {"base_sha": H2}, "state": "landed"}
+    monkeypatch.setattr(
+        queue,
+        "_land_outcome",
+        lambda **kwargs: SimpleNamespace(result=expected, landed_sha=H1),
+    )
+
+    result, landed_sha = queue.land_with_identity(
+        project_id="kis-mcp", expected_generation=1, expected_base=BASE
+    )
+
+    assert result is expected
+    assert landed_sha == H1
+
+
+@pytest.mark.parametrize(
+    ("candidate_value", "include_candidate"),
+    [
+        (None, False),
+        ("bad", True),
+        (123, True),
+        (True, True),
+    ],
+)
+def test_land_with_identity_does_not_parse_public_candidate_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    candidate_value: object,
+    include_candidate: bool,
+) -> None:
+    queue, _ = coordinator(tmp_path)
+    expected: dict[str, object] = {"queue": {"base_sha": H1}, "state": "landed"}
+    if include_candidate:
+        expected["candidate_sha"] = candidate_value
+    monkeypatch.setattr(
+        queue,
+        "_land_outcome",
+        lambda **kwargs: SimpleNamespace(result=expected, landed_sha=H2),
+    )
+
+    result, landed_sha = queue.land_with_identity(
+        project_id="kis-mcp", expected_generation=1, expected_base=BASE
+    )
+
+    assert result is expected
+    assert landed_sha == H2
+
+
+def test_registered_land_emits_missing_identity_to_shared_dispatcher(
+    tmp_path: Path,
+) -> None:
+    operations = object.__new__(RegisteredGitHubMergeQueueOperations)
+    operations.settings = SimpleNamespace(target_branch="main")
+    operations.backend = SimpleNamespace(
+        _require_approval=lambda approved: None,
+        target=lambda project_id: QueueTarget(
+            project_id, "NielPieterse0/kis-mcp", tmp_path,
+            "https://github.com/NielPieterse0/kis-mcp.git",
+        ),
+    )
+    landed = {
+        "schema_version": 1,
+        "state": "landed",
+        "landed_pull_numbers": [1],
+        "candidate_sha": H2,
+        "queue": {"base_sha": H1},
+    }
+    operations.coordinator = SimpleNamespace(
+        preview_land=lambda **kwargs: {"entries": [{"pull_number": 1, "head_sha": H1}]},
+        land_with_identity=lambda **kwargs: (landed, None),
+    )
+    operations.governance_validator = lambda *args: {"ready": True}
+    calls: list[tuple[object, ...]] = []
+    operations.post_land_hooks = _post_land_hooks(lambda *args: calls.append(args))
+
+    result = operations.land(
+        project_id="kis-mcp",
+        expected_generation=1,
+        expected_base=BASE,
+        governance=[{"pull_number": 1, "record": {}, "trace": {}}],
+        approved=True,
+    )
+    assert result["state"] == "landed"
+    assert calls == [("kis-mcp", tmp_path, "main", None)]
+
+
+@pytest.mark.parametrize(
+    "failure_stage",
+    ["approval", "preview", "governance", "land"],
+)
+def test_registered_queue_land_never_dispatches_before_confirmed_landing(
+    tmp_path: Path, failure_stage: str
+) -> None:
+    calls: list[tuple[object, ...]] = []
+
+    def reject(message: str):
+        raise ToolError(message)
+
+    operations = object.__new__(RegisteredGitHubMergeQueueOperations)
+    operations.settings = SimpleNamespace(target_branch="main")
+    operations.backend = SimpleNamespace(
+        _require_approval=(
+            (lambda approved: reject("APPROVAL_REJECTED"))
+            if failure_stage == "approval"
+            else (lambda approved: None)
+        ),
+        target=lambda project_id: QueueTarget(
+            project_id, "NielPieterse0/kis-mcp", tmp_path,
+            "https://github.com/NielPieterse0/kis-mcp.git",
+        ),
+    )
+    operations.coordinator = SimpleNamespace(
+        preview_land=(
+            (lambda **kwargs: reject("PREVIEW_REJECTED"))
+            if failure_stage == "preview"
+            else (lambda **kwargs: {"entries": [{"pull_number": 1, "head_sha": H1}]})
+        ),
+        land_with_identity=(
+            (lambda **kwargs: reject("LAND_REJECTED"))
+            if failure_stage == "land"
+            else (lambda **kwargs: ({"state": "landed", "queue": {}}, H2))
+        ),
+    )
+    operations.governance_validator = (
+        (lambda *args: reject("GOVERNANCE_REJECTED"))
+        if failure_stage == "governance"
+        else (lambda *args: {"ready": True})
+    )
+    operations.post_land_hooks = _post_land_hooks(lambda *args: calls.append(args))
+
+    with pytest.raises(ToolError, match="REJECTED"):
+        operations.land(
+            project_id="kis-mcp", expected_generation=1, expected_base=BASE,
+            governance=[{"pull_number": 1, "record": {}, "trace": {}}],
+            approved=True,
+        )
+    assert calls == []

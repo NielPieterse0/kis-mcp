@@ -16,6 +16,7 @@ from fastmcp.exceptions import ToolError
 from ..config import load_runtime_config
 from ..paths import PathValidationError, is_within_windows_boundary, normalize_windows_path
 from .github_exact import CommandRunner, RegisteredGitHubOperations
+from .post_land import PostLandHooks, dispatch_post_land_non_interfering
 from .registry import ProjectRegistry
 from .settings import load_project_registry_settings
 
@@ -68,6 +69,12 @@ class CandidateCheck:
     run_id: str | None
     url: str | None
     observed_at: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class _LandingOutcome:
+    result: dict[str, Any]
+    landed_sha: str
 
 
 GovernanceValidator = Callable[
@@ -634,13 +641,13 @@ class MergeQueueCoordinator:
             ],
         }
 
-    def land(
+    def _land_outcome(
         self,
         *,
         project_id: str,
         expected_generation: int,
         expected_base: str,
-    ) -> dict[str, Any]:
+    ) -> _LandingOutcome:
         authorized_base = _full_sha(expected_base, "expected_base")
         target = self.backend.target(project_id)
         live_base = _full_sha(
@@ -688,13 +695,43 @@ class MergeQueueCoordinator:
             entry["check_url"] = None
         state["updated_at"] = self._timestamp()
         self.store.save(state)
-        return {
-            "schema_version": 1,
-            "state": "landed",
-            "landed_pull_numbers": landed_pull_numbers,
-            "candidate_sha": final_candidate,
-            "queue": state,
-        }
+        return _LandingOutcome(
+            result={
+                "schema_version": 1,
+                "state": "landed",
+                "landed_pull_numbers": landed_pull_numbers,
+                "candidate_sha": final_candidate,
+                "queue": state,
+            },
+            landed_sha=final_candidate,
+        )
+
+    def land(
+        self,
+        *,
+        project_id: str,
+        expected_generation: int,
+        expected_base: str,
+    ) -> dict[str, Any]:
+        return self._land_outcome(
+            project_id=project_id,
+            expected_generation=expected_generation,
+            expected_base=expected_base,
+        ).result
+
+    def land_with_identity(
+        self,
+        *,
+        project_id: str,
+        expected_generation: int,
+        expected_base: str,
+    ) -> tuple[dict[str, Any], str]:
+        outcome = self._land_outcome(
+            project_id=project_id,
+            expected_generation=expected_generation,
+            expected_base=expected_base,
+        )
+        return outcome.result, outcome.landed_sha
 
 
 class RegisteredGitHubMergeQueueBackend(RegisteredGitHubOperations):
@@ -943,6 +980,7 @@ class RegisteredGitHubMergeQueueOperations:
         runner: CommandRunner | None = None,
         gh_config_dir: Path | None = None,
         governance_validator: GovernanceValidator | None = None,
+        post_land_hooks: PostLandHooks | None = None,
     ) -> None:
         self.settings = settings or load_merge_queue_settings()
         self.backend = RegisteredGitHubMergeQueueBackend(
@@ -957,6 +995,7 @@ class RegisteredGitHubMergeQueueOperations:
             self.backend,
         )
         self.governance_validator = governance_validator
+        self.post_land_hooks = post_land_hooks
 
     def _approval(self, approved: bool) -> None:
         self.backend._require_approval(approved)
@@ -1048,10 +1087,18 @@ class RegisteredGitHubMergeQueueOperations:
                 evidence.get("trace", {}),
             )
             receipts.append(dict(receipt))
-        result = self.coordinator.land(
+        target = self.backend.target(project_id)
+        result, landed_sha = self.coordinator.land_with_identity(
             project_id=project_id,
             expected_generation=expected_generation,
             expected_base=expected_base,
+        )
+        dispatch_post_land_non_interfering(
+            self.post_land_hooks,
+            project_id,
+            target.local_root,
+            self.settings.target_branch,
+            landed_sha,
         )
         result["governance"] = receipts
         return result

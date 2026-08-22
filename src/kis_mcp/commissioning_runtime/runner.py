@@ -340,7 +340,7 @@ class CommissioningRunnerService:
         frozen: FrozenCommissioningExecution,
     ) -> None:
         owner, repo = _repository_parts(frozen.repository)
-        result = await self.invoker.external(
+        await self.invoker.external(
             "github_issue_write",
             {
                 "method": "update",
@@ -351,10 +351,19 @@ class CommissioningRunnerService:
                 "state_reason": "completed",
             },
         )
+        verified = await self.invoker.external(
+            "github_issue_read",
+            {
+                "method": "get",
+                "owner": owner,
+                "repo": repo,
+                "issue_number": frozen.commissioning_issue,
+            },
+        )
         if (
-            not isinstance(result, Mapping)
-            or result.get("number") != frozen.commissioning_issue
-            or result.get("state") != "closed"
+            not isinstance(verified, Mapping)
+            or verified.get("number") != frozen.commissioning_issue
+            or verified.get("state") != "closed"
         ):
             raise RuntimeError("commissioning issue close was not confirmed")
 

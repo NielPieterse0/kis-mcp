@@ -21,6 +21,7 @@ from ..providers.github.projects.schema_commissioning import (
 )
 from ..work_management.schema import load_project_schema_manifest
 from .contracts import ProjectDefinition
+from .post_land import PostLandHooks, dispatch_post_land_non_interfering
 from .registry import ProjectRegistry
 from .settings import load_project_registry_settings
 
@@ -136,11 +137,13 @@ class RegisteredGitHubOperations:
         runner: CommandRunner | None = None,
         gh_config_dir: Path | None = None,
         clock: Callable[[], float] = time.monotonic,
+        post_land_hooks: PostLandHooks | None = None,
     ) -> None:
         self.projects = projects
         self.runner = runner or _default_runner
         self.gh_config_dir = gh_config_dir
         self.clock = clock
+        self.post_land_hooks = post_land_hooks
 
     @staticmethod
     def _require_approval(approved: bool) -> None:
@@ -1547,7 +1550,7 @@ class RegisteredGitHubOperations:
                 "--repo",
                 repository,
                 "--json",
-                "number,url,title,body,commits,headRefOid,baseRefName,state,isDraft",
+                "number,url,title,body,commits,headRefOid,baseRefName,state,isDraft,mergeCommit",
             ),
             cwd,
             deadline=deadline,
@@ -1628,6 +1631,21 @@ class RegisteredGitHubOperations:
             raise ToolError(
                 "MERGE_NOT_VERIFIED: pull request is not merged at the explicitly authorized head"
             )
+        base_branch = str(after.get("baseRefName") or before.get("baseRefName") or "")
+        merge_commit = after.get("mergeCommit")
+        landed_sha = (
+            str(merge_commit.get("oid", "")).strip().lower()
+            if isinstance(merge_commit, Mapping)
+            else ""
+        )
+        exact_landed_sha = landed_sha if _SHA.fullmatch(landed_sha) is not None else None
+        dispatch_post_land_non_interfering(
+            self.post_land_hooks,
+            project.project_id,
+            cwd,
+            base_branch,
+            exact_landed_sha,
+        )
         return {
             "schema_version": 1,
             "state": "merged",
