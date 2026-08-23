@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "234-post-land-restart-receipt-ownership",
+  "status": "active",
+  "branch": "change/234-post-land-restart-receipt-ownership",
+  "worktree": ".work/worktrees/234-post-land-restart-receipt-ownership",
+  "base": "main",
+  "outcome": "Prevent stale post-land kis-dev restart workers from overwriting the canonical latest receipt for a newer landing, then live-prove ordered restart evidence.",
+  "owned_paths": [
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/projects/test_post_land_restart.py",
+    ".work/changes/234-post-land-restart-receipt-ownership/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "deployment",
+    "external_action",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "c1c842e87c40ab5dfd5609f307f4eb27ea5579cd",
+    "local_tree": "09949a39cb50a53ddcedab6082715080e4c1bd40",
+    "upstream_sha": "c1c842e87c40ab5dfd5609f307f4eb27ea5579cd",
+    "upstream_tree": "09949a39cb50a53ddcedab6082715080e4c1bd40",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-471",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 471,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

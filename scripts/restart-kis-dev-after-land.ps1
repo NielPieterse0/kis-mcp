@@ -17,6 +17,41 @@ $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
 $ReceiptRoot = Join-Path $StateRoot 'tunnel-client\runtime\development\post-land-restart'
 $ReceiptPath = Join-Path $ReceiptRoot 'latest.json'
+$ReceiptLockPath = Join-Path $ReceiptRoot 'latest.lock'
+
+function Invoke-KisReceiptLock {
+    param(
+        [Parameter(Mandatory)][scriptblock]$Action
+    )
+    [System.IO.Directory]::CreateDirectory($ReceiptRoot) | Out-Null
+    $Deadline = [DateTime]::UtcNow.AddSeconds(5)
+    $Attempts = 0
+    $MaxAttempts = 100
+    $Stream = $null
+    while ($null -eq $Stream) {
+        try {
+            $Stream = [System.IO.File]::Open(
+                $ReceiptLockPath,
+                [System.IO.FileMode]::OpenOrCreate,
+                [System.IO.FileAccess]::ReadWrite,
+                [System.IO.FileShare]::None
+            )
+        }
+        catch [System.IO.IOException] {
+            $Attempts += 1
+            if ($Attempts -ge $MaxAttempts -or [DateTime]::UtcNow -ge $Deadline) {
+                throw
+            }
+            Start-Sleep -Milliseconds 50
+        }
+    }
+    try {
+        & $Action
+    }
+    finally {
+        $Stream.Dispose()
+    }
+}
 
 function Move-KisAtomicFile {
     param(
@@ -92,23 +127,57 @@ function Write-KisDevRestartReceipt {
         [int]$WorkerPid = 0
     )
     try {
-        [System.IO.Directory]::CreateDirectory($ReceiptRoot) | Out-Null
-        $Document = [ordered]@{
-            schema_version = 1
-            state = $State
-            landed_sha = $ExpectedLandedSha
-            launched_sha = $LaunchedSha
-            worker_pid = $WorkerPid
-            detail = $Detail
-            updated_utc = [DateTime]::UtcNow.ToString('o')
+        $AcquireOwnership = $State -ceq 'scheduled'
+        $Owned = Invoke-KisReceiptLock -Action {
+            if (-not $AcquireOwnership -and [System.IO.File]::Exists($ReceiptPath)) {
+                try {
+                    $Current = Get-Content -LiteralPath $ReceiptPath -Raw | ConvertFrom-Json
+                }
+                catch {
+                    return $false
+                }
+                $LandedProperty = $Current.PSObject.Properties['landed_sha']
+                if ($null -eq $LandedProperty -or [string]$LandedProperty.Value -cne $ExpectedLandedSha) {
+                    return $false
+                }
+                $CurrentWorkerPid = 0
+                $WorkerProperty = $Current.PSObject.Properties['worker_pid']
+                if ($null -ne $WorkerProperty -and $null -ne $WorkerProperty.Value) {
+                    try {
+                        $CurrentWorkerPid = [int]$WorkerProperty.Value
+                    }
+                    catch {
+                        return $false
+                    }
+                }
+                if (
+                    $CurrentWorkerPid -gt 0 -and
+                    $WorkerPid -gt 0 -and
+                    $CurrentWorkerPid -ne $WorkerPid
+                ) {
+                    return $false
+                }
+            }
+
+            $Document = [ordered]@{
+                schema_version = 1
+                state = $State
+                landed_sha = $ExpectedLandedSha
+                launched_sha = $LaunchedSha
+                worker_pid = $WorkerPid
+                detail = $Detail
+                updated_utc = [DateTime]::UtcNow.ToString('o')
+            }
+            $Temporary = "$ReceiptPath.next-$([Guid]::NewGuid().ToString('N'))"
+            [System.IO.File]::WriteAllText(
+                $Temporary,
+                ($Document | ConvertTo-Json -Depth 6),
+                [System.Text.UTF8Encoding]::new($false)
+            )
+            Move-KisAtomicFile -Temporary $Temporary -Target $ReceiptPath
+            return $true
         }
-        $Temporary = "$ReceiptPath.next-$([Guid]::NewGuid().ToString('N'))"
-        [System.IO.File]::WriteAllText(
-            $Temporary,
-            ($Document | ConvertTo-Json -Depth 6),
-            [System.Text.UTF8Encoding]::new($false)
-        )
-        Move-KisAtomicFile -Temporary $Temporary -Target $ReceiptPath
+        return [bool]$Owned
     }
     catch {
         $ReceiptFailure = $_
@@ -134,7 +203,7 @@ if (-not $Worker) {
     if ([int]$Created.ReturnValue -ne 0 -or [int]$Created.ProcessId -le 0) {
         throw "POST_LAND_RESTART_DETACH_FAILED: return=$($Created.ReturnValue)"
     }
-    Write-KisDevRestartReceipt -State 'scheduled' -WorkerPid ([int]$Created.ProcessId)
+    $null = Write-KisDevRestartReceipt -State 'scheduled' -WorkerPid ([int]$Created.ProcessId)
     [ordered]@{ state = 'scheduled'; pid = [int]$Created.ProcessId } |
         ConvertTo-Json -Compress |
         Write-Output
@@ -145,7 +214,10 @@ if ($DelaySeconds -gt 0) {
     Start-Sleep -Seconds $DelaySeconds
 }
 $LaunchedSha = ''
-Write-KisDevRestartReceipt -State 'synchronizing' -WorkerPid $PID
+$OwnsReceipt = Write-KisDevRestartReceipt -State 'synchronizing' -WorkerPid $PID
+if (-not $OwnsReceipt) {
+    return
+}
 
 try {
     $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
@@ -199,14 +271,17 @@ try {
     }
     $LaunchedSha = $Head
 
-    Write-KisDevRestartReceipt -State 'launching' -LaunchedSha $LaunchedSha -WorkerPid $PID
+    $OwnsReceipt = Write-KisDevRestartReceipt -State 'launching' -LaunchedSha $LaunchedSha -WorkerPid $PID
+    if (-not $OwnsReceipt) {
+        return
+    }
     & (Join-Path $RepositoryRoot 'scripts\start-chatgpt.ps1') -Instance 'kis-dev'
-    Write-KisDevRestartReceipt -State 'stopped' -Detail 'replacement launcher exited' -LaunchedSha $LaunchedSha -WorkerPid $PID
+    $null = Write-KisDevRestartReceipt -State 'stopped' -Detail 'replacement launcher exited' -LaunchedSha $LaunchedSha -WorkerPid $PID
 }
 catch {
     $OriginalFailure = $_
     try {
-        Write-KisDevRestartReceipt `
+        $null = Write-KisDevRestartReceipt `
             -State 'failed' `
             -Detail $OriginalFailure.Exception.Message `
             -LaunchedSha $LaunchedSha `
