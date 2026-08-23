@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "235-registered-project-schema-utf8",
+  "status": "active",
+  "branch": "change/235-registered-project-schema-utf8",
+  "worktree": ".work/worktrees/235-registered-project-schema-utf8",
+  "base": "main",
+  "outcome": "Decode registered Project schema GitHub CLI JSON and HTTP output as UTF-8 on Windows without changing unrelated registered Git or GitHub command capture.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/schema_commissioning.py",
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/providers/github/projects/test_schema_commissioning.py",
+    "tests/projects/test_github_exact.py",
+    ".work/changes/235-registered-project-schema-utf8/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "41d988a307785bf8b80a5ff55e6f9abf349a8a1a",
+    "local_tree": "690f96cd39fde876f3f7db778ca1aa322c0190c7",
+    "upstream_sha": "41d988a307785bf8b80a5ff55e6f9abf349a8a1a",
+    "upstream_tree": "690f96cd39fde876f3f7db778ca1aa322c0190c7",
+    "upstream_ref": "main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-409",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 409,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

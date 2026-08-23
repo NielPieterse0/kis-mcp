@@ -1707,11 +1707,17 @@ class RegisteredGitHubOperations:
             raise ToolError("REGISTERED_GITHUB_AUTH_STATE_REQUIRED: GH_CONFIG_DIR is not configured")
         cwd = Path(project.local_root)
         self._authenticate(cwd)
-        client = GitHubProjectSchemaClient(
-            gh_config_dir=self.gh_config_dir,
-            cwd=cwd,
-            runner=self.runner,
-        )
+        if self.runner is _default_runner:
+            client = GitHubProjectSchemaClient(
+                gh_config_dir=self.gh_config_dir,
+                cwd=cwd,
+            )
+        else:
+            client = GitHubProjectSchemaClient(
+                gh_config_dir=self.gh_config_dir,
+                cwd=cwd,
+                runner=self.runner,
+            )
         try:
             result = client.commission(
                 ProjectSchemaTarget(
