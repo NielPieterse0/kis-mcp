@@ -180,6 +180,47 @@ def test_windows_powershell_detach_failure_does_not_claim_scheduled(tmp_path: Pa
 
 
 @pytest.mark.parametrize(
+    ("current_landed_sha", "current_worker_pid"),
+    [(REMOTE_AFTER, 999998), (SHA, 999999)],
+    ids=["different-sha", "same-sha-different-worker"],
+)
+def test_stale_worker_cannot_overwrite_newer_receipt_generation(
+    tmp_path: Path, current_landed_sha: str, current_worker_pid: int
+) -> None:
+    root = tmp_path / f"stale-worker-{current_landed_sha[0]}-{current_worker_pid}"
+    scripts = root / "scripts"
+    state_root = root / "state"
+    scripts.mkdir(parents=True)
+    state_root.mkdir()
+    source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
+    worker_script = scripts / source.name
+    worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt.parent.mkdir(parents=True)
+    newer = {
+        "schema_version": 1,
+        "state": "launching",
+        "landed_sha": current_landed_sha,
+        "launched_sha": current_landed_sha,
+        "worker_pid": 999999,
+        "detail": "newer generation",
+        "updated_utc": "2026-08-23T09:00:00Z",
+    }
+    receipt.write_text(json.dumps(newer), encoding="utf-8")
+
+    result = subprocess.run(
+        ["pwsh.exe", "-NoProfile", "-File", str(worker_script),
+         "-ExpectedLandedSha", SHA, "-RepositoryRoot", str(root),
+         "-StateRoot", str(state_root), "-Worker", "-DelaySeconds", "0"],
+        cwd=root, capture_output=True, text=True, timeout=30, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(receipt.read_text(encoding="utf-8")) == newer
+    assert not (receipt.parent / "latest.json.previous").exists()
+
+
+@pytest.mark.parametrize(
     "error",
     [
         subprocess.TimeoutExpired(["pwsh.exe"], 15),
