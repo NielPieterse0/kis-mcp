@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "233-post-land-restart-receipt-compat",
+  "status": "active",
+  "branch": "change/233-post-land-restart-receipt-compat",
+  "worktree": ".work/worktrees/233-post-land-restart-receipt-compat",
+  "base": "main",
+  "outcome": "Make post-land kis-dev restart receipt persistence compatible with the current PowerShell/.NET runtime and prove terminal live restart evidence.",
+  "owned_paths": [
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/projects/test_post_land_restart.py",
+    ".work/changes/233-post-land-restart-receipt-compat/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "deployment",
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "ce483cefbdf8b35161a634be571f9b797e827e77",
+    "local_tree": "b96aef7158ed614ae83a2fdf65c2e94effdc8666",
+    "upstream_sha": "ce483cefbdf8b35161a634be571f9b797e827e77",
+    "upstream_tree": "b96aef7158ed614ae83a2fdf65c2e94effdc8666",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-469",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 469,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

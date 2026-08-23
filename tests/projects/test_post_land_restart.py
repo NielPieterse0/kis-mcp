@@ -114,6 +114,71 @@ def test_detached_scheduler_propagates_requested_delay(tmp_path: Path) -> None:
     assert '-DelaySeconds "0" -Worker' in command_log.read_text(encoding="utf-8")
 
 
+def test_scheduler_receipt_replace_is_windows_powershell_compatible(tmp_path: Path) -> None:
+    root = tmp_path / "windows-powershell-receipt"
+    scripts = root / "scripts"
+    state_root = root / "state"
+    scripts.mkdir(parents=True)
+    state_root.mkdir()
+    source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
+    worker_script = scripts / source.name
+    worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(json.dumps({"state": "launching", "landed_sha": SHA}), encoding="utf-8")
+    previous_receipt = receipt.parent / "latest.json.previous"
+    previous_receipt.write_text(json.dumps({"state": "older"}), encoding="utf-8")
+    wrapper = root / "invoke-windows-powershell.ps1"
+    wrapper.write_text(
+        "function Invoke-CimMethod { param([string]$ClassName,[string]$MethodName,[hashtable]$Arguments) "
+        "[pscustomobject]@{ReturnValue=0;ProcessId=654} }\n"
+        f"& '{worker_script}' -ExpectedLandedSha '{SHA}' -RepositoryRoot '{root}' "
+        f"-StateRoot '{state_root}' -DelaySeconds 0\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper)],
+        cwd=root, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    evidence = json.loads(receipt.read_text(encoding="utf-8"))
+    assert evidence["state"] == "scheduled"
+    assert evidence["landed_sha"] == SHA
+    assert evidence["worker_pid"] == 654
+    previous = json.loads((receipt.parent / "latest.json.previous").read_text(encoding="utf-8"))
+    assert previous == {"state": "launching", "landed_sha": SHA}
+
+
+def test_windows_powershell_detach_failure_does_not_claim_scheduled(tmp_path: Path) -> None:
+    root = tmp_path / "windows-powershell-detach-failure"
+    scripts = root / "scripts"
+    state_root = root / "state"
+    scripts.mkdir(parents=True)
+    state_root.mkdir()
+    source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
+    worker_script = scripts / source.name
+    worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt.parent.mkdir(parents=True)
+    existing = {"state": "launching", "landed_sha": SHA}
+    receipt.write_text(json.dumps(existing), encoding="utf-8")
+    wrapper = root / "invoke-detach-failure.ps1"
+    wrapper.write_text(
+        "function Invoke-CimMethod { param([string]$ClassName,[string]$MethodName,[hashtable]$Arguments) "
+        "[pscustomobject]@{ReturnValue=1;ProcessId=0} }\n"
+        f"& '{worker_script}' -ExpectedLandedSha '{SHA}' -RepositoryRoot '{root}' "
+        f"-StateRoot '{state_root}' -DelaySeconds 0\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(wrapper)],
+        cwd=root, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert result.returncode != 0
+    assert "POST_LAND_RESTART_DETACH_FAILED" in result.stderr
+    assert json.loads(receipt.read_text(encoding="utf-8")) == existing
+
+
 @pytest.mark.parametrize(
     "error",
     [

@@ -18,6 +18,30 @@ $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
 $ReceiptRoot = Join-Path $StateRoot 'tunnel-client\runtime\development\post-land-restart'
 $ReceiptPath = Join-Path $ReceiptRoot 'latest.json'
 
+function Move-KisAtomicFile {
+    param(
+        [Parameter(Mandatory)][string]$Temporary,
+        [Parameter(Mandatory)][string]$Target
+    )
+    $Backup = "$Target.previous"
+    if ([System.IO.File]::Exists($Target)) {
+        try {
+            [System.IO.File]::Replace($Temporary, $Target, $Backup)
+            return
+        }
+        catch [System.IO.FileNotFoundException] { }
+    }
+    try {
+        [System.IO.File]::Move($Temporary, $Target)
+    }
+    catch [System.IO.IOException] {
+        if (-not [System.IO.File]::Exists($Target)) {
+            throw
+        }
+        [System.IO.File]::Replace($Temporary, $Target, $Backup)
+    }
+}
+
 function Write-KisDevRestartFallbackReceipt {
     param(
         [Parameter(Mandatory)][string]$State,
@@ -52,7 +76,7 @@ function Write-KisDevRestartFallbackReceipt {
                 $Json,
                 [System.Text.UTF8Encoding]::new($false)
             )
-            [System.IO.File]::Move($Temporary, $Target, $true)
+            Move-KisAtomicFile -Temporary $Temporary -Target $Target
             return
         }
         catch { }
@@ -84,7 +108,7 @@ function Write-KisDevRestartReceipt {
             ($Document | ConvertTo-Json -Depth 6),
             [System.Text.UTF8Encoding]::new($false)
         )
-        [System.IO.File]::Move($Temporary, $ReceiptPath, $true)
+        Move-KisAtomicFile -Temporary $Temporary -Target $ReceiptPath
     }
     catch {
         $ReceiptFailure = $_
