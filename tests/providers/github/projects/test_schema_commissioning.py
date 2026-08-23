@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
+from kis_mcp.providers.github.projects import schema_commissioning
 from kis_mcp.providers.github.projects.schema_commissioning import (
     GitHubProjectSchemaClient,
     ProjectSchemaTarget,
@@ -35,6 +38,36 @@ class QueueRunner:
         if not self.results:
             raise AssertionError(f"unexpected command: {args}")
         return self.results.pop(0)
+
+
+def test_default_runner_decodes_captured_bytes_as_utf8(monkeypatch, tmp_path: Path) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(*args, **kwargs):
+        captured.update(kwargs)
+        return schema_commissioning.subprocess.CompletedProcess(
+            args=args[0], returncode=0, stdout='{"title":"café"}'.encode(), stderr=b""
+        )
+
+    monkeypatch.setattr(schema_commissioning.subprocess, "run", fake_run)
+
+    result = schema_commissioning._default_runner(("gh", "api"), tmp_path, {})
+
+    assert captured["text"] is False
+    assert result.stdout == '{"title":"café"}'
+
+
+def test_default_runner_fails_closed_on_invalid_utf8(tmp_path: Path) -> None:
+    with pytest.raises(UnicodeDecodeError):
+        schema_commissioning._default_runner(
+            (
+                sys.executable,
+                "-c",
+                "import sys; sys.stdout.buffer.write(bytes([0xff]))",
+            ),
+            tmp_path,
+            dict(os.environ),
+        )
 
 
 def _snapshot(

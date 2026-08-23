@@ -125,7 +125,43 @@ def test_project_schema_commissioning_uses_only_registered_manifest(monkeypatch)
     assert captured["target"].owner == "NielPieterse0"
     assert captured["manifest"].portfolio_id == "default"
     assert captured["scope"] == "full"
+    assert captured["client"]["runner"] is runner
     assert runner.calls[0][0][:3] == ("gh", "auth", "status")
+
+
+def test_project_schema_commissioning_uses_schema_default_runner_in_production(monkeypatch) -> None:
+    captured = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs):
+            captured["client"] = kwargs
+
+        def commission(self, target, manifest, *, scope="full"):
+            return {
+                "ready": True,
+                "project_node_id": "project-id",
+                "created_fields": [],
+                "updated_fields": [],
+                "created_views": [],
+                "field_count": 24,
+                "view_count": 12,
+            }
+
+    monkeypatch.setattr("kis_mcp.projects.github_exact.GitHubProjectSchemaClient", FakeClient)
+    operations = RegisteredGitHubOperations(
+        _registry(),
+        gh_config_dir=Path(r"C:\Projects\.kis-mcp\github-cli"),
+    )
+    monkeypatch.setattr(operations, "_authenticate", lambda cwd: None)
+
+    result = operations.commission_project_schema(
+        project_id="kis-mcp",
+        project_binding_id="work-management",
+        approved=True,
+    )
+
+    assert result["ready"] is True
+    assert "runner" not in captured["client"]
 
 
 def test_project_schema_operation_declares_bounded_commissioning_scope() -> None:

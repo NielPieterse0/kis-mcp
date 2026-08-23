@@ -145,8 +145,20 @@ class _Snapshot:
 
 
 def _default_runner(args: Sequence[str], cwd: Path, env: Mapping[str, str]):
-    return subprocess.run(
-        list(args), cwd=cwd, env=dict(env), text=True, capture_output=True, timeout=60, check=False
+    result = subprocess.run(
+        list(args),
+        cwd=cwd,
+        env=dict(env),
+        text=False,
+        capture_output=True,
+        timeout=60,
+        check=False,
+    )
+    return subprocess.CompletedProcess(
+        args=result.args,
+        returncode=result.returncode,
+        stdout=(result.stdout or b"").decode("utf-8", errors="strict"),
+        stderr=(result.stderr or b"").decode("utf-8", errors="strict"),
     )
 
 
