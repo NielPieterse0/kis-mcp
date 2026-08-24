@@ -258,9 +258,33 @@ def test_merge_commit_requires_provider_native_web_flow_identity(tmp_path: Path)
         asyncio.run(resolver.resolve("NielPieterse0/kis-mcp", 452))
 
 
-def test_merge_commit_time_must_match_provider_merged_at(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "committed_at",
+    ["2026-08-21T14:28:14Z", "2026-08-21T14:28:16Z", "2026-08-21T14:27:16Z"],
+)
+def test_merge_commit_time_allows_subminute_provider_drift(
+    tmp_path: Path, committed_at: str
+) -> None:
     commits = _commits()
-    commits[0]["commit"]["committer"]["date"] = "2026-08-21T14:28:14Z"
+    commits[0]["commit"]["committer"]["date"] = committed_at
+    resolver = MergedChangeResolver(
+        FakeInvoker(_responses(commits=commits)), _settings(tmp_path)
+    )
+
+    evidence = asyncio.run(resolver.resolve("NielPieterse0/kis-mcp", 452))
+
+    assert evidence.merge_sha == MERGE_SHA
+
+
+@pytest.mark.parametrize(
+    "committed_at",
+    ["2026-08-21T14:27:15Z", "2026-08-21T14:29:15Z"],
+)
+def test_merge_commit_time_rejects_minute_level_mismatch(
+    tmp_path: Path, committed_at: str
+) -> None:
+    commits = _commits()
+    commits[0]["commit"]["committer"]["date"] = committed_at
     resolver = MergedChangeResolver(
         FakeInvoker(_responses(commits=commits)), _settings(tmp_path)
     )
