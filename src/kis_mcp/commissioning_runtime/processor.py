@@ -3,11 +3,20 @@ from __future__ import annotations
 from typing import Any
 
 from kis_mcp.commissioning.classifier import classify_change
-from kis_mcp.commissioning.evidence import MergedChangeResolver
+from kis_mcp.commissioning.evidence import MergedChangeResolver, MergeEvidenceError
 from kis_mcp.commissioning.intake import CommissioningIntakeService
 from kis_mcp.commissioning.models import ClassificationState
 from kis_mcp.commissioning.projection import project_classification_state
 from kis_mcp.commissioning.settings import PostMergeCommissioningSettings
+
+_BLOCKED_EVIDENCE_CODES = frozenset(
+    {
+        "scope_path_missing",
+        "scope_path_ambiguous",
+        "scope_invalid",
+        "scope_identity_mismatch",
+    }
+)
 
 
 class CommissioningCandidateProcessor:
@@ -20,10 +29,21 @@ class CommissioningCandidateProcessor:
         pull_number: int,
         invoker: Any,
     ) -> dict[str, Any]:
-        evidence = await MergedChangeResolver(invoker, self.settings).resolve(
-            repository,
-            pull_number,
-        )
+        try:
+            evidence = await MergedChangeResolver(invoker, self.settings).resolve(
+                repository,
+                pull_number,
+            )
+        except MergeEvidenceError as exc:
+            if exc.code not in _BLOCKED_EVIDENCE_CODES:
+                raise
+            return {
+                "pull_number": pull_number,
+                "classification": "blocked_evidence",
+                "error_code": exc.code,
+                "commissioning_keys": [],
+                "issue_numbers": [],
+            }
         classification = classify_change(evidence, self.settings)
         intake = await CommissioningIntakeService(invoker).intake(
             evidence,

@@ -3,7 +3,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+import pytest
+
 import kis_mcp.commissioning_runtime.processor as processor_module
+from kis_mcp.commissioning.evidence import MergeEvidenceError
 from kis_mcp.commissioning.models import (
     ChangeClassification,
     ClassificationState,
@@ -60,6 +63,18 @@ class FakeResolver:
         assert repository == REPOSITORY
         assert pull_number == 456
         return _evidence()
+
+class FakeFailingResolver:
+    code = "scope_invalid"
+
+    def __init__(self, _invoker: Any, _settings: Any) -> None:
+        pass
+
+    async def resolve(self, repository: str, pull_number: int) -> LandedChangeEvidence:
+        assert repository == REPOSITORY
+        assert pull_number == 456
+        raise MergeEvidenceError(self.code, "provider detail must not persist")
+
 
 class FakeIntake:
     def __init__(self, _invoker: Any) -> None:
@@ -123,3 +138,63 @@ def test_candidate_processor_projects_pending_after_intake(monkeypatch: Any) -> 
     assert fields["Commissioning Key"] == KEY
     assert fields["Live Verification Evidence"] == "commissioning-issues:460"
     assert "Verification" not in fields
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "scope_path_missing",
+        "scope_path_ambiguous",
+        "scope_invalid",
+        "scope_identity_mismatch",
+    ],
+)
+def test_candidate_processor_accounts_only_immutable_scope_errors_without_mutation(
+    monkeypatch: Any, code: str
+) -> None:
+    FakeFailingResolver.code = code
+    monkeypatch.setattr(processor_module, "MergedChangeResolver", FakeFailingResolver)
+    invoker = FakeInvoker()
+
+    result = asyncio.run(
+        CommissioningCandidateProcessor(load_post_merge_commissioning_settings())(
+            REPOSITORY, 456, invoker
+        )
+    )
+
+    assert result == {
+        "pull_number": 456,
+        "classification": "blocked_evidence",
+        "error_code": code,
+        "commissioning_keys": [],
+        "issue_numbers": [],
+    }
+    assert "provider detail" not in str(result)
+    assert invoker.change_calls == []
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "provider_evidence_invalid",
+        "pr_not_merged",
+        "merge_commit_missing",
+        "merge_commit_ambiguous",
+        "repository_not_configured",
+    ],
+)
+def test_candidate_processor_reraises_retryable_merge_evidence_errors(
+    monkeypatch: Any, code: str
+) -> None:
+    FakeFailingResolver.code = code
+    monkeypatch.setattr(processor_module, "MergedChangeResolver", FakeFailingResolver)
+    invoker = FakeInvoker()
+
+    with pytest.raises(MergeEvidenceError, match=code):
+        asyncio.run(
+            CommissioningCandidateProcessor(load_post_merge_commissioning_settings())(
+                REPOSITORY, 456, invoker
+            )
+        )
+
+    assert invoker.change_calls == []
