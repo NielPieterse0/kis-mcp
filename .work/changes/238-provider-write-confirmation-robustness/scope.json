@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "238-provider-write-confirmation-robustness",
+  "status": "active",
+  "branch": "change/238-provider-write-confirmation-robustness",
+  "worktree": ".work/worktrees/238-provider-write-confirmation-robustness",
+  "base": "main",
+  "outcome": "Make commissioning provider writes reconcile durable success across transient or harmless provider response variation without weakening identity or duplicate prevention.",
+  "owned_paths": [
+    "src/kis_mcp/commissioning/intake.py",
+    "tests/post_merge_commissioning/test_intake.py",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/238-provider-write-confirmation-robustness/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "58d8d294556df0fc107412895413c4a0dcdbd09e",
+    "local_tree": "9df3814012fe1e4d7cb07cb5329825ffe0a898e4",
+    "upstream_sha": "58d8d294556df0fc107412895413c4a0dcdbd09e",
+    "upstream_tree": "9df3814012fe1e4d7cb07cb5329825ffe0a898e4",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-486",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 486,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

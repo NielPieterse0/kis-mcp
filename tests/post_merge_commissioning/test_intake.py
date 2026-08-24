@@ -28,7 +28,14 @@ class FakeInvoker:
         queue = self.responses.get(operation)
         if not queue:
             raise AssertionError(f"unexpected operation: {operation}")
-        return queue.pop(0)
+        response = queue.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+async def _no_sleep(_delay: float) -> None:
+    return None
 
 
 def _classification():
@@ -149,16 +156,129 @@ def test_multiple_existing_matches_are_reused_without_create() -> None:
 
 def test_created_issue_must_retain_exact_key_on_readback() -> None:
     evidence, classification = _classification()
+    key = classification.obligations[0].commissioning_key
     invoker = FakeInvoker(
         {
-            "github_search_issues": [[]],
+            "github_search_issues": [[], [_issue(505, key)]],
             "github_issue_write": [{"number": 505}],
             "github_issue_read": [{"number": 505, "body": "wrong body"}],
         }
     )
 
     with pytest.raises(CommissioningIntakeError, match="created_issue_verification_failed"):
-        asyncio.run(CommissioningIntakeService(invoker).intake(evidence, classification))
+        asyncio.run(
+            CommissioningIntakeService(
+                invoker, sleep=_no_sleep, confirmation_delays=(0.0,)
+            ).intake(evidence, classification)
+        )
+
+
+def test_created_issue_accepts_harmless_provider_text_normalization() -> None:
+    evidence, classification = _classification()
+    obligation = classification.obligations[0]
+    created = _generated_issue(506, evidence, obligation)
+    created["title"] = f" {created['title']} "
+    created["body"] = created["body"].replace("\n", "\r\n") + "  \r\n"
+    invoker = FakeInvoker(
+        {
+            "github_search_issues": [[]],
+            "github_issue_write": [{"number": 506}],
+            "github_issue_read": [created],
+        }
+    )
+
+    outcome = asyncio.run(CommissioningIntakeService(invoker).intake(evidence, classification))[0]
+
+    assert outcome.disposition is IntakeDisposition.CREATED
+    assert outcome.issue_number == 506
+
+
+def test_missing_create_number_is_reconciled_by_deterministic_search() -> None:
+    evidence, classification = _classification()
+    obligation = classification.obligations[0]
+    created = _generated_issue(507, evidence, obligation)
+    invoker = FakeInvoker(
+        {
+            "github_search_issues": [[], [created]],
+            "github_issue_write": [{"html_url": created["html_url"]}],
+        }
+    )
+
+    outcome = asyncio.run(
+        CommissioningIntakeService(
+            invoker, sleep=_no_sleep, confirmation_delays=(0.0,)
+        ).intake(evidence, classification)
+    )[0]
+
+    assert outcome.disposition is IntakeDisposition.CREATED
+    assert outcome.issue_number == 507
+    assert [operation for operation, _ in invoker.calls].count("github_issue_write") == 1
+
+
+def test_create_transport_error_reconciles_durable_write_without_second_mutation() -> None:
+    evidence, classification = _classification()
+    obligation = classification.obligations[0]
+    created = _generated_issue(508, evidence, obligation)
+    invoker = FakeInvoker(
+        {
+            "github_search_issues": [[], [created]],
+            "github_issue_write": [RuntimeError("response lost after provider mutation")],
+        }
+    )
+
+    outcome = asyncio.run(
+        CommissioningIntakeService(
+            invoker, sleep=_no_sleep, confirmation_delays=(0.0,)
+        ).intake(evidence, classification)
+    )[0]
+
+    assert outcome.issue_number == 508
+    assert [operation for operation, _ in invoker.calls].count("github_issue_write") == 1
+
+
+def test_transient_readback_mismatch_recovers_on_bounded_retry() -> None:
+    evidence, classification = _classification()
+    obligation = classification.obligations[0]
+    created = _generated_issue(509, evidence, obligation)
+    invoker = FakeInvoker(
+        {
+            "github_search_issues": [[], []],
+            "github_issue_write": [{"number": 509}],
+            "github_issue_read": [
+                {"number": 509, "title": created["title"], "body": "temporarily stale"},
+                created,
+            ],
+        }
+    )
+
+    outcome = asyncio.run(
+        CommissioningIntakeService(
+            invoker, sleep=_no_sleep, confirmation_delays=(0.0, 0.0)
+        ).intake(evidence, classification)
+    )[0]
+
+    assert outcome.issue_number == 509
+    assert [operation for operation, _ in invoker.calls].count("github_issue_read") == 2
+    assert [operation for operation, _ in invoker.calls].count("github_issue_write") == 1
+
+
+def test_unconfirmed_create_without_number_fails_closed() -> None:
+    evidence, classification = _classification()
+    invoker = FakeInvoker(
+        {
+            "github_search_issues": [[], []],
+            "github_issue_write": [{}],
+        }
+    )
+
+    with pytest.raises(CommissioningIntakeError, match="issue_create_unconfirmed"):
+        asyncio.run(
+            CommissioningIntakeService(
+                invoker, sleep=_no_sleep, confirmation_delays=(0.0,)
+            ).intake(evidence, classification)
+        )
+
+    assert [operation for operation, _ in invoker.calls].count("github_issue_write") == 1
 
 
 def test_non_required_classification_performs_no_external_calls() -> None:
