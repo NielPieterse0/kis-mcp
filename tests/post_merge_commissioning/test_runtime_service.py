@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from kis_mcp.commissioning.evidence import MergeEvidenceError
 from kis_mcp.commissioning.settings import load_post_merge_commissioning_settings
 from kis_mcp.commissioning_runtime.service import (
     BudgetedInvoker,
@@ -33,8 +34,15 @@ class FakeInvoker:
 
 
 class RecordingProcessor:
-    def __init__(self, *, fail_on: int | None = None, extra_read: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        fail_on: int | None = None,
+        blocked_on: int | None = None,
+        extra_read: bool = False,
+    ) -> None:
         self.fail_on = fail_on
+        self.blocked_on = blocked_on
         self.extra_read = extra_read
         self.calls: list[int] = []
 
@@ -53,6 +61,14 @@ class RecordingProcessor:
             )
         if self.fail_on == pull_number:
             raise RuntimeError("provider detail must not persist")
+        if self.blocked_on == pull_number:
+            return {
+                "pull_number": pull_number,
+                "classification": "blocked_evidence",
+                "error_code": "scope_invalid",
+                "commissioning_keys": [],
+                "issue_numbers": [],
+            }
         return {
             "pull_number": pull_number,
             "classification": "not_required",
@@ -60,6 +76,17 @@ class RecordingProcessor:
             "commissioning_keys": [],
             "issue_numbers": [],
         }
+
+
+class RetryableEvidenceProcessor(RecordingProcessor):
+    async def __call__(
+        self, repository: str, pull_number: int, invoker: Any
+    ) -> dict[str, Any]:
+        assert repository == REPOSITORY
+        self.calls.append(pull_number)
+        raise MergeEvidenceError(
+            "provider_evidence_invalid", "provider detail must not persist"
+        )
 
 
 def _search(
@@ -134,6 +161,36 @@ def test_successful_run_uses_overlap_and_advances_checkpoint(tmp_path: Path) -> 
     assert service.store.load_checkpoint(REPOSITORY) == now[0]
 
 
+def test_blocked_evidence_candidate_is_accounted_and_replayable(tmp_path: Path) -> None:
+    now = [datetime(2026, 8, 21, 15, 0, tzinfo=UTC)]
+    invoker = FakeInvoker(
+        {"github_search_pull_requests": [_search(452, 453), _search(452, 453)]}
+    )
+    processor = RecordingProcessor(blocked_on=452)
+    service = _service(tmp_path, now, invoker, processor)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    now[0] = now[0] + timedelta(seconds=300)
+    first = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    assert first["complete"] is True
+    assert [item["classification"] for item in first["outcomes"]] == [
+        "blocked_evidence",
+        "not_required",
+    ]
+    assert service.store.load_checkpoint(REPOSITORY) == now[0]
+
+    processor.blocked_on = None
+    now[0] = now[0] + timedelta(seconds=300)
+    second = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    assert second["complete"] is True
+    assert [item["classification"] for item in second["outcomes"]] == [
+        "not_required",
+        "not_required",
+    ]
+    assert processor.calls == [452, 453, 452, 453]
+    assert service.store.load_checkpoint(REPOSITORY) == now[0]
+
+
 def test_failed_candidate_does_not_advance_checkpoint_and_is_retryable(tmp_path: Path) -> None:
     now = [datetime(2026, 8, 21, 15, 0, tzinfo=UTC)]
     invoker = FakeInvoker({"github_search_pull_requests": [_search(452, 453)]})
@@ -152,6 +209,24 @@ def test_failed_candidate_does_not_advance_checkpoint_and_is_retryable(tmp_path:
     receipt = service.store.load_receipt(result["receipt_id"])
     assert "provider detail" not in str(receipt)
     assert receipt["outcomes"][0]["pull_number"] == 452
+
+
+def test_retryable_merge_evidence_error_preserves_checkpoint(tmp_path: Path) -> None:
+    now = [datetime(2026, 8, 21, 15, 0, tzinfo=UTC)]
+    invoker = FakeInvoker({"github_search_pull_requests": [_search(452)]})
+    processor = RetryableEvidenceProcessor()
+    service = _service(tmp_path, now, invoker, processor)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    original = service.store.load_checkpoint(REPOSITORY)
+
+    now[0] = now[0] + timedelta(seconds=300)
+    result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    assert result["complete"] is False
+    assert result["error_type"] == "MergeEvidenceError"
+    assert service.store.load_checkpoint(REPOSITORY) == original
+    receipt = service.store.load_receipt(result["receipt_id"])
+    assert "provider detail" not in str(receipt)
 
 
 def test_corrupt_checkpoint_recovers_at_current_time_without_backfill(tmp_path: Path) -> None:
