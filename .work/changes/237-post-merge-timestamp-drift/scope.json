@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "237-post-merge-timestamp-drift",
+  "status": "active",
+  "branch": "change/237-post-merge-timestamp-drift",
+  "worktree": ".work/worktrees/237-post-merge-timestamp-drift",
+  "base": "main",
+  "outcome": "Accept legitimate sub-minute provider/Git merge timestamp drift while rejecting obvious minute-level mismatches without weakening exact merge identity.",
+  "owned_paths": [
+    "src/kis_mcp/commissioning/evidence.py",
+    "tests/post_merge_commissioning/test_evidence.py",
+    "SPEC.md",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/237-post-merge-timestamp-drift/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "deployment"
+  ],
+  "base_evidence": {
+    "local_sha": "6dd3e74e21678cbd9751081e86d9acf56304da25",
+    "local_tree": "535ed9ac87f2de40fd176b836102ffbe69408471",
+    "upstream_sha": "6dd3e74e21678cbd9751081e86d9acf56304da25",
+    "upstream_tree": "535ed9ac87f2de40fd176b836102ffbe69408471",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-482",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 482,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
