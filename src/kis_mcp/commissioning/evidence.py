@@ -20,6 +20,8 @@ _MAX_MERGE_COMMIT_PAGES = 30
 _MAX_SCOPE_BYTES = 1_048_576
 _MAX_SCOPE_WRAPPER_DEPTH = 4
 _MAX_SCOPE_TREE_ENTRIES = 16
+# Live acceptance proved second-level provider/Git drift; one minute is the fail-closed sanity bound.
+_MAX_MERGE_TIME_DRIFT = timedelta(minutes=1)
 
 
 class ExternalOperationInvoker(Protocol):
@@ -417,7 +419,9 @@ class MergedChangeResolver:
                     )
                 except MergeEvidenceError:
                     continue
-                if provider_committer.get("login") != "web-flow" or committed_at != merged_at:
+                if provider_committer.get("login") != "web-flow":
+                    continue
+                if abs(committed_at - merged_at) >= _MAX_MERGE_TIME_DRIFT:
                     continue
                 matches.append(commit)
             if len(commits) < 100:
