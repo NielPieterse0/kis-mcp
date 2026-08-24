@@ -28,7 +28,7 @@ Each per-surface obligation key is:
 commission:<normalized-owner/repo>:<exact-merge-sha>:<surface-id>
 ```
 
-Before creation, the observer searches open and closed repository issues for the exact key. Existing matches are reused; newly created issues are re-read and must retain the deterministic title/body contract.
+Before creation, the observer searches open and closed repository issues for the exact key. Existing matches are reused. A new issue is mutated only once, then its durable result is reconciled through bounded provider confirmation: direct read-back when an issue number is available, deterministic-key search as a fallback, short bounded retry/backoff for transient visibility or response-shape variation, and semantic normalization of harmless text representation differences. Lost or incomplete mutation responses may therefore recover from durable provider evidence without repeating the write. The deterministic title/body contract, commissioning key, and duplicate-prevention identity remain authoritative; unconfirmed, conflicting, or materially different durable content still fails closed and preserves the observer checkpoint for retry.
 
 ## Source classification projection
 
