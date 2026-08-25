@@ -187,10 +187,10 @@ def test_register_discover_tools_registers_exact_public_surface_and_delegates() 
     ]
     for tool in tools:
         assert tool.annotations is not None
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is True
-        assert tool.annotations.openWorldHint is False
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+        assert tool.annotations.open_world_hint is False
 
 
 def test_register_discover_tools_normalizes_structural_errors_without_hr_codes() -> None:

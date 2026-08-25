@@ -24,7 +24,6 @@ from kis_mcp.providers import (
 from kis_mcp.providers import desktop_commander as desktop_module
 from kis_mcp.providers import platform as platform_module
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -139,7 +138,6 @@ def test_platform_registry_contains_exact_approved_providers_without_probing() -
         "github-mcp",
         "nvidia-nim",
         "serena-mcp",
-        "supabase",
     ]
     assert [item.provider_id for item in platform_module.ProviderService(registry).catalogue().entries()] == [
         "context7-mcp",
@@ -150,7 +148,6 @@ def test_platform_registry_contains_exact_approved_providers_without_probing() -
         "github-mcp",
         "nvidia-nim",
         "serena-mcp",
-        "supabase",
     ]
 
 
@@ -238,7 +235,7 @@ def test_platform_registry_and_catalogue_do_not_build_or_probe(
     )
     entries = platform_module.ProviderService(registry).catalogue().entries()
 
-    assert len(entries) == 9
+    assert len(entries) == 8
     assert builders == 0
     assert probes == 0
 
@@ -336,7 +333,6 @@ def test_platform_health_probes_all_providers_but_builds_none(
         "github-mcp",
         "nvidia-nim",
         "serena-mcp",
-        "supabase",
     ]
     assert builders == 0
 
@@ -415,10 +411,10 @@ server = server_module.build_server(
 names = sorted(tool.name for tool in asyncio.run(server.list_tools()))
 status_result = asyncio.run(server.call_tool("kis_provider_status", {}))
 status = status_result.structured_content
-supabase = next(
-    item for item in status["external_providers"] if item["provider_id"] == "supabase"
+supabase_visible = any(
+    item["provider_id"] == "supabase" for item in status["external_providers"]
 )
-print(json.dumps({"names": names, "supabase": supabase}, sort_keys=True))
+print(json.dumps({"names": names, "supabase_visible": supabase_visible}, sort_keys=True))
 '''
     environment = dict(os.environ)
     environment["PYTHONPATH"] = str(REPOSITORY_ROOT / "src")
@@ -437,8 +433,8 @@ print(json.dumps({"names": names, "supabase": supabase}, sort_keys=True))
     payload = json.loads(completed.stdout.strip().splitlines()[-1])
     assert "kis_health" in payload["names"]
     assert "kis_provider_status" in payload["names"]
-    assert payload["supabase"]["registered"] is False
-    assert payload["supabase"]["state"] == "unregistered"
+    assert not any("supabase" in name.casefold() for name in payload["names"])
+    assert payload["supabase_visible"] is False
 
 
 def test_platform_runtime_owns_live_repository_selection_source(
@@ -446,7 +442,7 @@ def test_platform_runtime_owns_live_repository_selection_source(
 ) -> None:
     runtime = _runtime()
     service = object()
-    composition = object()
+    composition = platform_module.ProviderRuntimeComposition(results=())
     runtime_settings = object()
     captured: dict[str, object] = {}
 

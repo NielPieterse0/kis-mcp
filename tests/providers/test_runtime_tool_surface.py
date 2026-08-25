@@ -17,15 +17,15 @@ from kis_mcp.providers.platform import (
     provider_capability_contributions,
     provider_runtime_tools,
 )
-from kis_mcp.providers.serena import (
-    SerenaRuntimeAdapter,
-    load_serena_settings,
-    serena_provider_descriptor,
-)
 from kis_mcp.providers.runtime import (
     ProviderMountResult,
     ProviderMountState,
     ProviderRuntimeComposition,
+)
+from kis_mcp.providers.serena import (
+    SerenaRuntimeAdapter,
+    load_serena_settings,
+    serena_provider_descriptor,
 )
 from kis_mcp.providers.service import ProviderService
 
@@ -80,8 +80,8 @@ def test_runtime_tools_are_namespaced_without_mutating_upstream_tool() -> None:
     upstream = SimpleNamespace(
         name="get_file_contents",
         description="Read repository contents.",
-        annotations={"readOnlyHint": True},
-        inputSchema={
+        annotations={"read_only_hint": True},
+        input_schema={
             "type": "object",
             "properties": {"path": {"type": "string"}},
             "required": ["path"],
@@ -97,7 +97,7 @@ def test_runtime_tools_are_namespaced_without_mutating_upstream_tool() -> None:
     assert tools[0].name == "github_get_file_contents"
     assert tools[0].description == upstream.description
     assert tools[0].annotations == upstream.annotations
-    assert tools[0].input_schema == upstream.inputSchema
+    assert tools[0].input_schema == upstream.input_schema
     assert upstream.name == "get_file_contents"
 
 
@@ -105,7 +105,7 @@ def test_runtime_tools_are_absent_when_provider_is_not_mounted() -> None:
     upstream = SimpleNamespace(
         name="get_file_contents",
         description="Read repository contents.",
-        annotations={"readOnlyHint": True},
+        annotations={"read_only_hint": True},
     )
 
     assert provider_runtime_tools(
@@ -150,8 +150,8 @@ def test_serena_runtime_snapshot_keeps_public_semantic_operations_eligible() -> 
             SimpleNamespace(
                 name=name,
                 description=f"Serena {name}",
-                annotations={"readOnlyHint": True},
-                inputSchema={"type": "object", "properties": {}},
+                annotations={"read_only_hint": True},
+                input_schema={"type": "object", "properties": {}},
             )
             for name in ("get_symbols_overview", "find_symbol", "find_referencing_symbols")
         )

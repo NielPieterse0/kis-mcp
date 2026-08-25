@@ -8,7 +8,7 @@ from typing import Any
 
 from fastmcp.exceptions import ToolError, ValidationError
 from fastmcp.server.middleware import Middleware, MiddlewareContext
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 
 from .contracts import PolicyEvaluator, ProviderEffectResolver
 from .line_endings import RepositoryLineEndingNormalizer
@@ -25,7 +25,7 @@ from .runtime_observability import (
 )
 
 QuarantinePaths = Callable[[Sequence[str]], Sequence[Mapping[str, Any]]]
-_BOUNDARY_METHODS = frozenset({"initialize", "tools/list", "tools/call"})
+_BOUNDARY_METHODS = frozenset({"server/discover", "initialize", "tools/list", "tools/call"})
 
 
 class BoundaryObservabilityMiddleware(Middleware):
@@ -317,7 +317,7 @@ class ThreeRuleMiddleware(Middleware):
 
     @staticmethod
     def _without_arguments(tool: Any, hidden: Sequence[str]) -> Any:
-        field = "parameters" if hasattr(tool, "parameters") else "inputSchema"
+        field = "parameters"
         schema = deepcopy(getattr(tool, field, {}))
         properties = schema.get("properties")
         if isinstance(properties, dict):
@@ -333,7 +333,7 @@ class ThreeRuleMiddleware(Middleware):
 
     @staticmethod
     def _without_config_keys(tool: Any, hidden: Sequence[str]) -> Any:
-        field = "parameters" if hasattr(tool, "parameters") else "inputSchema"
+        field = "parameters"
         schema = deepcopy(getattr(tool, field, {}))
         properties = schema.get("properties")
         if isinstance(properties, dict) and isinstance(properties.get("key"), dict):

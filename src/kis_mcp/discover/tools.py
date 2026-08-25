@@ -13,8 +13,6 @@ from .change_analysis import (
     SuppliedChange,
 )
 from .change_inspection_contracts import InspectChangeRequest, InspectChangeResponse
-from .impact_contracts import ImpactBudget
-from .planning_contracts import PlanChangeRequest, PlanChangeResponse
 from .context_contracts import (
     CodeContextBudget,
     GetCodeContextRequest,
@@ -22,13 +20,14 @@ from .context_contracts import (
 )
 from .contracts import InspectProjectRequest, InspectProjectResponse
 from .errors import DiscoverError
-
+from .impact_contracts import ImpactBudget
+from .planning_contracts import PlanChangeRequest, PlanChangeResponse
 
 _READ_ONLY_ANNOTATIONS = {
-    "readOnlyHint": True,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": False,
+    "read_only_hint": True,
+    "destructive_hint": False,
+    "idempotent_hint": True,
+    "open_world_hint": False,
 }
 
 

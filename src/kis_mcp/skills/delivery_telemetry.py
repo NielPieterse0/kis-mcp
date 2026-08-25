@@ -14,7 +14,6 @@ from .catalogue import SkillCatalogue
 from .errors import SkillsError
 from .telemetry import SkillTelemetryEvent, SkillTelemetryStore
 
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -71,9 +70,9 @@ def _request_correlation(context: MiddlewareContext) -> tuple[str | None, str | 
     if fastmcp_context is None:
         return None, None, None
     request_context = fastmcp_context.request_context
-    meta = getattr(request_context, "meta", None)
-    extras = getattr(meta, "model_extra", None) or {}
-    request_id = fastmcp_context.origin_request_id or fastmcp_context.request_id
+    meta = request_context.meta if request_context is not None else None
+    extras = meta if isinstance(meta, dict) else {}
+    request_id = fastmcp_context.origin_request_id
     return (
         str(request_id) if request_id is not None else None,
         extras.get("kis_activation_id"),

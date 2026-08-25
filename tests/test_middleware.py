@@ -144,7 +144,7 @@ def test_provider_url_mode_is_not_exposed_or_callable() -> None:
         async with Client(server) as client:
             tools = await client.list_tools()
             read_tool = next(tool for tool in tools if tool.name == "read_file")
-            assert "isUrl" not in read_tool.inputSchema.get("properties", {})
+            assert "isUrl" not in read_tool.input_schema.get("properties", {})
             with pytest.raises(Exception, match="UNSUPPORTED_PROVIDER_MODE"):
                 await client.call_tool(
                     "read_file",
@@ -312,7 +312,7 @@ def test_provider_restriction_fields_are_gateway_managed() -> None:
         async with Client(server) as client:
             tools = await client.list_tools()
             config_tool = next(tool for tool in tools if tool.name == "set_config_value")
-            excluded = config_tool.inputSchema["properties"]["key"]["not"]["enum"]
+            excluded = config_tool.input_schema["properties"]["key"]["not"]["enum"]
             assert excluded == ["allowedDirectories", "blockedCommands"]
 
             with pytest.raises(Exception, match="PROVIDER_CONFIGURATION_INVARIANT"):
@@ -385,7 +385,7 @@ def test_middleware_records_redacted_allowed_and_blocked_calls() -> None:
     assert "result body" not in rendered
 
 
-def test_boundary_middleware_records_initialize_list_and_call_without_payloads() -> None:
+def test_boundary_middleware_records_discover_list_and_call_without_payloads() -> None:
     server = FastMCP("boundary-observability-test")
     registry = RuntimeObservability(max_boundary_requests=10)
 
@@ -402,7 +402,7 @@ def test_boundary_middleware_records_initialize_list_and_call_without_payloads()
 
     asyncio.run(run())
     records = registry.snapshot().recent_boundary_requests
-    assert any(item.method == "initialize" for item in records)
+    assert any(item.method == "server/discover" for item in records)
     assert any(item.method == "tools/list" for item in records)
     assert any(
         item.method == "tools/call" and item.tool_name == "echo"

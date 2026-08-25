@@ -11,6 +11,7 @@ from kis_mcp.commissioning.settings import (
     load_post_merge_commissioning_settings,
 )
 from kis_mcp.config import RuntimeConfig
+from kis_mcp.mcp2026 import LONG_RUNNING_TASK_CONFIG
 
 from .invoker import CommissioningFastMCPInvoker
 from .processor import CommissioningCandidateProcessor
@@ -50,7 +51,7 @@ def register_commissioning_tools(
                 f"POST_MERGE_COMMISSIONING_EXECUTION_NOT_FOUND: {commissioning_key}"
             ) from exc
 
-    @server.tool
+    @server.tool(task=LONG_RUNNING_TASK_CONFIG)
     async def kis_post_merge_commissioning_run(
         repository: str,
         commissioning_issue: int,

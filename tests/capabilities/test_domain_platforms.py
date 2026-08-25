@@ -6,6 +6,7 @@ from fastmcp import FastMCP
 
 from kis_mcp.capabilities.contracts import OperationEffect, ReadinessState
 from kis_mcp.capabilities.settings import load_capability_settings
+from kis_mcp.capabilities.surface import _runtime_effects, augment_with_runtime_surface
 from kis_mcp.discover.platform import discover_capability_contributions
 from kis_mcp.providers.contracts import (
     ProviderBoundary,
@@ -24,9 +25,11 @@ from kis_mcp.providers.runtime import (
 )
 from kis_mcp.providers.service import ProviderService
 from kis_mcp.skills.models import SkillCard
-from kis_mcp.capabilities.surface import _runtime_effects, augment_with_runtime_surface
 from kis_mcp.skills.platform import enrich_skill_card, skill_capability_contributions
-from kis_mcp.tools.platform import build_platform_tool_registry, tool_capability_contributions
+from kis_mcp.tools.platform import (
+    build_platform_tool_registry,
+    tool_capability_contributions,
+)
 from kis_mcp.workflows.platform import workflow_descriptors
 
 
@@ -135,7 +138,7 @@ def test_all_registered_shared_skills_gain_capability_metadata() -> None:
 
 
 def test_runtime_effect_classification_distinguishes_reads_processes_and_external_mutations() -> None:
-    read_tool = SimpleNamespace(annotations={"readOnlyHint": True})
+    read_tool = SimpleNamespace(annotations={"read_only_hint": True})
     plain_tool = SimpleNamespace(annotations={})
 
     assert _runtime_effects("kis_list_quarantine", read_tool, owner_effects=()) == (

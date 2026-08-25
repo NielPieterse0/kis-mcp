@@ -16,7 +16,10 @@ from kis_mcp.providers.contracts import (
     ProviderState,
 )
 from kis_mcp.providers.registry import ProviderRegistry
-from kis_mcp.providers.runtime_settings import ProviderMountSetting, ProviderRuntimeSettings
+from kis_mcp.providers.runtime_settings import (
+    ProviderMountSetting,
+    ProviderRuntimeSettings,
+)
 from kis_mcp.providers.service import ProviderService
 
 
@@ -212,3 +215,14 @@ def test_capability_search_returns_workflow_without_optional_skill_fixture() -> 
         item["workflow_id"] == "assess-repository-modularity"
         for item in payload["workflows"]
     )
+
+def test_gateway_installs_mcp2026_tasks_extension() -> None:
+    composed = compose_gateway(
+        load_runtime_config(),
+        validate_provider=False,
+        provider_service=service(),
+        provider_runtime_settings=runtime_settings(),
+        create_proxy_fn=lambda *_args, **_kwargs: FastMCP("tasks-extension"),
+    )
+
+    assert "io.modelcontextprotocol/tasks" in composed.server._extensions

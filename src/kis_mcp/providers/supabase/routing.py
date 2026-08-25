@@ -9,7 +9,6 @@ from fastmcp.server.middleware import Middleware, MiddlewareContext
 
 from kis_mcp.projects import ProjectRegistry
 
-
 RuntimeToolsSource = Callable[[], Sequence[Any]]
 
 
@@ -32,11 +31,9 @@ class SupabaseCommissioningState:
 def _read_only_hint(tool: Any) -> bool:
     annotations = getattr(tool, "annotations", None)
     if isinstance(annotations, Mapping):
+        # Mapping values may be MCP wire-shaped; the SDK object surface is snake_case.
         return annotations.get("readOnlyHint") is True or annotations.get("read_only_hint") is True
-    return (
-        getattr(annotations, "readOnlyHint", None) is True
-        or getattr(annotations, "read_only_hint", None) is True
-    )
+    return getattr(annotations, "read_only_hint", None) is True
 
 
 def _project_id(arguments: Mapping[str, Any]) -> str | None:

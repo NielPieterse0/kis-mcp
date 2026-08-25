@@ -61,7 +61,7 @@ def test_runtime_tool_snapshot_and_readiness_refresh_without_gateway_rebuild() -
         SimpleNamespace(
             name="github_get_file_contents",
             description="Read repository contents.",
-            annotations={"readOnlyHint": True},
+            annotations={"read_only_hint": True},
             input_schema={
                 "type": "object",
                 "properties": {"path": {"type": "string"}},
@@ -133,7 +133,7 @@ def test_runtime_availability_requires_mapped_operation_to_be_enabled() -> None:
         SimpleNamespace(
             name="github_projects_list",
             description="List GitHub Projects.",
-            annotations={"readOnlyHint": True},
+            annotations={"read_only_hint": True},
         )
     ]
     runtime = CapabilityRuntimeState.build(
@@ -153,7 +153,7 @@ def test_runtime_availability_requires_mapped_operation_to_be_enabled() -> None:
         SimpleNamespace(
             name="github_merge_pull_request",
             description="Merge a pull request.",
-            annotations={"destructiveHint": True},
+            annotations={"destructive_hint": True},
         )
     )
 
@@ -167,7 +167,7 @@ def test_runtime_long_tail_tools_remain_discoverable_not_direct() -> None:
         SimpleNamespace(
             name="github_get_file_contents",
             description="Read repository contents.",
-            annotations={"readOnlyHint": True},
+            annotations={"read_only_hint": True},
         )
     ]
     runtime = CapabilityRuntimeState.build(

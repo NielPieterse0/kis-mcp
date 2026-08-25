@@ -3,24 +3,25 @@ from __future__ import annotations
 import json
 from typing import Protocol
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
+from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
 from .contracts import VerificationResult, VerificationSelectionResult
-from .execution import VerificationExecutionError
+from .execution import ProgressReporter, VerificationExecutionError
 from .selection import VerificationSelectionError
 
 _PROCESS_ANNOTATIONS = {
-    "readOnlyHint": False,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": False,
+    "read_only_hint": False,
+    "destructive_hint": False,
+    "idempotent_hint": True,
+    "open_world_hint": False,
 }
 _READ_ONLY_ANNOTATIONS = {
-    "readOnlyHint": True,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": False,
+    "read_only_hint": True,
+    "destructive_hint": False,
+    "idempotent_hint": True,
+    "open_world_hint": False,
 }
 
 
@@ -31,6 +32,8 @@ class VerificationServicePort(Protocol):
         project: str,
         verification_id: str,
         timeout_ms: int = 120_000,
+        stall_timeout_ms: int = 30_000,
+        progress_reporter: ProgressReporter | None = None,
     ) -> VerificationResult: ...
 
 
@@ -52,11 +55,17 @@ def register_verification_tool(
     server: FastMCP,
     service: VerificationServicePort,
 ) -> None:
-    @server.tool(name="run_verification", annotations=_PROCESS_ANNOTATIONS)
+    @server.tool(
+        name="run_verification",
+        annotations=_PROCESS_ANNOTATIONS,
+        task=LONG_RUNNING_TASK_CONFIG,
+    )
     async def run_verification(
         project: str,
         verification_id: str,
+        ctx: Context,
         timeout_ms: int = 120_000,
+        stall_timeout_ms: int = 30_000,
     ) -> dict[str, object]:
         """Execute one verification previously discovered for a local project."""
         try:
@@ -65,6 +74,8 @@ def register_verification_tool(
                     project=project,
                     verification_id=verification_id,
                     timeout_ms=timeout_ms,
+                    stall_timeout_ms=stall_timeout_ms,
+                    progress_reporter=ctx.report_progress,
                 )
             ).to_json_dict()
         except VerificationExecutionError as exc:

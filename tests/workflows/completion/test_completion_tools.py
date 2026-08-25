@@ -87,9 +87,9 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
     assert service.calls[0]["review_types"] is None
     assert service.calls[0]["complexity"] == "medium"
     assert service.calls[0]["risk_triggers"] == ()
-    assert tool.annotations.readOnlyHint is False
-    assert tool.annotations.destructiveHint is False
-    assert tool.annotations.idempotentHint is True
+    assert tool.annotations.read_only_hint is False
+    assert tool.annotations.destructive_hint is False
+    assert tool.annotations.idempotent_hint is True
 
 
 class FailingService(Service):

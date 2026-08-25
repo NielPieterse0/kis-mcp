@@ -12,7 +12,6 @@ from uuid import uuid4
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
-
 STATE_ROOT = Path(r"C:\Projects\.kis-mcp")
 
 
@@ -189,7 +188,7 @@ async def _run_live_commissioning(repository_root: Path) -> dict[str, bool]:
                 "remove_directory",
             }
             assert direct_delete_tools.isdisjoint(tools_by_name)
-            read_properties = tools_by_name["read_file"].inputSchema.get(
+            read_properties = tools_by_name["read_file"].input_schema.get(
                 "properties", {}
             )
             assert "isUrl" not in read_properties
