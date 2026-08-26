@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 import pytest
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from kis_mcp.discover.errors import DiscoverError
 from kis_mcp.workflows.verification.contracts import (
     VerificationResult,
     VerificationSelectionItem,
@@ -105,6 +107,42 @@ def test_structural_verification_errors_are_not_hr_policy_codes() -> None:
         )
     assert "VERIFICATION_ID_UNKNOWN" in str(raised.value)
     assert "HR-" not in str(raised.value)
+
+
+def test_discover_errors_are_translated_without_fastmcp_exception_failure() -> None:
+    server = FastMCP("verification-discover-error-test")
+    register_verification_tool(
+        server,
+        _Service(
+            error=DiscoverError(
+                code="DISCOVER_PATH_NOT_FOUND",
+                message="The project path does not exist.",
+                reason="The requested local directory could not be resolved.",
+                field="path",
+            )
+        ),
+    )
+    with pytest.raises(ToolError) as raised:
+        asyncio.run(
+            server.call_tool(
+                "run_verification",
+                {
+                    "project": "kis-mcp",
+                    "verification_id": "python-pytest",
+                },
+            )
+        )
+    message = str(raised.value)
+    assert "super(type, obj)" not in message
+    assert json.loads(message) == {
+        "accepted": None,
+        "code": "DISCOVER_PATH_NOT_FOUND",
+        "corrective_actions": [],
+        "field": "path",
+        "message": "The project path does not exist.",
+        "reason": "The requested local directory could not be resolved.",
+        "retryable": False,
+    }
 
 
 class _SelectionService:
