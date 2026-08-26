@@ -1,0 +1,6 @@
+# This repository contains the MCP SDK's JSON Schema as contract source data.
+# It is not an MCP client/server configuration file and must not be linted as one.
+exclude = ["contracts/tools/mcp-sdk-integrations/mcp-spec.schema.json"]
+
+[spec_revisions]
+mcp_protocol = "2026-07-28"
