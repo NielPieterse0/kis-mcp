@@ -6,6 +6,7 @@ from typing import Protocol
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
+from ...discover.errors import DiscoverError
 from .contracts import VerificationResult, VerificationSelectionResult
 from .execution import ProgressReporter, VerificationExecutionError
 from .selection import VerificationSelectionError
@@ -76,6 +77,14 @@ def register_verification_tool(
                     progress_reporter=ctx.report_progress,
                 )
             ).to_json_dict()
+        except DiscoverError as exc:
+            raise ToolError(
+                json.dumps(
+                    exc.to_json_dict(),
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            ) from exc
         except VerificationExecutionError as exc:
             raise ToolError(
                 json.dumps(

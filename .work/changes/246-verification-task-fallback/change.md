@@ -21,4 +21,5 @@ Restore live repository verification execution by making run_verification execut
 - Focused checks: Red/green regression proven; `tests/test_mcp2026_tasks.py` plus verification-tool tests pass 7/7.
 - Review findings: Initial API-contract review requested explicit synchronous execution proof; added wire-level client regression. Re-review completed with zero findings.
 - Residual risk: Background Tasks remain enabled for other long-running surfaces; their deployed worker lifecycle is outside this emergency fallback.
-- Closeout state: Implementation complete; governance/publication checks pending.
+- Post-merge live finding: invalid project/path discovery errors escaped the tool boundary and FastMCP surfaced a misleading `super(type, obj)` class-identity failure. `run_verification` now translates `DiscoverError` into its stable typed ToolError envelope; regression coverage proves the original failure cannot recur at that boundary.
+- Closeout state: Keep active until the follow-up commit is merged and live `kis-dev` proves both typed invalid-path handling and successful verification execution.
