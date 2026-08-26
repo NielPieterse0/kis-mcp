@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "246-verification-task-fallback",
+  "status": "active",
+  "branch": "change/246-verification-task-fallback",
+  "worktree": ".work/worktrees/246-verification-task-fallback",
+  "base": "main",
+  "outcome": "Restore live repository verification execution by making run_verification execute synchronously instead of queueing into the non-consuming MCP Tasks worker.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/verification/tools.py",
+    "tests/test_mcp2026_tasks.py",
+    "tests/workflows/verification/test_verification_tools.py",
+    ".work/changes/246-verification-task-fallback/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "fc07d41a0254d796023707887d323380beff0436",
+    "local_tree": "23168decc091834cec2eb84abed7afc0bff0bf6b",
+    "upstream_sha": "fc07d41a0254d796023707887d323380beff0436",
+    "upstream_tree": "23168decc091834cec2eb84abed7afc0bff0bf6b",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

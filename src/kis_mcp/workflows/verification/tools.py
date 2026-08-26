@@ -6,7 +6,6 @@ from typing import Protocol
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 
-from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
 from .contracts import VerificationResult, VerificationSelectionResult
 from .execution import ProgressReporter, VerificationExecutionError
 from .selection import VerificationSelectionError
@@ -58,7 +57,6 @@ def register_verification_tool(
     @server.tool(
         name="run_verification",
         annotations=_PROCESS_ANNOTATIONS,
-        task=LONG_RUNNING_TASK_CONFIG,
     )
     async def run_verification(
         project: str,
