@@ -403,6 +403,7 @@ def test_health_response_uses_runtime_remote_status_without_mutating_settings(
 
 def test_health_response_exposes_skills_ready_component() -> None:
     config = load_runtime_config(REPOSITORY_ROOT)
+    baseline = foundation_module.health_response(config, config.desktop_commander_launch)
 
     response = foundation_module.health_response(
         config,
@@ -410,12 +411,13 @@ def test_health_response_exposes_skills_ready_component() -> None:
         {"skills": "ready"},
     )
 
-    assert response.ready is True
+    assert response.ready is baseline.ready
     assert response.implementation_status["skills"] == "ready"
 
 
 def test_health_response_exposes_skills_degraded_component_without_global_failure() -> None:
     config = load_runtime_config(REPOSITORY_ROOT)
+    baseline = foundation_module.health_response(config, config.desktop_commander_launch)
 
     response = foundation_module.health_response(
         config,
@@ -423,7 +425,7 @@ def test_health_response_exposes_skills_degraded_component_without_global_failur
         {"skills": "degraded:SKILLS_REFRESH_REJECTED"},
     )
 
-    assert response.ready is True
+    assert response.ready is baseline.ready
     assert response.implementation_status["skills"] == (
         "degraded:SKILLS_REFRESH_REJECTED"
     )

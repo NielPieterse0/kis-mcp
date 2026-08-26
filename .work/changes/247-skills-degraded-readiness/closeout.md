@@ -16,6 +16,7 @@
 - Architecture review: initial three findings remediated; re-review clean.
 - API-contract review: initial return-arity compatibility finding remediated; re-review clean.
 - Test-quality automated review hit `CODEX_CLI_OUTPUT_LIMIT`; exact changed-test review confirms coverage for fail-open, ready/degraded status, degraded capability identity, registration compatibility, health projection, and dependency direction.
+- First exact-head CI run `32997373814` failed only because two new health tests hard-coded global `ready=true`; CI correctly has no local Desktop Commander entry. Those tests now assert Skills status preserves the baseline global readiness value instead of forcing host-specific readiness.
 
 ## Remaining closeout gates
 
