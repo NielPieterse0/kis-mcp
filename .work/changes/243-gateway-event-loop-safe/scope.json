@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "243-gateway-event-loop-safe",
+  "status": "active",
+  "branch": "change/243-gateway-event-loop-safe",
+  "worktree": ".work/worktrees/243-gateway-event-loop-safe",
+  "base": "main",
+  "outcome": "Make synchronous gateway composition deterministic and safe when invoked from an already-running event loop without changing operator startup behavior or provider/tool discovery semantics.",
+  "owned_paths": [
+    "src/kis_mcp/gateway/composition.py",
+    "tests/capabilities/test_gateway_composition.py",
+    "tests/gateway/test_project_context.py",
+    ".work/changes/243-gateway-event-loop-safe/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "6303b80e1d9ef29706c612de8748ae2573ab499f",
+    "local_tree": "39c3c7cb4317e2822a3924a9a82c940d277f40c4",
+    "upstream_sha": "6303b80e1d9ef29706c612de8748ae2573ab499f",
+    "upstream_tree": "39c3c7cb4317e2822a3924a9a82c940d277f40c4",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-523",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 523,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
