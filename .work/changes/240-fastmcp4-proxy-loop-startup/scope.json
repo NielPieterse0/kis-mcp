@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "240-fastmcp4-proxy-loop-startup",
+  "status": "active",
+  "branch": "change/240-fastmcp4-proxy-loop-startup",
+  "worktree": ".work/worktrees/240-fastmcp4-proxy-loop-startup",
+  "base": "main",
+  "outcome": "Restore kis-dev startup on FastMCP 4 by preventing gateway composition from binding proxy clients to a disposable event loop, without interrupting or modifying kis-op.",
+  "owned_paths": [
+    "src/kis_mcp/gateway/composition.py",
+    "tests/**",
+    ".work/changes/240-fastmcp4-proxy-loop-startup/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "8fe898c605fd94e3c7fed55b4566ca26b8dcd4a4",
+    "local_tree": "755ea0e16d5cafde38e95ccdfdbc266aaa82bb37",
+    "upstream_sha": "8fe898c605fd94e3c7fed55b4566ca26b8dcd4a4",
+    "upstream_tree": "755ea0e16d5cafde38e95ccdfdbc266aaa82bb37",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-475",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 475,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
