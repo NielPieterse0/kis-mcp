@@ -85,6 +85,50 @@ _LANGUAGE_BY_SUFFIX = {
 }
 
 
+def _reconcile_registered_projects(config_path: Path) -> tuple[str, ...]:
+    content = config_path.read_text(encoding="utf-8")
+    lines = content.splitlines(keepends=True)
+    block_starts = [
+        index
+        for index, line in enumerate(lines)
+        if line.rstrip("\r\n") == "projects:"
+    ]
+    inline_empty = [
+        index
+        for index, line in enumerate(lines)
+        if line.rstrip("\r\n") == "projects: []"
+    ]
+    if len(block_starts) + len(inline_empty) != 1:
+        raise RuntimeError(
+            "Serena global configuration must contain exactly one projects registration block"
+        )
+    if inline_empty:
+        return ()
+
+    start = block_starts[0] + 1
+    end = start
+    while end < len(lines) and lines[end].startswith("- "):
+        end += 1
+
+    removed: list[str] = []
+    retained: list[str] = []
+    for line in lines[start:end]:
+        raw_path = line[2:].strip()
+        if len(raw_path) >= 2 and raw_path[0] == raw_path[-1] and raw_path[0] in {'"', "'"}:
+            raw_path = raw_path[1:-1]
+        if Path(raw_path).exists():
+            retained.append(line)
+        else:
+            removed.append(raw_path)
+    if removed:
+        config_path.write_text(
+            "".join((*lines[:start], *retained, *lines[end:])),
+            encoding="utf-8",
+            newline="",
+        )
+    return tuple(removed)
+
+
 def _repair_empty_project_languages(
     settings: SerenaSettings,
     project_root: str,
@@ -158,6 +202,7 @@ def _prepare_serena_project_state(
         updated = _PROJECT_STATE_SETTING.sub(expected, content, count=1)
         config_path.write_text(updated, encoding="utf-8")
 
+    _reconcile_registered_projects(config_path)
     return settings.ensure_project_data_path(project_root)
 
 
