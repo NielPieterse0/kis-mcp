@@ -53,8 +53,8 @@ def test_register_change_tools_registers_exact_tool_and_preserves_default() -> N
     register_change_tools(server, service)
 
     tools = _local_tools(server)
-    assert [tool.name for tool in tools] == ["inspect_change"]
-    tool = tools[0]
+    assert [tool.name for tool in tools] == ["inspect_change", "build_review_map"]
+    tool = next(item for item in tools if item.name == "inspect_change")
     result = asyncio.run(tool.run({"path": r"C:\Projects\fixture"}))
 
     assert result.structured_content == {

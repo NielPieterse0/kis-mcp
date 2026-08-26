@@ -22,6 +22,8 @@ from .contracts import InspectProjectRequest, InspectProjectResponse
 from .errors import DiscoverError
 from .impact_contracts import ImpactBudget
 from .planning_contracts import PlanChangeRequest, PlanChangeResponse
+from .review_map import build_review_map as build_review_map_document
+from .review_map_contracts import ReviewMapLimits
 
 _READ_ONLY_ANNOTATIONS = {
     "read_only_hint": True,
@@ -215,6 +217,52 @@ def register_change_tools(server: FastMCP, service: InspectChangePort) -> None:
                 ),
             )
 
+    @server.tool(name="build_review_map", annotations=_READ_ONLY_ANNOTATIONS)
+    def build_review_map(
+        path: str,
+        source: str = "working_tree",
+        commit_ref: str | None = None,
+        base_ref: str | None = None,
+        head_ref: str | None = None,
+        expected_source_fingerprint: str | None = None,
+        max_files: int = 200,
+        max_sections: int = 40,
+        max_relationships: int = 100,
+    ) -> dict[str, Any]:
+        """Build deterministic navigation evidence bound to one exact change source."""
+        try:
+            inspection = service.inspect(
+                InspectChangeRequest(
+                    path=path,
+                    source=source,
+                    commit_ref=commit_ref,
+                    base_ref=base_ref,
+                    head_ref=head_ref,
+                )
+            )
+            return build_review_map_document(
+                inspection,
+                limits=ReviewMapLimits(
+                    max_files=max_files,
+                    max_sections=max_sections,
+                    max_relationships=max_relationships,
+                ),
+                expected_source_fingerprint=expected_source_fingerprint,
+            )
+        except DiscoverError as exc:
+            raise _discover_tool_error(exc) from exc
+        except ValueError as exc:
+            raise _request_tool_error(
+                code="DISCOVER_REVIEW_MAP_REQUEST_INVALID",
+                message="The build_review_map request is invalid.",
+                reason=str(exc),
+                field="request",
+                corrective_actions=(
+                    "Use the exact current source fingerprint when supplied.",
+                    "Use a supported change source and positive bounded limits.",
+                ),
+            )
+
     if callable(getattr(service, "analyze", None)):
         register_analyze_change_tool(server, service)  # type: ignore[arg-type]
 
@@ -242,7 +290,9 @@ def register_analyze_change_tool(server: FastMCP, service: AnalyzeChangePort) ->
         """Normalize one local or supplied change and return evidence-backed impact guidance."""
 
         try:
-            supplied = tuple(SuppliedChange(**item) for item in (supplied_changes or ()))
+            supplied = tuple(
+                SuppliedChange(**item) for item in (supplied_changes or ())
+            )
             github = None
             if github_context is not None:
                 payload = dict(github_context)
@@ -319,7 +369,11 @@ def _change_request_field(reason: str) -> str:
         return "path"
     if "source is unsupported" in normalized:
         return "source"
-    if "requires" in normalized or "accepts only" in normalized or "does not accept" in normalized:
+    if (
+        "requires" in normalized
+        or "accepts only" in normalized
+        or "does not accept" in normalized
+    ):
         return "request"
     for field in ("commit_ref", "base_ref", "head_ref"):
         if field in normalized:

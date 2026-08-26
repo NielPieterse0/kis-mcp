@@ -4,17 +4,6 @@ from pathlib import Path
 
 from fastmcp import FastMCP
 
-from ..config import RuntimeConfig
-from ..projects import ProjectRegistry
-from .change_service import InspectChangeService
-from .git_change_reader import GitChangeReader
-from .intelligence import ProjectIntelligenceService
-from .read_authority import ReadAuthority
-from .semantic import SemanticEvidenceProvider
-from .service import InspectProjectService
-from .planning import PlanChangeService
-from .tools import register_change_tools, register_discover_tools, register_plan_change_tool
-
 from ..capabilities.contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -26,6 +15,20 @@ from ..capabilities.contracts import (
     ReadinessState,
 )
 from ..capabilities.normalization import default_quality
+from ..config import RuntimeConfig
+from ..projects import ProjectRegistry
+from .change_service import InspectChangeService
+from .git_change_reader import GitChangeReader
+from .intelligence import ProjectIntelligenceService
+from .planning import PlanChangeService
+from .read_authority import ReadAuthority
+from .semantic import SemanticEvidenceProvider
+from .service import InspectProjectService
+from .tools import (
+    register_change_tools,
+    register_discover_tools,
+    register_plan_change_tool,
+)
 
 
 def _ready(contribution_id: str) -> ReadinessSnapshot:
@@ -47,7 +50,9 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
         effects=(OperationEffect.READ_ONLY,),
         dependencies=(),
         exposure=ExposurePolicy(mode=ExposureMode.DIRECT, priority=95),
-        quality=default_quality(context_cost=20, reliability=95, workflow_integration=95),
+        quality=default_quality(
+            context_cost=20, reliability=95, workflow_integration=95
+        ),
     )
     change_operation = OperationDescriptor(
         operation_id="discover.inspect-change",
@@ -57,30 +62,60 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
         effects=(OperationEffect.READ_ONLY,),
         dependencies=(),
         exposure=ExposurePolicy(mode=ExposureMode.DIRECT, priority=98),
-        quality=default_quality(context_cost=15, reliability=95, workflow_integration=100),
+        quality=default_quality(
+            context_cost=15, reliability=95, workflow_integration=100
+        ),
+    )
+    review_map_operation = OperationDescriptor(
+        operation_id="discover.build-review-map",
+        name="build_review_map",
+        description="Build deterministic navigation evidence bound to the exact inspected change fingerprint.",
+        capabilities=(
+            "code.change.review-map",
+            "git.change.inspect",
+            "repository.git-read",
+        ),
+        effects=(OperationEffect.READ_ONLY,),
+        dependencies=(),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=92),
+        quality=default_quality(
+            context_cost=15, reliability=95, workflow_integration=95
+        ),
     )
     plan_operation = OperationDescriptor(
         operation_id="discover.plan-change",
         name="plan_change",
         description="Prepare bounded change scope, affected tests, verification, and active-claim evidence.",
-        capabilities=("code.change.plan", "change.impact.analyze", "repository.inspect"),
+        capabilities=(
+            "code.change.plan",
+            "change.impact.analyze",
+            "repository.inspect",
+        ),
         effects=(OperationEffect.READ_ONLY,),
         dependencies=(),
         exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=90),
-        quality=default_quality(context_cost=25, reliability=95, workflow_integration=100),
+        quality=default_quality(
+            context_cost=25, reliability=95, workflow_integration=100
+        ),
     )
     return (
         CapabilityContribution(
             contribution_id=project_id,
             domain=CapabilityDomain.DISCOVER,
             category="repository-analysis",
-            capabilities=("repository.inspect", "repository.git-read", "verification.discover"),
+            capabilities=(
+                "repository.inspect",
+                "repository.git-read",
+                "verification.discover",
+            ),
             operations=(project_operation,),
             dependencies=(),
             effects=(OperationEffect.READ_ONLY,),
             readiness_probe=lambda: _ready(project_id),
             exposure=ExposurePolicy(mode=ExposureMode.DIRECT, priority=95),
-            quality=default_quality(context_cost=20, reliability=95, workflow_integration=95),
+            quality=default_quality(
+                context_cost=20, reliability=95, workflow_integration=95
+            ),
         ),
         CapabilityContribution(
             contribution_id=change_id,
@@ -93,13 +128,16 @@ def discover_capability_contributions() -> tuple[CapabilityContribution, ...]:
                 "change.impact.analyze",
                 "contract.change.inspect",
                 "code.change.plan",
+                "code.change.review-map",
             ),
-            operations=(change_operation, plan_operation),
+            operations=(change_operation, review_map_operation, plan_operation),
             dependencies=(),
             effects=(OperationEffect.READ_ONLY,),
             readiness_probe=lambda: _ready(change_id),
             exposure=ExposurePolicy(mode=ExposureMode.DIRECT, priority=98),
-            quality=default_quality(context_cost=15, reliability=95, workflow_integration=100),
+            quality=default_quality(
+                context_cost=15, reliability=95, workflow_integration=100
+            ),
         ),
     )
 

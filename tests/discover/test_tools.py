@@ -11,7 +11,11 @@ from kis_mcp.discover.tools import register_plan_change_tool
 
 class _Response:
     def to_json_dict(self) -> dict[str, Any]:
-        return {"schema_version": 1, "tool": "plan_change", "execution_performed": False}
+        return {
+            "schema_version": 1,
+            "tool": "plan_change",
+            "execution_performed": False,
+        }
 
 
 class _Service:
@@ -81,3 +85,18 @@ def test_plan_change_is_discoverable_as_change_planning_capability() -> None:
     assert "plan_change" in operations
     assert operations["plan_change"].effects[0].value == "read_only"
     assert "code.change.plan" in operations["plan_change"].capabilities
+
+
+def test_review_map_is_discoverable_as_read_only_navigation_evidence() -> None:
+    from kis_mcp.discover.platform import discover_capability_contributions
+
+    operations = {
+        operation.name: operation
+        for contribution in discover_capability_contributions()
+        for operation in contribution.operations
+    }
+
+    review_map = operations["build_review_map"]
+    assert review_map.effects[0].value == "read_only"
+    assert "code.change.review-map" in review_map.capabilities
+    assert "git.change.inspect" in review_map.capabilities
