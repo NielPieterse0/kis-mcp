@@ -16,6 +16,7 @@
     "src/kis_mcp/gateway/composition.py",
     "tests/capabilities/test_exposure_execution.py",
     "tests/capabilities/test_capability_settings.py",
+    "tests/gateway/test_composition.py",
     "SPEC.md",
     ".work/changes/245-resource-link-large-results/**"
   ],
