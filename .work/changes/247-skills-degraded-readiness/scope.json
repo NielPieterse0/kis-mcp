@@ -1,0 +1,50 @@
+{
+  "schema_version": 4,
+  "change_id": "247-skills-degraded-readiness",
+  "status": "active",
+  "branch": "change/247-skills-degraded-readiness",
+  "worktree": ".work/worktrees/247-skills-degraded-readiness",
+  "base": "main",
+  "outcome": "Make Skills catalogue initialization failure explicitly machine-observable while preserving fail-open ordinary Work behavior.",
+  "owned_paths": [
+    "src/kis_mcp/skills/tools.py",
+    "src/kis_mcp/skills/platform.py",
+    "src/kis_mcp/skills/status.py",
+    "src/kis_mcp/gateway/foundation.py",
+    "src/kis_mcp/gateway/operations.py",
+    "src/kis_mcp/gateway/composition.py",
+    "tests/skills/test_tools.py",
+    "tests/skills/test_platform.py",
+    "tests/skills/test_status.py",
+    "tests/skills/test_dynamic_catalogue_startup.py",
+    "tests/skills/test_architecture.py",
+    "tests/commissioning/test_operational_status.py",
+    ".work/changes/247-skills-degraded-readiness/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "bfc53eb38753278ee6f93df850f001a0bcbb444b",
+    "local_tree": "22bf36c59379891b7ce6b30f170fa25390288ae9",
+    "upstream_sha": "bfc53eb38753278ee6f93df850f001a0bcbb444b",
+    "upstream_tree": "22bf36c59379891b7ce6b30f170fa25390288ae9",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-525",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 525,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

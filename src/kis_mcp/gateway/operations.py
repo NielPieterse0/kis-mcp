@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from fastmcp import FastMCP
@@ -23,11 +23,16 @@ def register_gateway_operations(
     quarantine: QuarantineService,
     provider_service: ProviderService,
     provider_composition: ProviderRuntimeComposition,
+    component_status: Callable[[], Mapping[str, str]] | None = None,
 ) -> None:
     @server.tool
     def kis_health() -> HealthResponse:
         """Report local provider, policy, and generated-state readiness."""
-        return health_response(runtime, launch)
+        return health_response(
+            runtime,
+            launch,
+            component_status() if component_status is not None else None,
+        )
 
     @server.tool
     def kis_quarantine_path(path: str) -> QuarantineResponse:

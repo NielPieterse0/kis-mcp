@@ -401,6 +401,34 @@ def test_health_response_uses_runtime_remote_status_without_mutating_settings(
     assert original.endswith("external_tunnel_pending_configuration")
 
 
+def test_health_response_exposes_skills_ready_component() -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+
+    response = foundation_module.health_response(
+        config,
+        config.desktop_commander_launch,
+        {"skills": "ready"},
+    )
+
+    assert response.ready is True
+    assert response.implementation_status["skills"] == "ready"
+
+
+def test_health_response_exposes_skills_degraded_component_without_global_failure() -> None:
+    config = load_runtime_config(REPOSITORY_ROOT)
+
+    response = foundation_module.health_response(
+        config,
+        config.desktop_commander_launch,
+        {"skills": "degraded:SKILLS_REFRESH_REJECTED"},
+    )
+
+    assert response.ready is True
+    assert response.implementation_status["skills"] == (
+        "degraded:SKILLS_REFRESH_REJECTED"
+    )
+
+
 def test_health_response_exposes_typed_remote_runtime_evidence(monkeypatch) -> None:
     config = load_runtime_config(REPOSITORY_ROOT)
     monkeypatch.setenv(RUNTIME_INSTANCE_ENV, "development")
