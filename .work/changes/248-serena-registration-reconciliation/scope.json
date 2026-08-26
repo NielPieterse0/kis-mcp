@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "248-serena-registration-reconciliation",
+  "status": "active",
+  "branch": "change/248-serena-registration-reconciliation",
+  "worktree": ".work/worktrees/248-serena-registration-reconciliation",
+  "base": "main",
+  "outcome": "Reconcile Serena generated project registrations against current project/worktree truth before provider startup so removed governed worktrees do not remain registered.",
+  "owned_paths": [
+    "src/kis_mcp/providers/serena/adapter.py",
+    "tests/providers/test_serena_registration_reconciliation.py",
+    ".work/changes/248-serena-registration-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "97bada0b8d97e50cb9d885372ca2e8b3f887a63e",
+    "local_tree": "b0094366c5dc5c89eaf37393b4bc3871b803b2a3",
+    "upstream_sha": "97bada0b8d97e50cb9d885372ca2e8b3f887a63e",
+    "upstream_tree": "b0094366c5dc5c89eaf37393b4bc3871b803b2a3",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-527",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 527,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
