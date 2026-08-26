@@ -48,6 +48,9 @@ def test_default_capability_settings_are_complete() -> None:
     assert settings.result_budget.preview_items == 10
     assert settings.result_budget.preview_string_chars == 4_000
     assert settings.result_budget.preview_depth == 4
+    assert settings.result_budget.resource_ttl_seconds == 86_400
+    assert settings.result_budget.resource_max_entries == 128
+    assert settings.result_budget.resource_max_bytes == 5_000_000
 
 
 def test_settings_reject_unknown_top_level_fields(tmp_path: Path) -> None:
@@ -84,6 +87,38 @@ def test_capability_settings_schema_matches_strict_nested_contract() -> None:
     invalid_weight = json.loads(json.dumps(payload))
     invalid_weight["suitability_weights"].pop("intent_match")
     assert list(validator.iter_errors(invalid_weight))
+
+
+def test_legacy_four_field_result_budget_uses_resource_defaults(tmp_path: Path) -> None:
+    payload = json.loads(
+        Path("settings/capabilities.settings.json").read_text(encoding="utf-8")
+    )
+    for key in (
+        "resource_ttl_seconds",
+        "resource_max_entries",
+        "resource_max_bytes",
+    ):
+        payload["result_budget"].pop(key)
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    settings = load_capability_settings(path)
+
+    assert settings.result_budget.resource_ttl_seconds == 86_400
+    assert settings.result_budget.resource_max_entries == 128
+    assert settings.result_budget.resource_max_bytes == 5_000_000
+
+
+def test_settings_reject_invalid_result_resource_bounds(tmp_path: Path) -> None:
+    payload = json.loads(
+        Path("settings/capabilities.settings.json").read_text(encoding="utf-8")
+    )
+    payload["result_budget"]["resource_ttl_seconds"] = 0
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(CapabilitySettingsError, match="resource_ttl_seconds"):
+        load_capability_settings(path)
 
 
 def test_settings_reject_incomplete_skill_metadata(tmp_path: Path) -> None:

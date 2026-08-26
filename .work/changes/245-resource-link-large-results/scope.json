@@ -1,0 +1,50 @@
+{
+  "schema_version": 4,
+  "change_id": "245-resource-link-large-results",
+  "status": "active",
+  "branch": "change/245-resource-link-large-results",
+  "worktree": ".work/worktrees/245-resource-link-large-results",
+  "base": "main",
+  "outcome": "Offload oversized capability-dispatch results into bounded KIS-owned MCP resources while preserving a useful summary and exact retrievable evidence.",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/execution.py",
+    "src/kis_mcp/capabilities/tools.py",
+    "src/kis_mcp/capabilities/result_resources.py",
+    "src/kis_mcp/capabilities/settings.py",
+    "settings/capabilities.settings.json",
+    "contracts/capabilities/settings.schema.json",
+    "src/kis_mcp/gateway/composition.py",
+    "tests/capabilities/test_exposure_execution.py",
+    "tests/capabilities/test_capability_settings.py",
+    "SPEC.md",
+    ".work/changes/245-resource-link-large-results/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "eb6166575f82e46fffb3af4232ecd1c6c674d41d",
+    "local_tree": "4fee1aa99044916038d70c6325c9906115e493b1",
+    "upstream_sha": "eb6166575f82e46fffb3af4232ecd1c6c674d41d",
+    "upstream_tree": "4fee1aa99044916038d70c6325c9906115e493b1",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-476",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 476,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

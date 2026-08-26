@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
@@ -9,6 +10,7 @@ from fastmcp import FastMCP
 from .contracts import OperationDescriptor, OperationEffect
 from .eligibility import evaluate_eligibility
 from .execution import CapabilityExecutionRouter
+from .result_resources import ResultResourceStore, register_result_resources
 from .runtime import CapabilityRuntimeState
 
 _TOKEN = re.compile(r"[a-z0-9]+")
@@ -79,8 +81,25 @@ def _execution_surface(operation: OperationDescriptor) -> str:
     return "execute_read_action"
 
 
-def register_capability_tools(server: FastMCP, runtime: CapabilityRuntimeState) -> None:
-    router = CapabilityExecutionRouter(server, runtime)
+def register_capability_tools(
+    server: FastMCP,
+    runtime: CapabilityRuntimeState,
+    *,
+    state_root: Path | str | None = None,
+    quarantine_expired: Callable[[str], Any] | None = None,
+) -> None:
+    result_store = (
+        ResultResourceStore(
+            Path(state_root),
+            runtime.settings.result_budget,
+            quarantine_expired=quarantine_expired,
+        )
+        if state_root is not None
+        else None
+    )
+    if result_store is not None:
+        register_result_resources(server, result_store)
+    router = CapabilityExecutionRouter(server, runtime, result_store=result_store)
 
     @server.tool(name="search_capabilities")
     def search_capabilities(query: str, limit: int = 20) -> dict[str, Any]:

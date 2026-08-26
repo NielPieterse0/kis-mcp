@@ -82,7 +82,7 @@ class SkillCapabilityMetadata:
     workflow_roles: tuple[str, ...]
 
     @classmethod
-    def from_mapping(cls, value: Any, *, skill_id: str) -> "SkillCapabilityMetadata":
+    def from_mapping(cls, value: Any, *, skill_id: str) -> SkillCapabilityMetadata:
         expected = {"category", "capabilities", "activation_terms", "effects", "workflow_roles"}
         if not isinstance(value, dict) or set(value) != expected:
             raise CapabilitySettingsError(f"skill_metadata.{skill_id} must contain exactly {sorted(expected)}")
@@ -127,6 +127,9 @@ class ResultBudgetSettings:
     preview_items: int
     preview_string_chars: int
     preview_depth: int
+    resource_ttl_seconds: int
+    resource_max_entries: int
+    resource_max_bytes: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,19 +184,41 @@ def load_capability_settings(path: Path | None = None) -> CapabilitySettings:
         raise CapabilitySettingsError("readiness.degraded_penalty must be an integer from 0 to 100")
 
     result_budget = payload["result_budget"]
+    required_budget_fields = {
+        "max_chars",
+        "preview_items",
+        "preview_string_chars",
+        "preview_depth",
+    }
+    budget_defaults = {
+        "resource_ttl_seconds": 86_400,
+        "resource_max_entries": 128,
+        "resource_max_bytes": 5_000_000,
+    }
     budget_fields = {
         "max_chars": (1_000, 1_000_000),
         "preview_items": (1, 100),
         "preview_string_chars": (100, 100_000),
         "preview_depth": (1, 10),
+        "resource_ttl_seconds": (60, 604_800),
+        "resource_max_entries": (1, 10_000),
+        "resource_max_bytes": (1_000, 50_000_000),
     }
-    if not isinstance(result_budget, dict) or set(result_budget) != set(budget_fields):
+    if not isinstance(result_budget, dict):
+        raise CapabilitySettingsError("result_budget must be an object")
+    unknown_budget = sorted(set(result_budget) - set(budget_fields))
+    missing_budget = sorted(required_budget_fields - set(result_budget))
+    if unknown_budget:
         raise CapabilitySettingsError(
-            "result_budget must contain max_chars, preview_items, preview_string_chars, and preview_depth"
+            f"result_budget unknown fields: {', '.join(unknown_budget)}"
+        )
+    if missing_budget:
+        raise CapabilitySettingsError(
+            f"result_budget missing required fields: {', '.join(missing_budget)}"
         )
     normalized_budget: dict[str, int] = {}
     for key, (minimum, maximum) in budget_fields.items():
-        value = result_budget[key]
+        value = result_budget.get(key, budget_defaults.get(key))
         if not isinstance(value, int) or not minimum <= value <= maximum:
             raise CapabilitySettingsError(
                 f"result_budget.{key} must be an integer from {minimum} to {maximum}"
