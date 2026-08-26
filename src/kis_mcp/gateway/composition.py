@@ -301,15 +301,13 @@ def compose_gateway(
         if isinstance(server, FastMCPProxy)
         else []
     )
-    static_runtime_tools = tuple(
-        (
-            *local_runtime_tools,
-            *desktop_commander_tools,
-            *_declared_provider_tools(
-                provider_contributions,
-                mounted_provider_ids,
-            ),
-        )
+    static_runtime_tools = (
+        *local_runtime_tools,
+        *desktop_commander_tools,
+        *_declared_provider_tools(
+            provider_contributions,
+            mounted_provider_ids,
+        ),
     )
     capabilities = CapabilityRuntimeState.build(
         CapabilityCatalogue(base_contributions, workflow_descriptors()),
@@ -327,7 +325,12 @@ def compose_gateway(
         ),
         provider_namespaces=namespaces,
     )
-    register_capability_tools(server, capabilities)
+    register_capability_tools(
+        server,
+        capabilities,
+        state_root=runtime.state_root,
+        quarantine_expired=quarantine.quarantine,
+    )
     exposure = ExposurePlanner(capabilities).plan()
     server.add_middleware(ExposureMiddleware(set(exposure.direct_operations)))
     return GatewayComposition(

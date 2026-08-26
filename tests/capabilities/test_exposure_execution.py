@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from collections.abc import Mapping
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from fastmcp import Client, FastMCP
@@ -20,13 +23,14 @@ from kis_mcp.capabilities.contracts import (
     ReadinessSnapshot,
     ReadinessState,
 )
-from kis_mcp.capabilities.exposure import ExposureMiddleware, ExposurePlanner
 from kis_mcp.capabilities.execution import CapabilityExecutionRouter
+from kis_mcp.capabilities.exposure import ExposureMiddleware, ExposurePlanner
 from kis_mcp.capabilities.normalization import default_quality
+from kis_mcp.capabilities.result_resources import ResultResourceStore
 from kis_mcp.capabilities.runtime import CapabilityRuntimeState
+from kis_mcp.capabilities.settings import load_capability_settings
 from kis_mcp.capabilities.surface import capability_control_contribution
 from kis_mcp.capabilities.tools import register_capability_tools
-from kis_mcp.capabilities.settings import load_capability_settings
 
 
 def contribution(
@@ -181,20 +185,186 @@ def test_generic_execution_budgets_oversized_provider_result() -> None:
     runtime = state(contribution("github-like", "huge_external", OperationEffect.EXTERNAL))
     register_capability_tools(server, runtime)
 
-    payload = asyncio.run(
+    result = asyncio.run(
         server.call_tool(
             "execute_external_action",
             {"operation": "huge_external", "arguments": {}},
         )
-    ).structured_content
+    )
+    payload = result.structured_content
 
     assert payload is not None
+    assert not any(getattr(item, "type", None) == "resource_link" for item in result.content)
     assert payload["truncated"] is True
     assert payload["reason"] == "RESULT_BUDGET_EXCEEDED"
     assert payload["operation"] == "huge_external"
     assert payload["original_chars"] > payload["max_chars"]
     assert payload["preview"]["workflow_runs"]["omitted_items"] == 10
     assert len(json.dumps(payload, ensure_ascii=False)) < payload["max_chars"]
+
+
+@pytest.mark.parametrize(
+    ("control_tool", "effect"),
+    [
+        ("execute_read_action", OperationEffect.READ_ONLY),
+        ("execute_change_action", OperationEffect.LOCAL_CHANGE),
+        ("execute_external_action", OperationEffect.EXTERNAL),
+    ],
+)
+def test_resource_persistence_failure_preserves_budget_fallback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    control_tool: str,
+    effect: OperationEffect,
+) -> None:
+    server = FastMCP("execution-resource-fallback-test")
+
+    @server.tool
+    def huge_operation() -> dict[str, object]:
+        return {"items": [{"id": index, "payload": "x" * 12_000} for index in range(20)]}
+
+    runtime = state(contribution("huge", "huge_operation", effect))
+    register_capability_tools(server, runtime, state_root=tmp_path)
+    monkeypatch.setattr(
+        ResultResourceStore,
+        "put",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("disk unavailable")),
+    )
+
+    result = asyncio.run(
+        server.call_tool(
+            control_tool,
+            {"operation": "huge_operation", "arguments": {}},
+        )
+    )
+    payload = result.structured_content
+
+    assert payload is not None
+    assert set(payload) == {
+        "truncated",
+        "reason",
+        "operation",
+        "original_chars",
+        "max_chars",
+        "preview",
+    }
+    assert payload["reason"] == "RESULT_BUDGET_EXCEEDED"
+    assert not any(getattr(item, "type", None) == "resource_link" for item in result.content)
+
+
+def test_oversized_dispatch_result_exposes_exact_resource_link(tmp_path: Path) -> None:
+    server = FastMCP("execution-resource-link-test")
+
+    @server.tool
+    def huge_read() -> dict[str, object]:
+        return {"items": [{"id": index, "payload": "x" * 12_000} for index in range(20)]}
+
+    runtime = state(contribution("huge", "huge_read", OperationEffect.READ_ONLY))
+    register_capability_tools(server, runtime, state_root=tmp_path)
+
+    async def run() -> tuple[dict[str, object], str]:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "execute_read_action",
+                {"operation": "huge_read", "arguments": {}},
+            )
+            payload = result.structured_content
+            assert payload is not None
+            links = [item for item in result.content if getattr(item, "type", None) == "resource_link"]
+            assert len(links) == 1
+            resource = await client.read_resource(str(links[0].uri))
+            text = resource[0].text
+            assert text is not None
+            return payload, text
+
+    payload, text = asyncio.run(run())
+    restored = json.loads(text)
+    assert payload["resource_uri"].startswith("kis-result:///")
+    assert payload["resource_sha256"]
+    assert payload["resource_uri"].rsplit("/", 1)[-1] != payload["resource_sha256"]
+    assert restored["items"][19]["id"] == 19
+    assert restored["items"][19]["payload"] == "x" * 12_000
+
+
+def test_result_resource_store_accepts_exact_byte_limit(tmp_path: Path) -> None:
+    budget = load_capability_settings().result_budget
+    sample = {"value": "abc"}
+    exact_bytes = len(ResultResourceStore.serialize(sample))
+    store = ResultResourceStore(
+        tmp_path,
+        replace(budget, resource_max_bytes=exact_bytes),
+    )
+
+    stored = store.put("example_read", sample)
+
+    assert stored is not None
+    assert store.read(stored.grant_id) == ResultResourceStore.serialize(sample)
+    assert stored.payload_sha256 == hashlib.sha256(ResultResourceStore.serialize(sample)).hexdigest()
+
+
+def test_result_resource_grants_are_opaque_per_dispatch(tmp_path: Path) -> None:
+    budget = load_capability_settings().result_budget
+    store = ResultResourceStore(tmp_path, budget)
+    sample = {"value": "same"}
+
+    first = store.put("first_read", sample)
+    second = store.put("second_read", sample)
+
+    assert first is not None and second is not None
+    assert first.grant_id != second.grant_id
+    assert first.payload_sha256 == second.payload_sha256
+    assert first.origin_operation == "first_read"
+    assert second.origin_operation == "second_read"
+
+
+def test_result_resource_store_expires_entries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    budget = replace(load_capability_settings().result_budget, resource_ttl_seconds=60)
+    store = ResultResourceStore(tmp_path, budget)
+    monkeypatch.setattr("kis_mcp.capabilities.result_resources.time.time", lambda: 1_000)
+    stored = store.put("example_read", {"value": "kept"})
+    assert stored is not None
+    resource_path = tmp_path / "capability-results" / f"{stored.grant_id}.json"
+    monkeypatch.setattr("kis_mcp.capabilities.result_resources.time.time", lambda: 1_061)
+
+    with pytest.raises(RuntimeError, match="RESULT_RESOURCE_EXPIRED_OR_UNKNOWN"):
+        store.read(stored.grant_id)
+    assert resource_path.is_file()
+
+
+def test_expired_result_resources_use_recoverable_quarantine_on_next_put(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    budget = replace(load_capability_settings().result_budget, resource_ttl_seconds=60)
+    quarantine_root = tmp_path / "quarantine"
+    quarantine_root.mkdir()
+    moved: list[Path] = []
+
+    def quarantine_expired(path: str) -> None:
+        source = Path(path)
+        target = quarantine_root / source.name
+        source.replace(target)
+        moved.append(target)
+
+    store = ResultResourceStore(
+        tmp_path,
+        budget,
+        quarantine_expired=quarantine_expired,
+    )
+    monkeypatch.setattr("kis_mcp.capabilities.result_resources.time.time", lambda: 1_000)
+    expired = store.put("old_read", {"value": "old"})
+    assert expired is not None
+    monkeypatch.setattr("kis_mcp.capabilities.result_resources.time.time", lambda: 1_061)
+
+    current = store.put("new_read", {"value": "new"})
+
+    assert current is not None
+    assert moved
+    assert not (tmp_path / "capability-results" / f"{expired.grant_id}.json").exists()
+    assert moved[0].is_file()
 
 
 def test_generic_execution_preserves_small_provider_result() -> None:

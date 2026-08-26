@@ -6,17 +6,22 @@ from typing import Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
+from fastmcp.tools import ToolResult
+from mcp import types as mcp_types
 
 from ..acquisition.service import execute_registered_acquisition_operation
-from ..projects.github_merge_queue import REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS
-from ..workflows.merge_queue import execute_governed_github_merge_queue_operation
-from ..workflows.registered_github import execute_runtime_registered_github_operation
+from ..projects.github_merge_queue import (
+    REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS,
+)
 from ..projects.github_tracking import (
     REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS,
     execute_registered_github_tracking_operation,
 )
+from ..workflows.merge_queue import execute_governed_github_merge_queue_operation
+from ..workflows.registered_github import execute_runtime_registered_github_operation
 from .contracts import OperationDescriptor, OperationEffect
 from .eligibility import evaluate_eligibility
+from .result_resources import ResultResourceStore
 from .runtime import CapabilityRuntimeState
 from .settings import ResultBudgetSettings
 
@@ -75,8 +80,15 @@ def _preview_value(value: Any, budget: ResultBudgetSettings, *, depth: int) -> A
     return str(value)
 
 
-def _budget_result(operation: str, result: Any, budget: ResultBudgetSettings) -> Any:
+def _budget_result(
+    operation: str,
+    result: Any,
+    budget: ResultBudgetSettings,
+    store: ResultResourceStore | None = None,
+) -> Any:
     structured = getattr(result, "structured_content", None)
+    if structured is None and isinstance(result, (Mapping, list, tuple)):
+        structured = result
     if structured is None:
         return result
     original_chars = _json_chars(structured)
@@ -91,12 +103,42 @@ def _budget_result(operation: str, result: Any, budget: ResultBudgetSettings) ->
         "max_chars": budget.max_chars,
         "preview": _preview_value(structured, budget, depth=budget.preview_depth),
     }
+    stored = None
+    if store is not None:
+        try:
+            stored = store.put(operation, structured)
+        except (OSError, OverflowError, RuntimeError, TypeError, UnicodeError, ValueError):
+            stored = None
+    if stored is not None:
+        payload.update(
+            {
+                "resource_uri": stored.uri,
+                "resource_sha256": stored.payload_sha256,
+                "resource_bytes": stored.byte_count,
+                "resource_expires_at": stored.expires_at,
+                "resource_ttl_seconds": budget.resource_ttl_seconds,
+            }
+        )
     if _json_chars(payload) >= budget.max_chars:
         payload["preview"] = {
             "truncated": True,
             "type": type(structured).__name__,
         }
-    return payload
+    if stored is None:
+        return payload
+    rendered = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return ToolResult(
+        content=[
+            mcp_types.TextContent(type="text", text=rendered),
+            mcp_types.ResourceLink(
+                name=f"{operation}-full-result.json",
+                uri=stored.uri,
+                mimeType="application/json",
+                description="Exact full result for the bounded dispatcher summary.",
+            ),
+        ],
+        structured_content=payload,
+    )
 
 
 def _schema_bound_approval(
@@ -130,9 +172,16 @@ def _registered_virtual_approval(
 class CapabilityExecutionRouter:
     """Invoke registered operations through their original FastMCP contracts."""
 
-    def __init__(self, server: FastMCP, runtime: CapabilityRuntimeState) -> None:
+    def __init__(
+        self,
+        server: FastMCP,
+        runtime: CapabilityRuntimeState,
+        *,
+        result_store: ResultResourceStore | None = None,
+    ) -> None:
         self.server = server
         self.runtime = runtime
+        self.result_store = result_store
 
     async def execute_read(self, operation: str, arguments: Mapping[str, Any]) -> Any:
         return await self._execute(
@@ -257,6 +306,7 @@ class CapabilityExecutionRouter:
                 operation.name,
                 result,
                 self.runtime.settings.result_budget,
+                self.result_store,
             )
 
         result = await self.server.call_tool(
@@ -264,7 +314,12 @@ class CapabilityExecutionRouter:
             dict(arguments),
             run_middleware=True,
         )
-        return _budget_result(operation.name, result, self.runtime.settings.result_budget)
+        return _budget_result(
+            operation.name,
+            result,
+            self.runtime.settings.result_budget,
+            self.result_store,
+        )
 
 
 __all__ = ["CapabilityExecutionRouter"]

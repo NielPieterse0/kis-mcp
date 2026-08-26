@@ -61,7 +61,10 @@
     "max_chars": 100000,
     "preview_items": 10,
     "preview_string_chars": 4000,
-    "preview_depth": 4
+    "preview_depth": 4,
+    "resource_ttl_seconds": 86400,
+    "resource_max_entries": 128,
+    "resource_max_bytes": 5000000
   },
   "skill_metadata": {
     "agentproof": {
