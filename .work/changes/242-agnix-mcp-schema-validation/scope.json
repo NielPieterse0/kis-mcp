@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "242-agnix-mcp-schema-validation",
+  "status": "active",
+  "branch": "change/242-agnix-mcp-schema-validation",
+  "worktree": ".work/worktrees/242-agnix-mcp-schema-validation",
+  "base": "main",
+  "outcome": "Make pinned strict agnix validation ignore only non-agent MCP schema artifacts while preserving real validation coverage.",
+  "owned_paths": [
+    ".agnix.toml",
+    "tests/workflows/agent_validation/**",
+    "settings/bootstrap/agnix.install.json",
+    ".work/changes/242-agnix-mcp-schema-validation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "6303b80e1d9ef29706c612de8748ae2573ab499f",
+    "local_tree": "39c3c7cb4317e2822a3924a9a82c940d277f40c4",
+    "upstream_sha": "6303b80e1d9ef29706c612de8748ae2573ab499f",
+    "upstream_tree": "39c3c7cb4317e2822a3924a9a82c940d277f40c4",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-522",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 522,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
