@@ -6,6 +6,8 @@ from fastmcp import Client, Context, FastMCP
 from fastmcp_tasks.client import _send_get, call_tool_task
 
 from kis_mcp.mcp2026 import LONG_RUNNING_TASK_CONFIG, install_mcp2026_tasks
+from kis_mcp.workflows.verification.contracts import VerificationResult
+from kis_mcp.workflows.verification.tools import register_verification_tool
 
 
 class _CoreOnlyClient(Client):
@@ -71,11 +73,44 @@ def test_task_handle_survives_client_disconnect_and_result_is_retrievable() -> N
     asyncio.run(run())
 
 
+def test_run_verification_executes_synchronously_even_when_client_supports_tasks() -> None:
+    class VerificationStub:
+        async def run(self, **kwargs):
+            return VerificationResult(
+                verification_id=kwargs["verification_id"],
+                title="Pytest",
+                category="test",
+                source_path="tests/test_sample.py",
+                profile="python",
+                arguments=("-m", "pytest", "-q"),
+                command_identity="a" * 64,
+                status="passed",
+                exit_code=0,
+                duration_ms=1,
+                evidence="ok",
+                failure_classification="none",
+                truncated=False,
+            )
+
+    server = FastMCP("mcp2026-verification-sync")
+    install_mcp2026_tasks(server)
+    register_verification_tool(server, VerificationStub())
+
+    async def run() -> None:
+        async with Client(server) as client:
+            result = await client.call_tool(
+                "run_verification",
+                {"project": r"C:\Projects\fixture", "verification_id": "python-pytest"},
+            )
+            assert result.structured_content["status"] == "passed"
+
+    asyncio.run(run())
+
+
 def test_selected_long_running_tools_register_as_optional_tasks() -> None:
     from kis_mcp.commissioning_runtime.platform import register_commissioning_tools
     from kis_mcp.workflows.code_review.tools import register_agent_tools
     from kis_mcp.workflows.completion.tools import register_completion_tool
-    from kis_mcp.workflows.verification.tools import register_verification_tool
 
     class Stub:
         def __getattr__(self, _name):
@@ -88,8 +123,11 @@ def test_selected_long_running_tools_register_as_optional_tasks() -> None:
     register_agent_tools(server, Stub())
 
     async def run() -> None:
+        verification = await server.get_tool("run_verification")
+        assert verification.task_config.mode == "forbidden"
+        assert verification.task_config.supports_tasks() is False
+
         for name in (
-            "run_verification",
             "prepare_reviewable_pull_request",
             "kis_post_merge_commissioning_run",
             "review_change_with_agent",
