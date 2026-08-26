@@ -106,6 +106,59 @@ def test_serena_descriptor_is_local_read_only_and_offline() -> None:
     assert descriptor.readiness_probe().details["offline_enforced"] is True
 
 
+def test_shared_serena_client_records_protocol_once_per_connection_generation() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))
+
+    class LegacyClient:
+        protocol_version = "2025-11-25"
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            del args
+
+    inner = LegacyClient()
+    shared = _SharedProviderClient(inner, adapter)
+
+    async def scenario() -> None:
+        async with shared:
+            assert adapter.startup_state.protocol_mode == "legacy_compatibility"
+            assert adapter.startup_state.protocol_version == "2025-11-25"
+            inner.protocol_version = "nested-must-not-republish"
+            async with shared:
+                assert adapter.startup_state.protocol_version == "2025-11-25"
+        inner.protocol_version = "2025-06-18"
+        async with shared:
+            assert adapter.startup_state.protocol_version == "2025-06-18"
+
+    asyncio.run(scenario())
+
+
+def test_shared_serena_client_propagates_unexpected_connection_failure() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))
+
+    class FailingClient:
+        async def __aenter__(self):
+            raise RuntimeError("discover transport failed")
+
+        async def __aexit__(self, *args: object) -> None:
+            del args
+
+    shared = _SharedProviderClient(FailingClient(), adapter)
+
+    async def scenario() -> None:
+        with pytest.raises(RuntimeError, match="discover transport failed"):
+            async with shared:
+                raise AssertionError("unreachable")
+
+    asyncio.run(scenario())
+    assert adapter.startup_state.protocol_mode is None
+    assert adapter.startup_state.protocol_version is None
+
+
 def test_shared_serena_client_survives_nested_proxy_context_exit() -> None:
     settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
     adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(ROOT))

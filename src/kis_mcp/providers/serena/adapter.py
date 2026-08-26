@@ -168,9 +168,16 @@ class _SharedProviderClient:
         self._context_depth = 0
 
     async def __aenter__(self):
+        outermost = self._context_depth == 0
         active = await self._inner.__aenter__()
         self._context_depth += 1
         self._owner._publish_active_client(active)
+        if outermost:
+            protocol_version = getattr(self._inner, "protocol_version", None)
+            self._owner.startup_state.mark_protocol(
+                mode="legacy_compatibility",
+                version=str(protocol_version) if protocol_version is not None else None,
+            )
         return self
 
     async def __aexit__(self, *args: object) -> None:
@@ -261,7 +268,10 @@ class SerenaRuntimeAdapter:
             cwd=cwd,
             env=provider_environment,
         )
-        shared_client = _SharedProviderClient(self.client_factory(transport), self)
+        shared_client = _SharedProviderClient(
+            self.client_factory(transport, mode="legacy"),
+            self,
+        )
         startup_call = (
             ProviderStartupCall("activate_project", {"project": self.default_project})
             if self.default_project

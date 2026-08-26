@@ -54,6 +54,8 @@ def serena_readiness(adapter: SerenaRuntimeAdapter) -> ProviderReadiness:
             "install_present": install_present,
             "runtime_phase": phase.value,
             "runtime_error_type": adapter.startup_state.error_type,
+            "protocol_mode": adapter.startup_state.protocol_mode,
+            "protocol_version": adapter.startup_state.protocol_version,
             "offline_enforced": True,
             "public_tools": [
                 "get_symbols_overview",

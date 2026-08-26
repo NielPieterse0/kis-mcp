@@ -34,10 +34,18 @@ class ProviderStartupState:
 
     phase: ProviderStartupPhase = ProviderStartupPhase.IDLE
     error_type: str | None = None
+    protocol_mode: str | None = None
+    protocol_version: str | None = None
 
     def mark_starting(self) -> None:
         self.phase = ProviderStartupPhase.STARTING
         self.error_type = None
+        self.protocol_mode = None
+        self.protocol_version = None
+
+    def mark_protocol(self, *, mode: str, version: str | None) -> None:
+        self.protocol_mode = mode
+        self.protocol_version = version
 
     def mark_ready(self) -> None:
         self.phase = ProviderStartupPhase.READY

@@ -1,0 +1,43 @@
+{
+  "schema_version": 4,
+  "change_id": "244-server-discover-compat-fallback",
+  "status": "active",
+  "branch": "change/244-server-discover-compat-fallback",
+  "worktree": ".work/worktrees/244-server-discover-compat-fallback",
+  "base": "main",
+  "outcome": "Make MCP 2026 server/discover compatibility fallback protocol-aware, quiet for expected legacy-provider rejection, and still fail visibly for unexpected discovery errors.",
+  "owned_paths": [
+    "src/kis_mcp/providers/client_runtime.py",
+    "src/kis_mcp/providers/serena/adapter.py",
+    "src/kis_mcp/providers/serena/provider.py",
+    "tests/providers/test_client_runtime.py",
+    "tests/providers/test_context7_serena_providers.py",
+    ".work/changes/244-server-discover-compat-fallback/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "b1f6538037261f31b1d11ff769ac8080b13d84a7",
+    "local_tree": "fb81b0e9f9b3a62c6e4e4168eb92948c51bd20d4",
+    "upstream_sha": "b1f6538037261f31b1d11ff769ac8080b13d84a7",
+    "upstream_tree": "fb81b0e9f9b3a62c6e4e4168eb92948c51bd20d4",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-526",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 526,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
