@@ -1,0 +1,2083 @@
+{
+  "schema_version": 1,
+  "audit_id": "2026-08-26-lossless-legacy-transfer",
+  "work_issue": 497,
+  "change_id": "241-lossless-legacy-transfer-ledger",
+  "authority": {
+    "mcp_version": "2026-07-28",
+    "mcp_index": "C:/Projects/References/mcp-specification/mcp-docs-2026-07-28-direct-md-clean/markdown/000-index.md",
+    "mcp_schema": "055-specification-schema-reference.md",
+    "repository_revision": "582b90dba30aa2c3abfcd0692c1439b3426f1b61",
+    "live_kis_dev_revision": "582b90dba30aa2c3abfcd0692c1439b3426f1b61"
+  },
+  "baseline_475": {
+    "issue": 475,
+    "status": "done",
+    "current_evidence": [
+      "pyproject.toml: fastmcp[tasks]==4.0.0b3",
+      "src/kis_mcp/mcp2026.py",
+      "src/kis_mcp/gateway/composition.py",
+      "tests/test_mcp2026_tasks.py",
+      "tests/test_mcp2026_wire.py",
+      "SPEC.md MCP 2026 request and task boundary",
+      "kis-dev health source_revision 582b90dba30aa2c3abfcd0692c1439b3426f1b61"
+    ]
+  },
+  "controlled_dispositions": [
+    "implement_current",
+    "implemented_verify",
+    "superseded_2026",
+    "future_triggered",
+    "external_or_not_kis_owned",
+    "not_required"
+  ],
+  "programme_source_sets": {
+    "488": [
+      262,
+      292,
+      313,
+      314,
+      315,
+      316,
+      333,
+      341,
+      343,
+      347,
+      366
+    ],
+    "489": [
+      232,
+      233,
+      241,
+      253,
+      307,
+      317,
+      382,
+      383,
+      386,
+      424,
+      426,
+      437,
+      443,
+      444,
+      445,
+      448,
+      450,
+      451,
+      465
+    ],
+    "490": [
+      188,
+      378,
+      419,
+      447,
+      453,
+      454,
+      455,
+      457,
+      458,
+      459,
+      460,
+      463,
+      464,
+      484,
+      485
+    ],
+    "491": [
+      237,
+      277,
+      279,
+      280,
+      281,
+      289,
+      356,
+      365,
+      367,
+      399,
+      400,
+      401,
+      402
+    ],
+    "492": [
+      331,
+      335,
+      340,
+      376,
+      388,
+      395,
+      420,
+      421,
+      422,
+      435
+    ],
+    "493": [
+      144,
+      145,
+      148,
+      212,
+      258,
+      297,
+      334
+    ],
+    "494": [
+      283,
+      322,
+      375,
+      398
+    ],
+    "495": [
+      324,
+      330
+    ],
+    "496": [
+      192,
+      291,
+      432
+    ]
+  },
+  "retained_deferred_sources": [
+    476,
+    477,
+    478,
+    479,
+    480
+  ],
+  "interface_dependencies": [
+    {
+      "producer_programme": 490,
+      "consumer_programme": 489,
+      "source_issue": 445,
+      "reason": "#490 owns underlying runner/action state evidence; #489 owns Work front-door/user visibility."
+    },
+    {
+      "producer_programme": 493,
+      "consumer_programme": 489,
+      "source_issue": 465,
+      "reason": "#493 owns repository/service registration; #489 consumes registered identity in Work Management projection/intake."
+    },
+    {
+      "producer_programme": 494,
+      "consumer_programme": 489,
+      "source_issue": 450,
+      "reason": "#494 owns communication/documentation style contract; #489 consumes it in Work user-facing workflows."
+    }
+  ],
+  "sources": [
+    {
+      "source_issue": 144,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "provider",
+          "disposition": "implement_current",
+          "statement": "Restore Docker Hub search only after a verified compatible upstream contract or minimal approved transform handles search_after without weakening schema validation; preserve the six existing reads, pin identity, regress and live-smoke the normal provider path.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-144-R01",
+          "duplicate_owner_proof": "Source issue #144 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 145,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": true,
+      "requirements": [
+        {
+          "kind": "evidence_limited",
+          "disposition": "implement_current",
+          "statement": "Preserve the only available source requirement as titled: Docker Hub pinned dependency advisory risk; do not invent missing body semantics, and require #493 planning to resolve the exact advisory and approved dependency response from authoritative evidence.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-145-R01",
+          "duplicate_owner_proof": "Source issue #145 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 148,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "provider",
+          "disposition": "implement_current",
+          "statement": "Upgrade the official GitHub MCP provider only after verifying the then-current stable release, exact pin and conformance, with provider contracts/tests/docs plus runtime restart/commissioning kept separate from Work Management semantics.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-148-R01",
+          "duplicate_owner_proof": "Source issue #148 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 188,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain a coherent end-to-end commissioning/reconciliation sweep across repository, live runtimes/providers, Work Management, change lifecycle, commissioning evidence, worktrees, GitHub and docs, preserving holds and creating bounded residual defects rather than masking gaps.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-188-R01",
+          "duplicate_owner_proof": "Source issue #188 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 192,
+      "destination_programme": 496,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "governance",
+          "disposition": "implement_current",
+          "statement": "Resolve the Govern composition lifecycle deliberately: either complete the public composition contract, stage it explicitly, or defer/remove it with aligned repository/runtime authority and bounded operations/tests/commissioning if composed.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#496",
+          "requirement_id": "ISSUE-192-R01",
+          "duplicate_owner_proof": "Source issue #192 occurs in exactly one destination source set, programme #496; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 212,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "registry",
+          "disposition": "implement_current",
+          "statement": "Maintain one authoritative project registry truth across list/status/inspect/provider bindings, detect missing roots as stale/unavailable, reconcile safely and fail startup/operations consistently on invalid registration.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-212-R01",
+          "duplicate_owner_proof": "Source issue #212 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 232,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "architecture",
+          "disposition": "implement_current",
+          "statement": "Preserve the event-driven Workspace Agent concept as a bounded pull/dispatch integration with authoritative Work state, idempotency and revalidation; do not expose unrestricted Work HTTP or assume unsupported GitHub Project webhook behavior.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-232-R01",
+          "duplicate_owner_proof": "Source issue #232 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 233,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "feasibility",
+          "disposition": "implement_current",
+          "statement": "Preserve the feasibility proof requirements for workflow_dispatch/repository_dispatch/KIS ingress, normalized dispatch, stable conversation/idempotency, explicit non-202 failures, and secret-safe prerequisite handling.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-233-R01",
+          "duplicate_owner_proof": "Source issue #233 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 237,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "git",
+          "disposition": "implement_current",
+          "statement": "Make merge-queue candidate publication use centrally authenticated noninteractive Git transport, preserve exact generation identity and keep credentials out of logs/repository state.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-237-R01",
+          "duplicate_owner_proof": "Source issue #237 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 241,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "coordinator",
+          "disposition": "implement_current",
+          "statement": "Preserve the deterministic project-execution coordinator model: authoritative Work item to DAG/frontier, atomic claims and path ownership, bounded work packets, durable worker lifecycle, structured handoff/reconciliation, serialized integration and commissioning with fail-closed stale authority.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-241-R01",
+          "duplicate_owner_proof": "Source issue #241 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 253,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "coordinator",
+          "disposition": "implement_current",
+          "statement": "Complete coordinator operator UX, observability, evaluation and commissioning so active claims/dependencies/leases/fences/workers/integration are inspectable without exposing prompts and the multi-runtime path is proven.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-253-R01",
+          "duplicate_owner_proof": "Source issue #253 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 258,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "acquisition",
+          "disposition": "implement_current",
+          "statement": "Provide one versioned governed external-acquisition envelope for approved hosts/methods/auth/formats/retries/limits/hashes/provenance/dry-run, shared with import-isolate and denying unapproved domains without exposing arbitrary HTTP.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-258-R01",
+          "duplicate_owner_proof": "Source issue #258 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 262,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "outcome",
+          "disposition": "implement_current",
+          "statement": "Keep agent-configuration validation useful while preventing agnix false MCP-tool findings from schema-shaped JSON; preserve strict real-finding coverage and approved narrow exclusions.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-262-R01",
+          "duplicate_owner_proof": "Source issue #262 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 277,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "state",
+          "disposition": "implement_current",
+          "statement": "Partition correctness-sensitive KIS state by project/worktree/runtime while retaining appropriate shared installs/caches/auth/registry/quarantine, without moving the whole runtime repo-local.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-277-R01",
+          "duplicate_owner_proof": "Source issue #277 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 279,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "state",
+          "disposition": "implement_current",
+          "statement": "Migrate Discover/review/verification/workflow/queue/instance/coordinator/temp state to explicit partition ownership with recoverable compatibility and no credential relocation; prove concurrency/restart isolation.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-279-R01",
+          "duplicate_owner_proof": "Source issue #279 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 280,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Commission the partitioned-state model across two repositories/worktrees/runtimes with stale/corrupt state, restarts and concurrency, proving no cross-contamination and diagnosable ownership.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-280-R01",
+          "duplicate_owner_proof": "Source issue #280 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 281,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "state",
+          "disposition": "implement_current",
+          "statement": "Add ownership/generation/provenance diagnostics and recoverable GC/quarantine for stale or orphaned reconstructible state, with dry-run and no permanent deletion.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-281-R01",
+          "duplicate_owner_proof": "Source issue #281 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 283,
+      "destination_programme": 494,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "documentation",
+          "disposition": "implement_current",
+          "statement": "Measure and reduce documentation/context burden by mapping authority/duplication, deriving a minimum-authority path map, piloting structural options and benchmarking context reduction without weakening quality or risk coverage.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#494",
+          "requirement_id": "ISSUE-283-R01",
+          "duplicate_owner_proof": "Source issue #283 occurs in exactly one destination source set, programme #494; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 289,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "concurrency",
+          "disposition": "implement_current",
+          "statement": "Prevent speculative merge-queue lost updates by serializing or CAS-guarding each project/target-branch queue, rejecting stale writers while allowing disjoint queues and proving deterministic concurrency.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-289-R01",
+          "duplicate_owner_proof": "Source issue #289 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 291,
+      "destination_programme": 496,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "security",
+          "disposition": "implement_current",
+          "statement": "Add adversarial repository-scope search-grammar tests covering OR/NOT/nesting/quotes/duplicate or conflicting repo qualifiers/casing/malformed input, changing parser behavior only if a real scope bypass is proven.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#496",
+          "requirement_id": "ISSUE-291-R01",
+          "duplicate_owner_proof": "Source issue #291 occurs in exactly one destination source set, programme #496; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 292,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "runtime",
+          "disposition": "implement_current",
+          "statement": "Make gateway composition safe when invoked from an already-running asyncio event loop, with an explicit supported contract and regression proof rather than an implicit sync-only assumption.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-292-R01",
+          "duplicate_owner_proof": "Source issue #292 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 297,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "provider",
+          "disposition": "implement_current",
+          "statement": "Integrate doc-solution and DeepWiki through provider-neutral KIS routing with pinned isolated runtimes and explicit evidence provenance, keeping DeepWiki research non-authoritative and avoiding a second tool-pack framework.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-297-R01",
+          "duplicate_owner_proof": "Source issue #297 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 307,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "identity",
+          "disposition": "implement_current",
+          "statement": "Represent external conversation provenance with typed opaque identifiers and a KIS-owned canonical reference, keeping mutable locator/container binding separate from mutation authority and preserving lineage/rebinding evidence.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-307-R01",
+          "duplicate_owner_proof": "Source issue #307 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 313,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "outcome",
+          "disposition": "implement_current",
+          "statement": "Expose the canonical Skills catalogue through deterministic read-only MCP resources with exact bytes/hashes, progressive disclosure, traversal and reparse-point safety, and no second mutable catalogue or script-execution authority.",
+          "mcp_2026_refs": [
+            "049-specification-resources.md",
+            "050-specification-tools.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-313-R01",
+          "duplicate_owner_proof": "Source issue #313 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 314,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "telemetry",
+          "disposition": "implement_current",
+          "statement": "Attribute Skills telemetry by native versus MCP-resource delivery while preserving canonical skill/hash identity, distinguishing discovery/load/read/application/outcome, and preventing enumeration or hash mismatch from counting as comparable use.",
+          "mcp_2026_refs": [
+            "049-specification-resources.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-314-R01",
+          "duplicate_owner_proof": "Source issue #314 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 315,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "integration",
+          "disposition": "implement_current",
+          "statement": "Support a controlled develop-code pilot where native and MCP-resource delivery coexist over identical immutable skill content, permissions, scripts and resources with unbiased routing and transport-attributed telemetry.",
+          "mcp_2026_refs": [
+            "049-specification-resources.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-315-R01",
+          "duplicate_owner_proof": "Source issue #315 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 316,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "integration",
+          "disposition": "implement_current",
+          "statement": "After pilot acceptance, allow catalogue-wide dual delivery from the single canonical catalogue with progressive disclosure, safe rollout/rollback, explicit incompatible-skill failures, and native delivery preserved.",
+          "mcp_2026_refs": [
+            "049-specification-resources.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-316-R01",
+          "duplicate_owner_proof": "Source issue #316 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 317,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "work_management",
+          "disposition": "implement_current",
+          "statement": "Make repository-scoped Work projections complete and uncontaminated, idempotently reconcilable, and explicit about priority/status/dependency/defer/hold while GitHub issue identity remains the source record.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-317-R01",
+          "duplicate_owner_proof": "Source issue #317 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 322,
+      "destination_programme": 494,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "governance",
+          "disposition": "implement_current",
+          "statement": "Establish a policy-driven governance kernel with distinct harness/repository planes and the first deterministic repository text/Git identity control, profile binding, canonical hashing and lifecycle hooks without hard-coding policy into the engine.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#494",
+          "requirement_id": "ISSUE-322-R01",
+          "duplicate_owner_proof": "Source issue #322 occurs in exactly one destination source set, programme #494; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 324,
+      "destination_programme": 495,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "execution",
+          "disposition": "implement_current",
+          "statement": "Retain the useful clean/disposable Windows execution outcome: exact-source isolation, bounded provenance/evidence, recoverable process/guest lifecycle, parity and measurable setup/network/reproducibility gains as an optional execution backend.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#495",
+          "requirement_id": "ISSUE-324-R01",
+          "duplicate_owner_proof": "Source issue #324 occurs in exactly one destination source set, programme #495; ledger validation proves source ownership uniqueness. "
+        },
+        {
+          "kind": "legacy_execution_prescription",
+          "disposition": "not_required",
+          "statement": "Do not restore the obsolete VM/Actions-first architecture as the normal KIS execution or landing authority; current local Windows execution and exact-head repository governance remain primary, with clean-room backends optional.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": "The normal-execution architecture was superseded by later approved local-Windows design; #495 may retain only evidence-backed acceleration/isolation value.",
+          "current_owner": "#495",
+          "requirement_id": "ISSUE-324-R02",
+          "duplicate_owner_proof": "Source issue #324 occurs in exactly one destination source set, programme #495; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 330,
+      "destination_programme": 495,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "future_triggered",
+          "statement": "Run the disposable Hyper-V Windows execution proof, parity, measurements, provenance/isolation and recoverable retirement only when a suitable host can actually expose the required capability.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": "Activate when a Windows host exposes Hyper-V/Get-VMHost and can run the supervised disposable-guest proof.",
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#495",
+          "requirement_id": "ISSUE-330-R01",
+          "duplicate_owner_proof": "Source issue #330 occurs in exactly one destination source set, programme #495; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 331,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "verification",
+          "disposition": "implement_current",
+          "statement": "Preserve an exact-head Actions-independent canonical local verification receipt path with clean isolated source, locked environment and immutable source/toolchain evidence, while keeping ordinary developer runs non-authoritative.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-331-R01",
+          "duplicate_owner_proof": "Source issue #331 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 333,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "protocol",
+          "disposition": "implemented_verify",
+          "statement": "Use MCP 2026 stateless request semantics and optional Tasks for selected long-running operations, with per-request capability opt-in, polling, terminal states, synchronous fallback, and no MCP-session authority.",
+          "mcp_2026_refs": [
+            "025-specification-specification.md",
+            "032-specification-multi-round-trip-requests.md",
+            "047-specification-discovery.md",
+            "063-extensions-tasks.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [
+            "src/kis_mcp/mcp2026.py",
+            "src/kis_mcp/gateway/composition.py",
+            "tests/test_mcp2026_tasks.py",
+            "SPEC.md"
+          ],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-333-R01",
+          "duplicate_owner_proof": "Source issue #333 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        },
+        {
+          "kind": "deferred_gap",
+          "disposition": "future_triggered",
+          "statement": "Preserve MCP task-handle retrieval across a KIS server-process restart or multi-worker deployment only when such deployment semantics are actually required.",
+          "mcp_2026_refs": [
+            "063-extensions-tasks.md"
+          ],
+          "deferred_trigger": "Activate when #498 trigger is met: a supported deployment requires pre-restart taskId retrieval after restart, or multiple KIS workers must share MCP Task state.",
+          "current_evidence": [
+            "#498"
+          ],
+          "replacement_rationale": null,
+          "current_owner": "#498",
+          "requirement_id": "ISSUE-333-R02",
+          "duplicate_owner_proof": "Source issue #333 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 334,
+      "destination_programme": 493,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "provider",
+          "disposition": "implement_current",
+          "statement": "Evaluate Graphify as an optional MCP structural graph provider behind Discover/Context Broker, with KIS retaining identity/read authority/freshness/provenance and an evidence-based bake-off before any extractor replacement.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#493",
+          "requirement_id": "ISSUE-334-R01",
+          "duplicate_owner_proof": "Source issue #334 occurs in exactly one destination source set, programme #493; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 335,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "review",
+          "disposition": "implement_current",
+          "statement": "Partition oversized reviews deterministically into complete semantically coherent evidence batches, fail closed on incomplete batches, aggregate exact provenance/coverage, and keep backend-independent behavior.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-335-R01",
+          "duplicate_owner_proof": "Source issue #335 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 340,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "verification",
+          "disposition": "implement_current",
+          "statement": "Optimize verification into focused inner-loop, subsystem/contract, full canonical final and specialized tiers with measured impact selection, safe broad fallback and no confidence loss from test deletion.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-340-R01",
+          "duplicate_owner_proof": "Source issue #340 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 341,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "architecture",
+          "disposition": "implement_current",
+          "statement": "Retain the execution-path audit outcome: compare high-value KIS paths against current MCP primitives to remove protocol reinvention, repeated hot-path work, and state/concurrency failure classes, using evidence-backed migration decisions rather than protocol purity.",
+          "mcp_2026_refs": [
+            "025-specification-specification.md",
+            "026-specification-key-changes.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-341-R01",
+          "duplicate_owner_proof": "Source issue #341 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 343,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "legacy_protocol_prescription",
+          "disposition": "superseded_2026",
+          "statement": "Preserve the intended simplification and Desktop Commander HR-001/002/003 invariants, but retire FastMCP 3.x/MCP 2025-specific prescriptions and re-derive any implementation slice against FastMCP 4 and MCP 2026-07-28.",
+          "mcp_2026_refs": [
+            "025-specification-specification.md",
+            "026-specification-key-changes.md",
+            "027-specification-deprecated-features.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": "FastMCP 4/MCP 2026 is now the landed normative baseline, so old implementation mechanisms are historical evidence only.",
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-343-R01",
+          "duplicate_owner_proof": "Source issue #343 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 347,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "legacy_protocol_prescription",
+          "disposition": "superseded_2026",
+          "statement": "Preserve the source-resolution, execution-environment isolation, protocol-authority and guidance outcomes, but do not revive the MCP 2025 initialize-era implementation prescription; re-derive them from MCP 2026 discovery/request metadata/resources.",
+          "mcp_2026_refs": [
+            "025-specification-specification.md",
+            "047-specification-discovery.md",
+            "049-specification-resources.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": "The source issue explicitly bound implementation to MCP 2025; #475 replaced that authority with 2026-07-28.",
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-347-R01",
+          "duplicate_owner_proof": "Source issue #347 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 356,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "reconstruction",
+          "disposition": "implement_current",
+          "statement": "Preserve the serial post-Actions reconstruction programme outcome and its evidence boundaries without replaying obsolete local/VM verification architecture.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-356-R01",
+          "duplicate_owner_proof": "Source issue #356 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 365,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "cleanup",
+          "disposition": "implement_current",
+          "statement": "Retire obsolete Actions-loss execution residue and stale review branches/PRs only through current recoverable governance after retained payload is reconstructed.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-365-R01",
+          "duplicate_owner_proof": "Source issue #365 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 366,
+      "destination_programme": 488,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "governance",
+          "disposition": "implemented_verify",
+          "statement": "Keep a durable rule that every future MCP-impacting change consults the applicable normative specification/schema before design or implementation.",
+          "mcp_2026_refs": [
+            "025-specification-specification.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [
+            "AGENTS.md",
+            "SPEC.md"
+          ],
+          "replacement_rationale": null,
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-366-R01",
+          "duplicate_owner_proof": "Source issue #366 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        },
+        {
+          "kind": "legacy_mapping",
+          "disposition": "superseded_2026",
+          "statement": "Retire the historical mapping FastMCP 3.x -> MCP 2025-11-25 and the statement that FastMCP 4/MCP 2026 is deferred; current authority is FastMCP 4 with MCP 2026-07-28.",
+          "mcp_2026_refs": [
+            "025-specification-specification.md",
+            "026-specification-key-changes.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": "#475 landed the new normative baseline.",
+          "current_owner": "#488",
+          "requirement_id": "ISSUE-366-R02",
+          "duplicate_owner_proof": "Source issue #366 occurs in exactly one destination source set, programme #488; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 367,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "reconciliation",
+          "disposition": "implement_current",
+          "statement": "Complete final reconstruction reconciliation, including merge-queue preservation proof and exact Change 190 evidence repair, with clean aligned main and closed stale residue.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-367-R01",
+          "duplicate_owner_proof": "Source issue #367 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 375,
+      "destination_programme": 494,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "audit",
+          "disposition": "implement_current",
+          "statement": "Preserve the complete historical-to-current audit obligations: requirement/decision/assumption/risk/hold lineage, semantic diffs, durable checkpoints/registers, current repository/docs/runtime reconciliation and prioritized remediation without treating history as present authority.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#494",
+          "requirement_id": "ISSUE-375-R01",
+          "duplicate_owner_proof": "Source issue #375 occurs in exactly one destination source set, programme #494; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 376,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "review",
+          "disposition": "implement_current",
+          "statement": "When explicitly released, evaluate reviewer harness scalability, semantic context packaging, evidence reuse, routing and failure telemetry across repository sizes before attributing low review yield to models.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-376-R01",
+          "duplicate_owner_proof": "Source issue #376 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 378,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Reconcile the historical/current-state audit into canonical owners and prove the actually commissioned KIS end state, including live Work/Provider/Discover/queue/runtime contradictions, without turning the audit itself into product authority.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-378-R01",
+          "duplicate_owner_proof": "Source issue #378 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 382,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "work_management",
+          "disposition": "implement_current",
+          "statement": "Provide one machine-readable conformance/intake contract per Work record type, bounded create/capture operations, registry-derived Project ID, safe allowlisted repair, durable maintenance findings, and a front door that cannot grant governed mutation before actionable Work admission/claim while Inbox ideas remain pre-work.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-382-R01",
+          "duplicate_owner_proof": "Source issue #382 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 383,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "compatibility",
+          "disposition": "implement_current",
+          "statement": "Define how KIS detects and communicates cross-repository prerequisites, compatibility limits, expected software and repo-specific versus portable behavior across heterogeneous tool-user repositories.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-383-R01",
+          "duplicate_owner_proof": "Source issue #383 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 386,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "work_management",
+          "disposition": "implement_current",
+          "statement": "Add deterministic Triage progression and re-evaluation with full Ready-contract validation, attention evidence for ambiguity, exact lifecycle edges, dependency-aware recovery and no misuse of Blocked for undefined work.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-386-R01",
+          "duplicate_owner_proof": "Source issue #386 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 388,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "runner",
+          "disposition": "implement_current",
+          "statement": "Make the PR runner's advertised schema and runtime validators identical, consume canonical complexity/documentation values, and return conclusive bounded timeout/completion outcomes with regression proof.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-388-R01",
+          "duplicate_owner_proof": "Source issue #388 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 395,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "review",
+          "disposition": "implement_current",
+          "statement": "Define verification-grade review evidence separately from lightweight review completion, independently check material claims, reject shallow/stale/non-head evidence and prevent merge readiness from accepting insufficient review proof.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-395-R01",
+          "duplicate_owner_proof": "Source issue #395 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 398,
+      "destination_programme": 494,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "documentation",
+          "disposition": "implement_current",
+          "statement": "Keep AGENTS.md focused on durable Skills authority invariants and move volatile operation/skill implementation details to canonical module documentation unless a repository-local reason requires them.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#494",
+          "requirement_id": "ISSUE-398-R01",
+          "duplicate_owner_proof": "Source issue #398 occurs in exactly one destination source set, programme #494; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 399,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "reconciliation",
+          "disposition": "implement_current",
+          "statement": "Reconcile Commodity/KIS workflow incidents against current evidence, deduplicate owners, close resolved observations and create only genuinely missing bounded KIS owners.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-399-R01",
+          "duplicate_owner_proof": "Source issue #399 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 400,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "reconciliation",
+          "disposition": "implement_current",
+          "statement": "Verify historical/resolved Commodity observations with exact evidence and avoid creating new KIS work unless a fresh unowned defect is proven.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-400-R01",
+          "duplicate_owner_proof": "Source issue #400 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 401,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "reconciliation",
+          "disposition": "implement_current",
+          "statement": "Map still-relevant Commodity observations to exact existing KIS owners, cross-link evidence and refuse adjacent-but-not-exact owner matches.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-401-R01",
+          "duplicate_owner_proof": "Source issue #401 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 402,
+      "destination_programme": 491,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "reconciliation",
+          "disposition": "implement_current",
+          "statement": "Evaluate only genuinely unresolved Commodity/KIS integration gaps, determining exact existing or new ownership without duplicating recovery, coordinator, review or runner work.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#491",
+          "requirement_id": "ISSUE-402-R01",
+          "duplicate_owner_proof": "Source issue #402 occurs in exactly one destination source set, programme #491; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 419,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Separate source Verification from post-merge Live Verification, deterministically observe merged PRs, classify live obligations, create idempotent commissioning work, run the real exposed surface, preserve source Done state, and project compact evidence through the canonical live-verification fields.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-419-R01",
+          "duplicate_owner_proof": "Source issue #419 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 420,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Close the post-#406 live-verification remediation matrix only after its reviewer-route, review-validation and clean-process import defects are resolved or explicitly dispositioned and both runtimes are re-proven.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-420-R01",
+          "duplicate_owner_proof": "Source issue #420 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 421,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "review",
+          "disposition": "implement_current",
+          "statement": "Repair the qualified safety/security review route so strict contract validation remains fail-closed while Lightning/Ultra valid responses can complete through deterministic fallback and live smoke on both runtimes.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-421-R01",
+          "duplicate_owner_proof": "Source issue #421 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 422,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "defect",
+          "disposition": "implement_current",
+          "statement": "Remove the clean-process Project Management circular import without weakening package boundaries, prove independent test collection and preserve current pagination semantics.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-422-R01",
+          "duplicate_owner_proof": "Source issue #422 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 424,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "lifecycle",
+          "disposition": "implement_current",
+          "statement": "Treat Done issues as immutable history; new work derived from Done must use a new Work item with explicit lineage, and Work Management tooling should enforce or guide this consistently.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-424-R01",
+          "duplicate_owner_proof": "Source issue #424 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 426,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "coordinator",
+          "disposition": "implement_current",
+          "statement": "Complete the pull-based Work front door so start/resume/take-next/capture/create intents resolve or create authoritative work, establish and re-read execution ownership, and return a deterministic bounded assignment packet using existing coordinator identity/fencing semantics before repository mutation.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-426-R01",
+          "duplicate_owner_proof": "Source issue #426 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 432,
+      "destination_programme": 496,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "security",
+          "disposition": "implement_current",
+          "statement": "Fail closed on irreversible external provider deletes under HR-003 using concrete provider contracts/effects, preserving name/annotation distrust, disabling unrecoverable delete paths and proving GitHub/Supabase/equivalent operations cannot bypass quarantine/rejection.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#496",
+          "requirement_id": "ISSUE-432-R01",
+          "duplicate_owner_proof": "Source issue #432 occurs in exactly one destination source set, programme #496; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 435,
+      "destination_programme": 492,
+      "source_class": "superseded_legacy",
+      "evidence_limited": true,
+      "requirements": [
+        {
+          "kind": "evidence_limited",
+          "disposition": "implement_current",
+          "statement": "Preserve the only available source requirement as titled: gh open-code-review; do not infer missing body semantics, and require #492 planning to recover/clarify exact intent from authoritative history before implementation.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#492",
+          "requirement_id": "ISSUE-435-R01",
+          "duplicate_owner_proof": "Source issue #435 occurs in exactly one destination source set, programme #492; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 437,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "execution",
+          "disposition": "implement_current",
+          "statement": "Make tool-user execution windows machine-owned, deterministic by default, bounded and overrideable per run; expose the resolved value, stop cleanly on expiry, preserve resumable lifecycle state and allow resume with a newly resolved window.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-437-R01",
+          "duplicate_owner_proof": "Source issue #437 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 443,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "selection",
+          "disposition": "implement_current",
+          "statement": "Extend current deterministic selection only after design evaluation so defects/correctness findings, ongoing or unfinished work and explicit operator-directed work are accounted for without discarding existing eligibility and tie-break rules.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-443-R01",
+          "duplicate_owner_proof": "Source issue #443 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 444,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "selection",
+          "disposition": "not_required",
+          "statement": "Do not implement the withdrawn #444 four-tier ordering as canonical authority. Preserve only its historical evidence; current priority work is governed by clarified #443/#489, which requires planning and evaluation against the present deterministic design before exact ordering is approved.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [
+            "SPEC.md Work-management status: explicitly excluding withdrawn #444 work-class tiers",
+            "#443 clarified operator scope (2026-08-26)"
+          ],
+          "replacement_rationale": "Current SPEC.md explicitly excludes the withdrawn #444 work-class tiers, and #443 was clarified on 2026-08-26 to require design evaluation before exact ordering/interaction.",
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-444-R01",
+          "duplicate_owner_proof": "Source issue #444 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 445,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "ux",
+          "disposition": "implement_current",
+          "statement": "Expose enough status at the Work front door for tool users to know when runners, wrappers or Actions are still running, that blind monitoring is unnecessary, and when failure/stall/intervention actually needs attention.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-445-R01",
+          "duplicate_owner_proof": "Source issue #445 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. Interface split: #490 produces runner/action state evidence; #489 owns Work/tool-user presentation."
+        }
+      ]
+    },
+    {
+      "source_issue": 447,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "runtime_lifecycle",
+          "disposition": "implement_current",
+          "statement": "Preserve the requested post-land automatic tool-runtime refresh requirement for programme-level design and reconcile it with the current safe lifecycle boundary rather than silently dropping either requested runtime.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-447-R01",
+          "duplicate_owner_proof": "Source issue #447 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 448,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "inbox",
+          "disposition": "implement_current",
+          "statement": "Make the operator Inbox repository-neutral by exposing all registered Project ID/repository choices while preserving correct per-repository Work ownership and central intake.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-448-R01",
+          "duplicate_owner_proof": "Source issue #448 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 450,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "ux",
+          "disposition": "implement_current",
+          "statement": "Adopt plain-English user-facing Work communication with technical precision and minimal internal jargon, using the writing-style/Google developer-documentation guidance during implementation.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-450-R01",
+          "duplicate_owner_proof": "Source issue #450 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. Interface split: #494 produces communication/style contract; #489 owns Work-flow consumption."
+        }
+      ]
+    },
+    {
+      "source_issue": 451,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "schema",
+          "disposition": "implement_current",
+          "statement": "Add a dedicated Issue Number field tied directly to canonical source issue identity so filtering/sorting/projection never depends on parsing titles.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-451-R01",
+          "duplicate_owner_proof": "Source issue #451 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 453,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Observe exact provider-confirmed merges independently of the merge command, classify live surfaces from machine-owned policy, fail closed on ambiguity, and create at most one commissioning obligation per repository/merge-SHA/surface key.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-453-R01",
+          "duplicate_owner_proof": "Source issue #453 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 454,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Execute generated commissioning obligations through Work/coordinator authority and the actual exposed capability path, refresh only when policy requires, persist resumable compact evidence and keep source Verification independent.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-454-R01",
+          "duplicate_owner_proof": "Source issue #454 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 455,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Backfill recent merged runtime-affecting work using the same live classifier and key derivation as future observation, preserving valid evidence and producing explicit Not Required/evidenced/created/blocked outcomes.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-455-R01",
+          "duplicate_owner_proof": "Source issue #455 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 457,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain the exact gateway-runtime commissioning obligation for PR #456 merge 7ae6db902a15f85ea6a768b57a42d3ee0224ee7b until its real exposed-path invariant is terminally proven.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-457-R01",
+          "duplicate_owner_proof": "Source issue #457 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 458,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain the exact post-merge-observer commissioning obligation for PR #456 merge 7ae6db902a15f85ea6a768b57a42d3ee0224ee7b until one fresh governed merge is accounted exactly once.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-458-R01",
+          "duplicate_owner_proof": "Source issue #458 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 459,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain the exact provider-runtime commissioning obligation for PR #456 merge 7ae6db902a15f85ea6a768b57a42d3ee0224ee7b until startup/authentication and the affected provider path are live-proven.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-459-R01",
+          "duplicate_owner_proof": "Source issue #459 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 460,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "ux",
+          "disposition": "implement_current",
+          "statement": "Remove or redesign the user-facing file-materialization approval interruption so normal KIS evidence/file return does not produce an unnecessary materialization popup while preserving client safety boundaries.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-460-R01",
+          "duplicate_owner_proof": "Source issue #460 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 463,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain the exact Work Management commissioning obligation for PR #461 merge fb527962f69a863d0d8bfbf651129eb83f387861 until the real exposed Work path is proven on that landed source.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-463-R01",
+          "duplicate_owner_proof": "Source issue #463 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 464,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "defect",
+          "disposition": "implement_current",
+          "statement": "Fix commissioning terminal completion to construct a Work record ID compatible with its task record type, exercise the real parser, preserve replay/resume, and close only the intended commissioning work after passed evidence.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-464-R01",
+          "duplicate_owner_proof": "Source issue #464 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 465,
+      "destination_programme": 489,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "integration",
+          "disposition": "implement_current",
+          "statement": "Ensure Work Management can consume a bounded repository-registration workflow that registers a tool-user repository and Project binding and later updates supported service bindings without silent cross-repository mutation.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#489",
+          "requirement_id": "ISSUE-465-R01",
+          "duplicate_owner_proof": "Source issue #465 occurs in exactly one destination source set, programme #489; ledger validation proves source ownership uniqueness. Interface split: #493 produces repository registration; #489 owns Work projection/consumption."
+        }
+      ]
+    },
+    {
+      "source_issue": 476,
+      "destination_programme": 475,
+      "source_class": "retained_deferred",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "future",
+          "disposition": "future_triggered",
+          "statement": "Offload large KIS evidence through MCP ResourceLink with bounded summaries, explicit resource authority/lifetime and preserved provenance/security only after client compatibility or real output-pressure evidence.",
+          "mcp_2026_refs": [
+            "049-specification-resources.md",
+            "050-specification-tools.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": "Activate after #475 and when either live ChatGPT/KIS proves ResourceLink resource-read compatibility or an existing KIS operation hits its configured output/truncation ceiling.",
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#475",
+          "requirement_id": "ISSUE-476-R01",
+          "duplicate_owner_proof": "Source issue #476 occurs in exactly one destination source set, programme #475; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 477,
+      "destination_programme": 475,
+      "source_class": "retained_deferred",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "future",
+          "disposition": "future_triggered",
+          "statement": "Use subscriptions/listen for opted-in task/progress/list/resource notifications with subscription-ID correlation and polling fallback, without restoring hidden session or mutation authority.",
+          "mcp_2026_refs": [
+            "033-specification-subscriptions.md",
+            "035-specification-progress.md",
+            "063-extensions-tasks.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": "Activate only when FastMCP/runtime provides usable end-to-end subscriptions/listen and live ChatGPT commissioning proves acknowledgment/correlation plus at least one requested notification type.",
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#475",
+          "requirement_id": "ISSUE-477-R01",
+          "duplicate_owner_proof": "Source issue #477 occurs in exactly one destination source set, programme #475; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 478,
+      "destination_programme": 475,
+      "source_class": "retained_deferred",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "future",
+          "disposition": "future_triggered",
+          "statement": "Add resumable MCP 2026 input_required/MRTR and elicitation for durable KIS workflows that pause for bounded user input without holding a connection or creating hidden session authority.",
+          "mcp_2026_refs": [
+            "032-specification-multi-round-trip-requests.md",
+            "045-specification-elicitation.md",
+            "063-extensions-tasks.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": "Activate only when FastMCP/runtime exposes required MRTR/input_required/elicitation without private hooks and live ChatGPT advertises elicitation and completes one round trip.",
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#475",
+          "requirement_id": "ISSUE-478-R01",
+          "duplicate_owner_proof": "Source issue #478 occurs in exactly one destination source set, programme #475; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 479,
+      "destination_programme": 475,
+      "source_class": "retained_deferred",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "future",
+          "disposition": "future_triggered",
+          "statement": "Use MCP 2026 ttlMs/cacheScope and invalidation semantics to reduce repeated discovery/list work without cross-authorization leakage, durable session coupling or hidden readiness changes.",
+          "mcp_2026_refs": [
+            "047-specification-discovery.md",
+            "051-specification-caching.md",
+            "111-seps-sep-2549-ttl-for-list-results.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": "Activate after #475 when the selected FastMCP 4 stack exposes 2026 discovery/list cache metadata on the server boundary; server-side emitted ttlMs/cacheScope commissioning is sufficient.",
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#475",
+          "requirement_id": "ISSUE-479-R01",
+          "duplicate_owner_proof": "Source issue #479 occurs in exactly one destination source set, programme #475; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 480,
+      "destination_programme": 475,
+      "source_class": "retained_deferred",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "future",
+          "disposition": "future_triggered",
+          "statement": "Adopt the standard MCP OAuth client-credentials extension for approved unattended remote MCP providers with explicit negotiation, secret-safe storage, per-request validation and fail-closed provider availability.",
+          "mcp_2026_refs": [
+            "060-extensions-authorization-extensions.md",
+            "061-extensions-oauth-client-credentials.md",
+            "039-specification-authorization.md",
+            "055-specification-schema-reference.md"
+          ],
+          "deferred_trigger": "Activate when an operator approves a remote provider requiring unattended non-user OAuth, or explicitly approves Supabase and its current MCP endpoint supports the standard extension.",
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#475",
+          "requirement_id": "ISSUE-480-R01",
+          "duplicate_owner_proof": "Source issue #480 occurs in exactly one destination source set, programme #475; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 484,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain the exact post-merge-observer commissioning obligation for PR #466 merge dcba16cbd567055f4e869577a00baf8a4626c2f7 until a fresh governed merge yields one durable intake result per key.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-484-R01",
+          "duplicate_owner_proof": "Source issue #484 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    },
+    {
+      "source_issue": 485,
+      "destination_programme": 490,
+      "source_class": "superseded_legacy",
+      "evidence_limited": false,
+      "requirements": [
+        {
+          "kind": "commissioning",
+          "disposition": "implement_current",
+          "statement": "Retain the exact coordinator-runtime commissioning obligation for PR #468 merge ce483cefbdf8b35161a634be571f9b797e827e77 until the real orchestration path succeeds without stale authority/lifecycle errors.",
+          "mcp_2026_refs": [],
+          "deferred_trigger": null,
+          "current_evidence": [],
+          "replacement_rationale": null,
+          "current_owner": "#490",
+          "requirement_id": "ISSUE-485-R01",
+          "duplicate_owner_proof": "Source issue #485 occurs in exactly one destination source set, programme #490; ledger validation proves source ownership uniqueness. "
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "expected_legacy_count": 84,
+    "observed_legacy_count": 84,
+    "legacy_unique": true,
+    "legacy_set_exact": true,
+    "expected_deferred_count": 5,
+    "observed_deferred_count": 5,
+    "deferred_set_exact": true,
+    "all_source_count": 89,
+    "all_source_unique": true,
+    "controlled_dispositions": true,
+    "implement_current_has_owner": true,
+    "implemented_verify_has_evidence": true,
+    "superseded_2026_has_refs_and_rationale": true,
+    "future_triggered_has_trigger": true,
+    "title_only_sources_evidence_limited": true,
+    "every_requirement_has_duplicate_owner_proof": true,
+    "not_required_has_rationale": true,
+    "every_source_has_requirement": true,
+    "requirement_ids_unique": true
+  }
+}

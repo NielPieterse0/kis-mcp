@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "change_id": "241-lossless-legacy-transfer-ledger",
+  "status": "active",
+  "branch": "change/241-lossless-legacy-transfer-ledger",
+  "worktree": ".work/worktrees/241-lossless-legacy-transfer-ledger",
+  "base": "main",
+  "outcome": "Produce deterministic requirement-level traceability proving lossless transfer of all #497 legacy obligations into #475/#488-#496, with MCP 2026 re-baselining and retained deferred triggers explicit.",
+  "owned_paths": [
+    "docs/development/audits/2026-08-26-lossless-legacy-transfer/**",
+    ".work/changes/241-lossless-legacy-transfer-ledger/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "582b90dba30aa2c3abfcd0692c1439b3426f1b61",
+    "local_tree": "1de06e556daee0a957194f9d0c9b26a32d37f156",
+    "upstream_sha": "582b90dba30aa2c3abfcd0692c1439b3426f1b61",
+    "upstream_tree": "1de06e556daee0a957194f9d0c9b26a32d37f156",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-497",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 497,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete",
+    "execution_owner": "codex"
+  }
+}
