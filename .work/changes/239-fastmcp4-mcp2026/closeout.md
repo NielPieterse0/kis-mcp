@@ -19,6 +19,8 @@
 - `git diff --check`: passed.
 - Changed-file Ruff: all #475-introduced findings resolved; nine remaining findings are on unchanged pre-existing lines, confirmed absent from zero-context diff hunks.
 - Local `scripts/verify.ps1` did not enter repository verification because offline dependency synchronization could not find cached `burner-redis==0.1.7`, introduced transitively by FastMCP Tasks. Exact-head GitHub Actions remains the canonical online verification gate.
+- First exact-head GitHub run `32914802517` at `bbbaeefd38b915e1f98dcfba8de33671d309c893` exposed three follow-up failures. They are fixed locally: Supabase is disabled before provider composition and remains absent from status, stale status tests now assert absence, and the Skills supporting-resource `path` parameter delegates traversal validation to the stricter KIS catalogue so `SKILLS_PATH_UNSAFE` is preserved.
+- Follow-up provider + Skills suites, changed-file Ruff, `git diff --check`, and `scripts/change-workflow.ps1 check` pass.
 
 ## Review
 

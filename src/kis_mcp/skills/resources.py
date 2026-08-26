@@ -5,6 +5,7 @@ from typing import Any
 from urllib.parse import quote
 
 from fastmcp import FastMCP
+from fastmcp.resources import ResourceSecurity
 
 from .catalogue import SkillCatalogue
 from .errors import SkillsError
@@ -96,6 +97,7 @@ def register_skill_resources(server: FastMCP, catalogue: SkillCatalogue) -> None
             "scripts and assets are data only and are never executed."
         ),
         mime_type="application/octet-stream",
+        security=ResourceSecurity(exempt_params={"path"}),
     )
     def skill_supporting_resource(skill_id: str, path: str = "") -> bytes:
         if path == "SKILL.md":
@@ -108,8 +110,8 @@ def register_skill_resources(server: FastMCP, catalogue: SkillCatalogue) -> None
 
 
 __all__ = [
-    "SKILLS_RESOURCE_INDEX_URI",
     "SKILLS_RESOURCE_INDEX_TEMPLATE",
+    "SKILLS_RESOURCE_INDEX_URI",
     "SKILL_ENTRYPOINT_TEMPLATE",
     "SKILL_RESOURCE_TEMPLATE",
     "register_skill_resources",

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -221,6 +221,20 @@ class PlatformProviderRuntime:
     serena_adapter: SerenaRuntimeAdapter
 
 
+def _effective_provider_runtime_settings(
+    settings: ProviderRuntimeSettings,
+) -> ProviderRuntimeSettings:
+    return ProviderRuntimeSettings(
+        schema_version=settings.schema_version,
+        providers=tuple(
+            replace(setting, enabled=False)
+            if setting.provider_id == "supabase"
+            else setting
+            for setting in settings.providers
+        ),
+    )
+
+
 def compose_platform_providers(
     server,
     *,
@@ -256,7 +270,8 @@ def compose_platform_providers(
         serena_adapter=active_serena,
     )
     holder["service"] = service
-    settings = provider_runtime_settings or load_provider_runtime_settings()
+    configured_settings = provider_runtime_settings or load_provider_runtime_settings()
+    settings = _effective_provider_runtime_settings(configured_settings)
     composition = compose_provider_runtime(server, service, settings)
     visible_results = tuple(
         result for result in composition.results if result.provider_id != "supabase"

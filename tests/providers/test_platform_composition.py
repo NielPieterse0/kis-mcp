@@ -23,6 +23,10 @@ from kis_mcp.providers import (
 )
 from kis_mcp.providers import desktop_commander as desktop_module
 from kis_mcp.providers import platform as platform_module
+from kis_mcp.providers.runtime_settings import (
+    ProviderMountSetting,
+    ProviderRuntimeSettings,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 
@@ -443,7 +447,17 @@ def test_platform_runtime_owns_live_repository_selection_source(
     runtime = _runtime()
     service = object()
     composition = platform_module.ProviderRuntimeComposition(results=())
-    runtime_settings = object()
+    runtime_settings = ProviderRuntimeSettings(
+        schema_version=1,
+        providers=(
+            ProviderMountSetting(
+                provider_id="github-mcp", enabled=True, namespace="github"
+            ),
+            ProviderMountSetting(
+                provider_id="supabase", enabled=True, namespace="supabase"
+            ),
+        ),
+    )
     captured: dict[str, object] = {}
 
     class FakeSelection:
@@ -468,11 +482,12 @@ def test_platform_runtime_owns_live_repository_selection_source(
 
     monkeypatch.setattr(platform_module, "SelectedRepositorySettings", build_selection)
     monkeypatch.setattr(platform_module, "build_platform_provider_service", build_service)
-    monkeypatch.setattr(
-        platform_module,
-        "compose_provider_runtime",
-        lambda server, active_service, settings: composition,
-    )
+
+    def compose_runtime(server: object, active_service: object, settings: object):
+        captured["runtime_settings"] = settings
+        return composition
+
+    monkeypatch.setattr(platform_module, "compose_provider_runtime", compose_runtime)
 
     result = platform_module.compose_platform_providers(
         object(),
@@ -488,6 +503,13 @@ def test_platform_runtime_owns_live_repository_selection_source(
     assert source() == "first"
     selection.select("second")
     assert source() == "second"
+    effective_settings = captured["runtime_settings"]
+    assert isinstance(effective_settings, ProviderRuntimeSettings)
+    enabled_by_provider = {
+        item.provider_id: item.enabled for item in effective_settings.providers
+    }
+    assert enabled_by_provider == {"github-mcp": True, "supabase": False}
+    assert result.settings is effective_settings
     assert result.selected_repository is selection
     assert result.service is service
     assert result.composition is composition

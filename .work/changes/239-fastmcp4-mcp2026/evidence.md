@@ -50,3 +50,11 @@ The exact-diff fallback found and fixed two blocking issues:
 2. Verification stall time was measured from before `start_process`, so slow process launch could consume stall budget despite fresh launch/output evidence. Initial process/output evidence now resets only the stall clock; the independent maximum execution deadline is unchanged. Regression coverage proves both properties.
 
 Post-fix focused evidence: changed-test set `152 passed`; provider lifecycle/gateway/Tasks/wire set `50 passed`; verification execution/tool set `16 passed`; configuration set `11 passed`; `git diff --check` and `scripts/change-workflow.ps1 check` pass. All six specialist routes were rerun on post-fix immutable head `19f4ad9174bd0c66af88999e1375f47401b93f40`; each again stopped at the bounded evidence projector with `manual_fallback.required=true`, so the completed exact-diff fallback remains the review authority. No new finding was introduced by the post-fix diff.
+
+## Exact-head CI follow-up
+
+GitHub canonical verification run `32914802517` failed at exact PR head `bbbaeefd38b915e1f98dcfba8de33671d309c893` on three regressions: two stale tests expected parked Supabase in provider status, and FastMCP 4 path screening intercepted the Skills traversal case before KIS could preserve `SKILLS_PATH_UNSAFE`. CI triage also confirmed that Supabase was filtered only after composition, so its builder could still run.
+
+The follow-up disables Supabase in an effective copy of provider runtime settings before `compose_provider_runtime`, while retaining its checked-in parked configuration and filtering its disabled result from user-visible status. The Skills supporting-resource template exempts only its `path` parameter from FastMCP's generic path screening; `SkillCatalogue.read_skill_resource_bytes` remains the stricter path authority and preserves `SKILLS_PATH_UNSAFE`.
+
+Follow-up evidence: the exact three-failure set passes; full `tests/providers` plus `tests/skills` passes; changed-file Ruff passes; `git diff --check` passes; and `scripts/change-workflow.ps1 check` passes. Architecture re-review found no blocking issue. API-contract review raised product uncertainty about disabling Supabase and the path exemption, but both are resolved by approved REQ-012 plus the existing direct and FastMCP traversal regression tests; no implementation blocker remains.
