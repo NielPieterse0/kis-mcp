@@ -4,11 +4,12 @@ import asyncio
 import os
 from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from fastmcp import FastMCP
 from fastmcp.client.transports import StdioTransport
-from fastmcp.server.providers.proxy import ProxyClient
+from fastmcp.server.providers.proxy import FastMCPProxy, ProxyClient, ProxyProvider
 
 from ..capabilities.catalogue import CapabilityCatalogue
 from ..capabilities.exposure import ExposureMiddleware, ExposurePlanner
@@ -64,8 +65,73 @@ CreateProxy = Callable[..., FastMCP]
 ProviderValidator = Callable[[RuntimeConfig], None]
 
 
-def _listed_tools(server: FastMCP) -> list[Any]:
-    return list(asyncio.run(server.list_tools()))
+def _provider_uses_proxy(provider: Any, seen: set[int] | None = None) -> bool:
+    visited = set() if seen is None else seen
+    identity = id(provider)
+    if identity in visited:
+        return False
+    visited.add(identity)
+    if isinstance(provider, ProxyProvider):
+        return True
+    inner = getattr(provider, "_inner", None)
+    if inner is not None and _provider_uses_proxy(inner, visited):
+        return True
+    child_server = getattr(provider, "server", None)
+    if isinstance(child_server, FastMCP):
+        return any(
+            _provider_uses_proxy(child, visited)
+            for child in child_server.providers
+        )
+    return False
+
+
+def _listed_safe_tools(server: FastMCP) -> list[Any]:
+    tools: list[Any] = []
+    for provider in server.providers:
+        if _provider_uses_proxy(provider):
+            continue
+        tools.extend(asyncio.run(provider.list_tools()))
+    return tools
+
+
+def _listed_desktop_commander_tools(
+    *,
+    launch: dict[str, Any],
+    provider_args: list[str],
+    environment: dict[str, str],
+    create_proxy_fn: CreateProxy,
+    server_name: str,
+) -> list[Any]:
+    transport = StdioTransport(
+        command=str(launch["command"]),
+        args=list(provider_args),
+        cwd=str(launch["cwd"]),
+        env=dict(environment),
+        keep_alive=False,
+    )
+    discovery = create_proxy_fn(
+        ProxyClient(transport),
+        name=f"{server_name}-surface-discovery",
+    )
+    return list(asyncio.run(discovery.list_tools()))
+
+
+def _declared_provider_tools(
+    contributions: tuple[Any, ...],
+    mounted_provider_ids: set[str],
+) -> list[Any]:
+    return [
+        SimpleNamespace(
+            name=operation.name,
+            description=operation.description,
+            annotations=None,
+            input_schema=operation.input_schema,
+        )
+        for contribution in contributions
+        if contribution.contribution_id.removeprefix("provider.") in mounted_provider_ids
+        for operation in contribution.operations
+        if operation.enabled
+    ]
 
 
 def compose_gateway(
@@ -178,8 +244,12 @@ def compose_gateway(
     )
 
     settings = load_capability_settings()
+    provider_contributions = provider_capability_contributions(
+        providers.service,
+        providers.composition,
+    )
     static_contributions = (
-        *provider_capability_contributions(providers.service, providers.composition),
+        *provider_contributions,
         *tool_capability_contributions(build_platform_tool_registry()),
         *discover_capability_contributions(),
         project_capability_contribution(),
@@ -198,10 +268,33 @@ def compose_gateway(
         item.provider_id: item.namespace for item in providers.composition.results
     }
 
-    # Preserve the existing mounted-provider/local runtime surface. The GitHub
-    # persistent proxy contributes no upstream tools while its lifespan is IDLE,
-    # so this aggregate list cannot spawn a disposable GitHub MCP subprocess.
-    static_runtime_tools = tuple(_listed_tools(server))
+    mounted_provider_ids = {
+        item.provider_id
+        for item in providers.composition.results
+        if item.mounted
+    }
+    local_runtime_tools = _listed_safe_tools(server)
+    desktop_commander_tools = (
+        _listed_desktop_commander_tools(
+            launch=dict(launch),
+            provider_args=provider_args,
+            environment=environment,
+            create_proxy_fn=create_proxy_fn,
+            server_name=runtime.server_name,
+        )
+        if isinstance(server, FastMCPProxy)
+        else []
+    )
+    static_runtime_tools = tuple(
+        (
+            *local_runtime_tools,
+            *desktop_commander_tools,
+            *_declared_provider_tools(
+                provider_contributions,
+                mounted_provider_ids,
+            ),
+        )
+    )
     capabilities = CapabilityRuntimeState.build(
         CapabilityCatalogue(base_contributions, workflow_descriptors()),
         settings,

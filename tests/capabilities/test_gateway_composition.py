@@ -46,6 +46,7 @@ def descriptor(provider_id: str, *, state: ProviderState = ProviderState.READY) 
                 capability_id=f"{provider_id}.operate",
                 description=f"Operate {provider_id}.",
                 effects=("external_network",),
+                tool_names=("echo",),
             ),
         ),
         builder=lambda: child(provider_id),
@@ -76,6 +77,23 @@ def service() -> ProviderService:
             )
         )
     )
+
+
+class AggregateListForbiddenFastMCP(FastMCP):
+    async def list_tools(self, *, run_middleware: bool = True):
+        raise AssertionError("aggregate runtime proxy enumeration is forbidden during composition")
+
+
+def test_compose_gateway_does_not_enumerate_actual_aggregate_proxy_graph() -> None:
+    composed = compose_gateway(
+        load_runtime_config(),
+        validate_provider=False,
+        provider_service=service(),
+        provider_runtime_settings=runtime_settings(),
+        create_proxy_fn=lambda *_args, **_kwargs: AggregateListForbiddenFastMCP("no-enumeration"),
+    )
+
+    assert composed.server.name == "no-enumeration"
 
 
 def test_compose_gateway_owns_instance_scoped_capability_state() -> None:
@@ -122,7 +140,7 @@ def test_gateway_exposes_curated_surface_and_discovers_hidden_tools() -> None:
         "execute_read_action",
         "execute_change_action",
         "execute_external_action",
-    }.issubset(names)
+    }.issubset(names), sorted(names)
     assert "list_skills" not in names
     assert "github_echo" not in names
 
