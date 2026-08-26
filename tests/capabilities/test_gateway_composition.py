@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from contextvars import ContextVar
 
 from fastmcp import FastMCP
 
 from kis_mcp.config import load_runtime_config
-from kis_mcp.gateway.composition import compose_gateway
+from kis_mcp.gateway.composition import _run_awaitable_sync, compose_gateway
 from kis_mcp.providers.contracts import (
     ProviderBoundary,
     ProviderCapability,
@@ -94,6 +95,38 @@ def test_compose_gateway_does_not_enumerate_actual_aggregate_proxy_graph() -> No
     )
 
     assert composed.server.name == "no-enumeration"
+
+
+def test_compose_gateway_is_safe_inside_running_event_loop() -> None:
+    async def compose():
+        return compose_gateway(
+            load_runtime_config(),
+            validate_provider=False,
+            provider_service=service(),
+            provider_runtime_settings=runtime_settings(),
+            create_proxy_fn=lambda *_args, **_kwargs: FastMCP("running-loop"),
+        )
+
+    composed = asyncio.run(compose())
+
+    assert composed.server.name == "running-loop"
+
+
+def test_running_loop_bridge_preserves_contextvars() -> None:
+    marker = ContextVar("gateway-compose-marker", default="missing")
+
+    async def read_marker() -> str:
+        await asyncio.sleep(0)
+        return marker.get()
+
+    async def invoke() -> str:
+        token = marker.set("caller-context")
+        try:
+            return _run_awaitable_sync(read_marker)
+        finally:
+            marker.reset(token)
+
+    assert asyncio.run(invoke()) == "caller-context"
 
 
 def test_compose_gateway_owns_instance_scoped_capability_state() -> None:

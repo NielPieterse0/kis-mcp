@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import os
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -85,12 +87,26 @@ def _provider_uses_proxy(provider: Any, seen: set[int] | None = None) -> bool:
     return False
 
 
+def _run_awaitable_sync(factory: Callable[[], Awaitable[Any]]) -> Any:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(factory())
+
+    context = copy_context()
+    with ThreadPoolExecutor(
+        max_workers=1,
+        thread_name_prefix="kis-gateway-compose-async",
+    ) as executor:
+        return executor.submit(context.run, lambda: asyncio.run(factory())).result()
+
+
 def _listed_safe_tools(server: FastMCP) -> list[Any]:
     tools: list[Any] = []
     for provider in server.providers:
         if _provider_uses_proxy(provider):
             continue
-        tools.extend(asyncio.run(provider.list_tools()))
+        tools.extend(_run_awaitable_sync(provider.list_tools))
     return tools
 
 
@@ -113,7 +129,7 @@ def _listed_desktop_commander_tools(
         ProxyClient(transport),
         name=f"{server_name}-surface-discovery",
     )
-    return list(asyncio.run(discovery.list_tools()))
+    return list(_run_awaitable_sync(discovery.list_tools))
 
 
 def _declared_provider_tools(
