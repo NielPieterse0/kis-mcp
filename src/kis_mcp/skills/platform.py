@@ -7,6 +7,7 @@ from ..capabilities.contracts import (
     CapabilityDomain,
     ExposureMode,
     ExposurePolicy,
+    OperationEffect,
     ReadinessSnapshot,
     ReadinessState,
 )
@@ -18,6 +19,11 @@ from .metadata import enrich_skill_card
 from .models import SkillCard
 from .resources import register_skill_resources
 from .service import SkillsService
+from .status import (
+    SkillsRuntimeStatus,
+    degraded_skills_runtime_status,
+    ready_skills_runtime_status,
+)
 from .telemetry import SkillTelemetryStore
 from .tools import register_skills_tools
 
@@ -76,6 +82,35 @@ def active_skill_capability_contributions(
     return skill_capability_contributions(tuple(cards), settings)
 
 
+def _degraded_skill_capability_contribution(
+    status: SkillsRuntimeStatus,
+) -> CapabilityContribution:
+    code = status.code or "SKILLS_UNAVAILABLE"
+    return CapabilityContribution(
+        contribution_id="skills.catalogue",
+        domain=CapabilityDomain.SKILL,
+        category="skills",
+        capabilities=("skills.catalogue",),
+        operations=(),
+        dependencies=(),
+        effects=(OperationEffect.READ_ONLY,),
+        readiness_probe=lambda: ReadinessSnapshot(
+            contribution_id="skills.catalogue",
+            state=ReadinessState.DEGRADED,
+            summary=f"Skills catalogue unavailable: {code}",
+        ),
+        exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=90),
+        quality=default_quality(context_cost=5, reliability=100, workflow_integration=90),
+    )
+
+
+def skills_runtime_status(service: object) -> SkillsRuntimeStatus:
+    if isinstance(service, SkillsService):
+        return ready_skills_runtime_status()
+    code = getattr(service, "failure_code", "SKILLS_UNAVAILABLE")
+    return degraded_skills_runtime_status(str(code))
+
+
 def current_skill_capability_contributions(
     service: object,
     startup_cards: tuple[SkillCard, ...],
@@ -83,7 +118,8 @@ def current_skill_capability_contributions(
 ) -> tuple[CapabilityContribution, ...]:
     if isinstance(service, SkillsService):
         return active_skill_capability_contributions(service, settings)
-    return skill_capability_contributions(startup_cards, settings)
+    runtime_status = skills_runtime_status(service)
+    return (_degraded_skill_capability_contribution(runtime_status),)
 
 
 def register_platform_skills(server, *, state_root: Path | str | None = None):
@@ -113,4 +149,5 @@ __all__ = [
     "enrich_skill_card",
     "register_platform_skills",
     "skill_capability_contributions",
+    "skills_runtime_status",
 ]

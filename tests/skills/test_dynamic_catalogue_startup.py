@@ -1,9 +1,9 @@
 import asyncio
-from dataclasses import replace
 import shutil
+from dataclasses import replace
 
-from fastmcp import FastMCP
 import pytest
+from fastmcp import FastMCP
 
 from kis_mcp.capabilities.catalogue import CapabilityCatalogue
 from kis_mcp.capabilities.runtime import CapabilityRuntimeState
@@ -17,6 +17,7 @@ from kis_mcp.skills.platform import (
     active_skill_capability_contributions,
     register_platform_skills,
     skill_capability_contributions,
+    skills_runtime_status,
 )
 from kis_mcp.skills.service import SkillsService
 from kis_mcp.skills.telemetry import SkillTelemetryStore
@@ -100,6 +101,7 @@ def test_internal_capability_enumeration_does_not_emit_discovery_telemetry(
     )
 
     assert registered_service is service
+    assert skills_runtime_status(registered_service).implementation_value() == "ready"
     assert any(card.id == "develop-code" for card in startup_cards)
     assert any(item.contribution_id == "skill.develop-code" for item in contributions)
     assert store.report().event_count == 0

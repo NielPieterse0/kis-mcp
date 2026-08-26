@@ -27,7 +27,6 @@ from .telemetry import (
     SkillTelemetryStore,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 SKILLS_TOOL_NAMES = (
@@ -53,6 +52,14 @@ class _UnavailableSkillsService:
         self._code = failure.code
         self._message = failure.message
         self._subject = failure.subject
+
+    @property
+    def failure_code(self) -> str:
+        return self._code
+
+    @property
+    def failure_message(self) -> str:
+        return self._message
 
     def _raise(self) -> None:
         raise SkillsError(self._code, self._message, subject=self._subject)

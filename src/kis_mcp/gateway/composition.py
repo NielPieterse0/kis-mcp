@@ -52,6 +52,7 @@ from ..repositories import SelectedRepositorySettings
 from ..skills.platform import (
     current_skill_capability_contributions,
     register_platform_skills,
+    skills_runtime_status,
 )
 from ..tools.platform import build_platform_tool_registry, tool_capability_contributions
 from ..workflows.platform import (
@@ -206,6 +207,7 @@ def compose_gateway(
         project_boundary=runtime.project_boundary,
         quarantine_root=runtime.quarantine_root,
     )
+    component_status: dict[str, str] = {}
     register_gateway_operations(
         server,
         runtime=runtime,
@@ -213,6 +215,7 @@ def compose_gateway(
         quarantine=quarantine,
         provider_service=providers.service,
         provider_composition=providers.composition,
+        component_status=lambda: dict(component_status),
     )
     register_platform_workflows(
         server,
@@ -258,6 +261,8 @@ def compose_gateway(
         server,
         state_root=runtime.state_root,
     )
+    skills_status = skills_runtime_status(skill_service)
+    component_status["skills"] = skills_status.implementation_value()
 
     settings = load_capability_settings()
     provider_contributions = provider_capability_contributions(

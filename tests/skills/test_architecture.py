@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = REPOSITORY_ROOT / "src" / "kis_mcp" / "skills"
 
@@ -29,6 +28,7 @@ def test_skills_dependency_direction_is_explicit() -> None:
             "resources",
             "runtime_observability",
             "service",
+            "status",
             "telemetry",
             "tools",
         },

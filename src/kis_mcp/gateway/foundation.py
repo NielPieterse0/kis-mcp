@@ -309,9 +309,15 @@ def remote_mcp_implementation_status(
     return ready
 
 
-def health_response(runtime: RuntimeConfig, launch: Mapping[str, Any]) -> HealthResponse:
+def health_response(
+    runtime: RuntimeConfig,
+    launch: Mapping[str, Any],
+    component_status: Mapping[str, str] | None = None,
+) -> HealthResponse:
     entry = Path(str(launch.get("args", [""])[0]))
     implementation_status = dict(runtime.implementation_status)
+    if component_status:
+        implementation_status.update({str(key): str(value) for key, value in component_status.items()})
     runtime_evidence = remote_mcp_runtime_evidence(runtime)
     if runtime_evidence.get("ready") is True:
         remote_status = remote_mcp_implementation_status(runtime)
