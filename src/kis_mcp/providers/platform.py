@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
-from pathlib import Path
 import re
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -12,11 +12,11 @@ if TYPE_CHECKING:
 from ..config import RuntimeConfig, load_runtime_config
 from ..repositories import RepositorySettings, SelectedRepositorySettings
 from ..work_management.schema import load_project_schema_manifest
-from .contracts import ProviderDescriptor, ProviderState
 from .context7 import register_context7_provider
+from .contracts import ProviderDescriptor, ProviderState
 from .control_center import register_control_center_provider
-from .desktop_commander import register_desktop_commander_provider
 from .dbhub import register_dbhub_provider
+from .desktop_commander import register_desktop_commander_provider
 from .dockerhub import register_dockerhub_provider
 from .github import GitHubProviderSettings, register_github_provider
 from .github.project_management import GitHubProjectManagementAdapter
@@ -89,7 +89,10 @@ def build_platform_provider_registry(
         settings=nvidia_settings or disabled_nvidia_settings(),
         environ=environment,
     )
-    register_supabase_provider(registry)
+    # Supabase remains intentionally parked under Work #475. Its implementation
+    # and explicit registrar stay available for a future operator-approved
+    # activation, but normal platform composition must expose no Supabase
+    # provider, capability, readiness, or setup state until that activation.
     return registry
 
 
@@ -161,11 +164,7 @@ def provider_runtime_tools(
             exposed_name = raw_name
             if prefix and not raw_name.startswith(f"{prefix}_"):
                 exposed_name = f"{prefix}_{raw_name}"
-            raw_schema = getattr(
-                tool,
-                "inputSchema",
-                getattr(tool, "input_schema", None),
-            )
+            raw_schema = getattr(tool, "input_schema", None)
             input_schema = dict(raw_schema) if isinstance(raw_schema, Mapping) else {}
             tools.append(
                 _RuntimeProviderTool(
@@ -222,6 +221,20 @@ class PlatformProviderRuntime:
     serena_adapter: SerenaRuntimeAdapter
 
 
+def _effective_provider_runtime_settings(
+    settings: ProviderRuntimeSettings,
+) -> ProviderRuntimeSettings:
+    return ProviderRuntimeSettings(
+        schema_version=settings.schema_version,
+        providers=tuple(
+            replace(setting, enabled=False)
+            if setting.provider_id == "supabase"
+            else setting
+            for setting in settings.providers
+        ),
+    )
+
+
 def compose_platform_providers(
     server,
     *,
@@ -257,8 +270,14 @@ def compose_platform_providers(
         serena_adapter=active_serena,
     )
     holder["service"] = service
-    settings = provider_runtime_settings or load_provider_runtime_settings()
+    configured_settings = provider_runtime_settings or load_provider_runtime_settings()
+    settings = _effective_provider_runtime_settings(configured_settings)
     composition = compose_provider_runtime(server, service, settings)
+    visible_results = tuple(
+        result for result in composition.results if result.provider_id != "supabase"
+    )
+    if visible_results != composition.results:
+        composition = ProviderRuntimeComposition(results=visible_results)
     holder["composition"] = composition
     return PlatformProviderRuntime(
         service=service,

@@ -30,7 +30,7 @@ def test_plan_change_tool_is_read_only_and_preserves_request_shape() -> None:
 
     tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
     tool = tools["plan_change"]
-    assert tool.annotations.readOnlyHint is True
+    assert tool.annotations.read_only_hint is True
     assert "command" not in tool.parameters["properties"]
     result = asyncio.run(
         tool.run(

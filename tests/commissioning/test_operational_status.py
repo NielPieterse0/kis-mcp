@@ -15,16 +15,15 @@ from kis_mcp.config import load_runtime_config
 from kis_mcp.gateway.foundation import remote_mcp_implementation_status
 from kis_mcp.projects import load_project_registry_settings
 from kis_mcp.providers.client_runtime import ProviderStartupState
+from kis_mcp.providers.supabase.config import load_supabase_provider_config
 from kis_mcp.providers.supabase.routing import (
     SupabaseCommissioningState,
     SupabaseProjectRouting,
     SupabaseProjectRoutingMiddleware,
 )
-from kis_mcp.providers.supabase.server import provider_health
-from kis_mcp.providers.supabase.config import load_supabase_provider_config
 from kis_mcp.providers.supabase.runtime import provider_readiness
+from kis_mcp.providers.supabase.server import provider_health
 from kis_mcp.remote_runtime import RUNTIME_INSTANCE_ENV, run_remote_instance
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 PROJECT_REF = "mmxuicfrdalymczdapjq"
@@ -34,7 +33,7 @@ SUPABASE_CONFIG = load_supabase_provider_config(REPOSITORY_ROOT)
 def _tool(name: str, *, read_only: bool) -> SimpleNamespace:
     return SimpleNamespace(
         name=name,
-        annotations=SimpleNamespace(readOnlyHint=read_only),
+        annotations=SimpleNamespace(read_only_hint=read_only),
     )
 
 

@@ -185,31 +185,31 @@ def test_tool_annotations_distinguish_effect_scope_and_mutation() -> None:
 
     inventory = tools["project_management_inventory"].annotations
     assert inventory is not None
-    assert inventory.readOnlyHint is True
-    assert inventory.destructiveHint is False
-    assert inventory.idempotentHint is True
-    assert inventory.openWorldHint is True
+    assert inventory.read_only_hint is True
+    assert inventory.destructive_hint is False
+    assert inventory.idempotent_hint is True
+    assert inventory.open_world_hint is True
 
     merge_readiness = tools["project_management_merge_readiness"].annotations
     assert merge_readiness is not None
-    assert merge_readiness.readOnlyHint is True
-    assert merge_readiness.destructiveHint is False
-    assert merge_readiness.idempotentHint is True
-    assert merge_readiness.openWorldHint is False
+    assert merge_readiness.read_only_hint is True
+    assert merge_readiness.destructive_hint is False
+    assert merge_readiness.idempotent_hint is True
+    assert merge_readiness.open_world_hint is False
 
     claim = tools["project_management_claim_work"].annotations
     assert claim is not None
-    assert claim.readOnlyHint is False
-    assert claim.destructiveHint is False
-    assert claim.idempotentHint is True
-    assert claim.openWorldHint is True
+    assert claim.read_only_hint is False
+    assert claim.destructive_hint is False
+    assert claim.idempotent_hint is True
+    assert claim.open_world_hint is True
 
     evidence = tools["project_management_persist_review"].annotations
     assert evidence is not None
-    assert evidence.readOnlyHint is False
-    assert evidence.destructiveHint is False
-    assert evidence.idempotentHint is True
-    assert evidence.openWorldHint is False
+    assert evidence.read_only_hint is False
+    assert evidence.destructive_hint is False
+    assert evidence.idempotent_hint is True
+    assert evidence.open_world_hint is False
 
 
 def test_reconcile_defaults_to_preview_and_requires_idempotency_for_apply() -> None:

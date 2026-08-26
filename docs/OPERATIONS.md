@@ -15,7 +15,7 @@ Load only the runbook needed for the operator task. Do not read every runbook by
 | Prerequisites, deployment model, state layout, dependency/bootstrap installation, Desktop Commander, AgentSys/agnix, Desktop Commander upgrades | [`operations/setup.md`](operations/setup.md) |
 | Canonical JSON configuration and settings ownership | [`operations/configuration.md`](operations/configuration.md) |
 | Local stdio startup, capability dispatch, Control Center, long-lived tool-binding diagnosis | [`operations/runtime.md`](operations/runtime.md) |
-| Provider status, DBHub/Docker Hub activation and commissioning, GitHub OAuth, Supabase OAuth | [`operations/providers.md`](operations/providers.md) |
+| Provider status, DBHub/Docker Hub activation and commissioning, GitHub OAuth, parked Supabase status | [`operations/providers.md`](operations/providers.md) |
 | NVIDIA/Codex advisory review-agent setup and use | [`operations/review-agent.md`](operations/review-agent.md) |
 | Work Management and Discover operator workflows | [`operations/work-discover.md`](operations/work-discover.md) |
 | Deterministic post-merge observer, exact landed-scope identity, bounded evidence failures, commissioning runner, durable live-verification evidence, recovery, and live release verification | [`operations/post-merge-commissioning.md`](operations/post-merge-commissioning.md) |

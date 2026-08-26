@@ -51,29 +51,34 @@ def test_run_verification_tool_has_narrow_process_surface() -> None:
     register_verification_tool(server, service)
 
     tool = {item.name: item for item in asyncio.run(server.list_tools())}["run_verification"]
-    properties = tool.parameters["properties"]
-    assert set(properties) == {"project", "verification_id", "timeout_ms"}
+    properties = tool.to_mcp_tool().input_schema["properties"]
+    assert set(properties) == {
+        "project",
+        "verification_id",
+        "timeout_ms",
+        "stall_timeout_ms",
+    }
     assert "command" not in properties
-    assert tool.annotations.readOnlyHint is False
+    assert tool.annotations.read_only_hint is False
     result = asyncio.run(
-        tool.run(
+        server.call_tool(
+            "run_verification",
             {
                 "project": r"C:\Projects\fixture",
                 "verification_id": "python-pytest",
                 "timeout_ms": 45_000,
-            }
+                "stall_timeout_ms": 15_000,
+            },
         )
     )
 
     assert result.structured_content["contract"] == "verification-result-v1"
     assert result.structured_content["status"] == "passed"
-    assert service.calls == [
-        {
-            "project": r"C:\Projects\fixture",
-            "verification_id": "python-pytest",
-            "timeout_ms": 45_000,
-        }
-    ]
+    assert service.calls[0]["project"] == r"C:\Projects\fixture"
+    assert service.calls[0]["verification_id"] == "python-pytest"
+    assert service.calls[0]["timeout_ms"] == 45_000
+    assert service.calls[0]["stall_timeout_ms"] == 15_000
+    assert callable(service.calls[0]["progress_reporter"])
 
 
 def test_structural_verification_errors_are_not_hr_policy_codes() -> None:
@@ -87,16 +92,15 @@ def test_structural_verification_errors_are_not_hr_policy_codes() -> None:
             )
         ),
     )
-    tool = {item.name: item for item in asyncio.run(server.list_tools())}["run_verification"]
-
     with pytest.raises(ToolError) as raised:
         asyncio.run(
-            tool.run(
+            server.call_tool(
+                "run_verification",
                 {
                     "project": r"C:\Projects\fixture",
                     "verification_id": "missing",
                     "timeout_ms": 30_000,
-                }
+                },
             )
         )
     assert "VERIFICATION_ID_UNKNOWN" in str(raised.value)
@@ -134,8 +138,8 @@ def test_select_change_verification_is_read_only_and_does_not_accept_commands() 
     tool = {item.name: item for item in asyncio.run(server.list_tools())}[
         "select_change_verification"
     ]
-    assert tool.annotations.readOnlyHint is True
-    assert "command" not in tool.parameters["properties"]
+    assert tool.annotations.read_only_hint is True
+    assert "command" not in tool.to_mcp_tool().input_schema["properties"]
 
     result = asyncio.run(
         tool.run(

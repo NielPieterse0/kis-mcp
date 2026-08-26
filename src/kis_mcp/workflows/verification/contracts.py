@@ -39,6 +39,7 @@ class VerificationResult:
             "none",
             "verification_failed",
             "timeout_or_incomplete",
+            "stalled",
         }:
             raise ValueError("verification failure classification is unsupported")
         if self.duration_ms < 0:

@@ -99,12 +99,12 @@ def test_registers_three_bounded_read_only_tools_with_effect_scope() -> None:
     }
     for tool in tools.values():
         assert tool.annotations is not None
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.idempotentHint is True
-    assert tools["project_management_current_work"].annotations.openWorldHint is True
-    assert tools["project_management_board_data"].annotations.openWorldHint is True
-    assert tools["project_management_contract"].annotations.openWorldHint is False
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.idempotent_hint is True
+    assert tools["project_management_current_work"].annotations.open_world_hint is True
+    assert tools["project_management_board_data"].annotations.open_world_hint is True
+    assert tools["project_management_contract"].annotations.open_world_hint is False
 
 
 def test_current_work_returns_provenance_envelope_without_mutating_claim() -> None:

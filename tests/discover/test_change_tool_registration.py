@@ -15,7 +15,6 @@ from kis_mcp.discover.change_inspection_contracts import InspectChangeRequest
 from kis_mcp.discover.tools import register_change_tools
 from kis_mcp.server import build_server
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 CONFIG = load_runtime_config(REPOSITORY_ROOT)
 
@@ -67,10 +66,10 @@ def test_register_change_tools_registers_exact_tool_and_preserves_default() -> N
     }
     assert service.requests == [InspectChangeRequest(path=r"C:\Projects\fixture")]
     assert tool.annotations is not None
-    assert tool.annotations.readOnlyHint is True
-    assert tool.annotations.destructiveHint is False
-    assert tool.annotations.idempotentHint is True
-    assert tool.annotations.openWorldHint is False
+    assert tool.annotations.read_only_hint is True
+    assert tool.annotations.destructive_hint is False
+    assert tool.annotations.idempotent_hint is True
+    assert tool.annotations.open_world_hint is False
 
 
 @pytest.mark.parametrize(

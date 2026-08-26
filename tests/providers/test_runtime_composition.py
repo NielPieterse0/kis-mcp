@@ -23,7 +23,6 @@ from kis_mcp.providers import (
     ProviderState,
 )
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_PATH = REPOSITORY_ROOT / "settings" / "providers" / "platform-runtime.provider.json"
 SCHEMA_PATH = (
@@ -629,7 +628,7 @@ def test_build_server_mounts_injected_provider_and_exposes_status(monkeypatch: A
     assert status is not None
     providers = {item["provider_id"]: item for item in status["external_providers"]}
     assert providers["github-mcp"]["state"] == "mounted"
-    assert providers["supabase"]["state"] == "disabled"
+    assert "supabase" not in providers
 
 
 def test_provider_runtime_compositions_are_instance_scoped() -> None:
@@ -752,12 +751,4 @@ def test_build_server_contains_provider_builder_failures(monkeypatch: Any) -> No
             "Inspect provider readiness and local configuration, then restart the gateway."
         ),
     }
-    assert providers["supabase"]["state"] == "build_failed"
-    assert providers["supabase"]["error_type"] == "ValueError"
-    assert providers["supabase"]["user_status"] == {
-        "state": "build_failed",
-        "label": "Unavailable — provider build failed",
-        "required_action": (
-            "Inspect provider readiness and local configuration, then restart the gateway."
-        ),
-    }
+    assert "supabase" not in providers

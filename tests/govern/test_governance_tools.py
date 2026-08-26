@@ -40,9 +40,9 @@ def test_governance_surface_is_read_only_and_advisory() -> None:
         "describe_governance_finding",
     }
     for tool in tools.values():
-        assert tool.annotations.readOnlyHint is True
-        assert tool.annotations.destructiveHint is False
-        assert tool.annotations.openWorldHint is False
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.open_world_hint is False
 
     result = asyncio.run(tools["inspect_repository_governance"].run({"project": "demo"}))
     inspection = result.structured_content

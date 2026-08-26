@@ -43,6 +43,14 @@ C:\Projects\.kis-mcp\python-env\Scripts\python.exe -m kis_mcp.control_center
 
 Treat its snapshot as current operational evidence only. Provider configuration does not prove authentication/commissioning, and runtime status does not supersede repository settings, Git, contracts, or product authority.
 
+## Long-running MCP Tasks
+
+FastMCP 4 exposes selected long operations as optional MCP Tasks: `run_verification`, `review_change_with_agent`, `kis_post_merge_commissioning_run`, and `prepare_reviewable_pull_request`. Clients that advertise `io.modelcontextprotocol/tasks` may receive a task ID and poll `tasks/get`; clients without Tasks support receive the compatible synchronous result path.
+
+Treat the MCP task ID as a transport handle, not KIS authority. Work records, execution IDs, receipts, revisions, and coordinator fences remain authoritative. A client may disconnect and reconnect to the same running KIS service and continue task retrieval by task ID. Current MCP task storage is process-local, so do not claim that the same task ID survives a KIS server-process restart; follow-up Work #498 owns that future trigger.
+
+For verification, distinguish the caller/request budget from the verification execution deadline, stall timeout, and MCP task TTL. Progress is bounded activity evidence. Cancellation is cooperative; when KIS owns the verification child PID it attempts process termination, but a cancellation request alone is not proof of a durable cancelled Work state.
+
 ## Diagnose long-lived ChatGPT tool binding
 
 When an older chat appears unable to use `kis-op` or `kis-dev`:

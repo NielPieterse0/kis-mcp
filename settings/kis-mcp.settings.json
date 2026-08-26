@@ -44,7 +44,7 @@
     }
   },
   "fastmcp": {
-    "version": "3.4.4",
+    "version": "4.0.0b3",
     "server_name": "kis-mcp",
     "transport": "stdio"
   },

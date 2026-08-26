@@ -11,7 +11,6 @@ from kis_mcp.providers.supabase.routing import (
     SupabaseProjectRoutingError,
 )
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 REGISTRY_PATH = REPOSITORY_ROOT / "settings" / "projects.settings.json"
 PROJECT_REF = "mmxuicfrdalymczdapjq"
@@ -20,7 +19,7 @@ PROJECT_REF = "mmxuicfrdalymczdapjq"
 def _tool(name: str, *, read_only: bool) -> SimpleNamespace:
     return SimpleNamespace(
         name=name,
-        annotations=SimpleNamespace(readOnlyHint=read_only),
+        annotations=SimpleNamespace(read_only_hint=read_only),
     )
 
 

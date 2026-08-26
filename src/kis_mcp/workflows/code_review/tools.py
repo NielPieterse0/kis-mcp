@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
 from .reviewer import CodeReviewAgent
 
 
@@ -27,8 +29,8 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
         except Exception as exc:
             raise ToolError(f"AGENT_BENCHMARK_FAILED:{type(exc).__name__}") from exc
 
-    @agent_server.tool
-    def review_change_with_agent(
+    @agent_server.tool(task=LONG_RUNNING_TASK_CONFIG)
+    async def review_change_with_agent(
         path: str,
         instructions: str = "",
         backend: str | None = None,
@@ -53,7 +55,8 @@ def register_agent_tools(server: FastMCP, agent: CodeReviewAgent) -> None:
         """
 
         try:
-            return agent.review(
+            return await asyncio.to_thread(
+                agent.review,
                 path,
                 instructions=instructions,
                 backend=backend,

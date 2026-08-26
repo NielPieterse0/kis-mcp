@@ -7,7 +7,9 @@ from typing import Any
 
 from ..acquisition.contracts import REGISTERED_ACQUISITION_OPERATION_SCHEMA
 from ..projects.github_exact import REGISTERED_GITHUB_OPERATION_SCHEMAS
-from ..projects.github_merge_queue import REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS
+from ..projects.github_merge_queue import (
+    REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS,
+)
 from ..projects.github_tracking import REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS
 from .contracts import (
     CapabilityContribution,
@@ -32,11 +34,9 @@ def _annotation(tool: Any, name: str) -> bool:
 
 
 def _input_schema(tool: Any) -> Mapping[str, Any]:
-    raw = getattr(tool, "input_schema", None)
+    raw = getattr(tool, "parameters", None)
     if not isinstance(raw, Mapping):
-        raw = getattr(tool, "inputSchema", None)
-    if not isinstance(raw, Mapping):
-        raw = getattr(tool, "parameters", None)
+        raw = getattr(tool, "input_schema", None)
     return dict(raw) if isinstance(raw, Mapping) else {}
 
 
@@ -49,7 +49,7 @@ def _runtime_effects(
     normalized = name.casefold()
     owner = set(owner_effects)
     external = OperationEffect.EXTERNAL in owner
-    read_only = _annotation(tool, "readOnlyHint") or normalized.startswith(
+    read_only = _annotation(tool, "read_only_hint") or normalized.startswith(
         (
             "read_",
             "list_",

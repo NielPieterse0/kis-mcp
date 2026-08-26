@@ -6,14 +6,15 @@ from typing import Protocol
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
 from .contracts import CompletionReceipt, CompletionResult
 from .service import CompletionInvocationError
 
 _ANNOTATIONS = {
-    "readOnlyHint": False,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": True,
+    "read_only_hint": False,
+    "destructive_hint": False,
+    "idempotent_hint": True,
+    "open_world_hint": True,
 }
 
 
@@ -46,7 +47,11 @@ class CompletionServicePort(Protocol):
 
 
 def register_completion_tool(server: FastMCP, service: CompletionServicePort) -> None:
-    @server.tool(name="prepare_reviewable_pull_request", annotations=_ANNOTATIONS)
+    @server.tool(
+        name="prepare_reviewable_pull_request",
+        annotations=_ANNOTATIONS,
+        task=LONG_RUNNING_TASK_CONFIG,
+    )
     async def prepare_reviewable_pull_request(
         project_id: str,
         commit: str,

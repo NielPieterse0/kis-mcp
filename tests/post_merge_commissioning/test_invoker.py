@@ -6,7 +6,7 @@ from typing import Any
 
 import mcp.types as mcp_types
 from fastmcp import FastMCP
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 
 from kis_mcp.commissioning_runtime.invoker import CommissioningFastMCPInvoker
 

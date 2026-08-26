@@ -55,33 +55,10 @@ pwsh -NoProfile -File .\scripts\smoke-github-mcp.ps1
 
 Use `-RequireLive` only for an explicit supervised live recheck. Treat authentication/readiness as current-process evidence; use `kis_provider_status` rather than this document for current state.
 
-## Commission Supabase OAuth
+## Supabase is parked
 
-Use only an intended registered development/test project. Clear legacy PAT transport before preflight:
+Supabase implementation, OAuth/configuration, routing, and standalone smoke scripts remain preserved for a future operator-approved activation. Normal KIS composition intentionally does not register, mount, catalogue, report, recommend, or expose Supabase, even though retained configuration may still contain a Supabase runtime record.
 
-```powershell
-Remove-Item Env:SUPABASE_ACCESS_TOKEN -ErrorAction SilentlyContinue
-pwsh -File .\scripts\smoke-supabase-mcp.ps1
-```
+Do not run Supabase OAuth or shared-runtime commissioning as normal operations. A future activation must be authorized by the operator, update the applicable canonical runtime/configuration authority, and verify the then-current FastMCP/provider contract before any Supabase surface is exposed.
 
-Start supervised browser OAuth:
-
-```powershell
-pwsh -File .\scripts\auth-supabase-mcp.ps1
-```
-
-After authorization, verify shared-runtime exposure:
-
-```powershell
-pwsh -File .\scripts\smoke-supabase-mcp.ps1 -SharedRuntime
-```
-
-Use an explicit standalone authenticated recheck only when required:
-
-```powershell
-pwsh -File .\scripts\smoke-supabase-mcp.ps1 -Live
-```
-
-Never place access/refresh tokens, client secrets, authorization codes, returned project URLs, or credential-store contents in repository files or logs.
-
-For recovery, stop the relevant provider processes, revoke/remove the saved Supabase authorization through the supervised credential boundary when appropriate, rerun browser commissioning, and repeat the shared-runtime smoke. Exact endpoint, routing, and tool contracts remain owned by settings/source/contracts.
+Until that activation, `kis_provider_status`, capability search, and the normal tool surface must contain no Supabase provider/status/setup prompt or `supabase_*` operation. Existing credentials, if any, do not make Supabase active.

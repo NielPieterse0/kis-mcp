@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "239-fastmcp4-mcp2026",
+  "status": "active",
+  "branch": "change/239-fastmcp4-mcp2026",
+  "worktree": ".work/worktrees/239-fastmcp4-mcp2026",
+  "base": "main",
+  "outcome": "Upgrade kis-mcp to FastMCP 4 and implement the MCP 2026-07-28 Tasks/stateless/progress/cancellation/wire-alignment requirements of Work #475 without interrupting kis-op.",
+  "owned_paths": [
+    "pyproject.toml",
+    "uv.lock",
+    "settings/kis-mcp.settings.json",
+    "src/kis_mcp/**",
+    "tests/**",
+    "docs/OPERATIONS.md",
+    "docs/operations/**",
+    "SPEC.md",
+    ".work/changes/239-fastmcp4-mcp2026/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "b1c7f00a90c063c6cae287669035e358a04295e0",
+    "local_tree": "9e9e53358cd2ba6da71e6ae1294ac1efd5dfa7e8",
+    "upstream_sha": "b1c7f00a90c063c6cae287669035e358a04295e0",
+    "upstream_tree": "9e9e53358cd2ba6da71e6ae1294ac1efd5dfa7e8",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-475",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 475,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

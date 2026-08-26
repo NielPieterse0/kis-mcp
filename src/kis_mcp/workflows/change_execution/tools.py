@@ -10,10 +10,10 @@ from .contracts import ChangeExecutionResult
 from .service import ChangeExecutionInvocationError
 
 _PROCESS_ANNOTATIONS = {
-    "readOnlyHint": False,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": False,
+    "read_only_hint": False,
+    "destructive_hint": False,
+    "idempotent_hint": True,
+    "open_world_hint": False,
 }
 
 

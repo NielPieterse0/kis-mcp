@@ -40,7 +40,7 @@ def test_tool_surface_has_no_free_form_fix_or_command_inputs() -> None:
     assert "arguments" not in properties
     assert "fix" not in properties
     assert "command" not in properties
-    assert tool.annotations.destructiveHint is False
+    assert tool.annotations.destructive_hint is False
 
 
 def test_structural_errors_are_not_hr_policy_codes() -> None:

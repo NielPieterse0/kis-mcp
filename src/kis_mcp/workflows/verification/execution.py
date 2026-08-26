@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
@@ -11,6 +12,7 @@ from ...discover.contracts import InspectProjectRequest
 from .contracts import VerificationResult
 
 Runner = Callable[[str, dict[str, Any]], Awaitable[Any]]
+ProgressReporter = Callable[[float, float | None, str | None], Awaitable[None]]
 _EXIT_MARKER = re.compile(r"(?m)^__KIS_VERIFICATION_EXIT_CODE=(-?\d+)\s*$")
 _PROCESS_STARTED_PID = re.compile(r"(?m)^Process started with PID ([1-9]\d*)\b")
 _SUPPORTED_EXECUTABLES = {
@@ -55,10 +57,13 @@ class VerificationExecutionService:
         project: str,
         verification_id: str,
         timeout_ms: int = 120_000,
+        stall_timeout_ms: int = 30_000,
+        progress_reporter: ProgressReporter | None = None,
     ) -> VerificationResult:
         project = _required(project, "project")
         verification_id = _required(verification_id, "verification_id")
         timeout_ms = self._bounded_timeout(timeout_ms)
+        stall_timeout_ms = self._bounded_stall_timeout(stall_timeout_ms)
         inspection = self._inspector.inspect(InspectProjectRequest(path=project))
         declaration = _find_declaration(inspection.verification, verification_id)
         profile = _required(str(declaration.get("profile", "")), "verification profile")
@@ -72,38 +77,72 @@ class VerificationExecutionService:
         command = _process_command(project, executable, arguments)
         started = time.perf_counter()
         deadline = started + (timeout_ms / 1000)
-        result = await self._runner(
-            "start_process",
-            {
-                "command": command,
-                "timeout_ms": timeout_ms,
-                "shell": "powershell.exe",
-            },
-        )
-        text = _result_text(result)
-        exit_code = _exit_code(text)
-        pid = _result_pid(result) if exit_code is None else None
-        while exit_code is None and pid is not None:
-            remaining_ms = int((deadline - time.perf_counter()) * 1000)
-            if remaining_ms < 1:
-                break
-            follow_up = await self._runner(
-                "read_process_output",
+        last_activity = started
+        progress_value = 0.0
+        stalled = False
+        pid: int | None = None
+
+        async def report(message: str) -> None:
+            nonlocal progress_value
+            if progress_reporter is None:
+                return
+            progress_value += 1.0
+            await progress_reporter(progress_value, None, message)
+
+        await report("Verification execution starting.")
+        try:
+            result = await self._runner(
+                "start_process",
                 {
-                    "pid": pid,
-                    "timeout_ms": remaining_ms,
-                    "offset": 0,
-                    "length": 200,
+                    "command": command,
+                    "timeout_ms": timeout_ms,
+                    "shell": "powershell.exe",
                 },
             )
-            follow_text = _result_text(follow_up)
-            text = "\n".join(item for item in (text, follow_text) if item)
+            text = _result_text(result)
             exit_code = _exit_code(text)
+            pid = _result_pid(result) if exit_code is None else None
+            if text or pid is not None:
+                last_activity = time.perf_counter()
+            if pid is not None:
+                await report("Verification process started.")
+            while exit_code is None and pid is not None:
+                now = time.perf_counter()
+                remaining_ms = int((deadline - now) * 1000)
+                stall_remaining_ms = int(
+                    (last_activity + (stall_timeout_ms / 1000) - now) * 1000
+                )
+                if remaining_ms < 1:
+                    break
+                if stall_remaining_ms < 1:
+                    stalled = True
+                    break
+                follow_up = await self._runner(
+                    "read_process_output",
+                    {
+                        "pid": pid,
+                        "timeout_ms": min(remaining_ms, stall_remaining_ms),
+                        "offset": 0,
+                        "length": 200,
+                    },
+                )
+                follow_text = _result_text(follow_up)
+                if follow_text:
+                    last_activity = time.perf_counter()
+                    await report("Verification execution produced new output.")
+                    text = "\n".join(item for item in (text, follow_text) if item)
+                exit_code = _exit_code(text)
+        except asyncio.CancelledError:
+            if pid is not None:
+                await self._terminate_process(pid)
+            raise
+        if exit_code is None and pid is not None:
+            await self._terminate_process(pid)
         duration_ms = max(0, round((time.perf_counter() - started) * 1000))
         evidence, truncated = _bounded_evidence(text, self._max_evidence_chars)
         if exit_code is None:
             status = "incomplete"
-            failure = "timeout_or_incomplete"
+            failure = "stalled" if stalled else "timeout_or_incomplete"
         elif exit_code == 0:
             status = "passed"
             failure = "none"
@@ -138,6 +177,29 @@ class VerificationExecutionService:
                 f"timeout_ms exceeds the maximum {self._max_timeout_ms}.",
             )
         return timeout_ms
+
+    def _bounded_stall_timeout(self, stall_timeout_ms: int) -> int:
+        if (
+            isinstance(stall_timeout_ms, bool)
+            or not isinstance(stall_timeout_ms, int)
+            or stall_timeout_ms < 1
+        ):
+            raise VerificationExecutionError(
+                "VERIFICATION_STALL_TIMEOUT_INVALID",
+                "stall_timeout_ms must be a positive integer.",
+            )
+        if stall_timeout_ms > self._max_timeout_ms:
+            raise VerificationExecutionError(
+                "VERIFICATION_STALL_TIMEOUT_INVALID",
+                f"stall_timeout_ms exceeds the maximum {self._max_timeout_ms}.",
+            )
+        return stall_timeout_ms
+
+    async def _terminate_process(self, pid: int) -> None:
+        try:
+            await asyncio.shield(self._runner("kill_process", {"pid": pid}))
+        except Exception:  # noqa: BLE001 - best-effort cleanup must not mask cancellation
+            return
 
 
 def _find_declaration(
@@ -306,9 +368,9 @@ def _required(value: str, label: str) -> str:
 
 
 __all__ = [
+    "SUPPORTED_VERIFICATION_PROFILES",
     "InspectProjectPort",
     "Runner",
-    "SUPPORTED_VERIFICATION_PROFILES",
     "VerificationExecutionError",
     "VerificationExecutionService",
 ]

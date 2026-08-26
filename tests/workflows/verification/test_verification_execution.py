@@ -212,7 +212,7 @@ def test_textual_process_pid_reconciles_nonzero_terminal_receipt() -> None:
 def test_textual_process_pid_polling_respects_original_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    clock = iter((10.0, 10.01, 10.03, 10.03))
+    clock = iter((10.0, 10.005, 10.01, 10.015, 10.03, 10.03))
     monkeypatch.setattr(
         "kis_mcp.workflows.verification.execution.time.perf_counter",
         lambda: next(clock),
@@ -235,8 +235,42 @@ def test_textual_process_pid_polling_respects_original_timeout(
     )
 
     assert result.status == "incomplete"
-    assert [tool for tool, _ in runner.calls] == ["start_process", "read_process_output"]
+    assert [tool for tool, _ in runner.calls] == [
+        "start_process",
+        "read_process_output",
+        "kill_process",
+    ]
     assert 1 <= runner.calls[1][1]["timeout_ms"] < 20
+    assert runner.calls[2][1] == {"pid": 9876}
+
+
+def test_initial_process_activity_resets_stall_clock_without_extending_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = iter((10.0, 10.02, 10.02, 10.021, 10.022))
+    monkeypatch.setattr(
+        "kis_mcp.workflows.verification.execution.time.perf_counter",
+        lambda: next(clock),
+    )
+    runner = _Runner([
+        {"text": "Process started with PID 2468", "pid": 2468},
+        {"text": "done\n__KIS_VERIFICATION_EXIT_CODE=0\n"},
+    ])
+
+    result = asyncio.run(
+        VerificationExecutionService(
+            inspector=_Inspector([_declaration()]), runner=runner
+        ).run(
+            project=r"C:\Projects\fixture",
+            verification_id="python-pytest",
+            timeout_ms=100,
+            stall_timeout_ms=30,
+        )
+    )
+
+    assert result.status == "passed"
+    assert runner.calls[1][0] == "read_process_output"
+    assert 20 <= runner.calls[1][1]["timeout_ms"] <= 30
 
 
 def test_missing_exit_marker_is_incomplete_not_success() -> None:
@@ -273,3 +307,90 @@ def test_unsupported_profile_is_rejected_before_runner() -> None:
             )
         )
     assert runner.calls == []
+
+
+def test_progress_reporter_receives_monotonic_activity_updates() -> None:
+    runner = _Runner([
+        {"text": "Process started with PID 1234", "pid": 1234},
+        {"text": "halfway"},
+        {"text": "done\n__KIS_VERIFICATION_EXIT_CODE=0\n"},
+    ])
+    updates: list[tuple[float, float | None, str | None]] = []
+
+    async def report(progress: float, total: float | None, message: str | None) -> None:
+        updates.append((progress, total, message))
+
+    result = asyncio.run(
+        VerificationExecutionService(
+            inspector=_Inspector([_declaration()]), runner=runner
+        ).run(
+            project=r"C:\Projects\fixture",
+            verification_id="python-pytest",
+            timeout_ms=30_000,
+            progress_reporter=report,
+        )
+    )
+
+    assert result.status == "passed"
+    assert [item[0] for item in updates] == sorted({item[0] for item in updates})
+    assert len(updates) >= 3
+    assert all(item[2] for item in updates)
+
+
+def test_stall_timeout_is_separate_and_terminates_owned_process(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    clock = iter((10.0, 10.0, 10.03, 10.03))
+    monkeypatch.setattr(
+        "kis_mcp.workflows.verification.execution.time.perf_counter",
+        lambda: next(clock),
+    )
+    runner = _Runner([
+        {"text": "Process started with PID 2222", "pid": 2222},
+        {"text": ""},
+        {"text": "terminated"},
+    ])
+
+    result = asyncio.run(
+        VerificationExecutionService(
+            inspector=_Inspector([_declaration()]), runner=runner
+        ).run(
+            project=r"C:\Projects\fixture",
+            verification_id="python-pytest",
+            timeout_ms=30_000,
+            stall_timeout_ms=20,
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert result.failure_classification == "stalled"
+    assert runner.calls[-1] == ("kill_process", {"pid": 2222})
+
+
+def test_task_cancellation_terminates_owned_process_before_propagating() -> None:
+    class CancellingRunner(_Runner):
+        async def __call__(self, tool: str, arguments: dict[str, Any]) -> Any:
+            self.calls.append((tool, arguments))
+            if tool == "start_process":
+                return {"text": "Process started with PID 3333", "pid": 3333}
+            if tool == "read_process_output":
+                raise asyncio.CancelledError
+            if tool == "kill_process":
+                return {"text": "terminated"}
+            raise AssertionError(tool)
+
+    runner = CancellingRunner([])
+    service = VerificationExecutionService(
+        inspector=_Inspector([_declaration()]), runner=runner
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(
+            service.run(
+                project=r"C:\Projects\fixture",
+                verification_id="python-pytest",
+                timeout_ms=30_000,
+            )
+        )
+
+    assert runner.calls[-1] == ("kill_process", {"pid": 3333})

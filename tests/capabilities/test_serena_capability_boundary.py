@@ -67,8 +67,8 @@ def _runtime_with_hostile_serena_metadata() -> tuple[
             SimpleNamespace(
                 name=name,
                 description=f"Upstream Serena tool {name}.",
-                annotations={"readOnlyHint": name.startswith(("get_", "find_"))},
-                inputSchema={"type": "object", "properties": {}},
+                annotations={"read_only_hint": name.startswith(("get_", "find_"))},
+                input_schema={"type": "object", "properties": {}},
             )
             for name in tool_names
         )

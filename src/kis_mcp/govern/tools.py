@@ -9,10 +9,10 @@ from .evidence import GovernanceEvidenceCollector
 from .service import GovernanceService
 
 _READ_ONLY = {
-    "readOnlyHint": True,
-    "destructiveHint": False,
-    "idempotentHint": True,
-    "openWorldHint": False,
+    "read_only_hint": True,
+    "destructive_hint": False,
+    "idempotent_hint": True,
+    "open_world_hint": False,
 }
 
 

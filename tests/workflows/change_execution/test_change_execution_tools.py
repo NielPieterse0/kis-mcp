@@ -57,8 +57,8 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
     assert "command" not in properties
     assert "tool_name" not in properties
     assert "operation" not in properties
-    assert tool.annotations.readOnlyHint is False
-    assert tool.annotations.destructiveHint is False
+    assert tool.annotations.read_only_hint is False
+    assert tool.annotations.destructive_hint is False
 
     result = asyncio.run(
         tool.run(

@@ -52,7 +52,7 @@ def test_register_analyze_change_tool_delegates_bounded_request() -> None:
     )
 
     assert tool.name == "analyze_change"
-    assert tool.annotations.readOnlyHint is True
+    assert tool.annotations.read_only_hint is True
     assert result.structured_content["tool"] == "analyze_change"
     assert service.requests[0].task_terms == ("auth",)
     assert service.requests[0].supplied_changes[0].path == "src/app.py"
