@@ -5,11 +5,12 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from fastmcp.exceptions import ToolError
 
@@ -192,6 +193,24 @@ class QueueStateStore:
         safe_branch = target_branch.replace("/", "__")
         return self.root / project_id / f"{safe_branch}.json"
 
+    @contextmanager
+    def mutation_lock(self, project_id: str, target_branch: str) -> Iterable[None]:
+        path = self._path(project_id, target_branch)
+        lock_path = path.with_suffix(path.suffix + ".lock")
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        with lock_path.open("a+b") as stream:
+            stream.seek(0, os.SEEK_END)
+            if stream.tell() == 0:
+                stream.write(b"0")
+                stream.flush()
+                os.fsync(stream.fileno())
+            stream.seek(0)
+            _lock_queue_file(stream)
+            try:
+                yield
+            finally:
+                _unlock_queue_file(stream)
+
     def load(self, project_id: str, target_branch: str) -> dict[str, Any] | None:
         path = self._path(project_id, target_branch)
         if not path.is_file():
@@ -220,6 +239,29 @@ class QueueStateStore:
         temporary.write_text(serialized, encoding="utf-8", newline="\n")
         os.replace(temporary, path)
         return path
+
+
+def _lock_queue_file(stream: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        msvcrt.locking(stream.fileno(), msvcrt.LK_LOCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
+
+
+def _unlock_queue_file(stream: Any) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        stream.seek(0)
+        msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    import fcntl
+
+    fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 class MergeQueueCoordinator:
@@ -383,9 +425,6 @@ class MergeQueueCoordinator:
         authorized_head = _full_sha(expected_head, "expected_head")
         target = self.backend.target(project_id)
         live_base = _full_sha(self.backend.prepare(target, self.settings.target_branch), "live base")
-        state = self._load_or_create(target, live_base)
-        if state["base_sha"] != live_base:
-            self._reset_generation(state, base_sha=live_base, reason="base_moved")
         pr = self.backend.pull_request(target, pull_number)
         if pr.head_sha != authorized_head:
             raise ToolError(
@@ -393,54 +432,59 @@ class MergeQueueCoordinator:
             )
         if not self._pr_is_exact(pr, authorized_head, self.settings.target_branch):
             raise ToolError("QUEUE_PULL_REQUEST_NOT_ELIGIBLE: pull request must be open, non-draft, and target the queue base")
-        for entry in state["entries"]:
-            if entry["pull_number"] != pull_number:
-                continue
-            if entry["head_sha"] != authorized_head:
-                raise ToolError("QUEUE_PULL_REQUEST_ALREADY_QUEUED_STALE")
-            return {"schema_version": 1, "state": "already_queued", "queue": state}
-        if state["entries"]:
-            self._reset_generation(state, base_sha=live_base, reason="enqueue_topology_changed")
-        position = len(state["entries"]) + 1
-        state["entries"].append(
-            {
-                "position": position,
-                "pull_number": pull_number,
-                "head_sha": authorized_head,
-                "head_ref": pr.head_ref,
-                "base_ref": pr.base_ref,
-                "enqueued_at": self._timestamp(),
-                "generation": state["generation"],
-                "state": "QUEUED",
-                "candidate_sha": None,
-                "candidate_ref": None,
-                "candidate_created_at": None,
-                "member_heads": [],
-                "check_run_id": None,
-                "check_url": None,
-                "governance": dict(governance) if governance is not None else None,
-            }
-        )
-        self._record_event(state, reason="enqueued", pull_number=pull_number)
-        state["updated_at"] = self._timestamp()
-        self.store.save(state)
-        return {"schema_version": 1, "state": "queued", "queue": state}
+        with self.store.mutation_lock(target.project_id, self.settings.target_branch):
+            state = self._load_or_create(target, live_base)
+            if state["base_sha"] != live_base:
+                self._reset_generation(state, base_sha=live_base, reason="base_moved")
+            for entry in state["entries"]:
+                if entry["pull_number"] != pull_number:
+                    continue
+                if entry["head_sha"] != authorized_head:
+                    raise ToolError("QUEUE_PULL_REQUEST_ALREADY_QUEUED_STALE")
+                return {"schema_version": 1, "state": "already_queued", "queue": state}
+            if state["entries"]:
+                self._reset_generation(state, base_sha=live_base, reason="enqueue_topology_changed")
+            position = len(state["entries"]) + 1
+            state["entries"].append(
+                {
+                    "position": position,
+                    "pull_number": pull_number,
+                    "head_sha": authorized_head,
+                    "head_ref": pr.head_ref,
+                    "base_ref": pr.base_ref,
+                    "enqueued_at": self._timestamp(),
+                    "generation": state["generation"],
+                    "state": "QUEUED",
+                    "candidate_sha": None,
+                    "candidate_ref": None,
+                    "candidate_created_at": None,
+                    "member_heads": [],
+                    "check_run_id": None,
+                    "check_url": None,
+                    "governance": dict(governance) if governance is not None else None,
+                }
+            )
+            self._record_event(state, reason="enqueued", pull_number=pull_number)
+            state["updated_at"] = self._timestamp()
+            self.store.save(state)
+            return {"schema_version": 1, "state": "queued", "queue": state}
 
     def dequeue(self, *, project_id: str, pull_number: int, expected_head: str) -> dict[str, Any]:
         authorized_head = _full_sha(expected_head, "expected_head")
         target = self.backend.target(project_id)
         live_base = _full_sha(self.backend.prepare(target, self.settings.target_branch), "live base")
-        state = self._load_or_create(target, live_base)
-        if state["base_sha"] != live_base:
-            self._reset_generation(state, base_sha=live_base, reason="base_moved")
-        index = next((i for i, item in enumerate(state["entries"]) if item["pull_number"] == pull_number), None)
-        if index is None:
-            raise ToolError("QUEUE_PULL_REQUEST_NOT_FOUND")
-        if state["entries"][index]["head_sha"] != authorized_head:
-            raise ToolError("QUEUE_PULL_REQUEST_HEAD_MISMATCH")
-        self._drop_entry(state, index, reason="dequeued", base_sha=live_base)
-        self.store.save(state)
-        return {"schema_version": 1, "state": "dequeued", "queue": state}
+        with self.store.mutation_lock(target.project_id, self.settings.target_branch):
+            state = self._load_or_create(target, live_base)
+            if state["base_sha"] != live_base:
+                self._reset_generation(state, base_sha=live_base, reason="base_moved")
+            index = next((i for i, item in enumerate(state["entries"]) if item["pull_number"] == pull_number), None)
+            if index is None:
+                raise ToolError("QUEUE_PULL_REQUEST_NOT_FOUND")
+            if state["entries"][index]["head_sha"] != authorized_head:
+                raise ToolError("QUEUE_PULL_REQUEST_HEAD_MISMATCH")
+            self._drop_entry(state, index, reason="dequeued", base_sha=live_base)
+            self.store.save(state)
+            return {"schema_version": 1, "state": "dequeued", "queue": state}
 
     def _check_timed_out(self, entry: Mapping[str, Any]) -> bool:
         created = entry.get("candidate_created_at")
@@ -559,23 +603,24 @@ class MergeQueueCoordinator:
         live_base = _full_sha(
             self.backend.prepare(target, self.settings.target_branch), "live base"
         )
-        state = self._load_or_create(target, live_base)
-        if state["base_sha"] != live_base:
-            self._reset_generation(state, base_sha=live_base, reason="base_moved")
-        max_rounds = max(2, len(state["entries"]) + 2)
-        for _ in range(max_rounds):
-            if self._validate_live_entries(target, state, live_base):
-                continue
-            if self._refresh_existing_checks(target, state, live_base):
-                continue
-            if self._build_available_candidates(target, state, live_base):
-                continue
-            break
-        else:
-            raise ToolError("MERGE_QUEUE_RECONCILIATION_UNSTABLE")
-        state["updated_at"] = self._timestamp()
-        self.store.save(state)
-        return {"schema_version": 1, "state": "reconciled", "queue": state}
+        with self.store.mutation_lock(target.project_id, self.settings.target_branch):
+            state = self._load_or_create(target, live_base)
+            if state["base_sha"] != live_base:
+                self._reset_generation(state, base_sha=live_base, reason="base_moved")
+            max_rounds = max(2, len(state["entries"]) + 2)
+            for _ in range(max_rounds):
+                if self._validate_live_entries(target, state, live_base):
+                    continue
+                if self._refresh_existing_checks(target, state, live_base):
+                    continue
+                if self._build_available_candidates(target, state, live_base):
+                    continue
+                break
+            else:
+                raise ToolError("MERGE_QUEUE_RECONCILIATION_UNSTABLE")
+            state["updated_at"] = self._timestamp()
+            self.store.save(state)
+            return {"schema_version": 1, "state": "reconciled", "queue": state}
 
     def _green_prefix(self, state: Mapping[str, Any]) -> list[dict[str, Any]]:
         selected: list[dict[str, Any]] = []
@@ -642,6 +687,21 @@ class MergeQueueCoordinator:
         }
 
     def _land_outcome(
+        self,
+        *,
+        project_id: str,
+        expected_generation: int,
+        expected_base: str,
+    ) -> _LandingOutcome:
+        target = self.backend.target(project_id)
+        with self.store.mutation_lock(target.project_id, self.settings.target_branch):
+            return self._land_outcome_locked(
+                project_id=project_id,
+                expected_generation=expected_generation,
+                expected_base=expected_base,
+            )
+
+    def _land_outcome_locked(
         self,
         *,
         project_id: str,

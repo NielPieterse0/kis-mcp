@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "251-merge-queue-concurrency-safe",
+  "status": "active",
+  "branch": "change/251-merge-queue-concurrency-safe",
+  "worktree": ".work/worktrees/251-merge-queue-concurrency-safe",
+  "base": "main",
+  "outcome": "Make merge-queue state mutation concurrency-safe for Work #549 without reducing liveness for disjoint queue identities.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_merge_queue.py",
+    "tests/projects/test_github_merge_queue.py",
+    ".work/changes/251-merge-queue-concurrency-safe/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "9e841278c48c0de24f1f330f245c8fa890f7aa97",
+    "local_tree": "d4a208588d81843f14ef3b966706f23e240d33ae",
+    "upstream_sha": "9e841278c48c0de24f1f330f245c8fa890f7aa97",
+    "upstream_tree": "d4a208588d81843f14ef3b966706f23e240d33ae",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-549",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 549,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
