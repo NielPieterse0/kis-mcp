@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 CHANGE_EXECUTION_SCHEMA_VERSION = 2
 CHANGE_EXECUTION_CONTRACT = "change-execution-result-v2"
@@ -50,6 +51,7 @@ class ChangeExecutionResult:
     verification_failed_count: int
     verification_incomplete_count: int
     review_error_count: int
+    review_ensemble: Mapping[str, Any] | None = None
     schema_version: int = CHANGE_EXECUTION_SCHEMA_VERSION
     contract: str = CHANGE_EXECUTION_CONTRACT
     tool: str = "execute_change_workflow"
@@ -80,7 +82,7 @@ class ChangeExecutionResult:
                 raise ValueError("change execution counts must be non-negative integers")
 
     def to_json_dict(self) -> dict[str, Any]:
-        return {
+        result = {
             "schema_version": self.schema_version,
             "contract": self.contract,
             "tool": self.tool,
@@ -96,6 +98,9 @@ class ChangeExecutionResult:
             "verification_incomplete_count": self.verification_incomplete_count,
             "review_error_count": self.review_error_count,
         }
+        if self.review_ensemble is not None:
+            result["review_ensemble"] = dict(self.review_ensemble)
+        return result
 
 
 __all__ = [

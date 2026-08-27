@@ -53,6 +53,9 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
         "review_types",
         "review_backend",
         "review_model",
+        "reviewers",
+        "review_rounds",
+        "review_adjudication",
     }
     assert "command" not in properties
     assert "tool_name" not in properties
