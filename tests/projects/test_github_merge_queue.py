@@ -176,6 +176,37 @@ def test_mutation_locks_for_disjoint_queue_identities_do_not_block_each_other(tm
     assert all(not thread.is_alive() for thread in threads)
 
 
+def test_canonical_store_reads_legacy_once_then_prefers_canonical_state(tmp_path: Path) -> None:
+    legacy_root = tmp_path / "legacy"
+    canonical_root = tmp_path / "canonical"
+    store = QueueStateStore(
+        legacy_root,
+        canonical=True,
+        canonical_path_resolver=lambda project_id, target_branch: (
+            canonical_root / project_id / f"{target_branch}.json"
+        ),
+    )
+    legacy_path = legacy_root / "kis-mcp" / "main.json"
+    legacy_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_state = {
+        "schema_version": 1,
+        "project_id": "kis-mcp",
+        "target_branch": "main",
+        "entries": [],
+        "events": [{"kind": "legacy"}],
+    }
+    legacy_path.write_text(json.dumps(legacy_state), encoding="utf-8")
+
+    assert store.load("kis-mcp", "main") == legacy_state
+    canonical_state = {**legacy_state, "events": [{"kind": "canonical"}]}
+    canonical_path = store.save(canonical_state)
+    legacy_path.write_text(json.dumps({**legacy_state, "events": [{"kind": "stale"}]}), encoding="utf-8")
+
+    assert canonical_path == canonical_root / "kis-mcp" / "main.json"
+    assert legacy_path.is_file()
+    assert store.load("kis-mcp", "main") == canonical_state
+
+
 def test_enqueue_freezes_exact_head_and_rejects_stale_identity(tmp_path: Path) -> None:
     queue, _ = coordinator(tmp_path)
 

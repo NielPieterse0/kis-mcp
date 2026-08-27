@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "252-merge-queue-canonical-state",
+  "status": "active",
+  "branch": "change/252-merge-queue-canonical-state",
+  "worktree": ".work/worktrees/252-merge-queue-canonical-state",
+  "base": "main",
+  "outcome": "Migrate merge-queue durable state into the canonical project-specific KIS state namespace with compatibility recovery for legacy queue state.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_merge_queue.py",
+    "tests/projects/test_github_merge_queue.py",
+    "settings/github-merge-queue.settings.json",
+    ".work/changes/252-merge-queue-canonical-state/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "migration",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "dabb452221b964f372bce7e6192be12c667af83b",
+    "local_tree": "039c7980a6f2872cd72963ccc65b93f41545540d",
+    "upstream_sha": "dabb452221b964f372bce7e6192be12c667af83b",
+    "upstream_tree": "039c7980a6f2872cd72963ccc65b93f41545540d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-552",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 552,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
