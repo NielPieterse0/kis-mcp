@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from kis_mcp.projects import ProjectDefinition, ProjectRegistry
 from kis_mcp.providers.context7 import (
     context7_provider_descriptor,
     load_context7_settings,
@@ -25,6 +26,29 @@ from kis_mcp.providers.serena.adapter import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture(autouse=True)
+def _registered_tmp_project(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    registry = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(
+            ProjectDefinition(
+                project_id="kis-mcp",
+                display_name="kis-mcp",
+                local_root=str(ROOT),
+            ),
+            ProjectDefinition(
+                project_id="test-project",
+                display_name="temporary test project",
+                local_root=str(tmp_path),
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "kis_mcp.providers.serena.settings.load_project_registry_settings",
+        lambda *args, **kwargs: registry,
+    )
 
 
 def _result(value: object, *, error: bool = False):
@@ -78,7 +102,7 @@ def test_serena_project_state_rejects_same_name_root_collisions(tmp_path: Path) 
     first_data = settings.ensure_project_data_path(str(first))
     canonical_path, canonical_identity = settings.canonical_project_identity(str(first))
     assert canonical_path.is_file()
-    assert canonical_identity["project_id"] == "kis-mcp"
+    assert canonical_identity["project_id"] == "test-project"
     assert "reconstructible" in canonical_path.parts
     assert "serena-project-data" in canonical_path.parts
     assert first_data.is_dir()
