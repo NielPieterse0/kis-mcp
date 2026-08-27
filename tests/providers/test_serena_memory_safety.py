@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from kis_mcp.projects import ProjectDefinition, ProjectRegistry
 from kis_mcp.providers.serena import load_serena_settings
 from kis_mcp.providers.serena.memory import (
     quarantine_serena_memory_delete,
@@ -13,6 +14,24 @@ from kis_mcp.providers.serena.memory import (
 from kis_mcp.quarantine import QuarantineService
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.fixture(autouse=True)
+def _registered_tmp_project(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    registry = ProjectRegistry(
+        default_project_id="kis-mcp",
+        projects=(
+            ProjectDefinition(
+                project_id="kis-mcp",
+                display_name="kis-mcp test project",
+                local_root=str(tmp_path),
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "kis_mcp.providers.serena.settings.load_project_registry_settings",
+        lambda *args, **kwargs: registry,
+    )
 
 
 def _settings(tmp_path: Path):

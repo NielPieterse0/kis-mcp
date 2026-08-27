@@ -4,10 +4,17 @@ import json
 import ntpath
 import re
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from ...paths import is_within_windows_boundary, normalize_windows_path
+from ...projects import load_project_registry_settings
+from ...state import (
+    StateNamespaceRequest,
+    StateNamespaceResolver,
+    StateOwnershipClass,
+    derive_worktree_source_id,
+)
 
 _REVISION = re.compile(r"^[0-9a-f]{40}$")
 _VERSION = re.compile(r"^\d+\.\d+\.\d+$")
@@ -197,44 +204,85 @@ class SerenaSettings:
     def project_identity_path(self, project_root: str) -> Path:
         return self.project_data_path(project_root).parent / "project-root.json"
 
-    def ensure_project_data_path(self, project_root: str) -> Path:
+    def canonical_project_identity(self, project_root: str) -> tuple[Path, dict[str, object]]:
         normalized_project = self.normalized_project_root(project_root)
-        project_data = self.project_data_path(normalized_project)
-        identity_path = self.project_identity_path(normalized_project)
-        expected = {
+        registry = load_project_registry_settings()
+        project = registry.project_for_root(normalized_project)
+        source_id = derive_worktree_source_id(normalized_project)
+        namespace = StateNamespaceResolver().resolve(
+            StateNamespaceRequest(
+                ownership=StateOwnershipClass.RECONSTRUCTIBLE_CACHE,
+                state_key="serena-project-data",
+                identities={"project_id": project.project_id, "source_id": source_id},
+            )
+        )
+        state_root = self.project_data_root.parent.parent
+        path = state_root.joinpath(
+            *PureWindowsPath(namespace.relative_path).parts,
+            "project-root.json",
+        )
+        return path, {
             "schema_version": 1,
+            "project_id": project.project_id,
+            "source_id": source_id,
             "project_root": normalized_project,
         }
 
-        def validate_existing() -> None:
-            if not identity_path.is_file():
-                raise ValueError("Serena project identity marker must be a file")
+    @staticmethod
+    def _read_identity_marker(path: Path) -> dict[str, object] | None:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
+            return None
+        return value if isinstance(value, dict) else None
+
+    @staticmethod
+    def _write_identity_marker(path: Path, expected: dict[str, object]) -> None:
+        rendered = json.dumps(expected, indent=2, sort_keys=True) + "\n"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with path.open("x", encoding="utf-8", newline="\n") as stream:
+                stream.write(rendered)
+        except FileExistsError:
             try:
-                existing = json.loads(identity_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-                raise ValueError("Serena project identity marker is unreadable") from exc
-            existing_root = existing.get("project_root") if isinstance(existing, dict) else None
-            if (
-                not isinstance(existing, dict)
-                or existing.get("schema_version") != 1
-                or not isinstance(existing_root, str)
-                or existing_root.casefold() != normalized_project.casefold()
+                current = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise ValueError("Serena canonical project identity marker is unreadable") from exc
+            if current != rendered:
+                raise ValueError("Serena canonical project identity collision")
+
+    def ensure_project_data_path(self, project_root: str) -> Path:
+        normalized_project = self.normalized_project_root(project_root)
+        project_data = self.project_data_path(normalized_project)
+        legacy_identity_path = self.project_identity_path(normalized_project)
+        canonical_identity_path, expected = self.canonical_project_identity(normalized_project)
+        legacy = self._read_identity_marker(legacy_identity_path)
+
+        if legacy is None and project_data.exists():
+            raise ValueError(
+                "Serena project state identity is ambiguous: legacy project data exists without "
+                "an identity marker"
+            )
+        if legacy is not None:
+            legacy_root = legacy.get("project_root")
+            legacy_exact = (
+                legacy.get("schema_version") == 1
+                and isinstance(legacy_root, str)
+                and legacy_root.casefold() == normalized_project.casefold()
+            )
+            canonical_exact = all(legacy.get(key) == value for key, value in expected.items())
+            if not legacy_exact or (
+                set(legacy) != {"schema_version", "project_root"} and not canonical_exact
             ):
                 raise ValueError(
                     "Serena project state collision: project folder name is already bound "
-                    "to a different project root"
+                    "to a different canonical project/source identity"
                 )
 
-        identity_path.parent.mkdir(parents=True, exist_ok=True)
-        if identity_path.exists():
-            validate_existing()
-        else:
-            try:
-                with identity_path.open("x", encoding="utf-8", newline="\n") as stream:
-                    json.dump(expected, stream, indent=2)
-                    stream.write("\n")
-            except FileExistsError:
-                validate_existing()
+        self._write_identity_marker(canonical_identity_path, expected)
+        legacy_identity_path.parent.mkdir(parents=True, exist_ok=True)
+        if legacy is None:
+            self._write_identity_marker(legacy_identity_path, expected)
         project_data.mkdir(parents=True, exist_ok=True)
         return project_data
 

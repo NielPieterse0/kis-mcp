@@ -10,6 +10,12 @@ from fastmcp.server import create_proxy
 from fastmcp.server.providers.proxy import ProxyClient
 
 from kis_mcp.projects import DatabaseBinding, ProjectDefinition, ProjectRegistry
+from kis_mcp.state import (
+    StateNamespaceRequest,
+    StateNamespaceResolver,
+    StateOwnershipClass,
+    derive_worktree_source_id,
+)
 
 from .settings import DBHubSettings
 
@@ -69,16 +75,40 @@ def render_binding_toml(
     return "\n".join(lines) + "\n"
 
 
-def runtime_config_path(settings: DBHubSettings, project_id: str, binding_id: str) -> Path:
-    return settings.runtime_root / project_id / binding_id / "dbhub.toml"
+def runtime_config_path(
+    settings: DBHubSettings,
+    project_id: str,
+    binding_id: str,
+    *,
+    source_root: str,
+) -> Path:
+    namespace = StateNamespaceResolver().resolve(
+        StateNamespaceRequest(
+            ownership=StateOwnershipClass.RECONSTRUCTIBLE_CACHE,
+            state_key="dbhub-runtime-config",
+            identities={
+                "project_id": project_id,
+                "source_id": derive_worktree_source_id(source_root),
+            },
+        )
+    )
+    state_root = settings.runtime_root.parent.parent
+    return state_root.joinpath(*PureWindowsPath(namespace.relative_path).parts, binding_id, "dbhub.toml")
 
 
 def write_binding_runtime_config(
     settings: DBHubSettings,
     project: ProjectDefinition,
     binding: DatabaseBinding,
+    *,
+    source_root: str,
 ) -> Path:
-    path = runtime_config_path(settings, project.project_id, binding.binding_id)
+    path = runtime_config_path(
+        settings,
+        project.project_id,
+        binding.binding_id,
+        source_root=source_root,
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
     content = render_binding_toml(project, binding, settings)
     if path.is_file():
@@ -113,17 +143,24 @@ class DBHubAdapter:
         *,
         environment: Mapping[str, str],
         proxy_factory: ProxyFactory = _proxy,
+        source_root: str,
     ) -> None:
         self.settings = settings
         self.projects = projects
         self.environment = environment
         self.proxy_factory = proxy_factory
+        self.source_root = source_root
 
     def build_server(self) -> FastMCP:
         server = FastMCP("dbhub")
         for project in self.projects.projects:
             for binding in project.databases:
-                config = write_binding_runtime_config(self.settings, project, binding)
+                config = write_binding_runtime_config(
+                    self.settings,
+                    project,
+                    binding,
+                    source_root=self.source_root,
+                )
                 environment = binding_environment(project, binding, self.environment)
                 child = self.proxy_factory(
                     self.settings.node_executable,

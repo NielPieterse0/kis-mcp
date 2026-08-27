@@ -22,13 +22,13 @@ from kis_mcp.providers.dockerhub.settings import load_dockerhub_settings
 
 root = Path.cwd()
 environment = dict(os.environ)
-evidence_root = commissioning_evidence_root(root)
 rows = []
 for name, factory in (
     ("dbhub", dbhub_provider_descriptor),
     ("dockerhub-mcp", dockerhub_provider_descriptor),
 ):
     descriptor = factory(repository_root=root, environment=environment)
+    evidence_root = commissioning_evidence_root(root, provider_id=name)
     readiness = descriptor.readiness_probe()
     row = {"provider_id": name, "readiness": readiness.to_json_dict(), "live_verified": False, "tools": []}
     if readiness.state.value == "ready":

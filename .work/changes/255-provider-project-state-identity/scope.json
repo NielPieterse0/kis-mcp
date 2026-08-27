@@ -1,0 +1,45 @@
+{
+  "schema_version": 4,
+  "change_id": "255-provider-project-state-identity",
+  "status": "active",
+  "branch": "change/255-provider-project-state-identity",
+  "worktree": ".work/worktrees/255-provider-project-state-identity",
+  "base": "main",
+  "outcome": "Namespace provider and project integration evidence under canonical KIS state ownership without moving globally safe provider authority",
+  "owned_paths": [
+    "src/kis_mcp/providers/commissioning.py",
+    "src/kis_mcp/providers/dbhub/**",
+    "src/kis_mcp/providers/serena/**",
+    "tests/providers/**",
+    "tests/state/**",
+    "scripts/commission-db-docker-providers.ps1",
+    ".work/changes/255-provider-project-state-identity/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "migration",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "36c5457a16bf911273c6a1147487cd06b553372c",
+    "local_tree": "d73381c10cf955a2f455bde07b24d0021c1afd26",
+    "upstream_sha": "36c5457a16bf911273c6a1147487cd06b553372c",
+    "upstream_tree": "d73381c10cf955a2f455bde07b24d0021c1afd26",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-556",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 556,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
