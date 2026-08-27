@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "253-discover-canonical-source-memory",
+  "status": "active",
+  "branch": "change/253-discover-canonical-source-memory",
+  "worktree": ".work/worktrees/253-discover-canonical-source-memory",
+  "base": "main",
+  "outcome": "Route Discover persisted generations through the canonical source-scoped KIS state namespace with identity-safe legacy compatibility.",
+  "owned_paths": [
+    "src/kis_mcp/discover/intelligence.py",
+    "tests/discover/**",
+    "SPEC.md",
+    ".work/changes/253-discover-canonical-source-memory/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "migration",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "13757ca1e454bf43b6aad946ea3af0643406e54a",
+    "local_tree": "ac245c2c869e398c4e3c6b0060b292dad551d815",
+    "upstream_sha": "13757ca1e454bf43b6aad946ea3af0643406e54a",
+    "upstream_tree": "ac245c2c869e398c4e3c6b0060b292dad551d815",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-554",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 554,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete",
+    "execution_owner": "codex"
+  }
+}
