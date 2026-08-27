@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "250-reviewer-ensemble",
+  "status": "active",
+  "branch": "change/250-reviewer-ensemble",
+  "worktree": ".work/worktrees/250-reviewer-ensemble",
+  "base": "main",
+  "outcome": "Add bounded multi-reviewer ensemble and discourse under KIS authority",
+  "owned_paths": [
+    "src/kis_mcp/workflows/change_execution/contracts.py",
+    "src/kis_mcp/workflows/change_execution/service.py",
+    "src/kis_mcp/workflows/change_execution/tools.py",
+    "tests/workflows/change_execution/test_change_execution_service.py",
+    "tests/workflows/change_execution/test_change_execution_tools.py",
+    ".work/changes/250-reviewer-ensemble/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "2d3f658d657ebda5e9069cf5b30e648f3d95ee5e",
+    "local_tree": "bb6c1523822a60a013565beb6a15d928906d7fab",
+    "upstream_sha": "2d3f658d657ebda5e9069cf5b30e648f3d95ee5e",
+    "upstream_tree": "bb6c1523822a60a013565beb6a15d928906d7fab",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-533",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 533,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

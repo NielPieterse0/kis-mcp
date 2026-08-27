@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 import pytest
@@ -363,3 +364,659 @@ def test_execution_bounds_aggregate_specialist_review_phase() -> None:
         "AGENT_REVIEW_PHASE_DEADLINE_EXCEEDED",
     ]
     assert len([name for name, _ in invoker.calls if name == "review_change_with_agent"]) == 1
+
+
+class _EnsembleInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed",
+                "backend": arguments.get("backend") or "nvidia-nim",
+                "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64,
+                "evidence_complete": True,
+                "summary": "ensemble review complete",
+                "findings": [{
+                    "severity": "medium",
+                    "path": "src/example.py",
+                    "line": 10,
+                    "claim": "shared candidate",
+                    "evidence": "bounded evidence",
+                    "recommendation": "fix it",
+                    "confidence": "high",
+                }],
+                "unknowns": [],
+                "diagnostics": [],
+                **(
+                    {
+                        "model_profile": arguments["model"],
+                        "model": {
+                            "nano": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+                            "super": "nvidia/nemotron-3-super-120b-a12b",
+                            "ultra": "nvidia/nemotron-3-ultra-550b-a55b",
+                        }[arguments["model"]],
+                    }
+                    if "model" in arguments
+                    else {}
+                ),
+            }
+        return await super().__call__(tool_name, arguments)
+
+def test_execution_runs_bounded_independent_reviewer_ensemble() -> None:
+    invoker = _EnsembleInvoker()
+    result = asyncio.run(ChangeExecutionService(invoker).execute(
+        project=r"C:\Projects\fixture",
+        complexity="small",
+        review_types=("code-quality",),
+        reviewers=(
+            {"reviewer_id": "fast", "backend": "nvidia-nim", "model": "nano"},
+            {"reviewer_id": "deep", "backend": "codex-cli"},
+        ),
+    ))
+
+    review_calls = [args for name, args in invoker.calls if name == "review_change_with_agent"]
+    assert len(review_calls) == 2
+    assert [call.get("backend") for call in review_calls] == ["nvidia-nim", "codex-cli"]
+    assert all("reviewer_id=" in call["instructions"] for call in review_calls)
+    assert all(call["source"] == "working_tree" for call in review_calls)
+    assert result.status == "passed"
+    assert result.review_ensemble is not None
+    assert result.review_ensemble["reviewer_count"] == 2
+    assert result.review_ensemble["invocation_count"] == 2
+    assert result.review_ensemble["unique_finding_count"] == 1
+    assert result.reviews[0].payload is not None
+    assert result.reviews[0].payload["ensemble_provenance"] == {
+        "reviewer_id": "fast", "backend": "nvidia-nim", "requested_model_profile": "nano",
+        "round": 1, "review_type": "code-quality", "source": "working_tree",
+        "commit_ref": None, "base_ref": None, "head_ref": None, "source_fingerprint": "f" * 64,
+    }
+    assert result.review_ensemble["duplicate_finding_count"] == 1
+    assert result.review_ensemble["gate_authority"] == {
+        "verification": False, "merge_readiness": False, "mutation": False
+    }
+
+
+def test_execution_rejects_unbounded_or_ambiguous_ensemble_requests() -> None:
+    invoker = _Invoker()
+    with pytest.raises(ValueError, match="at most four"):
+        asyncio.run(ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            reviewers=tuple(
+                {"reviewer_id": f"r{index}", "backend": "codex-cli"}
+                for index in range(5)
+            ),
+        ))
+    with pytest.raises(ValueError, match="review_rounds"):
+        asyncio.run(ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+            review_rounds=3,
+        ))
+    with pytest.raises(ValueError, match="legacy review_backend"):
+        asyncio.run(ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+            review_backend="codex-cli",
+        ))
+    assert invoker.calls == []
+
+
+class _DissentEnsembleInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            reviewer_id = arguments["instructions"].split("reviewer_id=", 1)[1].split(";", 1)[0]
+            severity = "high" if reviewer_id == "deep" else "medium"
+            return {
+                "status": "completed",
+                "backend": arguments["backend"],
+                "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64,
+                "evidence_complete": True,
+                "summary": "review complete",
+                "findings": [{
+                    "severity": severity,
+                    "path": "src/example.py",
+                    "line": 11,
+                    "claim": "same claim",
+                    "evidence": "same evidence",
+                    "recommendation": "inspect it",
+                    "confidence": "high",
+                }],
+                "unknowns": [],
+                "diagnostics": [],
+                "cost": 0.25,
+                **(
+                    {
+                        "model_profile": arguments["model"],
+                        "model": {
+                            "nano": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+                            "super": "nvidia/nemotron-3-super-120b-a12b",
+                            "ultra": "nvidia/nemotron-3-ultra-550b-a55b",
+                        }[arguments["model"]],
+                    }
+                    if "model" in arguments
+                    else {}
+                ),
+            }
+        return await super().__call__(tool_name, arguments)
+
+def test_execution_retains_ensemble_dissent_and_cost_telemetry() -> None:
+    result = asyncio.run(ChangeExecutionService(_DissentEnsembleInvoker()).execute(
+        project=r"C:\Projects\fixture",
+        complexity="small",
+        review_types=("code-quality",),
+        reviewers=(
+            {"reviewer_id": "fast", "backend": "nvidia-nim", "model": "nano"},
+            {"reviewer_id": "deep", "backend": "codex-cli"},
+        ),
+        review_adjudication=True,
+    ))
+
+    ensemble = result.review_ensemble
+    assert ensemble is not None
+    assert ensemble["disagreement_count"] == 1
+    assert ensemble["finding_groups"][0]["disposition"] == "unresolved_dissent"
+    assert ensemble["adjudication_requested"] is True
+    assert ensemble["adjudication_invoked"] is False
+    assert ensemble["adjudication_completed"] is False
+    assert ensemble["finding_groups"][0]["severities"] == ["high", "medium"]
+    assert ensemble["provider_cost"] == {
+        "observed": True,
+        "observation_count": 2,
+        "rejected_observation_count": 0,
+        "total": 0.5,
+    }
+
+
+class _MalformedEnsembleInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed",
+                "backend": arguments["backend"],
+                "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64,
+                "evidence_complete": True,
+                "summary": "malformed finding",
+                "findings": [{"severity": "medium", "path": "src/example.py"}],
+                "unknowns": [],
+                "diagnostics": [],
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_fails_closed_on_malformed_ensemble_findings() -> None:
+    result = asyncio.run(ChangeExecutionService(_MalformedEnsembleInvoker()).execute(
+        project=r"C:\Projects\fixture",
+        complexity="small",
+        review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].status == "error"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+    assert result.review_ensemble is not None
+    assert result.review_ensemble["completed_invocation_count"] == 0
+
+
+class _NonObjectReviewInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> Any:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return ["not", "an", "object"]
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_classifies_nonobject_reviewer_output_as_review_error() -> None:
+    result = asyncio.run(ChangeExecutionService(_NonObjectReviewInvoker()).execute(
+        project=r"C:\Projects\fixture",
+        complexity="small",
+        review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+class _TooManyFindingsInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            finding = {
+                "severity": "medium", "path": "src/example.py", "line": 1,
+                "claim": "bounded claim", "evidence": "evidence",
+                "recommendation": "inspect", "confidence": "high",
+            }
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                "evidence_complete": True, "summary": "too many findings",
+                "findings": [dict(finding) for _ in range(21)],
+                "unknowns": [], "diagnostics": [],
+            }
+        return await super().__call__(tool_name, arguments)
+
+def test_execution_rejects_reviewer_finding_overflow() -> None:
+    result = asyncio.run(ChangeExecutionService(_TooManyFindingsInvoker()).execute(
+        project=r"C:\Projects\fixture",
+        complexity="small",
+        review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+    assert result.review_ensemble is not None
+    assert result.review_ensemble["unique_finding_count"] == 0
+
+
+@pytest.mark.parametrize("reviewer_id", [None, True, 123, ["x"], {"x": "y"}])
+def test_execution_rejects_nontext_reviewer_identity(reviewer_id: Any) -> None:
+    invoker = _Invoker()
+    with pytest.raises(TypeError, match="reviewer_id must be a string"):
+        asyncio.run(ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            reviewers=({"reviewer_id": reviewer_id, "backend": "codex-cli"},),
+        ))
+    assert invoker.calls == []
+
+
+class _InvalidPayloadEnsembleInvoker(_Invoker):
+    def __init__(self, invalid_value: Any) -> None:
+        super().__init__()
+        self.invalid_value = invalid_value
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                "evidence_complete": True, "summary": "review complete",
+                "findings": [], "unknowns": [], "diagnostics": [],
+                "cost": self.invalid_value,
+            }
+        return await super().__call__(tool_name, arguments)
+
+@pytest.mark.parametrize(
+    "invalid_value",
+    [object(), "x" * 70_000, float("nan"), float("inf"), float("-inf")],
+    ids=("nonserializable", "oversized", "nan", "positive-inf", "negative-inf"),
+)
+def test_execution_omits_invalid_ensemble_payload_from_result(invalid_value: Any) -> None:
+    result = asyncio.run(ChangeExecutionService(_InvalidPayloadEnsembleInvoker(invalid_value)).execute(
+        project=r"C:\Projects\fixture",
+        complexity="small",
+        review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].payload is None
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+    json.dumps(result.to_json_dict())
+
+
+@pytest.mark.parametrize("review_rounds", [True, False])
+def test_execution_rejects_boolean_review_rounds_without_ensemble(review_rounds: bool) -> None:
+    invoker = _Invoker()
+    with pytest.raises(TypeError, match="review_rounds must be an integer"):
+        asyncio.run(ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            review_rounds=review_rounds,
+        ))
+    assert invoker.calls == []
+
+
+class _UnexpectedReviewerFieldInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                "evidence_complete": True, "summary": "review complete",
+                "findings": [], "unknowns": [], "diagnostics": [],
+                "unexpected": "value",
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_rejects_unknown_reviewer_result_keys() -> None:
+    result = asyncio.run(ChangeExecutionService(_UnexpectedReviewerFieldInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small",
+        review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+class _MismatchedReviewerModelInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                "evidence_complete": True, "summary": "review complete",
+                "findings": [], "unknowns": [], "diagnostics": [],
+                "model_profile": "super",
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_rejects_mismatched_reviewer_model_profile() -> None:
+    result = asyncio.run(ChangeExecutionService(_MismatchedReviewerModelInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small",
+        review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "nvidia-nim", "model": "nano"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+class _LargeFiniteCostInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                "evidence_complete": True, "summary": "review complete",
+                "findings": [], "unknowns": [], "diagnostics": [],
+                "cost": 1e308,
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_keeps_aggregate_cost_finite() -> None:
+    result = asyncio.run(ChangeExecutionService(_LargeFiniteCostInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small",
+        review_types=("code-quality",),
+        reviewers=(
+            {"reviewer_id": "one", "backend": "codex-cli"},
+            {"reviewer_id": "two", "backend": "codex-cli"},
+        ),
+    ))
+    ensemble = result.review_ensemble
+    assert ensemble is not None
+    assert ensemble["provider_cost"] == {
+        "observed": True,
+        "observation_count": 1,
+        "rejected_observation_count": 1,
+        "total": 1e308,
+    }
+    json.dumps(result.to_json_dict(), allow_nan=False)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("summary", 1), ("unknowns", {}), ("unknowns", [""]), ("diagnostics", "bad"), ("diagnostics", [""])],
+)
+def test_execution_rejects_malformed_reviewer_result_fields(field: str, value: Any) -> None:
+    class _InvokerWithField(_Invoker):
+        async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+            if tool_name == "review_change_with_agent":
+                self.calls.append((tool_name, arguments))
+                payload = {
+                    "status": "completed", "backend": arguments["backend"],
+                    "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                    "evidence_complete": True, "summary": "ok", "findings": [],
+                    "unknowns": [], "diagnostics": [],
+                }
+                payload[field] = value
+                return payload
+            return await super().__call__(tool_name, arguments)
+
+    result = asyncio.run(ChangeExecutionService(_InvokerWithField()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+def test_execution_rejects_unknown_reviewer_profile_key() -> None:
+    invoker = _Invoker()
+    with pytest.raises(ValueError, match="reviewer profile keys"):
+        asyncio.run(ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            reviewers=({"reviewer_id": "one", "backend": "codex-cli", "extra": True},),
+        ))
+    assert invoker.calls == []
+
+
+class _ContradictoryNvidiaModelInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": "nvidia-nim", "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64, "evidence_complete": True, "summary": "ok",
+                "findings": [], "unknowns": [], "diagnostics": [],
+                "model_profile": "nano", "model": "nvidia/not-the-requested-model",
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_rejects_contradictory_resolved_nvidia_model() -> None:
+    result = asyncio.run(ChangeExecutionService(_ContradictoryNvidiaModelInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "nvidia-nim", "model": "nano"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+@pytest.mark.parametrize("mode", ["failed", "incomplete-evidence", "source-mismatch"])
+def test_execution_omits_unsafe_payload_on_reviewer_error_paths(mode: str) -> None:
+    class _UnsafeErrorInvoker(_Invoker):
+        async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+            if tool_name == "review_change_with_agent":
+                self.calls.append((tool_name, arguments))
+                payload: dict[str, Any] = {
+                    "status": "completed", "backend": arguments["backend"],
+                    "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                    "evidence_complete": True, "summary": "error path", "findings": [],
+                    "unknowns": [], "diagnostics": [], "unsafe": object(),
+                }
+                if mode == "failed":
+                    payload["status"] = "failed"
+                elif mode == "incomplete-evidence":
+                    payload["evidence_complete"] = False
+                else:
+                    payload["source_fingerprint"] = "a" * 64
+                return payload
+            return await super().__call__(tool_name, arguments)
+
+    result = asyncio.run(ChangeExecutionService(_UnsafeErrorInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].payload is None
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+    json.dumps(result.to_json_dict(), allow_nan=False)
+
+
+class _ResolvedDefaultNvidiaInvoker(_Invoker):
+    def __init__(self, *, model_profile: str = "super", model: str = "nvidia/nemotron-3-super-120b-a12b") -> None:
+        super().__init__()
+        self.model_profile = model_profile
+        self.model = model
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": "nvidia-nim", "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64, "evidence_complete": True, "summary": "ok",
+                "findings": [], "unknowns": [], "diagnostics": [],
+                "model_profile": self.model_profile, "model": self.model,
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_accepts_valid_resolved_default_nvidia_model() -> None:
+    result = asyncio.run(ChangeExecutionService(_ResolvedDefaultNvidiaInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "nvidia-nim"},),
+    ))
+    assert result.status == "passed"
+
+
+def test_execution_rejects_contradictory_default_nvidia_model() -> None:
+    result = asyncio.run(ChangeExecutionService(_ResolvedDefaultNvidiaInvoker(model="nvidia/wrong")).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "nvidia-nim"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+class _ContradictorySourceInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source": "commit",
+                "source_fingerprint": "f" * 64, "evidence_complete": True,
+                "summary": "wrong source metadata", "findings": [],
+                "unknowns": [], "diagnostics": [],
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_rejects_contradictory_reviewer_source_metadata() -> None:
+    result = asyncio.run(ChangeExecutionService(_ContradictorySourceInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+class _SlowEnsembleInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            await asyncio.sleep(0.05)
+            return {
+                "status": "completed", "backend": arguments["backend"],
+                "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                "evidence_complete": True, "summary": "late", "findings": [],
+                "unknowns": [], "diagnostics": [],
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_ensemble_invocation_count_tracks_actual_calls() -> None:
+    invoker = _SlowEnsembleInvoker()
+    result = asyncio.run(ChangeExecutionService(invoker).execute(
+        project=r"C:\Projects\fixture", complexity="small",
+        review_types=("code-quality", "safety-security"),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+        review_timeout_ms=10,
+    ))
+    ensemble = result.review_ensemble
+    assert ensemble is not None
+    assert ensemble["planned_invocation_count"] == 2
+    assert ensemble["invocation_count"] == 1
+    assert len([name for name, _ in invoker.calls if name == "review_change_with_agent"]) == 1
+
+
+@pytest.mark.parametrize("invalid_cost", ["1.0", True, -0.01])
+def test_execution_rejects_invalid_provider_cost_contract(invalid_cost: Any) -> None:
+    result = asyncio.run(ChangeExecutionService(_InvalidPayloadEnsembleInvoker(invalid_cost)).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+    assert result.reviews[0].payload is None
+
+
+def test_execution_omits_serializable_payload_on_failed_reviewer_result() -> None:
+    class _FailedInvoker(_Invoker):
+        async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+            if tool_name == "review_change_with_agent":
+                self.calls.append((tool_name, arguments))
+                return {
+                    "status": "failed", "backend": arguments["backend"],
+                    "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                    "evidence_complete": True, "summary": "provider failed", "findings": [],
+                    "unknowns": [], "diagnostics": ["PROVIDER_FAILED"],
+                    "unexpected_sensitive_field": "must-not-be-retained",
+                }
+            return await super().__call__(tool_name, arguments)
+
+    result = asyncio.run(ChangeExecutionService(_FailedInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].payload is None
+
+
+@pytest.mark.parametrize(
+    ("field", "request_value", "result_value"),
+    [
+        ("commit_ref", "abc123", "def456"),
+        ("base_ref", "main", "release"),
+        ("head_ref", "feature", "other"),
+    ],
+)
+def test_execution_rejects_contradictory_source_ref_metadata(
+    field: str, request_value: str, result_value: str
+) -> None:
+    class _RefInvoker(_Invoker):
+        async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+            if tool_name == "review_change_with_agent":
+                self.calls.append((tool_name, arguments))
+                return {
+                    "status": "completed", "backend": arguments["backend"],
+                    "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                    "evidence_complete": True, "summary": "wrong ref", "findings": [],
+                    "unknowns": [], "diagnostics": [], field: result_value,
+                }
+            return await super().__call__(tool_name, arguments)
+
+    kwargs = {field: request_value}
+    result = asyncio.run(ChangeExecutionService(_RefInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},), **kwargs,
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"
+
+
+def test_execution_rejects_provider_supplied_ensemble_provenance() -> None:
+    class _ProviderProvenanceInvoker(_Invoker):
+        async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+            if tool_name == "review_change_with_agent":
+                self.calls.append((tool_name, arguments))
+                return {
+                    "status": "completed", "backend": arguments["backend"],
+                    "review_type": arguments["review_type"], "source_fingerprint": "f" * 64,
+                    "evidence_complete": True, "summary": "contradictory provenance",
+                    "findings": [], "unknowns": [], "diagnostics": [],
+                    "ensemble_provenance": {"reviewer_id": "spoofed"},
+                }
+            return await super().__call__(tool_name, arguments)
+
+    result = asyncio.run(ChangeExecutionService(_ProviderProvenanceInvoker()).execute(
+        project=r"C:\Projects\fixture", complexity="small", review_types=("code-quality",),
+        reviewers=({"reviewer_id": "one", "backend": "codex-cli"},),
+    ))
+    assert result.status == "incomplete"
+    assert result.reviews[0].payload is None
+    assert result.reviews[0].error_code == "AGENT_REVIEW_ENSEMBLE_RESULT_INVALID"

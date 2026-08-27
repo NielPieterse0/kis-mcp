@@ -35,6 +35,9 @@ class ChangeExecutionServicePort(Protocol):
         review_types: tuple[str, ...] | None = None,
         review_backend: str | None = None,
         review_model: str | None = None,
+        reviewers: tuple[dict[str, object], ...] | None = None,
+        review_rounds: int = 1,
+        review_adjudication: bool = False,
     ) -> ChangeExecutionResult: ...
 
 
@@ -58,6 +61,9 @@ def register_change_execution_tool(
         review_types: list[str] | None = None,
         review_backend: str | None = None,
         review_model: str | None = None,
+        reviewers: list[dict[str, object]] | None = None,
+        review_rounds: int = 1,
+        review_adjudication: bool = False,
     ) -> dict[str, object]:
         """Execute selected verification and bounded specialist reviews for one change."""
         try:
@@ -76,11 +82,14 @@ def register_change_execution_tool(
                 review_types=(tuple(review_types) if review_types is not None else None),
                 review_backend=review_backend,
                 review_model=review_model,
+                reviewers=(tuple(reviewers) if reviewers is not None else None),
+                review_rounds=review_rounds,
+                review_adjudication=review_adjudication,
             )
             return result.to_json_dict()
         except ChangeExecutionInvocationError as exc:
             raise ToolError(_error_payload(exc.code, exc.reason)) from exc
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
             raise ToolError(
                 _error_payload("CHANGE_EXECUTION_REQUEST_INVALID", str(exc))
             ) from exc
