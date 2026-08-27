@@ -75,9 +75,61 @@ def test_serena_project_state_rejects_same_name_root_collisions(tmp_path: Path) 
     first.mkdir(parents=True)
     second.mkdir(parents=True)
 
-    settings.ensure_project_data_path(str(first))
+    first_data = settings.ensure_project_data_path(str(first))
+    canonical_path, canonical_identity = settings.canonical_project_identity(str(first))
+    assert canonical_path.is_file()
+    assert canonical_identity["project_id"] == "kis-mcp"
+    assert "reconstructible" in canonical_path.parts
+    assert "serena-project-data" in canonical_path.parts
+    assert first_data.is_dir()
+
     with pytest.raises(ValueError, match="project state collision"):
         settings.ensure_project_data_path(str(second))
+
+
+def test_serena_exact_legacy_identity_migrates_to_canonical_marker(tmp_path: Path) -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    install_root = tmp_path / "serena"
+    settings = replace(
+        settings,
+        install_root=install_root,
+        project_data_root=install_root / "projects",
+    )
+    project = tmp_path / "legacy-project"
+    project.mkdir()
+    legacy_path = settings.project_identity_path(str(project))
+    legacy_path.parent.mkdir(parents=True)
+    legacy_path.write_text(
+        json.dumps({"schema_version": 1, "project_root": str(project)}) + "\n",
+        encoding="utf-8",
+    )
+
+    settings.ensure_project_data_path(str(project))
+    canonical_path, expected = settings.canonical_project_identity(str(project))
+    assert json.loads(canonical_path.read_text(encoding="utf-8")) == expected
+    assert json.loads(legacy_path.read_text(encoding="utf-8")) == {
+        "schema_version": 1,
+        "project_root": str(project),
+    }
+
+
+def test_serena_project_state_rejects_unmarked_legacy_data(tmp_path: Path) -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    install_root = tmp_path / "serena"
+    settings = replace(
+        settings,
+        install_root=install_root,
+        project_data_root=install_root / "projects",
+    )
+    project = tmp_path / "ambiguous-project"
+    project.mkdir()
+    legacy_data = settings.project_data_path(str(project))
+    legacy_data.mkdir(parents=True)
+    (legacy_data / "project.yml").write_text("project_name: ambiguous\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="identity is ambiguous"):
+        settings.ensure_project_data_path(str(project))
+    assert (legacy_data / "project.yml").is_file()
 
 
 def test_serena_descriptor_is_local_read_only_and_offline() -> None:

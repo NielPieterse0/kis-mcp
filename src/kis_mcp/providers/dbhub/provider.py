@@ -9,6 +9,7 @@ from typing import Any
 from kis_mcp.projects import ProjectRegistry, load_project_registry_settings
 from kis_mcp.providers.commissioning import (
     commissioning_evidence_root,
+    legacy_commissioning_evidence_root,
     read_commissioning_evidence,
 )
 from kis_mcp.providers.contracts import (
@@ -117,6 +118,7 @@ def dbhub_readiness(
     environment: Mapping[str, str],
     *,
     commissioning_root: Path | None = None,
+    legacy_commissioning_roots: Sequence[Path] = (),
 ) -> ProviderReadiness:
     installed = True
     install_error: str | None = None
@@ -145,7 +147,12 @@ def dbhub_readiness(
     historical_verified = False
     if installed and bindings_ready and commissioning_root is not None:
         identity = dbhub_commissioning_identity(settings, projects)
-        evidence = read_commissioning_evidence(commissioning_root, "dbhub", identity)
+        evidence = read_commissioning_evidence(
+            commissioning_root,
+            "dbhub",
+            identity,
+            legacy_roots=legacy_commissioning_roots,
+        )
         historical_verified = evidence is not None
 
     if not installed:
@@ -212,7 +219,8 @@ def dbhub_provider_descriptor(
     root = repository_root or Path(__file__).resolve().parents[4]
     settings = load_dbhub_settings(root)
     projects = load_project_registry_settings(root / "settings" / "projects.settings.json")
-    evidence_root = commissioning_evidence_root(root)
+    evidence_root = commissioning_evidence_root(root, provider_id="dbhub")
+    legacy_evidence_root = legacy_commissioning_evidence_root(root)
     return ProviderDescriptor(
         provider_id="dbhub",
         display_name="DBHub MCP",
@@ -223,13 +231,19 @@ def dbhub_provider_descriptor(
         capabilities=_capabilities(settings, projects),
         builder=lambda: (
             validate_installation(settings),
-            DBHubAdapter(settings, projects, environment=environment).build_server(),
+            DBHubAdapter(
+                settings,
+                projects,
+                environment=environment,
+                source_root=str(root),
+            ).build_server(),
         )[1],
         readiness_probe=lambda: dbhub_readiness(
             settings,
             projects,
             environment,
             commissioning_root=evidence_root,
+            legacy_commissioning_roots=(legacy_evidence_root,),
         ),
     )
 

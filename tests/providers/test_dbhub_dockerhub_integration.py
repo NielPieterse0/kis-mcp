@@ -122,12 +122,27 @@ def test_dbhub_generated_local_toml_is_read_only_bounded_and_credential_free() -
 def test_dbhub_identical_runtime_config_is_not_rewritten(tmp_path: Path) -> None:
     project = load_project_registry_settings(ROOT / "settings" / "projects.settings.json").project("college")
     settings = replace(_dbhub_settings(), runtime_root=tmp_path / "runtime")
-    path = write_binding_runtime_config(settings, project, project.databases[0])
+    path = write_binding_runtime_config(
+        settings,
+        project,
+        project.databases[0],
+        source_root=str(ROOT),
+    )
     os.utime(path, ns=(1_000_000_000, 1_000_000_000))
 
-    same_path = write_binding_runtime_config(settings, project, project.databases[0])
+    same_path = write_binding_runtime_config(
+        settings,
+        project,
+        project.databases[0],
+        source_root=str(ROOT),
+    )
 
     assert same_path == path
+    assert "projects" in path.parts
+    assert "college" in path.parts
+    assert "sources" in path.parts
+    assert "reconstructible" in path.parts
+    assert "dbhub-runtime-config" in path.parts
     assert path.stat().st_mtime_ns == 1_000_000_000
 
 

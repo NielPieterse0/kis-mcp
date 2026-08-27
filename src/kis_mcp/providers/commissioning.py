@@ -4,10 +4,12 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping, Sequence
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 
 from kis_mcp.config import load_runtime_config
+from kis_mcp.projects import load_project_registry_settings
+from kis_mcp.state import StateNamespaceRequest, StateNamespaceResolver, StateOwnershipClass, derive_worktree_source_id
 
 _SCHEMA_VERSION = 1
 _PROVIDER_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -20,7 +22,30 @@ _EVIDENCE_KEYS = {
 }
 
 
-def commissioning_evidence_root(repository_root: Path) -> Path:
+def commissioning_evidence_root(
+    repository_root: Path,
+    *,
+    provider_id: str | None = None,
+) -> Path:
+    config = load_runtime_config(repository_root)
+    if provider_id != "dbhub":
+        return Path(config.state_root) / "commissioning" / "providers"
+    registry = load_project_registry_settings(repository_root / "settings" / "projects.settings.json")
+    project = registry.project_for_root(str(repository_root))
+    namespace = StateNamespaceResolver().resolve(
+        StateNamespaceRequest(
+            ownership=StateOwnershipClass.DURABLE_EVIDENCE,
+            state_key="provider-commissioning",
+            identities={
+                "project_id": project.project_id,
+                "source_id": derive_worktree_source_id(str(repository_root)),
+            },
+        )
+    )
+    return Path(config.state_root).joinpath(*PureWindowsPath(namespace.relative_path).parts)
+
+
+def legacy_commissioning_evidence_root(repository_root: Path) -> Path:
     config = load_runtime_config(repository_root)
     return Path(config.state_root) / "commissioning" / "providers"
 
@@ -76,12 +101,11 @@ def _document(
     }
 
 
-def read_commissioning_evidence(
-    root: Path,
+def _read_validated_evidence(
+    path: Path,
     provider_id: str,
     identity: Mapping[str, Any],
 ) -> dict[str, Any] | None:
-    path = commissioning_evidence_path(root, provider_id, identity)
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, OSError, UnicodeError, json.JSONDecodeError):
@@ -93,6 +117,32 @@ def read_commissioning_evidence(
     except (TypeError, ValueError):
         return None
     return value if value == expected else None
+
+
+def read_commissioning_evidence(
+    root: Path,
+    provider_id: str,
+    identity: Mapping[str, Any],
+    *,
+    legacy_roots: Sequence[Path] = (),
+) -> dict[str, Any] | None:
+    path = commissioning_evidence_path(root, provider_id, identity)
+    current = _read_validated_evidence(path, provider_id, identity)
+    if current is not None:
+        return current
+    for legacy_root in legacy_roots:
+        legacy_path = commissioning_evidence_path(legacy_root, provider_id, identity)
+        legacy = _read_validated_evidence(legacy_path, provider_id, identity)
+        if legacy is None:
+            continue
+        write_commissioning_evidence(
+            root,
+            provider_id,
+            identity,
+            legacy["verified_tools"],
+        )
+        return legacy
+    return None
 
 
 def write_commissioning_evidence(
@@ -122,6 +172,7 @@ __all__ = [
     "commissioning_evidence_path",
     "commissioning_evidence_root",
     "commissioning_identity_fingerprint",
+    "legacy_commissioning_evidence_root",
     "read_commissioning_evidence",
     "write_commissioning_evidence",
 ]
