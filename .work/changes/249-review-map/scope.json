@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "change_id": "249-review-map",
+  "status": "active",
+  "branch": "change/249-review-map",
+  "worktree": ".work/worktrees/249-review-map",
+  "base": "main",
+  "outcome": "Add deterministic source-bound Review Maps for exact KIS change evidence",
+  "owned_paths": [
+    "src/kis_mcp/discover/review_map.py",
+    "src/kis_mcp/discover/review_map_contracts.py",
+    "src/kis_mcp/discover/tools.py",
+    "src/kis_mcp/discover/platform.py",
+    "tests/discover/test_review_map.py",
+    "tests/discover/test_tools.py",
+    "tests/discover/test_change_tool_registration.py",
+    "src/kis_mcp/capabilities/surface.py",
+    ".work/changes/249-review-map/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "055ebbdebcdf1ee6657a23a046651014ea8c5d8b",
+    "local_tree": "d0d86d9999f335bcb478d972142c76ed7e34ab81",
+    "upstream_sha": "055ebbdebcdf1ee6657a23a046651014ea8c5d8b",
+    "upstream_tree": "d0d86d9999f335bcb478d972142c76ed7e34ab81",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-532",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 532,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
