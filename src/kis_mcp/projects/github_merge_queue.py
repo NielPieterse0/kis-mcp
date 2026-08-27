@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -15,7 +16,12 @@ from typing import Any, Protocol
 from fastmcp.exceptions import ToolError
 
 from ..config import load_runtime_config
-from ..paths import PathValidationError, is_within_windows_boundary, normalize_windows_path
+from ..paths import (
+    PathValidationError,
+    is_within_windows_boundary,
+    normalize_windows_path,
+)
+from ..state import StateNamespaceRequest, StateNamespaceResolver, StateOwnershipClass
 from .github_exact import CommandRunner, RegisteredGitHubOperations
 from .post_land import PostLandHooks, dispatch_post_land_non_interfering
 from .registry import ProjectRegistry
@@ -179,19 +185,55 @@ def load_merge_queue_settings(path: Path | None = None) -> MergeQueueSettings:
     )
 
 
+def _queue_state_key(target_branch: str) -> str:
+    raw_branch = target_branch.strip()
+    readable_branch = raw_branch.casefold()
+    digest = hashlib.sha256(raw_branch.encode("utf-8")).hexdigest()[:16]
+    readable = re.sub(r"[^a-z0-9]+", "-", readable_branch).strip("-")[:48] or "branch"
+    return f"merge-queue-{readable}-{digest}"
+
+
+def _canonical_queue_path(project_id: str, target_branch: str) -> Path:
+    namespace = StateNamespaceResolver().resolve(
+        StateNamespaceRequest(
+            ownership=StateOwnershipClass.PROJECT_SPECIFIC,
+            state_key=_queue_state_key(target_branch),
+            identities={"project_id": project_id},
+        )
+    )
+    return Path(namespace.path) / "queue.json"
+
+
 class QueueStateStore:
     """Atomic generated-state store. Repository and GitHub remain authoritative."""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        canonical: bool = False,
+        canonical_path_resolver: Callable[[str, str], Path] | None = None,
+    ) -> None:
         self.root = Path(root)
+        self.canonical = canonical
+        self._canonical_path_resolver = canonical_path_resolver or _canonical_queue_path
 
-    def _path(self, project_id: str, target_branch: str) -> Path:
+    def _legacy_path(self, project_id: str, target_branch: str) -> Path:
         if _PROJECT_ID.fullmatch(project_id) is None:
             raise ToolError("MERGE_QUEUE_PROJECT_ID_INVALID")
-        if not target_branch or any(part in {"", ".", ".."} for part in target_branch.replace("\\", "/").split("/")):
+        if not target_branch or any(
+            part in {"", ".", ".."}
+            for part in target_branch.replace("\\", "/").split("/")
+        ):
             raise ToolError("MERGE_QUEUE_TARGET_BRANCH_INVALID")
         safe_branch = target_branch.replace("/", "__")
         return self.root / project_id / f"{safe_branch}.json"
+
+    def _path(self, project_id: str, target_branch: str) -> Path:
+        legacy = self._legacy_path(project_id, target_branch)
+        if not self.canonical:
+            return legacy
+        return self._canonical_path_resolver(project_id, target_branch)
 
     @contextmanager
     def mutation_lock(self, project_id: str, target_branch: str) -> Iterable[None]:
@@ -213,6 +255,10 @@ class QueueStateStore:
 
     def load(self, project_id: str, target_branch: str) -> dict[str, Any] | None:
         path = self._path(project_id, target_branch)
+        if not path.is_file() and self.canonical:
+            legacy = self._legacy_path(project_id, target_branch)
+            if legacy.is_file():
+                path = legacy
         if not path.is_file():
             return None
         try:
@@ -1051,7 +1097,7 @@ class RegisteredGitHubMergeQueueOperations:
         )
         self.coordinator = MergeQueueCoordinator(
             self.settings,
-            QueueStateStore(self.settings.state_root),
+            QueueStateStore(self.settings.state_root, canonical=True),
             self.backend,
         )
         self.governance_validator = governance_validator
