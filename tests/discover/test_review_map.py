@@ -6,6 +6,7 @@ from kis_mcp.discover.change_inspection_contracts import (
     ChangedFile,
     ChangeIdentity,
     ChangeImpactSummary,
+    ChangeVerificationHandoff,
     InspectChangeResponse,
 )
 from kis_mcp.discover.review_map import build_review_map
@@ -24,7 +25,9 @@ def _file(path: str, category: str) -> ChangedFile:
 
 
 def _inspection(
-    *files: ChangedFile, fingerprint: str = "a" * 64
+    *files: ChangedFile,
+    fingerprint: str = "a" * 64,
+    verification_handoffs: tuple[ChangeVerificationHandoff, ...] = (),
 ) -> InspectChangeResponse:
     return InspectChangeResponse(
         available=True,
@@ -52,6 +55,7 @@ def _inspection(
         unknowns=(),
         confidence="high",
         truncated=False,
+        verification_handoffs=verification_handoffs,
     )
 
 
@@ -121,5 +125,32 @@ def test_review_map_reports_relationship_truncation() -> None:
     )
 
     assert result["omitted_relationship_count"] == 1
+    assert result["truncated"] is True
+    assert result["incomplete"] is True
+
+
+def test_review_map_counts_relationships_hidden_by_file_bounds() -> None:
+    handoff = ChangeVerificationHandoff(
+        handoff_id="verification.hidden",
+        verification_id="hidden",
+        category="test",
+        reason="Hidden path still requires verification.",
+        paths=("tests/test_hidden.py",),
+    )
+    inspection = _inspection(
+        _file("src/a.py", "source"),
+        _file("tests/test_hidden.py", "test"),
+        verification_handoffs=(handoff,),
+    )
+
+    result = build_review_map(
+        inspection,
+        limits=ReviewMapLimits(max_files=1, max_sections=10, max_relationships=10),
+    )
+
+    assert result["relationships"] == [
+        {"kind": "affected_scope", "source": "src", "targets": ["src/a.py"]}
+    ]
+    assert result["omitted_relationship_count"] == 2
     assert result["truncated"] is True
     assert result["incomplete"] is True

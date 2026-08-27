@@ -8,7 +8,7 @@
 - [x] Run focused locked-environment tests.
 - [x] Run full Discover regression suite.
 - [x] Run Ruff, governed scope check, and `git diff --check`.
-- [ ] Complete independent public-contract review and remediate findings.
+- [x] Complete independent public-contract review and remediate findings.
 - [ ] Commit and publish exact verified head.
 - [ ] Pass exact-head GitHub verification and Work merge-readiness.
 - [ ] Merge, reconcile documentation/live runtime, close Work #532, and clean Change 249.

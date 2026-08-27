@@ -80,24 +80,36 @@ def build_review_map(
         key=str.casefold,
     )
 
+    all_paths = {item.path for item in files}
     relationships: list[dict[str, Any]] = []
+    hidden_relationship_count = 0
     for scope in sorted(inspection.affected_scopes, key=str.casefold):
-        targets = sorted(
-            path
-            for path in visible_paths
-            if path == scope or path.startswith(f"{scope}/")
+        logical_targets = sorted(
+            path for path in all_paths if path == scope or path.startswith(f"{scope}/")
         )
+        if not logical_targets:
+            continue
+        targets = [path for path in logical_targets if path in visible_paths]
         if targets:
             relationships.append(_relationship("affected_scope", scope, targets))
+        else:
+            hidden_relationship_count += 1
     for handoff in sorted(
         inspection.verification_handoffs, key=lambda item: item.handoff_id
     ):
-        targets = sorted(path for path in handoff.paths if path in visible_paths)
+        logical_targets = sorted(path for path in handoff.paths if path in all_paths)
+        if not logical_targets:
+            continue
+        targets = [path for path in logical_targets if path in visible_paths]
         if targets:
             relationships.append(
                 _relationship("verification_handoff", handoff.handoff_id, targets)
             )
-    omitted_relationship_count = max(0, len(relationships) - limits.max_relationships)
+        else:
+            hidden_relationship_count += 1
+    omitted_relationship_count = hidden_relationship_count + max(
+        0, len(relationships) - limits.max_relationships
+    )
     relationships = relationships[: limits.max_relationships]
 
     truncated = bool(

@@ -11,7 +11,13 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from kis_mcp.config import RuntimeConfig, load_runtime_config
-from kis_mcp.discover.change_inspection_contracts import InspectChangeRequest
+from kis_mcp.discover.change_inspection_contracts import (
+    ChangedFile,
+    ChangeIdentity,
+    ChangeImpactSummary,
+    InspectChangeRequest,
+    InspectChangeResponse,
+)
 from kis_mcp.discover.tools import register_change_tools
 from kis_mcp.server import build_server
 
@@ -42,6 +48,46 @@ class _Service:
         return _Response(request.source)
 
 
+class _ReviewMapService:
+    def inspect(self, request: InspectChangeRequest) -> InspectChangeResponse:
+        changed = ChangedFile(
+            path="src/pkg/a.py",
+            previous_path=None,
+            staged_status=None,
+            worktree_status="modified",
+            untracked=False,
+            categories=("source",),
+        )
+        return InspectChangeResponse(
+            available=True,
+            project_path=request.path,
+            repository_root=request.path,
+            change=ChangeIdentity(source=request.source, fingerprint="a" * 64),
+            changed_files=(changed,),
+            affected_scopes=("src",),
+            changed_tests=(),
+            contract_paths=(),
+            documentation_paths=(),
+            configuration_paths=(),
+            policy_paths=(),
+            impact_summary=ChangeImpactSummary(
+                total_files=1,
+                source_files=1,
+                test_files=0,
+                contract_files=0,
+                documentation_files=0,
+                configuration_files=0,
+                policy_files=0,
+                other_files=0,
+            ),
+            diagnostics=(),
+            unknowns=(),
+            confidence="high",
+            truncated=False,
+            source=request.source,
+        )
+
+
 def _local_tools(server: FastMCP) -> list[Any]:
     return list(asyncio.run(server.local_provider.list_tools()))
 
@@ -70,6 +116,88 @@ def test_register_change_tools_registers_exact_tool_and_preserves_default() -> N
     assert tool.annotations.destructive_hint is False
     assert tool.annotations.idempotent_hint is True
     assert tool.annotations.open_world_hint is False
+
+
+def test_build_review_map_public_success_contract_is_literal() -> None:
+    server = FastMCP("discover-review-map-success-test")
+    register_change_tools(server, _ReviewMapService())
+    tool = next(item for item in _local_tools(server) if item.name == "build_review_map")
+
+    result = asyncio.run(tool.run({"path": r"C:\Projects\fixture"}))
+    payload = result.structured_content
+
+    assert payload is not None
+    assert set(payload) == {
+        "schema_version",
+        "tool",
+        "authority",
+        "source",
+        "source_fingerprint",
+        "source_identity",
+        "sections",
+        "relationships",
+        "omitted_relationship_count",
+        "included_files",
+        "omitted_files",
+        "progress",
+        "truncated",
+        "incomplete",
+        "unknowns",
+        "diagnostics",
+        "gate_authority",
+    }
+    assert payload["tool"] == "build_review_map"
+    assert payload["source_fingerprint"] == "a" * 64
+    assert payload["included_files"] == ["src/pkg/a.py"]
+    assert payload["relationships"] == [
+        {"kind": "affected_scope", "source": "src", "targets": ["src/pkg/a.py"]}
+    ]
+    assert payload["gate_authority"] == {
+        "review": False,
+        "verification": False,
+        "merge_readiness": False,
+        "mutation": False,
+    }
+
+
+@pytest.mark.parametrize(
+    ("arguments", "reason"),
+    [
+        (
+            {
+                "path": r"C:\Projects\fixture",
+                "expected_source_fingerprint": "b" * 64,
+            },
+            "review map source fingerprint is stale",
+        ),
+        (
+            {"path": r"C:\Projects\fixture", "max_files": 0},
+            "max_files must be a positive integer",
+        ),
+    ],
+)
+def test_build_review_map_public_error_contract_is_structured(
+    arguments: dict[str, Any], reason: str
+) -> None:
+    server = FastMCP("discover-review-map-error-test")
+    register_change_tools(server, _ReviewMapService())
+    tool = next(item for item in _local_tools(server) if item.name == "build_review_map")
+
+    with pytest.raises(ToolError) as raised:
+        asyncio.run(tool.run(arguments))
+
+    payload = json.loads(str(raised.value))
+    assert payload == {
+        "code": "DISCOVER_REVIEW_MAP_REQUEST_INVALID",
+        "message": "The build_review_map request is invalid.",
+        "reason": reason,
+        "field": "request",
+        "corrective_actions": [
+            "Use the exact current source fingerprint when supplied.",
+            "Use a supported change source and positive bounded limits.",
+        ],
+        "retryable": False,
+    }
 
 
 @pytest.mark.parametrize(

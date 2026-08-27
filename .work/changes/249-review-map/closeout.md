@@ -18,8 +18,9 @@
 
 ## Review
 
-- Independent public-contract review: pending.
-- Findings/resolutions: pending review.
+- Independent public-contract review: clean after remediation.
+- Resolved finding 1: relationship omissions fully hidden by file/section bounds now contribute to `omitted_relationship_count`.
+- Resolved finding 2: registered `build_review_map` tool now has literal success-contract and structured error-contract regression coverage.
 
 ## Git and merge
 
