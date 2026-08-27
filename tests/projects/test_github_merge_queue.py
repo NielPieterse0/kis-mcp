@@ -4,6 +4,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from hashlib import sha1
 from pathlib import Path
+from threading import Barrier, Thread
 from types import SimpleNamespace
 
 import pytest
@@ -116,6 +117,63 @@ def coordinator(tmp_path: Path, *, build_concurrency: int = 3) -> tuple[MergeQue
 
 def enqueue(queue: MergeQueueCoordinator, pull: int, head: str) -> dict[str, object]:
     return queue.enqueue(project_id="kis-mcp", pull_number=pull, expected_head=head)
+
+
+def test_concurrent_enqueues_same_queue_preserve_both_accepted_entries(tmp_path: Path) -> None:
+    queue_one, backend = coordinator(tmp_path)
+    barrier = Barrier(2)
+    original_pull_request = backend.pull_request
+
+    def synchronized_pull_request(target: QueueTarget, pull_number: int) -> PullRequestSnapshot:
+        barrier.wait(timeout=5)
+        return original_pull_request(target, pull_number)
+
+    backend.pull_request = synchronized_pull_request  # type: ignore[method-assign]
+    queue_two = MergeQueueCoordinator(queue_one.settings, QueueStateStore(queue_one.settings.state_root), backend)
+    failures: list[Exception] = []
+
+    def run(queue: MergeQueueCoordinator, pull: int, head: str) -> None:
+        try:
+            enqueue(queue, pull, head)
+        except Exception as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    threads = [
+        Thread(target=run, args=(queue_one, 1, H1)),
+        Thread(target=run, args=(queue_two, 2, H2)),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert not failures
+    assert all(not thread.is_alive() for thread in threads)
+    state = queue_one.status(project_id="kis-mcp")["queue"]
+    assert sorted(entry["pull_number"] for entry in state["entries"]) == [1, 2]
+    assert [entry["position"] for entry in state["entries"]] == [1, 2]
+
+
+def test_mutation_locks_for_disjoint_queue_identities_do_not_block_each_other(tmp_path: Path) -> None:
+    store = QueueStateStore(tmp_path / "state")
+    barrier = Barrier(2)
+    failures: list[Exception] = []
+
+    def hold(project_id: str) -> None:
+        try:
+            with store.mutation_lock(project_id, "main"):
+                barrier.wait(timeout=5)
+        except Exception as exc:  # pragma: no cover - asserted below
+            failures.append(exc)
+
+    threads = [Thread(target=hold, args=("project-one",)), Thread(target=hold, args=("project-two",))]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert not failures
+    assert all(not thread.is_alive() for thread in threads)
 
 
 def test_enqueue_freezes_exact_head_and_rejects_stale_identity(tmp_path: Path) -> None:
