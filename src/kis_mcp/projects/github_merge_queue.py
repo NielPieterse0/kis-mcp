@@ -186,9 +186,10 @@ def load_merge_queue_settings(path: Path | None = None) -> MergeQueueSettings:
 
 
 def _queue_state_key(target_branch: str) -> str:
-    branch = target_branch.strip().casefold()
-    digest = hashlib.sha256(branch.encode("utf-8")).hexdigest()[:16]
-    readable = re.sub(r"[^a-z0-9]+", "-", branch).strip("-")[:48] or "branch"
+    raw_branch = target_branch.strip()
+    readable_branch = raw_branch.casefold()
+    digest = hashlib.sha256(raw_branch.encode("utf-8")).hexdigest()[:16]
+    readable = re.sub(r"[^a-z0-9]+", "-", readable_branch).strip("-")[:48] or "branch"
     return f"merge-queue-{readable}-{digest}"
 
 

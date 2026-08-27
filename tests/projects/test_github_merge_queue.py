@@ -20,6 +20,7 @@ from kis_mcp.projects.github_merge_queue import (
     QueueTarget,
     RegisteredGitHubMergeQueueBackend,
     RegisteredGitHubMergeQueueOperations,
+    _queue_state_key,
     load_merge_queue_settings,
 )
 from kis_mcp.projects.post_land import PostLandHooks
@@ -174,6 +175,10 @@ def test_mutation_locks_for_disjoint_queue_identities_do_not_block_each_other(tm
 
     assert not failures
     assert all(not thread.is_alive() for thread in threads)
+
+
+def test_queue_state_key_preserves_case_sensitive_git_branch_identity() -> None:
+    assert _queue_state_key("main") != _queue_state_key("Main")
 
 
 def test_canonical_store_reads_legacy_once_then_prefers_canonical_state(tmp_path: Path) -> None:
