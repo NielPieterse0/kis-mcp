@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import ntpath
+from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,6 +16,12 @@ from ..projects import (
     ProjectRegistry,
     RecoveryIdentity,
 )
+from ..state import (
+    StateNamespaceRequest,
+    StateNamespaceResolver,
+    StateOwnershipClass,
+    derive_worktree_source_id,
+)
 from .analyzers.contracts import AnalysisContext, AnalyzerOutput
 from .analyzers.dependencies import DependencyImportsAnalyzer
 from .contracts import GitSummary, ProjectDiagnostic, ProjectIdentity, Severity
@@ -26,8 +33,8 @@ from .python_index import (
     PythonImportRecord,
     PythonInheritanceEdge,
     PythonModuleRecord,
-    PythonProjectIndexResult,
     PythonProjectIndexer,
+    PythonProjectIndexResult,
     PythonSymbolRecord,
 )
 from .read_authority import ReadAuthority
@@ -36,6 +43,24 @@ from .semantic import NullSemanticProvider, SemanticEvidence, SemanticEvidencePr
 from .settings import DiscoverSettings
 
 _INDEX_VERSION = "discover-project-intelligence-v1"
+_DISCOVER_STATE_KEY = "discover-project-intelligence"
+
+
+def _canonical_discover_namespace(
+    project_id: str, source_root: str
+) -> tuple[Path, str]:
+    resolver = StateNamespaceResolver()
+    resolved = resolver.resolve(
+        StateNamespaceRequest(
+            ownership=StateOwnershipClass.RECONSTRUCTIBLE_CACHE,
+            state_key=_DISCOVER_STATE_KEY,
+            identities={
+                "project_id": project_id,
+                "source_id": derive_worktree_source_id(source_root),
+            },
+        )
+    )
+    return Path(resolver.state_root), resolved.relative_path.replace("\\", "/")
 
 
 def _canonical_json(value: Any) -> bytes:
@@ -586,11 +611,13 @@ class ProjectIntelligenceService:
         settings: DiscoverSettings,
         projects: ProjectRegistry | None = None,
         semantic_provider: SemanticEvidenceProvider | None = None,
+        namespace_resolver: Callable[[str, str], tuple[Path, str]] | None = None,
     ) -> None:
         self._boundary = boundary
         self._settings = settings
         self._projects = projects
         self._semantic_provider = semantic_provider or NullSemanticProvider()
+        self._namespace_resolver = namespace_resolver or _canonical_discover_namespace
 
     def get(self, project_path: str) -> ProjectIntelligenceRuntime:
         authority = ReadAuthority(self._boundary, self._settings)
@@ -627,17 +654,21 @@ class ProjectIntelligenceService:
         }
         applicability_fingerprint = _fingerprint(applicability)
         persistence_enabled = self._settings.memory.enabled and definition is not None
-        namespace = (
-            f"projects/{project.project_id}/{worktree_fingerprint[:24]}"
-            if persistence_enabled
-            else None
-        )
+        namespace = None
+        legacy_namespace = None
         current_generation = None
         recovered_pointer = None
         store = None
-        if namespace is not None:
+        migrated_legacy_generation = False
+        if persistence_enabled:
+            state_root, namespace = self._namespace_resolver(
+                project.project_id, project.canonical_path
+            )
+            legacy_namespace = (
+                f"projects/{project.project_id}/{worktree_fingerprint[:24]}"
+            )
             store = EvidenceStore(
-                Path(self._settings.memory.state_root),
+                state_root,
                 max_file_bytes=self._settings.memory.max_stored_bytes,
                 max_total_bytes=self._settings.memory.max_stored_bytes,
             )
@@ -650,6 +681,33 @@ class ProjectIntelligenceService:
                     raise
                 recovered_pointer = store.retain_corrupt_current_pointer(namespace)
                 current_generation = None
+
+            if current_generation is None:
+                legacy_store = EvidenceStore(
+                    Path(self._settings.memory.state_root),
+                    max_file_bytes=self._settings.memory.max_stored_bytes,
+                    max_total_bytes=self._settings.memory.max_stored_bytes,
+                )
+                try:
+                    legacy_generation = legacy_store.read_current_generation(
+                        legacy_namespace
+                    )
+                except (FileNotFoundError, EvidenceCorruptionError):
+                    legacy_generation = None
+                if (
+                    legacy_generation is not None
+                    and legacy_generation.metadata.get("applicability_fingerprint")
+                    == applicability_fingerprint
+                ):
+                    migrated = store.write_generation(
+                        namespace,
+                        metadata=legacy_generation.metadata,
+                        artifacts=legacy_generation.artifacts,
+                    )
+                    current_generation = store.read_generation(
+                        namespace, migrated.generation_id
+                    )
+                    migrated_legacy_generation = True
 
         if (
             current_generation is not None
@@ -701,6 +759,7 @@ class ProjectIntelligenceService:
                             "namespace": namespace,
                             "generation_id": current_generation.generation_id,
                             "applicability_fingerprint": applicability_fingerprint,
+                            "legacy_generation_migrated": migrated_legacy_generation,
                             "recovery_capsule": _publish_recovery_hint(
                                 definition=definition,
                                 project=project,
@@ -806,6 +865,7 @@ class ProjectIntelligenceService:
             "namespace": namespace,
             "generation_id": generation_id,
             "applicability_fingerprint": applicability_fingerprint,
+            "legacy_generation_migrated": migrated_legacy_generation,
             "recovery_capsule": _publish_recovery_hint(
                 definition=definition,
                 project=project,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import replace
 from pathlib import Path
 
@@ -10,6 +11,17 @@ from kis_mcp.evidence import EvidenceConflictError
 from kis_mcp.projects import ProjectDefinition, ProjectRegistry
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _namespace_resolver(state_root: Path):
+    def resolve(project_id: str, source_root: str) -> tuple[Path, str]:
+        digest = hashlib.sha256(source_root.casefold().encode("utf-8")).hexdigest()[:24]
+        return (
+            state_root,
+            f"projects/{project_id}/sources/test-{digest}/reconstructible/discover-project-intelligence",
+        )
+
+    return resolve
 
 
 def _service(tmp_path: Path, project: Path) -> ProjectIntelligenceService:
@@ -34,6 +46,7 @@ def _service(tmp_path: Path, project: Path) -> ProjectIntelligenceService:
         boundary=tmp_path,
         settings=settings,
         projects=registry,
+        namespace_resolver=_namespace_resolver(tmp_path / "central-state"),
     )
 
 
