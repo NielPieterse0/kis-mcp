@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 from kis_mcp.config import RuntimeConfig
 from kis_mcp.housekeeping.operations import FastMCPInvoker
+from kis_mcp.state import resolve_runtime_state_path
 
 from .provider import HousekeepingLifecycleProvider, normalized_runtime_instance
 from .service import HousekeepingApplyError, HousekeepingRuntimeService
@@ -49,13 +49,18 @@ def compose_housekeeping_runtime(
     settings: HousekeepingRuntimeSettings | None = None,
 ) -> HousekeepingRuntimeService:
     selected = settings or load_housekeeping_runtime_settings()
-    state_root = Path(runtime.state_root) / selected.state_namespace
+    current_instance = normalized_runtime_instance(environment)
+    state_root = resolve_runtime_state_path(
+        runtime.state_root,
+        runtime_instance_id=current_instance,
+        state_key=selected.state_namespace,
+    )
     store = HousekeepingStateStore(state_root, retention=selected.receipt_retention)
     service = HousekeepingRuntimeService(
         selected,
         store,
         invoker=FastMCPInvoker(server),
-        current_instance=normalized_runtime_instance(environment),
+        current_instance=current_instance,
     )
     server.add_provider(HousekeepingLifecycleProvider(service))
     register_housekeeping_tools(server, service)

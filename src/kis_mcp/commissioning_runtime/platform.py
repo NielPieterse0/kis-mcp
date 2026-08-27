@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
-
 from kis_mcp.commissioning.settings import (
     PostMergeCommissioningSettings,
     load_post_merge_commissioning_settings,
 )
 from kis_mcp.config import RuntimeConfig
 from kis_mcp.mcp2026 import LONG_RUNNING_TASK_CONFIG
+from kis_mcp.state import resolve_runtime_state_path
 
 from .invoker import CommissioningFastMCPInvoker
 from .processor import CommissioningCandidateProcessor
@@ -78,7 +77,12 @@ def compose_post_merge_commissioning_runtime(
     settings: PostMergeCommissioningSettings | None = None,
 ) -> CommissioningRuntimeService:
     selected = settings or load_post_merge_commissioning_settings()
-    state_root = Path(runtime.state_root) / selected.state_namespace
+    current_instance = normalized_runtime_instance(environment)
+    state_root = resolve_runtime_state_path(
+        runtime.state_root,
+        runtime_instance_id=current_instance,
+        state_key=selected.state_namespace,
+    )
     store = CommissioningStateStore(
         state_root,
         retention=selected.receipt_retention,
@@ -89,7 +93,7 @@ def compose_post_merge_commissioning_runtime(
         store,
         invoker=invoker,
         processor=CommissioningCandidateProcessor(selected),
-        current_instance=normalized_runtime_instance(environment),
+        current_instance=current_instance,
     )
     runner = CommissioningRunnerService(
         selected,

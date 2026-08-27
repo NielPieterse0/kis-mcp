@@ -9,7 +9,6 @@ from types import SimpleNamespace
 
 import pytest
 from fastmcp.exceptions import ToolError
-
 from kis_mcp.post_land_restart import (
     dispatch_kis_dev_post_land_restart,
     record_kis_dev_post_land_restart_failure,
@@ -123,7 +122,7 @@ def test_scheduler_receipt_replace_is_windows_powershell_compatible(tmp_path: Pa
     source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
     worker_script = scripts / source.name
     worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
     receipt.parent.mkdir(parents=True)
     receipt.write_text(json.dumps({"state": "launching", "landed_sha": SHA}), encoding="utf-8")
     previous_receipt = receipt.parent / "latest.json.previous"
@@ -158,7 +157,7 @@ def test_windows_powershell_detach_failure_does_not_claim_scheduled(tmp_path: Pa
     source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
     worker_script = scripts / source.name
     worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
     receipt.parent.mkdir(parents=True)
     existing = {"state": "launching", "landed_sha": SHA}
     receipt.write_text(json.dumps(existing), encoding="utf-8")
@@ -195,7 +194,7 @@ def test_stale_worker_cannot_overwrite_newer_receipt_generation(
     source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
     worker_script = scripts / source.name
     worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
     receipt.parent.mkdir(parents=True)
     newer = {
         "schema_version": 1,
@@ -250,7 +249,7 @@ def test_scheduler_normalizes_process_launch_failures(
             "kis-mcp", tmp_path, "main", SHA, state_root=state_root
         )
     receipt_path = (
-        state_root / "tunnel-client" / "runtime" / "development" /
+        state_root / "runtime" / "kis-dev" / "state" /
         "post-land-restart" / "latest.json"
     )
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -293,7 +292,7 @@ def test_scheduler_rejects_unverified_process_results(
             "kis-mcp", tmp_path, "main", SHA, state_root=state_root
         )
     receipt = json.loads(
-        (state_root / "tunnel-client" / "runtime" / "development" /
+        (state_root / "runtime" / "kis-dev" / "state" /
          "post-land-restart" / "latest.json").read_text(encoding="utf-8")
     )
     assert receipt["state"] == "failed"
@@ -323,7 +322,7 @@ def test_worker_settings_failure_replaces_scheduled_receipt(
     worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     if settings_text is not None:
         (settings / "kis-mcp.settings.json").write_text(settings_text, encoding="utf-8")
-    receipt = state_root / "tunnel-client" / "runtime" / "development" / "post-land-restart" / "latest.json"
+    receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
     receipt.parent.mkdir(parents=True)
     receipt.write_text(json.dumps({"state": "scheduled", "landed_sha": SHA}), encoding="utf-8")
 
@@ -436,7 +435,7 @@ def test_worker_behavior_invokes_only_kis_dev(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert target_log.read_text(encoding="utf-8") == "kis-dev"
     receipt = json.loads(
-        (state_root / "tunnel-client" / "runtime" / "development" /
+        (state_root / "runtime" / "kis-dev" / "state" /
          "post-land-restart" / "latest.json").read_text(encoding="utf-8")
     )
     assert receipt["state"] == "stopped"
@@ -467,7 +466,7 @@ def test_unexpected_hook_failure_recorder_retains_bounded_evidence(tmp_path: Pat
     )
 
     receipt_path = (
-        state_root / "tunnel-client" / "runtime" / "development" /
+        state_root / "runtime" / "kis-dev" / "state" /
         "post-land-restart" / "latest.json"
     )
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -534,7 +533,7 @@ def test_dispatcher_records_missing_landed_identity(tmp_path: Path) -> None:
         "kis-mcp", tmp_path, "main", None, state_root=state_root
     )
     receipt = json.loads(
-        (state_root / "tunnel-client" / "runtime" / "development" /
+        (state_root / "runtime" / "kis-dev" / "state" /
          "post-land-restart" / "latest.json").read_text(encoding="utf-8")
     )
     assert receipt["state"] == "failed"
@@ -554,7 +553,7 @@ def test_dispatcher_contains_scheduler_failure(
         "kis-mcp", tmp_path, "main", SHA, state_root=state_root
     )
     receipt = json.loads(
-        (state_root / "tunnel-client" / "runtime" / "development" /
+        (state_root / "runtime" / "kis-dev" / "state" /
          "post-land-restart" / "latest.json").read_text(encoding="utf-8")
     )
     assert receipt["state"] == "failed"
@@ -580,7 +579,7 @@ def test_dispatcher_preserves_specific_scheduler_failure_receipt(
         "kis-mcp", tmp_path, "main", SHA, state_root=state_root
     )
     receipt = json.loads(
-        (state_root / "tunnel-client" / "runtime" / "development" /
+        (state_root / "runtime" / "kis-dev" / "state" /
          "post-land-restart" / "latest.json").read_text(encoding="utf-8")
     )
     assert receipt["state"] == "failed"
@@ -589,3 +588,72 @@ def test_dispatcher_preserves_specific_scheduler_failure_receipt(
         "POST_LAND_RESTART_SCHEDULE_FAILED: specific scheduler stderr"
     )
     assert "POST_LAND_HOOK_UNEXPECTED" not in receipt["detail"]
+
+
+def test_legacy_restart_receipt_is_retained_but_not_current(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    legacy = (
+        state_root
+        / "tunnel-client"
+        / "runtime"
+        / "development"
+        / "post-land-restart"
+        / "latest.json"
+    )
+    legacy.parent.mkdir(parents=True)
+    legacy_payload = {"state": "legacy", "landed_sha": REMOTE_AFTER}
+    legacy.write_text(json.dumps(legacy_payload), encoding="utf-8")
+
+    record_kis_dev_post_land_restart_failure(state_root, SHA, "canonical failure")
+
+    assert json.loads(legacy.read_text(encoding="utf-8")) == legacy_payload
+    canonical = (
+        state_root
+        / "runtime"
+        / "kis-dev"
+        / "state"
+        / "post-land-restart"
+        / "latest.json"
+    )
+    evidence = json.loads(canonical.read_text(encoding="utf-8"))
+    assert evidence["landed_sha"] == SHA
+    assert evidence["detail"] == "canonical failure"
+
+
+def test_restart_receipt_ownership_is_fixed_to_kis_dev(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    state_root = tmp_path / "state"
+    monkeypatch.setenv("KIS_MCP_RUNTIME_INSTANCE", "kis-op")
+
+    record_kis_dev_post_land_restart_failure(state_root, SHA, "owned by kis-dev")
+
+    canonical = (
+        state_root
+        / "runtime"
+        / "kis-dev"
+        / "state"
+        / "post-land-restart"
+        / "latest.json"
+    )
+    assert canonical.exists()
+    assert not (state_root / "runtime" / "kis-op" / "state" / "post-land-restart").exists()
+
+
+def test_repeated_restart_failure_recording_replaces_current_evidence(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    record_kis_dev_post_land_restart_failure(state_root, SHA, "first failure")
+    record_kis_dev_post_land_restart_failure(state_root, REMOTE_AFTER, "second failure")
+
+    receipt = json.loads(
+        (
+            state_root
+            / "runtime"
+            / "kis-dev"
+            / "state"
+            / "post-land-restart"
+            / "latest.json"
+        ).read_text(encoding="utf-8")
+    )
+    assert receipt["landed_sha"] == REMOTE_AFTER
+    assert receipt["detail"] == "second failure"

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
+from types import SimpleNamespace
 
 from fastmcp import FastMCP
-
 from kis_mcp.capabilities.contracts import ExposureMode, OperationEffect
 from kis_mcp.commissioning_runtime.capability import (
     post_merge_commissioning_capability_contribution,
 )
-from kis_mcp.commissioning_runtime.platform import register_commissioning_tools
+from kis_mcp.commissioning_runtime.platform import (
+    compose_post_merge_commissioning_runtime,
+    register_commissioning_tools,
+)
 
 
 class FakeService:
@@ -74,3 +78,42 @@ def test_capability_surface_marks_runner_external_and_approval_required() -> Non
     assert operations["kis_post_merge_commissioning_execution"].effects == (OperationEffect.READ_ONLY,)
     assert operations["kis_post_merge_commissioning_run"].effects == (OperationEffect.EXTERNAL,)
     assert operations["kis_post_merge_commissioning_run"].approval_required is True
+
+
+def test_commissioning_state_isolated_by_runtime_identity(tmp_path: Path) -> None:
+    op = compose_post_merge_commissioning_runtime(
+        FastMCP("commissioning-op"),
+        SimpleNamespace(state_root=tmp_path),  # type: ignore[arg-type]
+        environment={"KIS_MCP_RUNTIME_INSTANCE": "kis-op"},
+    )
+    dev = compose_post_merge_commissioning_runtime(
+        FastMCP("commissioning-dev"),
+        SimpleNamespace(state_root=tmp_path),  # type: ignore[arg-type]
+        environment={"KIS_MCP_RUNTIME_INSTANCE": "kis-dev"},
+    )
+
+    assert op.store.root == (
+        tmp_path / "runtime" / "kis-op" / "state" / "post-merge-commissioning"
+    )
+    assert dev.store.root == (
+        tmp_path / "runtime" / "kis-dev" / "state" / "post-merge-commissioning"
+    )
+    assert op.store.root != dev.store.root
+
+
+def test_commissioning_legacy_root_is_not_reused(tmp_path: Path) -> None:
+    legacy = tmp_path / "post-merge-commissioning" / "legacy.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text('{"legacy":true}', encoding="utf-8")
+
+    service = compose_post_merge_commissioning_runtime(
+        FastMCP("commissioning-legacy"),
+        SimpleNamespace(state_root=tmp_path),  # type: ignore[arg-type]
+        environment={"KIS_MCP_RUNTIME_INSTANCE": "kis-op"},
+    )
+
+    assert legacy.exists()
+    assert service.store.root != legacy.parent
+    assert service.store.root == (
+        tmp_path / "runtime" / "kis-op" / "state" / "post-merge-commissioning"
+    )
