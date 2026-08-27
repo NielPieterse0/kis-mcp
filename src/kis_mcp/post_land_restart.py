@@ -13,19 +13,29 @@ from uuid import uuid4
 
 from fastmcp.exceptions import ToolError
 
+from kis_mcp.state import resolve_runtime_state_path
+
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _TARGET_PROJECT = "kis-mcp"
 _TARGET_BRANCH = "main"
+_TARGET_RUNTIME_INSTANCE = "kis-dev"
+_RECEIPT_STATE_KEY = "post-land-restart"
 _LOGGER = logging.getLogger(__name__)
+
+
+def _receipt_root(state_root: Path) -> Path:
+    return resolve_runtime_state_path(
+        state_root,
+        runtime_instance_id=_TARGET_RUNTIME_INSTANCE,
+        state_key=_RECEIPT_STATE_KEY,
+    )
 
 
 def _write_schedule_failure_receipt(
     state_root: Path, landed_sha: str, detail: str
 ) -> None:
     try:
-        receipt_root = (
-            Path(state_root) / "tunnel-client" / "runtime" / "development" / "post-land-restart"
-        )
+        receipt_root = _receipt_root(Path(state_root))
         receipt_root.mkdir(parents=True, exist_ok=True)
         receipt = receipt_root / "latest.json"
         temporary = receipt_root / f"latest.json.next-{uuid4().hex}"

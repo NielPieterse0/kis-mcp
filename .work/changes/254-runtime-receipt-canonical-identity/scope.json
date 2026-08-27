@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "254-runtime-receipt-canonical-identity",
+  "status": "active",
+  "branch": "change/254-runtime-receipt-canonical-identity",
+  "worktree": ".work/worktrees/254-runtime-receipt-canonical-identity",
+  "base": "main",
+  "outcome": "Namespace runtime receipts and checkpoints by canonical runtime identity",
+  "owned_paths": [
+    "src/kis_mcp/commissioning_runtime/**",
+    "src/kis_mcp/housekeeping_runtime/**",
+    "src/kis_mcp/post_land_restart.py",
+    "src/kis_mcp/state/__init__.py",
+    "src/kis_mcp/state/runtime.py",
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/post_merge_commissioning/**",
+    "tests/housekeeping_runtime/**",
+    "tests/projects/test_post_land_restart.py",
+    "tests/state/test_runtime_state.py",
+    ".work/changes/254-runtime-receipt-canonical-identity/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "migration",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "b00361804d97faf3744b2bbe4498b15b87327c1f",
+    "local_tree": "8610475e48e2f76be8c83b0eae33acce755057eb",
+    "upstream_sha": "b00361804d97faf3744b2bbe4498b15b87327c1f",
+    "upstream_tree": "8610475e48e2f76be8c83b0eae33acce755057eb",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-555",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 555,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

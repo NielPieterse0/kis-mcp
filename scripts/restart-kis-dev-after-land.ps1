@@ -15,7 +15,8 @@ if ($ExpectedLandedSha -cnotmatch '^[0-9a-f]{40}$') {
 
 $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
-$ReceiptRoot = Join-Path $StateRoot 'tunnel-client\runtime\development\post-land-restart'
+$StateRoot = [System.IO.Path]::GetFullPath($StateRoot)
+$ReceiptRoot = Join-Path $StateRoot 'runtime\kis-dev\state\post-land-restart'
 $ReceiptPath = Join-Path $ReceiptRoot 'latest.json'
 $ReceiptLockPath = Join-Path $ReceiptRoot 'latest.lock'
 
@@ -98,7 +99,7 @@ function Write-KisDevRestartFallbackReceipt {
     $Json = $Document | ConvertTo-Json -Depth 6
     $Targets = [System.Collections.Generic.List[string]]::new()
     try {
-        $Targets.Add((Join-Path $StateRoot 'tunnel-client\runtime\development\post-land-restart-fallback.json'))
+        $Targets.Add((Join-Path $ReceiptRoot 'fallback.json'))
     }
     catch { }
     $Targets.Add((Join-Path $RepositoryRoot '.temp\kis\post-land-restart-fallback.json'))

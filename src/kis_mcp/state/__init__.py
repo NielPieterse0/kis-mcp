@@ -14,6 +14,7 @@ from .ownership import (
     state_ownership_contract,
     validate_namespace_uniqueness,
 )
+from .runtime import resolve_runtime_state_path
 
 __all__ = [
     "APPROVED_PROJECT_BOUNDARY",
@@ -28,6 +29,7 @@ __all__ = [
     "StateOwnershipSpec",
     "derive_change_source_id",
     "derive_worktree_source_id",
+    "resolve_runtime_state_path",
     "state_ownership_contract",
     "validate_namespace_uniqueness",
 ]

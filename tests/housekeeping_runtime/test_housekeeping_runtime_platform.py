@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
+from types import SimpleNamespace
 
 from fastmcp import FastMCP
-
-from kis_mcp.housekeeping_runtime.platform import register_housekeeping_tools
+from kis_mcp.housekeeping_runtime.platform import (
+    compose_housekeeping_runtime,
+    register_housekeeping_tools,
+)
 
 
 class FakeService:
@@ -50,3 +54,36 @@ def test_housekeeping_status_and_apply_tools_are_registered() -> None:
     )
     assert applied.structured_content["complete"] is True
     assert applied.structured_content["idempotency_key"] == "housekeeping:test:key"
+
+
+def test_housekeeping_state_isolated_by_runtime_identity(tmp_path: Path) -> None:
+    op = compose_housekeeping_runtime(
+        FastMCP("housekeeping-op"),
+        SimpleNamespace(state_root=tmp_path),  # type: ignore[arg-type]
+        environment={"KIS_MCP_RUNTIME_INSTANCE": "kis-op"},
+    )
+    dev = compose_housekeeping_runtime(
+        FastMCP("housekeeping-dev"),
+        SimpleNamespace(state_root=tmp_path),  # type: ignore[arg-type]
+        environment={"KIS_MCP_RUNTIME_INSTANCE": "kis-dev"},
+    )
+
+    assert op.store.root == tmp_path / "runtime" / "kis-op" / "state" / "housekeeping"
+    assert dev.store.root == tmp_path / "runtime" / "kis-dev" / "state" / "housekeeping"
+    assert op.store.root != dev.store.root
+
+
+def test_housekeeping_legacy_root_is_not_reused(tmp_path: Path) -> None:
+    legacy = tmp_path / "housekeeping" / "legacy.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text('{"legacy":true}', encoding="utf-8")
+
+    service = compose_housekeeping_runtime(
+        FastMCP("housekeeping-legacy"),
+        SimpleNamespace(state_root=tmp_path),  # type: ignore[arg-type]
+        environment={"KIS_MCP_RUNTIME_INSTANCE": "kis-op"},
+    )
+
+    assert legacy.exists()
+    assert service.store.root != legacy.parent
+    assert service.store.root == tmp_path / "runtime" / "kis-op" / "state" / "housekeeping"
