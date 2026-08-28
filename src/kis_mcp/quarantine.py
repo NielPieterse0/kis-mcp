@@ -7,8 +7,9 @@ import os
 import re
 import secrets
 import shutil
+import threading
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,8 +17,8 @@ from typing import Any
 
 from .quarantine_integrity import payload_sha256, sign_metadata, verify_metadata
 
-
 QUARANTINE_SCHEMA_VERSION = 2
+_QUARANTINE_INTENT_SCHEMA_VERSION = 1
 _INTEGRITY_KEY_NAME = ".metadata-integrity.key"
 _INTEGRITY_KEY_BYTES = 32
 _METADATA_FIELDS = frozenset(
@@ -31,6 +32,19 @@ _METADATA_FIELDS = frozenset(
         "payload_digest",
         "quarantined_at",
         "restored_at",
+        "integrity_digest",
+    }
+)
+_INTENT_FIELDS = frozenset(
+    {
+        "schema_version",
+        "operation_id",
+        "original_path",
+        "original_relative_path",
+        "payload_path",
+        "item_type",
+        "payload_digest",
+        "quarantined_at",
         "integrity_digest",
     }
 )
@@ -52,6 +66,19 @@ class QuarantineRecord:
     integrity_digest: str
 
 
+@dataclass(frozen=True, slots=True)
+class QuarantineIntent:
+    schema_version: int
+    operation_id: str
+    original_path: str
+    original_relative_path: str
+    payload_path: str
+    item_type: str
+    payload_digest: str
+    quarantined_at: str
+    integrity_digest: str
+
+
 class QuarantineError(RuntimeError):
     pass
 
@@ -62,39 +89,109 @@ class QuarantineService:
         self.quarantine_root = Path(quarantine_root).absolute()
         self._require_entry_within_boundary(self.quarantine_root)
         self._integrity_key_path = self.quarantine_root / _INTEGRITY_KEY_NAME
+        self._mutation_lock = threading.RLock()
 
-    def quarantine(self, path: str) -> QuarantineRecord:
-        source = self._prepare_source(path)
-        return self._quarantine_source(source)
+    def allocate_operation_id(self) -> str:
+        return self._new_operation_id()
+
+    def quarantine(
+        self,
+        path: str,
+        *,
+        expected_identity: tuple[int, int, int] | None = None,
+        post_move_validator: Callable[[], None] | None = None,
+        operation_id: str | None = None,
+    ) -> QuarantineRecord:
+        with self._mutation_lock:
+            source = self._prepare_source(path)
+            if expected_identity is not None and self._entry_identity(source) != expected_identity:
+                raise QuarantineError("Quarantine source changed after validation")
+            return self._quarantine_source(
+                source,
+                expected_identity=expected_identity,
+                post_move_validator=post_move_validator,
+                operation_id=operation_id,
+            )
 
     def quarantine_many(self, paths: Sequence[str]) -> list[QuarantineRecord]:
-        sources = [self._prepare_source(path) for path in paths]
-        self._validate_batch_sources(sources)
+        with self._mutation_lock:
+            sources = [self._prepare_source(path) for path in paths]
+            self._validate_batch_sources(sources)
 
-        completed: list[QuarantineRecord] = []
-        try:
-            for source in sources:
-                completed.append(self._quarantine_source(source))
-            return completed
-        except QuarantineError as exc:
-            residual_ids: list[str] = []
-            rollback_errors: list[str] = []
-            for record in reversed(completed):
-                try:
-                    self._rollback_record(record)
-                except QuarantineError as rollback_exc:
-                    residual_ids.append(record.operation_id)
-                    rollback_errors.append(str(rollback_exc))
+            completed: list[QuarantineRecord] = []
+            try:
+                for source in sources:
+                    completed.append(self._quarantine_source(source))
+                return completed
+            except QuarantineError as exc:
+                residual_ids: list[str] = []
+                rollback_errors: list[str] = []
+                for record in reversed(completed):
+                    try:
+                        self._rollback_record(record)
+                    except QuarantineError as rollback_exc:
+                        residual_ids.append(record.operation_id)
+                        rollback_errors.append(str(rollback_exc))
 
-            if residual_ids:
-                residual = ", ".join(residual_ids)
-                detail = "; ".join(rollback_errors)
-                raise QuarantineError(
-                    "Unable to quarantine batch: "
-                    f"{exc}; rollback incomplete; residual operation IDs: {residual}. "
-                    f"Recovery details: {detail}"
-                ) from exc
-            raise QuarantineError(f"Unable to quarantine batch: {exc}") from exc
+                if residual_ids:
+                    residual = ", ".join(residual_ids)
+                    detail = "; ".join(rollback_errors)
+                    raise QuarantineError(
+                        "Unable to quarantine batch: "
+                        f"{exc}; rollback incomplete; residual operation IDs: {residual}. "
+                        f"Recovery details: {detail}"
+                    ) from exc
+                raise QuarantineError(f"Unable to quarantine batch: {exc}") from exc
+
+    def get_active_record(self, operation_id: str) -> QuarantineRecord | None:
+        self._validate_operation_id(operation_id)
+        operation_root = self.quarantine_root / operation_id
+        if not operation_root.is_dir() or operation_root.is_symlink():
+            return None
+        metadata_path = operation_root / "metadata.json"
+        if metadata_path.is_file():
+            record = self._read_metadata(metadata_path)
+            self._validate_record(record, operation_root)
+        else:
+            record = self._recover_interrupted_operation(operation_root)
+            if record is None:
+                return None
+        return record if record.restored_at is None else None
+
+    def find_active_record_by_original_path(
+        self,
+        original_path: str,
+        *,
+        scan_limit: int = 5000,
+    ) -> QuarantineRecord | None:
+        if scan_limit < 1 or scan_limit > 10000:
+            raise ValueError("scan_limit must be between 1 and 10000")
+        if not self.quarantine_root.exists():
+            return None
+        expected = os.path.normcase(os.path.abspath(original_path))
+        scanned = 0
+        matches: list[QuarantineRecord] = []
+        for operation_root in self.quarantine_root.iterdir():
+            if _OPERATION_ID_PATTERN.fullmatch(operation_root.name) is None:
+                continue
+            scanned += 1
+            if scanned > scan_limit:
+                raise QuarantineError("Quarantine history lookup incomplete")
+            metadata_path = operation_root / "metadata.json"
+            if not operation_root.is_dir() or operation_root.is_symlink():
+                continue
+            if metadata_path.is_file():
+                record = self._read_metadata(metadata_path)
+                self._validate_record(record, operation_root)
+            else:
+                record = self._recover_interrupted_operation(operation_root)
+                if record is None:
+                    continue
+            if record.restored_at is None and os.path.normcase(os.path.abspath(record.original_path)) == expected:
+                matches.append(record)
+        if not matches:
+            return None
+        return max(matches, key=lambda record: (record.quarantined_at, record.operation_id))
 
     def list_records(self, *, limit: int = 50) -> list[QuarantineRecord]:
         if limit < 1 or limit > 500:
@@ -118,12 +215,15 @@ class QuarantineService:
             if not operation_root.is_dir() or operation_root.is_symlink():
                 invalid.append(operation_root.name)
                 continue
-            if not metadata_path.is_file():
-                invalid.append(operation_root.name)
-                continue
             try:
-                record = self._read_metadata(metadata_path)
-                self._validate_record(record, operation_root)
+                if metadata_path.is_file():
+                    record = self._read_metadata(metadata_path)
+                    self._validate_record(record, operation_root)
+                else:
+                    record = self._recover_interrupted_operation(operation_root)
+                    if record is None:
+                        invalid.append(operation_root.name)
+                        continue
                 records.append(record)
             except (OSError, ValueError, json.JSONDecodeError, QuarantineError):
                 invalid.append(operation_root.name)
@@ -176,7 +276,7 @@ class QuarantineService:
                 try:
                     payload.parent.mkdir(parents=True, exist_ok=True)
                     shutil.move(str(original), str(payload))
-                except Exception as rollback_exc:
+                except Exception as rollback_exc:  # noqa: BLE001 - rollback must preserve arbitrary failure context
                     rollback_error = rollback_exc
             if rollback_error is not None:
                 raise QuarantineError(
@@ -187,27 +287,60 @@ class QuarantineService:
                 f"Unable to restore quarantine operation {operation_id}: {exc}"
             ) from exc
 
-    def _quarantine_source(self, source: Path) -> QuarantineRecord:
+    def _quarantine_source(
+        self,
+        source: Path,
+        *,
+        expected_identity: tuple[int, int, int] | None = None,
+        post_move_validator: Callable[[], None] | None = None,
+        operation_id: str | None = None,
+    ) -> QuarantineRecord:
+        if expected_identity is not None and self._entry_identity(source) != expected_identity:
+            raise QuarantineError("Quarantine source changed after validation")
         self._load_integrity_key(create=True)
-        operation_id = self._new_operation_id()
+        operation_id = operation_id or self._new_operation_id()
+        self._validate_operation_id(operation_id)
         operation_root = self.quarantine_root / operation_id
         payload_root = operation_root / "payload"
         payload_path = payload_root / source.name
         metadata_path = operation_root / "metadata.json"
+        intent_path = operation_root / "intent.json"
 
+        if operation_root.exists():
+            self._prepare_pre_move_replay(operation_root, source)
         payload_root.mkdir(parents=True, exist_ok=False)
-        rollback_error: Exception | None = None
-        try:
-            shutil.move(str(source), str(payload_path))
-            unsigned = QuarantineRecord(
-                schema_version=QUARANTINE_SCHEMA_VERSION,
+        intent = self._sign_intent(
+            QuarantineIntent(
+                schema_version=_QUARANTINE_INTENT_SCHEMA_VERSION,
                 operation_id=operation_id,
                 original_path=str(source),
                 original_relative_path=self._canonical_original_relative(source),
                 payload_path=str(payload_path),
-                item_type=self._item_type(payload_path),
-                payload_digest=payload_sha256(payload_path),
+                item_type=self._item_type(source),
+                payload_digest=payload_sha256(source),
                 quarantined_at=datetime.now(UTC).isoformat(),
+                integrity_digest="",
+            )
+        )
+        self._write_intent(intent_path, intent)
+        rollback_error: Exception | None = None
+        try:
+            shutil.move(str(source), str(payload_path))
+            if expected_identity is not None and self._entry_identity(payload_path) != expected_identity:
+                raise QuarantineError("Quarantine source changed during mutation")
+            if payload_sha256(payload_path) != intent.payload_digest:
+                raise QuarantineError("Quarantine source content changed during mutation")
+            if post_move_validator is not None:
+                post_move_validator()
+            unsigned = QuarantineRecord(
+                schema_version=QUARANTINE_SCHEMA_VERSION,
+                operation_id=operation_id,
+                original_path=intent.original_path,
+                original_relative_path=intent.original_relative_path,
+                payload_path=intent.payload_path,
+                item_type=intent.item_type,
+                payload_digest=intent.payload_digest,
+                quarantined_at=intent.quarantined_at,
                 restored_at=None,
                 integrity_digest="",
             )
@@ -215,16 +348,39 @@ class QuarantineService:
             self._write_metadata(metadata_path, record)
             return record
         except Exception as exc:
-            if self._entry_exists(payload_path) and not self._entry_exists(source):
-                try:
-                    source.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(payload_path), str(source))
-                except Exception as rollback_exc:
-                    rollback_error = rollback_exc
+            if self._entry_exists(payload_path):
+                if not self._entry_exists(source):
+                    try:
+                        source.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(payload_path), str(source))
+                        if expected_identity is not None and self._entry_identity(source) != expected_identity:
+                            raise QuarantineError("Quarantine rollback restored a different source identity")
+                    except Exception as rollback_exc:  # noqa: BLE001 - rollback must preserve arbitrary failure context
+                        rollback_error = rollback_exc
+                else:
+                    try:
+                        unsigned = QuarantineRecord(
+                            schema_version=QUARANTINE_SCHEMA_VERSION,
+                            operation_id=operation_id,
+                            original_path=str(source),
+                            original_relative_path=self._canonical_original_relative(source),
+                            payload_path=str(payload_path),
+                            item_type=self._item_type(payload_path),
+                            payload_digest=payload_sha256(payload_path),
+                            quarantined_at=datetime.now(UTC).isoformat(),
+                            restored_at=None,
+                            integrity_digest="",
+                        )
+                        self._write_metadata(metadata_path, self._sign_record(unsigned))
+                        rollback_error = QuarantineError(
+                            "Rollback source became occupied; payload preserved in recoverable quarantine"
+                        )
+                    except Exception as preserve_exc:  # noqa: BLE001 - preserve arbitrary recovery failure context
+                        rollback_error = preserve_exc
             if rollback_error is None:
                 try:
                     self._remove_operation_residue(operation_root)
-                except Exception as cleanup_exc:
+                except Exception as cleanup_exc:  # noqa: BLE001 - cleanup must preserve arbitrary failure context
                     rollback_error = cleanup_exc
             if rollback_error is not None:
                 raise QuarantineError(
@@ -282,10 +438,30 @@ class QuarantineService:
                 f"Unable to roll back quarantine operation {record.operation_id}: {exc}"
             ) from exc
 
+    def _prepare_pre_move_replay(self, operation_root: Path, source: Path) -> None:
+        metadata_path = operation_root / "metadata.json"
+        if metadata_path.exists():
+            raise QuarantineError("Reserved quarantine operation is already committed")
+        intent_path = operation_root / "intent.json"
+        if intent_path.exists():
+            intent = self._read_intent(intent_path)
+            self._validate_intent(intent, operation_root)
+            if not self._same_path(Path(intent.original_path), source):
+                raise QuarantineError("Reserved quarantine intent targets a different source")
+            if self._entry_exists(Path(intent.payload_path)):
+                raise QuarantineError("Reserved quarantine operation has moved payload residue")
+        self._remove_operation_residue(operation_root)
+
     def _remove_operation_residue(self, operation_root: Path) -> None:
         metadata_path = operation_root / "metadata.json"
-        temp_path = metadata_path.with_suffix(".json.tmp")
-        for path in (temp_path, metadata_path):
+        intent_path = operation_root / "intent.json"
+        paths = (
+            metadata_path.with_suffix(".json.tmp"),
+            metadata_path,
+            intent_path.with_suffix(".json.tmp"),
+            intent_path,
+        )
+        for path in paths:
             if path.exists():
                 path.unlink()
 
@@ -294,6 +470,35 @@ class QuarantineService:
             payload_root.rmdir()
         if operation_root.exists():
             operation_root.rmdir()
+
+    def _recover_interrupted_operation(self, operation_root: Path) -> QuarantineRecord | None:
+        intent_path = operation_root / "intent.json"
+        if not intent_path.is_file():
+            return None
+        intent = self._read_intent(intent_path)
+        self._validate_intent(intent, operation_root)
+        payload = Path(intent.payload_path).absolute()
+        if not self._entry_exists(payload):
+            return None
+        if not hmac.compare_digest(payload_sha256(payload), intent.payload_digest):
+            raise QuarantineError("Interrupted quarantine payload integrity check failed")
+        record = self._sign_record(
+            QuarantineRecord(
+                schema_version=QUARANTINE_SCHEMA_VERSION,
+                operation_id=intent.operation_id,
+                original_path=intent.original_path,
+                original_relative_path=intent.original_relative_path,
+                payload_path=intent.payload_path,
+                item_type=intent.item_type,
+                payload_digest=intent.payload_digest,
+                quarantined_at=intent.quarantined_at,
+                restored_at=None,
+                integrity_digest="",
+            )
+        )
+        self._write_metadata(operation_root / "metadata.json", record)
+        intent_path.unlink(missing_ok=True)
+        return record
 
     def _validate_record(self, record: QuarantineRecord, operation_root: Path) -> None:
         if record.schema_version != QUARANTINE_SCHEMA_VERSION:
@@ -333,10 +538,38 @@ class QuarantineService:
         if not verify_metadata(key, self._record_fields(record), record.integrity_digest):
             raise QuarantineError("Quarantine metadata integrity check failed")
 
+    def _validate_intent(self, intent: QuarantineIntent, operation_root: Path) -> None:
+        if intent.schema_version != _QUARANTINE_INTENT_SCHEMA_VERSION:
+            raise QuarantineError("Quarantine intent schema is unsupported or unsigned")
+        self._validate_operation_id(intent.operation_id)
+        if intent.operation_id != operation_root.name:
+            raise QuarantineError("Quarantine intent operation ID does not match its directory")
+        original = Path(intent.original_path).absolute()
+        payload = Path(intent.payload_path).absolute()
+        self._require_entry_within_boundary(original)
+        self._require_entry_within_boundary(payload)
+        if intent.original_relative_path != self._canonical_original_relative(original):
+            raise QuarantineError("Quarantine intent original path is not canonical")
+        if not self._same_path(payload, operation_root / "payload" / original.name):
+            raise QuarantineError("Quarantine intent payload path is outside its operation")
+        if intent.item_type not in {"file", "directory", "symlink"}:
+            raise QuarantineError("Quarantine intent item_type is invalid")
+        if _HEX_SHA256.fullmatch(intent.payload_digest) is None:
+            raise QuarantineError("Quarantine intent payload digest is invalid")
+        self._validate_timestamp(intent.quarantined_at, "quarantined_at")
+        key = self._load_integrity_key(create=False)
+        if not verify_metadata(key, self._intent_fields(intent), intent.integrity_digest):
+            raise QuarantineError("Quarantine intent integrity check failed")
+
     def _sign_record(self, record: QuarantineRecord) -> QuarantineRecord:
         key = self._load_integrity_key(create=False)
         digest = sign_metadata(key, self._record_fields(record))
         return replace(record, integrity_digest=digest)
+
+    def _sign_intent(self, intent: QuarantineIntent) -> QuarantineIntent:
+        key = self._load_integrity_key(create=False)
+        digest = sign_metadata(key, self._intent_fields(intent))
+        return replace(intent, integrity_digest=digest)
 
     @staticmethod
     def _record_fields(record: QuarantineRecord) -> dict[str, object]:
@@ -350,6 +583,19 @@ class QuarantineService:
             "payload_digest": record.payload_digest,
             "quarantined_at": record.quarantined_at,
             "restored_at": record.restored_at,
+        }
+
+    @staticmethod
+    def _intent_fields(intent: QuarantineIntent) -> dict[str, object]:
+        return {
+            "schema_version": intent.schema_version,
+            "operation_id": intent.operation_id,
+            "original_path": intent.original_path,
+            "original_relative_path": intent.original_relative_path,
+            "payload_path": intent.payload_path,
+            "item_type": intent.item_type,
+            "payload_digest": intent.payload_digest,
+            "quarantined_at": intent.quarantined_at,
         }
 
     def _load_integrity_key(self, *, create: bool) -> bytes:
@@ -431,6 +677,11 @@ class QuarantineService:
         )
 
     @staticmethod
+    def _entry_identity(path: Path) -> tuple[int, int, int]:
+        stat = path.stat(follow_symlinks=False)
+        return (stat.st_dev, stat.st_ino, stat.st_mode)
+
+    @staticmethod
     def _entry_exists(path: Path) -> bool:
         return path.exists() or path.is_symlink()
 
@@ -465,12 +716,35 @@ class QuarantineService:
 
     @staticmethod
     def _write_metadata(path: Path, record: QuarantineRecord) -> None:
+        QuarantineService._write_durable_json(path, asdict(record))
+
+    @staticmethod
+    def _write_intent(path: Path, intent: QuarantineIntent) -> None:
+        QuarantineService._write_durable_json(path, asdict(intent))
+
+    @staticmethod
+    def _write_durable_json(path: Path, payload: Mapping[str, object]) -> None:
         temp_path = path.with_suffix(".json.tmp")
-        temp_path.write_text(
-            json.dumps(asdict(record), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        temp_path.replace(path)
+        with temp_path.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(dict(payload), indent=2, sort_keys=True) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        QuarantineService._replace_write_through(temp_path, path)
+
+    @staticmethod
+    def _replace_write_through(source: Path, destination: Path) -> None:
+        if os.name != "nt":
+            os.replace(source, destination)
+            return
+        import ctypes
+
+        move_file_ex = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+        move_file_ex.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32)
+        move_file_ex.restype = ctypes.c_int
+        flags = 0x1 | 0x8  # MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH
+        if not move_file_ex(str(source), str(destination), flags):
+            error = ctypes.get_last_error()
+            raise OSError(error, "write-through file replacement failed", str(destination))
 
     @staticmethod
     def _read_metadata(path: Path) -> QuarantineRecord:
@@ -511,5 +785,31 @@ class QuarantineService:
             payload_digest=raw["payload_digest"],
             quarantined_at=raw["quarantined_at"],
             restored_at=raw["restored_at"],
+            integrity_digest=raw["integrity_digest"],
+        )
+
+
+    @staticmethod
+    def _read_intent(path: Path) -> QuarantineIntent:
+        try:
+            raw: Any = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise QuarantineError(f"Quarantine intent is unreadable: {path}: {exc}") from exc
+        if not isinstance(raw, dict) or set(raw) != _INTENT_FIELDS:
+            raise QuarantineError("Quarantine intent fields are invalid or unsigned")
+        if type(raw["schema_version"]) is not int:
+            raise QuarantineError("Quarantine intent schema_version is invalid")
+        for field in _INTENT_FIELDS - {"schema_version"}:
+            if type(raw[field]) is not str:
+                raise QuarantineError(f"Quarantine intent {field} is invalid")
+        return QuarantineIntent(
+            schema_version=raw["schema_version"],
+            operation_id=raw["operation_id"],
+            original_path=raw["original_path"],
+            original_relative_path=raw["original_relative_path"],
+            payload_path=raw["payload_path"],
+            item_type=raw["item_type"],
+            payload_digest=raw["payload_digest"],
+            quarantined_at=raw["quarantined_at"],
             integrity_digest=raw["integrity_digest"],
         )
