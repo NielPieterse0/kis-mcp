@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "258-defender-safe-agnix",
+  "status": "active",
+  "branch": "change/258-defender-safe-agnix",
+  "worktree": ".work/worktrees/258-defender-safe-agnix",
+  "base": "main",
+  "outcome": "Restore live agnix validation under Defender/Smart App Control using authoritative reacquisition and a KIS-owned runtime, with explicit launch-block classification and live evidence.",
+  "owned_paths": [
+    "settings/bootstrap/agnix.install.json",
+    "scripts/install-agnix.ps1",
+    "src/kis_mcp/workflows/agent_validation/**",
+    "tests/workflows/agent_validation/**",
+    "tests/bootstrap/test_agnix_install.py",
+    "SPEC.md",
+    "docs/operations/setup.md",
+    "docs/development/bootstrap/agnix.md",
+    ".work/changes/258-defender-safe-agnix/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "325b491e621b181b2b3979e5b70d48c9c4bcae10",
+    "local_tree": "5782e0676e70a14bb93301f106728a14a146412a",
+    "upstream_sha": "325b491e621b181b2b3979e5b70d48c9c4bcae10",
+    "upstream_tree": "5782e0676e70a14bb93301f106728a14a146412a",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-530",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 530,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

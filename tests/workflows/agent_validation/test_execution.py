@@ -10,6 +10,8 @@ import pytest
 from kis_mcp.workflows.agent_validation.execution import (
     AgentValidationError,
     AgentValidationService,
+    _ps_quote,
+    _wsl_path,
 )
 from kis_mcp.workflows.agent_validation.settings import AgnixValidationSettings
 
@@ -17,8 +19,10 @@ from kis_mcp.workflows.agent_validation.settings import AgnixValidationSettings
 def _settings(binary: Path) -> AgnixValidationSettings:
     return AgnixValidationSettings(
         version="0.45.0",
-        install_root=binary.parents[3],
-        binary_relative_path=str(binary.relative_to(binary.parents[3])),
+        install_root=binary.parents[1],
+        binary_relative_path=str(binary.relative_to(binary.parents[1])),
+        runtime_kind="wsl",
+        wsl_distribution="Ubuntu",
         timeout_ms=5000,
         default_max_files=100,
         max_files=1000,
@@ -28,10 +32,16 @@ def _settings(binary: Path) -> AgnixValidationSettings:
     )
 
 
+def test_windows_paths_and_power_shell_quotes_are_preserved_for_wsl() -> None:
+    assert _wsl_path(Path(r"D:\Tool User\agnix")) == "/mnt/d/Tool User/agnix"
+    assert _wsl_path(Path(r"C:\Projects\O'Brien\repo")) == "/mnt/c/Projects/O'Brien/repo"
+    assert _ps_quote("O'Brien") == "'O''Brien'"
+
+
 def test_validation_builds_only_fixed_read_only_agnix_command(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    binary = tmp_path / "install" / "node_modules" / "agnix" / "bin" / "agnix-binary.exe"
+    binary = tmp_path / "install" / "bin" / "agnix"
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"x")
     calls: list[tuple[str, dict[str, Any]]] = []
@@ -57,6 +67,10 @@ def test_validation_builds_only_fixed_read_only_agnix_command(tmp_path: Path) ->
     assert result.files_checked == 1
     command = calls[0][1]["command"]
     assert calls[0][0] == "start_process"
+    assert "wsl.exe" in command
+    assert "--distribution' 'Ubuntu" in command
+    assert "--exec" in command
+    assert "/mnt/c/" in command.lower()
     assert "--format' 'json" in command
     assert "--target' 'codex" in command
     assert "--max-files' '50" in command
@@ -69,7 +83,7 @@ def test_validation_builds_only_fixed_read_only_agnix_command(tmp_path: Path) ->
 def test_findings_are_bounded_without_changing_summary(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    binary = tmp_path / "install" / "node_modules" / "agnix" / "bin" / "agnix-binary.exe"
+    binary = tmp_path / "install" / "bin" / "agnix"
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"x")
     payload = json.dumps(
@@ -97,7 +111,7 @@ def test_findings_are_bounded_without_changing_summary(tmp_path: Path) -> None:
 def test_invalid_request_fails_before_process_execution(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    binary = tmp_path / "install" / "node_modules" / "agnix" / "bin" / "agnix-binary.exe"
+    binary = tmp_path / "install" / "bin" / "agnix"
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"x")
 
@@ -114,7 +128,7 @@ def test_invalid_request_fails_before_process_execution(tmp_path: Path) -> None:
 def test_plain_text_agnix_file_limit_is_classified_explicitly(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    binary = tmp_path / "install" / "node_modules" / "agnix" / "bin" / "agnix-binary.exe"
+    binary = tmp_path / "install" / "bin" / "agnix"
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"x")
 
@@ -131,3 +145,24 @@ def test_plain_text_agnix_file_limit_is_classified_explicitly(tmp_path: Path) ->
     assert captured.value.code == "AGNIX_FILE_LIMIT_EXCEEDED"
     assert "51 files" in captured.value.reason
     assert "limit 50" in captured.value.reason
+
+
+def test_application_control_launch_failure_is_classified_explicitly(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    binary = tmp_path / "install" / "bin" / "agnix"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"x")
+
+    async def runner(_name: str, _arguments: dict[str, Any]) -> Any:
+        return {
+            "text": "Program 'agnix-binary.exe' failed to run: "
+            "An Application Control policy has blocked this file"
+        }
+
+    service = AgentValidationService(boundary=tmp_path, settings=_settings(binary), runner=runner)
+    with pytest.raises(AgentValidationError) as captured:
+        asyncio.run(service.validate(project=str(project)))
+
+    assert captured.value.code == "AGNIX_APPLICATION_CONTROL_BLOCKED"
+    assert "Application Control" in captured.value.reason

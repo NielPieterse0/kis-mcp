@@ -1,34 +1,28 @@
-# agnix Bootstrap
+# agnix Bootstrap Evidence
 
-## Installed boundary
+## Defender-safe runtime decision
 
-agnix `0.45.0` is installed independently at the operator-approved ignored repo-local compatibility path:
+Windows Smart App Control blocked the upstream Windows `agnix-binary.exe` even after authoritative npm/GitHub acquisition and relocation. The previously pinned 0.45.0 PE was Authenticode `NotSigned`; a fresh 0.52.1 probe was also `NotSigned` and was blocked at launch. This proved that Node was only the parent process and that moving the same Windows binary was not remediation.
 
-```text
-C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0
-```
-
-The verified wrapper and native commands are:
+The current bounded solution keeps agnix `0.45.0` but changes the execution artifact and runtime boundary:
 
 ```text
-C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0\node_modules\.bin\agnix.cmd
-C:\Projects\kis-mcp\.temp\tools\agnix\0.45.0\node_modules\agnix\bin\agnix-binary.exe
+authoritative agent-sh/agnix release
+    -> agnix-x86_64-unknown-linux-gnu.tar.gz
+    -> published SHA-256 sidecar verification
+    -> staged WSL2/Ubuntu smoke test
+    -> C:\Projects\.kis-mcp\tools\agnix\0.45.0
+    -> validate_agent_configuration via wsl.exe
 ```
 
-The same native executable was blocked by Windows Application Control from the prior `C:\Projects\.kis-mcp\tools\agnix\0.45.0` location and was live-smoked successfully after relocation. The former installation was retained recoverably beneath KIS quarantine.
+Node/npm are not part of the agnix runtime path. Defender/SAC remain enabled; no exclusion, policy weakening, trusted-folder assumption, or copied Windows executable is used.
 
-The npm package provides the agnix CLI. It does not contain the separate native `agnix-mcp` binary, so the bootstrap records MCP status as `not_in_npm_distribution`. All configured state paths remain beneath `C:\Projects` without traversing a junction or other reparse point.
+## Provenance and recovery
 
-## kis-mcp exposure
+The supervised installer records the source repository/tag/URLs, exact archive SHA-256, WSL distribution, installed paths, and version smoke result in `installation.json`. Replaced installations are moved recoverably beneath `C:\Projects\.kis-mcp\quarantine\agnix`.
 
-Direct provider/MCP exposure remains disabled. KIS exposes only the bounded workflow operation `validate_agent_configuration`, which calls the pinned native binary through Work middleware with fixed `--format json`, target, strict, and bounded max-file arguments. It exposes no fix, watch, init, telemetry, schema, tools, arbitrary-command, or MCP passthrough authority.
+The Linux artifact has no Windows Authenticode publisher because it is an ELF executable; its executable identity is established by the authoritative upstream release plus the upstream-published SHA-256. Windows launches the configured Microsoft WSL host, while the agnix executable runs inside the WSL2 Linux environment.
 
-## Upgrade and recovery
+## KIS exposure
 
-Rerunning `scripts/install-agnix.ps1` first installs and smoke-tests the exact package beneath the configured temporary root. Only a validated package is activated; the previous versioned installation is then retained at:
-
-```text
-C:\Projects\.kis-mcp\quarantine\agnix\<operation-id>
-```
-
-If activation fails, the new package is retained in that quarantine operation and the previous installation is restored where possible. Installation metadata is written to the versioned installation root as `installation.json`. No credentials are stored by the bootstrap.
+KIS continues to expose only bounded `validate_agent_configuration` with fixed JSON output, target, strict, and max-file arguments. It exposes no fix, watch, init, telemetry, schema, arbitrary-command, or general agnix provider surface. Application-Control launch text is classified explicitly as `AGNIX_APPLICATION_CONTROL_BLOCKED` rather than the misleading `AGNIX_INCOMPLETE` fallback.

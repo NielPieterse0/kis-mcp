@@ -44,12 +44,14 @@ Do not remove the installer's offline/script-suppression controls to make a fail
 
 ## Install managed AgentSys and agnix tooling
 
-Install the optional pinned host tools through their repository scripts:
+Install the optional pinned host tools through their repository scripts. Agnix requires WSL2 with the configured Ubuntu distribution available; its supervised bootstrap downloads the exact upstream Linux release asset, verifies the published SHA-256 sidecar, smoke-tests the binary through WSL, and then promotes it into KIS-generated tooling under `C:\Projects\.kis-mcp\tools`.
 
 ```powershell
 pwsh -NoProfile -File .\scripts\install-agentsys.ps1
 pwsh -NoProfile -File .\scripts\install-agnix.ps1
 ```
+
+The agnix runtime does not depend on Node/npm. Do not substitute the upstream Windows `agnix-binary.exe` when Smart App Control blocks it, and do not use Defender exclusions or file relocation as a trust workaround.
 
 Start a managed AgentSys host with the intended platform selector:
 
