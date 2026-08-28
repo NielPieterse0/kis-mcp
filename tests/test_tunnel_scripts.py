@@ -46,7 +46,7 @@ def test_tunnel_configuration_uses_canonical_secret_references() -> None:
     remote = settings["remote_mcp"]
 
     assert remote["tunnel_client_path"] == (
-        r"C:\Tools\openai-tunnel-client\tunnel-client.exe"
+        r"C:\Projects\.tools\openai-tunnel-client\tunnel-client.exe"
     )
     assert set(remote["instances"]) == {"operation", "development"}
     expected_tunnel_ids = {

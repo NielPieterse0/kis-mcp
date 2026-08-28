@@ -1,0 +1,33 @@
+{
+  "schema_version": 4,
+  "change_id": "257-tunnel-client-project-path",
+  "status": "active",
+  "branch": "change/257-tunnel-client-project-path",
+  "worktree": ".work/worktrees/257-tunnel-client-project-path",
+  "base": "main",
+  "outcome": "Move the configured OpenAI tunnel client executable path under C:\\Projects and reconcile current architecture documentation.",
+  "owned_paths": [
+    "settings/kis-mcp.settings.json",
+    "SPEC.md",
+    "tests/test_remote_runtime.py",
+    "tests/test_tunnel_scripts.py",
+    ".work/changes/257-tunnel-client-project-path/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "589e2875b3570f801120a27ef85b9a8b7bb87fd2",
+    "local_tree": "f6e109da0c3ee699bdac8059a21c5e20403c42ea",
+    "upstream_sha": "589e2875b3570f801120a27ef85b9a8b7bb87fd2",
+    "upstream_tree": "f6e109da0c3ee699bdac8059a21c5e20403c42ea",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
