@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "256-state-ownership-diagnostics-cleanup",
+  "status": "active",
+  "branch": "change/256-state-ownership-diagnostics-cleanup",
+  "worktree": ".work/worktrees/256-state-ownership-diagnostics-cleanup",
+  "base": "main",
+  "outcome": "Add bounded state-ownership diagnostics and quarantine-only stale reconstructible-state cleanup for #550.",
+  "owned_paths": [
+    ".work/changes/256-state-ownership-diagnostics-cleanup/**",
+    "src/kis_mcp/state/**",
+    "src/kis_mcp/quarantine.py",
+    "src/kis_mcp/workflows/state_management/**",
+    "src/kis_mcp/workflows/platform.py",
+    "tests/state/**",
+    "tests/test_quarantine.py",
+    "tests/workflows/state_management/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "destructive",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "589e2875b3570f801120a27ef85b9a8b7bb87fd2",
+    "local_tree": "f6e109da0c3ee699bdac8059a21c5e20403c42ea",
+    "upstream_sha": "589e2875b3570f801120a27ef85b9a8b7bb87fd2",
+    "upstream_tree": "f6e109da0c3ee699bdac8059a21c5e20403c42ea",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "TASK-550",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 550,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

@@ -1,3 +1,8 @@
+from .diagnostics import (
+    StateDiagnosticsService,
+    StateInventoryEntry,
+    StateInventoryResult,
+)
 from .ownership import (
     APPROVED_PROJECT_BOUNDARY,
     APPROVED_STATE_ROOT,
@@ -20,6 +25,9 @@ __all__ = [
     "APPROVED_PROJECT_BOUNDARY",
     "APPROVED_STATE_ROOT",
     "OWNERSHIP_SPECS",
+    "StateDiagnosticsService",
+    "StateInventoryEntry",
+    "StateInventoryResult",
     "StateNamespace",
     "StateNamespaceError",
     "StateNamespaceErrorCode",

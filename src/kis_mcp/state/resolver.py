@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import ntpath
+import re
 from collections.abc import Iterable
 
 from kis_mcp.paths import (
@@ -200,6 +201,31 @@ def _validate_namespace_pair(
         )
 
 
+
+def classify_relative_namespace(relative_path: str) -> StateNamespaceRequest | None:
+    """Classify one relative state namespace using canonical ownership templates."""
+    candidate = ntpath.normpath(str(relative_path).replace("/", "\\"))
+    if ntpath.isabs(candidate) or candidate in {"", "."} or candidate.startswith("..\\"):
+        return None
+    for ownership, spec in SPEC_BY_CLASS.items():
+        template = spec.namespace_template.replace("/", "\\")
+        fields = re.findall(r"\{([^{}]+)\}", template)
+        pattern = re.escape(template)
+        for field in fields:
+            pattern = pattern.replace(re.escape("{" + field + "}"), rf"(?P<{field}>[^\\]+)")
+        match = re.fullmatch(pattern, candidate, flags=re.IGNORECASE)
+        if match is None:
+            continue
+        values = match.groupdict()
+        state_key = values.pop("state_key", None)
+        request = StateNamespaceRequest(ownership=ownership, state_key=state_key, identities=values)
+        normalized_key = normalize_state_key(request.state_key, required=spec.state_key_required)
+        identities = normalize_identity_mapping(request.identities, required=spec.required_identity_keys, label="identities")
+        rebuilt = ntpath.normpath(spec.namespace_template.format(**identities, state_key=normalized_key or "").replace("/", "\\"))
+        if ntpath.normcase(rebuilt) == ntpath.normcase(candidate):
+            return StateNamespaceRequest(ownership=ownership, state_key=normalized_key, identities=identities)
+    return None
+
 def validate_namespace_uniqueness(namespaces: Iterable[StateNamespace]) -> None:
     seen: list[StateNamespace] = []
     for namespace in namespaces:
@@ -226,4 +252,4 @@ def validate_namespace_uniqueness(namespaces: Iterable[StateNamespace]) -> None:
         seen.append(expected)
 
 
-__all__ = ["StateNamespaceResolver", "validate_namespace_uniqueness"]
+__all__ = ["StateNamespaceResolver", "classify_relative_namespace", "validate_namespace_uniqueness"]

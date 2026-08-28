@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import uuid
 from pathlib import Path
@@ -9,7 +10,6 @@ import pytest
 
 from kis_mcp.config import load_runtime_config
 from kis_mcp.quarantine import QuarantineError, QuarantineService
-
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 CONFIG = load_runtime_config(REPOSITORY_ROOT)
@@ -66,6 +66,49 @@ def test_quarantine_and_restore_without_overwrite() -> None:
     service.quarantine(str(source))
 
 
+def test_quarantine_rejects_changed_expected_identity() -> None:
+    root = _new_test_root()
+    source = _new_test_file(root=root / "workspace")
+    service = _service(root)
+    stat = source.stat(follow_symlinks=False)
+    expected = (stat.st_dev, stat.st_ino, stat.st_mode)
+
+    source.unlink()
+    source.write_text("replacement\n", encoding="utf-8")
+
+    with pytest.raises(QuarantineError, match="changed after validation"):
+        service.quarantine(str(source), expected_identity=expected)
+    assert source.read_text(encoding="utf-8") == "replacement\n"
+
+    service.quarantine(str(source))
+
+
+def test_quarantine_preserves_payload_if_rollback_source_becomes_occupied() -> None:
+    root = _new_test_root()
+    source = _new_test_file(root=root / "workspace")
+    service = _service(root)
+    stat = source.stat(follow_symlinks=False)
+    expected = (stat.st_dev, stat.st_ino, stat.st_mode)
+
+    def occupy_source_and_fail() -> None:
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text("replacement\n", encoding="utf-8")
+        raise RuntimeError("validator failed")
+
+    with pytest.raises(QuarantineError, match="payload preserved in recoverable quarantine"):
+        service.quarantine(
+            str(source),
+            expected_identity=expected,
+            post_move_validator=occupy_source_and_fail,
+        )
+    assert source.read_text(encoding="utf-8") == "replacement\n"
+    records = service.list_records()
+    assert len(records) == 1
+    assert Path(records[0].payload_path).read_text(encoding="utf-8") == "test data\n"
+
+    service.quarantine(str(source))
+
+
 def test_relative_quarantine_path_resolves_from_project_boundary() -> None:
     root = _new_test_root()
     source = _new_test_file("relative.txt", root=root / "workspace")
@@ -77,6 +120,22 @@ def test_relative_quarantine_path_resolves_from_project_boundary() -> None:
     service.restore(record.operation_id)
     assert source.exists()
     service.quarantine(str(source))
+
+
+def test_find_active_record_by_original_path_returns_latest_match() -> None:
+    root = _new_test_root()
+    source = _new_test_file("repeat.txt", root=root / "workspace")
+    service = _service(root)
+
+    first = service.quarantine(str(source))
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text("second\n", encoding="utf-8")
+    second = service.quarantine(str(source))
+
+    found = service.find_active_record_by_original_path(str(source))
+    assert found is not None
+    assert found.operation_id == second.operation_id
+    assert found.operation_id != first.operation_id
 
 
 def test_restore_refuses_to_overwrite_existing_path() -> None:
@@ -395,3 +454,111 @@ def test_quarantine_failure_cleans_operation_residue(
 
     assert source.exists()
     assert _operation_directories(service) == before
+
+
+def test_quarantine_many_uses_service_mutation_boundary() -> None:
+    root = _new_test_root()
+    first = _new_test_file("first.txt", root=root / "workspace")
+    second = _new_test_file("second.txt", root=root / "workspace")
+    service = _service(root)
+    entered = 0
+
+    class ProbeLock:
+        def __enter__(self):
+            nonlocal entered
+            entered += 1
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> None:
+            return None
+
+    service._mutation_lock = ProbeLock()
+    records = service.quarantine_many([str(first), str(second)])
+
+    assert entered == 1
+    assert len(records) == 2
+
+
+def test_interrupted_quarantine_reconciles_signed_intent_on_replay(monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _new_test_root()
+    source = _new_test_file(root=root / "workspace")
+    service = _service(root)
+    original_write = service._write_metadata
+
+    def interrupt_metadata_write(path: Path, record) -> None:
+        raise KeyboardInterrupt("simulated process interruption")
+
+    monkeypatch.setattr(service, "_write_metadata", interrupt_metadata_write)
+    with pytest.raises(KeyboardInterrupt, match="simulated process interruption"):
+        service.quarantine(str(source))
+
+    assert not source.exists()
+    operation_dirs = [path for path in service.quarantine_root.iterdir() if path.is_dir()]
+    assert len(operation_dirs) == 1
+    assert (operation_dirs[0] / "intent.json").is_file()
+    assert not (operation_dirs[0] / "metadata.json").exists()
+
+    monkeypatch.setattr(service, "_write_metadata", original_write)
+    recovered = service.find_active_record_by_original_path(str(source))
+    assert recovered is not None
+    assert Path(recovered.payload_path).exists()
+    assert (operation_dirs[0] / "metadata.json").is_file()
+
+
+def test_quarantine_commits_intent_with_write_through_before_payload_move(monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _new_test_root()
+    source = _new_test_file(root=root / "workspace")
+    service = _service(root)
+    real_replace = os.replace
+    real_move = shutil.move
+    commits: list[str] = []
+
+    def replace_write_through(temp: Path, destination: Path) -> None:
+        real_replace(temp, destination)
+        commits.append(destination.name)
+
+    def guarded_move(source_path: str, destination_path: str) -> str:
+        assert "intent.json" in commits
+        operation_root = Path(destination_path).parents[1]
+        assert (operation_root / "intent.json").is_file()
+        return real_move(source_path, destination_path)
+
+    monkeypatch.setattr(QuarantineService, "_replace_write_through", staticmethod(replace_write_through))
+    monkeypatch.setattr("kis_mcp.quarantine.shutil.move", guarded_move)
+    service.quarantine(str(source))
+    assert commits[0] == "intent.json"
+
+
+@pytest.mark.parametrize("field", ["integrity_digest", "original_path", "payload_digest", "operation_id"])
+def test_interrupted_quarantine_rejects_tampered_signed_intent(
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+) -> None:
+    root = _new_test_root()
+    source = _new_test_file(root=root / "workspace")
+    service = _service(root)
+    monkeypatch.setattr(
+        service,
+        "_write_metadata",
+        lambda *args, **kwargs: (_ for _ in ()).throw(KeyboardInterrupt("interrupt")),
+    )
+    with pytest.raises(KeyboardInterrupt):
+        service.quarantine(str(source))
+
+    operation_root = next(path for path in service.quarantine_root.iterdir() if path.is_dir())
+    intent_path = operation_root / "intent.json"
+    intent = json.loads(intent_path.read_text(encoding="utf-8"))
+    replacements = {
+        "integrity_digest": "0" * 64,
+        "original_path": str(root / "other" / source.name),
+        "payload_digest": "0" * 64,
+        "operation_id": "20260101T000000000000Z-abcdefabcdef",
+    }
+    intent[field] = replacements[field]
+    intent_path.write_text(json.dumps(intent, sort_keys=True) + "\n", encoding="utf-8")
+
+    payload = next((operation_root / "payload").iterdir())
+    with pytest.raises(QuarantineError):
+        service.find_active_record_by_original_path(str(source))
+    assert payload.exists()
+    assert not (operation_root / "metadata.json").exists()

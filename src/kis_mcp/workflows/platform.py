@@ -4,6 +4,12 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from ..capabilities.contracts import (
+    ExposureMode,
+    ExposurePolicy,
+    OperationEffect,
+    WorkflowDescriptor,
+)
 from ..config import RuntimeConfig
 from ..discover.change_service import InspectChangeService
 from ..discover.git_change_reader import GitChangeReader
@@ -25,22 +31,16 @@ from .code_review import (
     AgentSettings,
     CodeReviewAgent,
     GitReviewEvidenceCollector,
-    load_agent_settings_or_disabled,
     UnavailableReviewBackend,
+    load_agent_settings_or_disabled,
     register_agent_tools,
 )
 from .project_management import (
     project_management_workflow_descriptors,
     register_project_management_tools,
 )
+from .state_management import register_state_management_tools
 from .verification.descriptors import verification_workflow_descriptors
-
-from ..capabilities.contracts import (
-    ExposureMode,
-    ExposurePolicy,
-    OperationEffect,
-    WorkflowDescriptor,
-)
 
 
 def _workflow(
@@ -130,6 +130,26 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             ("evaluate_skill", "create_skill", "improve_skill"),
             ("metadata is complete", "catalogue refresh succeeds", "change is recoverable"),
             ("create skill", "improve skill", "skill catalogue"),
+            (read, change),
+        ),
+        _workflow(
+            "inspect-state-ownership",
+            "Inspect KIS state ownership",
+            "Inventory bounded canonical KIS state namespaces and explain ownership, identity, age, and stale-state safety without reading payload contents.",
+            ("state.ownership.inspect",),
+            ("state_ownership_inventory",),
+            ("ownership class and identities are explicit", "staleness is conservative", "secrets and payload contents are not read"),
+            ("state ownership", "stale state", "state diagnostics"),
+            (read,),
+        ),
+        _workflow(
+            "cleanup-stale-state",
+            "Quarantine stale reconstructible KIS state",
+            "Preview one proven-stale reconstructible namespace, then move it through recoverable quarantine only when explicitly applied.",
+            ("state.ownership.inspect", "state.stale.quarantine"),
+            ("state_ownership_inventory", "state_stale_cleanup"),
+            ("preview precedes mutation", "only proven-stale reconstructible state is eligible", "cleanup is quarantine-only and replay-safe"),
+            ("cleanup stale state", "quarantine stale cache", "retire stale state"),
             (read, change),
         ),
         _workflow(
@@ -365,6 +385,7 @@ def register_platform_workflows(
         server,
         _build_code_review_agent(runtime, settings, provider_service),
     )
+    register_state_management_tools(server, runtime)
     project_settings = work_management_settings or load_work_management_settings()
     if not project_settings.enabled:
         return
