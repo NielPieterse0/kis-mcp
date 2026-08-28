@@ -9,6 +9,7 @@
   "owned_paths": [
     "settings/kis-mcp.settings.json",
     "SPEC.md",
+    ".github/workflows/work-management.yml",
     "tests/test_remote_runtime.py",
     "tests/test_tunnel_scripts.py",
     ".work/changes/257-tunnel-client-project-path/**"
