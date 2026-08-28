@@ -1,10 +1,15 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "tool_id": "agnix",
   "package": "agnix",
   "version": "0.45.0",
-  "install_root": "C:\\Projects\\kis-mcp\\.temp\\tools\\agnix\\0.45.0",
-  "npm_cache_root": "C:\\Projects\\.kis-mcp\\npm-cache\\agnix",
+  "source": {
+    "repository": "agent-sh/agnix",
+    "release_tag": "v0.45.0",
+    "asset": "agnix-x86_64-unknown-linux-gnu.tar.gz",
+    "checksum_asset": "agnix-x86_64-unknown-linux-gnu.tar.gz.sha256"
+  },
+  "install_root": "C:\\Projects\\.kis-mcp\\tools\\agnix\\0.45.0",
   "temp_root": "C:\\Projects\\.kis-mcp\\temp\\agnix",
   "quarantine_root": "C:\\Projects\\.kis-mcp\\quarantine\\agnix",
   "expected_commands": ["agnix"],
@@ -13,7 +18,9 @@
     "namespace": "agnix"
   },
   "validation": {
-    "binary_relative_path": "node_modules\\agnix\\bin\\agnix-binary.exe",
+    "runtime_kind": "wsl",
+    "wsl_distribution": "Ubuntu",
+    "binary_relative_path": "bin\\agnix",
     "targets": ["generic", "claude-code", "cursor", "codex", "kiro"],
     "timeout_ms": 120000,
     "default_max_files": 1000,

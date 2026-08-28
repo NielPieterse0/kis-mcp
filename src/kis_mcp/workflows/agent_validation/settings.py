@@ -12,6 +12,8 @@ class AgnixValidationSettings:
     version: str
     install_root: Path
     binary_relative_path: str
+    runtime_kind: str
+    wsl_distribution: str
     timeout_ms: int
     default_max_files: int
     max_files: int
@@ -43,12 +45,18 @@ class AgnixValidationSettings:
             raise ValueError("agnix validation numeric limits must be positive integers")
         if values["default_max_files"] > values["max_files"]:
             raise ValueError("agnix default_max_files exceeds max_files")
+        runtime_kind = validation.get("runtime_kind", "wsl")
+        wsl_distribution = validation.get("wsl_distribution", "Ubuntu")
+        if runtime_kind != "wsl":
+            raise ValueError("agnix validation runtime_kind must be wsl")
+        if not isinstance(wsl_distribution, str) or not wsl_distribution.strip():
+            raise ValueError("agnix validation wsl_distribution must be a non-empty string")
         return cls(
             version="0.45.0",
             install_root=Path(data["install_root"]),
-            binary_relative_path=validation.get(
-                "binary_relative_path", r"node_modules\agnix\bin\agnix-binary.exe"
-            ),
+            binary_relative_path=validation.get("binary_relative_path", r"bin\agnix"),
+            runtime_kind=runtime_kind,
+            wsl_distribution=wsl_distribution,
             targets=targets,
             **values,
         )

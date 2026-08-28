@@ -15,6 +15,10 @@ _FILE_LIMIT_ERROR = re.compile(
     r"Too many files to validate:\s*(\d+)\s+files found,\s*limit is\s*(\d+)",
     re.IGNORECASE,
 )
+_APPLICATION_CONTROL_ERROR = re.compile(
+    r"(?:Application Control policy has blocked|app has been blocked|Windows cannot confirm who published)",
+    re.IGNORECASE,
+)
 
 
 class AgentValidationError(ValueError):
@@ -50,6 +54,11 @@ class AgentValidationService:
         payload_text = _EXIT_MARKER.sub("", text).strip()
         if len(payload_text) > self._settings.max_output_chars:
             raise AgentValidationError("AGNIX_OUTPUT_LIMIT", "agnix output exceeded the configured budget.")
+        if exit_code is None and _APPLICATION_CONTROL_ERROR.search(payload_text):
+            raise AgentValidationError(
+                "AGNIX_APPLICATION_CONTROL_BLOCKED",
+                "Windows Application Control blocked the agnix launch path; reinstall through the governed Defender-safe runtime bootstrap.",
+            )
         if exit_code is None:
             raise AgentValidationError("AGNIX_INCOMPLETE", "agnix did not produce a completed process result.")
         file_limit = _FILE_LIMIT_ERROR.search(payload_text)
@@ -104,16 +113,37 @@ class AgentValidationService:
             raise AgentValidationError("AGNIX_MAX_FILES_INVALID", f"max_files must be from 1 through {self._settings.max_files}.")
         return value
 
-    @staticmethod
-    def _command(root: Path, binary: Path, target: str, strict: bool, max_files: int) -> str:
+    def _command(self, root: Path, binary: Path, target: str, strict: bool, max_files: int) -> str:
         flags = ["--format", "json", "--target", target, "--max-files", str(max_files)]
         if strict:
             flags.append("--strict")
-        tokens = " ".join(_ps_quote(item) for item in (str(binary), *flags, "."))
-        return (
-            f"Set-Location -LiteralPath {_ps_quote(str(root))}; & {tokens}; "
-            "$kisCode = $LASTEXITCODE; Write-Output \"__KIS_AGNIX_EXIT_CODE=$kisCode\"; exit $kisCode"
+        tokens = " ".join(
+            _ps_quote(item)
+            for item in (
+                "wsl.exe",
+                "--distribution",
+                self._settings.wsl_distribution,
+                "--cd",
+                _wsl_path(root),
+                "--exec",
+                _wsl_path(binary),
+                *flags,
+                ".",
+            )
         )
+        return (
+            f"& {tokens}; $kisCode = $LASTEXITCODE; "
+            "Write-Output \"__KIS_AGNIX_EXIT_CODE=$kisCode\"; exit $kisCode"
+        )
+
+
+def _wsl_path(path: Path) -> str:
+    resolved = path.resolve()
+    drive = resolved.drive.rstrip(":").lower()
+    if len(drive) != 1 or not drive.isalpha():
+        raise AgentValidationError("AGNIX_WSL_PATH_INVALID", f"Cannot map Windows path into WSL: {resolved}.")
+    tail = resolved.as_posix().split(":", 1)[1].lstrip("/")
+    return f"/mnt/{drive}/{tail}"
 
 
 def _ps_quote(value: str) -> str:
