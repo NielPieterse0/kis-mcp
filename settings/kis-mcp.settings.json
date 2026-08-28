@@ -207,7 +207,7 @@
     "path": "/mcp",
     "stateless_http": true,
     "json_response": true,
-    "tunnel_client_path": "C:\\Tools\\openai-tunnel-client\\tunnel-client.exe",
+    "tunnel_client_path": "C:\\Projects\\.tools\\openai-tunnel-client\\tunnel-client.exe",
     "active_instance": "operation",
     "instances": {
       "operation": {
