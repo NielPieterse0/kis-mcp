@@ -21,9 +21,11 @@ from kis_mcp.workflows.once_through import (
     resolve_evidence,
 )
 from kis_mcp.workflows.once_through.activation import WorkActivationCoordinator
+from kis_mcp.state import resolve_runtime_state_path
 from kis_mcp.workflows.once_through.contracts import fingerprint
 from kis_mcp.workflows.once_through.tools import (
     _governed_source_binding,
+    _post_land_restart_receipt,
     _owned_candidate_stop_pid,
     _promotion_reference,
 )
@@ -234,27 +236,60 @@ def test_promotion_ready_requires_all_declared_evidence() -> None:
     assert handoff.pending_obligations == ()
 
 
+def _controller_handoff() -> dict[str, object]:
+    return {
+        "status": "promotion_ready",
+        "work_id": "WORK-1",
+        "change_id": "265-controller-test",
+        "source_commit_sha": "a" * 40,
+    }
+
+
+def _controller_stage_result(stage: str) -> dict[str, object]:
+    results: dict[str, dict[str, object]] = {
+        "refresh_default": {"status": "satisfied", "github_default_sha": "b" * 40},
+        "reconcile_candidate": {"status": "satisfied", "commit_sha": "c" * 40},
+        "create_pull_request": {"status": "satisfied", "pull_number": 7, "head_sha": "c" * 40},
+        "exact_head_actions": {"status": "passed", "run_ids": [71], "reference": "github-actions:71"},
+        "merge_readiness": {"status": "satisfied", "ready": True},
+        "merge_exact_head": {"status": "satisfied", "merge_commit_sha": "d" * 40},
+        "refresh_landed": {"status": "satisfied", "landed_sha": "e" * 40},
+        "documentation_reconcile": {
+            "status": "satisfied", "completion_revision": "e" * 40,
+            "event": {"event_id": "docs-controller", "completion_revision": "e" * 40},
+            "record": {"record_id": "SPEC-1"},
+        },
+        "work_done": {
+            "status": "satisfied", "record": {"record_id": "SPEC-1"},
+            "work_completion": {"mode": "apply"},
+            "source_close_required": True, "source_close_applied": True,
+        },
+        "cleanup": {"status": "satisfied", "cleaned": True},
+    }
+    return {**results[stage], "stage": stage}
+
+
 class _PromotionInvoker:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, str]:
+    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, object]:
         self.calls.append(stage)
-        return {"status": "satisfied"}
+        return _controller_stage_result(stage)
 
 
 class _ObservationInvoker:
     def __init__(self) -> None:
         self.received: list[tuple[str, dict[str, object]]] = []
 
-    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, str]:
+    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, object]:
         self.received.append((stage, dict(observations)))
-        return {"status": "satisfied", "stage": stage}
+        return _controller_stage_result(stage)
 
 
 def test_controller_passes_persisted_observations_to_later_stages(tmp_path: Path) -> None:
     invoker = _ObservationInvoker()
-    handoff = {"status": "promotion_ready", "work_id": "WORK-1"}
+    handoff = _controller_handoff()
     store = PromotionStateStore(tmp_path)
     store.save("promotion-observations", {
         "handoff_fingerprint": fingerprint(handoff),
@@ -279,12 +314,15 @@ def test_controller_passes_persisted_observations_to_later_stages(tmp_path: Path
 
 def test_controller_resumes_without_repeating_satisfied_stages(tmp_path: Path) -> None:
     invoker = _PromotionInvoker()
-    handoff = {"status": "promotion_ready"}
+    handoff = _controller_handoff()
     store = PromotionStateStore(tmp_path)
     store.save("promotion-1", {
         "handoff_fingerprint": fingerprint(handoff),
         "completed": ["refresh_default", "reconcile_candidate"],
-        "observations": {},
+        "observations": {
+            "refresh_default": _controller_stage_result("refresh_default"),
+            "reconcile_candidate": _controller_stage_result("reconcile_candidate"),
+        },
     })
     result = asyncio.run(PromotionController(invoker, store).converge(
         operation_id="promotion-1",
@@ -315,15 +353,16 @@ def test_controller_rejects_non_prefix_resume_state(tmp_path: Path) -> None:
 def test_controller_persists_and_reuses_completed_prefix(tmp_path: Path) -> None:
     invoker = _PromotionInvoker()
     store = PromotionStateStore(tmp_path)
+    handoff = _controller_handoff()
     first = asyncio.run(PromotionController(invoker, store).converge(
         operation_id="promotion-persisted",
-        promotion_handoff={"status": "promotion_ready", "work_id": "WORK-1"},
+        promotion_handoff=handoff,
     ))
     assert first.state == "done"
     first_calls = tuple(invoker.calls)
     second = asyncio.run(PromotionController(invoker, store).converge(
         operation_id="promotion-persisted",
-        promotion_handoff={"status": "promotion_ready", "work_id": "WORK-1"},
+        promotion_handoff=handoff,
     ))
     assert second.state == "done"
     assert tuple(invoker.calls) == first_calls
@@ -354,3 +393,112 @@ def test_governed_source_binding_requires_exact_work_and_repository(tmp_path: Pa
     assert source_root == root.resolve()
     assert change_id == root.name
     assert observed["work_management"]["record_id"] == contract.work_id
+
+
+class _TerminalPromotionInvoker:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, object]:
+        self.calls.append(stage)
+        results: dict[str, dict[str, object]] = {
+            "refresh_default": {"status": "applied", "github_default_sha": "b" * 40},
+            "reconcile_candidate": {"status": "applied", "commit_sha": "c" * 40},
+            "create_pull_request": {"status": "applied", "pull_number": 77, "head_sha": "c" * 40},
+            "exact_head_actions": {"status": "passed", "run_ids": [9001], "reference": "github-actions:9001"},
+            "merge_readiness": {"status": "satisfied", "ready": True},
+            "merge_exact_head": {"status": "applied", "merge_commit_sha": "d" * 40},
+            "refresh_landed": {"status": "applied", "landed_sha": "e" * 40, "merge_commit_sha": "d" * 40},
+            "documentation_reconcile": {
+                "status": "satisfied", "completion_revision": "e" * 40,
+                "phase": "post_merge_complete",
+                "event": {"event_id": "docs-265", "completion_revision": "e" * 40},
+                "record": {"record_id": "SPEC-592"},
+            },
+            "work_done": {
+                "status": "applied", "source_close_required": True,
+                "source_close_applied": True,
+                "source_close_reconciled_after_error": False,
+                "record": {"record_id": "SPEC-592"},
+                "work_completion": {"mode": "apply"},
+            },
+            "cleanup": {
+                "status": "applied", "cleaned": True,
+                "post_land_restart": {
+                    "schema_version": 1, "state": "launching",
+                    "landed_sha": "e" * 40, "launched_sha": "e" * 40,
+                },
+            },
+        }
+        return results[stage]
+
+
+def test_controller_persists_terminal_delivery_receipt_and_done_replay_is_noop(tmp_path: Path) -> None:
+    invoker = _TerminalPromotionInvoker()
+    store = PromotionStateStore(tmp_path)
+    handoff = {
+        "status": "promotion_ready", "work_id": "WORK-592",
+        "change_id": "265-test", "source_commit_sha": "a" * 40,
+    }
+    first = asyncio.run(PromotionController(invoker, store).converge(
+        operation_id="promotion-terminal", promotion_handoff=handoff,
+    ))
+    receipt = first.terminal_receipt
+    assert receipt is not None
+    assert receipt["contract"] == "promotion-terminal-receipt-v1"
+    assert receipt["work_id"] == "WORK-592"
+    assert receipt["change_id"] == "265-test"
+    assert receipt["source_commit_sha"] == "a" * 40
+    assert receipt["pull_number"] == 77
+    assert receipt["head_sha"] == "c" * 40
+    assert receipt["actions_run_ids"] == [9001]
+    assert receipt["merge_commit_sha"] == "d" * 40
+    assert receipt["landed_sha"] == "e" * 40
+    assert receipt["documentation_completion_revision"] == "e" * 40
+    assert receipt["typed_record_id"] == "SPEC-592"
+    assert receipt["documentation_event"]["event_id"] == "docs-265"
+    assert receipt["source_close"] == {
+        "required": True,
+        "applied": True,
+        "reconciled_after_error": False,
+    }
+    assert receipt["post_land_restart"]["launched_sha"] == "e" * 40
+    assert receipt["cleanup"]["cleaned"] is True
+    checkpoint = store.load("promotion-terminal")
+    assert checkpoint is not None
+    assert checkpoint["terminal_receipt"] == receipt
+
+    calls = tuple(invoker.calls)
+    second = asyncio.run(PromotionController(invoker, store).converge(
+        operation_id="promotion-terminal", promotion_handoff=handoff,
+    ))
+    assert second.state == "done"
+    assert second.terminal_receipt == receipt
+    assert tuple(invoker.calls) == calls
+
+
+def test_post_land_restart_receipt_requires_exact_landed_and_launched_sha(tmp_path: Path) -> None:
+    landed = "e" * 40
+    receipt_root = resolve_runtime_state_path(
+        tmp_path, runtime_instance_id="kis-dev", state_key="post-land-restart"
+    )
+    receipt_root.mkdir(parents=True)
+    (receipt_root / "latest.json").write_text(
+        json.dumps({
+            "schema_version": 1,
+            "state": "launching",
+            "landed_sha": landed,
+            "launched_sha": landed,
+            "worker_pid": 1234,
+            "detail": "",
+            "updated_utc": "2026-08-29T11:15:33Z",
+        }),
+        encoding="utf-8",
+    )
+
+    receipt = _post_land_restart_receipt(tmp_path, landed)
+    assert receipt["landed_sha"] == landed
+    assert receipt["launched_sha"] == landed
+
+    with pytest.raises(RuntimeError, match="POST_LAND_RESTART_RECEIPT_LANDED_MISMATCH"):
+        _post_land_restart_receipt(tmp_path, "f" * 40)

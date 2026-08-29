@@ -13,6 +13,7 @@ from fastmcp import Client, FastMCP
 from fastmcp.exceptions import ToolError
 
 from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
+from ...state import resolve_runtime_state_path
 from ...work_management import WorkManagementService
 from .contracts import (
     EvidenceReference,
@@ -20,7 +21,7 @@ from .contracts import (
     TaskHandoffContract,
     fingerprint,
 )
-from .controller import PromotionController, PromotionStateStore
+from .controller import PromotionController, PromotionStateStore, build_terminal_receipt
 from .process_identity import (
     WindowsProcessIdentity,
     read_process_identity,
@@ -36,6 +37,34 @@ from .state import (
 
 _READ = {"read_only_hint": True, "destructive_hint": False, "idempotent_hint": True, "open_world_hint": False}
 _CHANGE = {"read_only_hint": False, "destructive_hint": False, "idempotent_hint": True, "open_world_hint": False}
+
+
+def _post_land_restart_receipt(state_root: Path, expected_landed_sha: str) -> dict[str, Any]:
+    receipt_path = resolve_runtime_state_path(
+        state_root,
+        runtime_instance_id="kis-dev",
+        state_key="post-land-restart",
+    ) / "latest.json"
+    try:
+        payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_MISSING") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_INVALID") from exc
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_INVALID")
+    landed = str(payload.get("landed_sha", "")).strip().lower()
+    expected = str(expected_landed_sha).strip().lower()
+    if landed != expected:
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_LANDED_MISMATCH")
+    if payload.get("state") == "failed":
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_FAILED")
+    launched = str(payload.get("launched_sha", "")).strip().lower()
+    if not launched:
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_PENDING")
+    if launched != expected:
+        raise RuntimeError("POST_LAND_RESTART_RECEIPT_LAUNCHED_MISMATCH")
+    return dict(payload)
 
 
 def _reference(value: dict[str, Any]) -> EvidenceReference:
@@ -287,7 +316,9 @@ def register_once_through_tools(
             raise ToolError(detail or f"nested tool failed: {tool_name}")
         return _result_mapping(result)
 
-    async def governed_cleanup(change_id: str, worktree: Path) -> dict[str, Any]:
+    async def governed_cleanup(
+        change_id: str, worktree: Path, landed_sha: str | None
+    ) -> dict[str, Any]:
         if worktree.parent.name != "worktrees" or worktree.parent.parent.name != ".work":
             raise ValueError("CLEANUP_WORKTREE_IDENTITY_INVALID")
         repository = worktree.parent.parent.parent
@@ -306,9 +337,26 @@ def register_once_through_tools(
         if completed.returncode != 0:
             detail = (completed.stderr or completed.stdout or "cleanup failed").strip()
             raise ValueError(f"PROMOTION_CLEANUP_FAILED: {detail}")
-        return {"change_id": change_id, "removed": not worktree.exists(), "output": completed.stdout.strip()}
+        result: dict[str, Any] = {
+            "change_id": change_id,
+            "removed": not worktree.exists(),
+            "output": completed.stdout.strip(),
+        }
+        if landed_sha is not None:
+            try:
+                result["post_land_restart"] = _post_land_restart_receipt(state_root, landed_sha)
+            except RuntimeError as exc:
+                return {
+                    "status": "blocked",
+                    "reason": "post_land_restart_pending",
+                    **result,
+                    "post_land_restart_error": str(exc),
+                }
+        return result
 
-    async def reconcile_governed_cleanup(change_id: str, worktree: Path) -> dict[str, Any]:
+    async def reconcile_governed_cleanup(
+        change_id: str, worktree: Path, landed_sha: str | None
+    ) -> dict[str, Any]:
         repository = worktree.parent.parent.parent
         script = repository / "scripts" / "change-workflow.ps1"
         completed = await asyncio.to_thread(
@@ -329,7 +377,23 @@ def register_once_through_tools(
         matches = [item for item in records if isinstance(item, dict) and item.get("change_id") == change_id]
         if len(matches) != 1 or matches[0].get("status") != "closed" or worktree.exists():
             return {"status": "blocked", "reason": "cleanup_not_authoritatively_closed"}
-        return {"status": "applied", "change_id": change_id, "removed": True, "recovered": True}
+        result: dict[str, Any] = {
+            "status": "applied",
+            "change_id": change_id,
+            "removed": True,
+            "recovered": True,
+        }
+        if landed_sha is not None:
+            try:
+                result["post_land_restart"] = _post_land_restart_receipt(state_root, landed_sha)
+            except RuntimeError as exc:
+                return {
+                    "status": "blocked",
+                    "reason": "post_land_restart_pending",
+                    **result,
+                    "post_land_restart_error": str(exc),
+                }
+        return result
 
     async def read_candidate_identity(contract: TaskHandoffContract) -> dict[str, Any] | None:
         try:
@@ -750,13 +814,45 @@ def register_once_through_tools(
                 checkpoint.get("state") == "done"
                 or len(checkpoint.get("completed", ())) == 10
             ):
+                observations = dict(checkpoint.get("observations", {}))
+                terminal_receipt = checkpoint.get("terminal_receipt")
+                if not isinstance(terminal_receipt, dict):
+                    if contract.project_id == "kis-mcp":
+                        landed_observation = observations.get("refresh_landed")
+                        landed_sha = (
+                            str(landed_observation.get("landed_sha", "")).strip().lower()
+                            if isinstance(landed_observation, dict)
+                            else ""
+                        )
+                        cleanup_observation = observations.get("cleanup")
+                        cleanup = (
+                            dict(cleanup_observation)
+                            if isinstance(cleanup_observation, dict)
+                            else {}
+                        )
+                        cleanup["post_land_restart"] = _post_land_restart_receipt(
+                            state_root, landed_sha
+                        )
+                        observations["cleanup"] = cleanup
+                    terminal_receipt = build_terminal_receipt(
+                        operation_id, handoff, observations
+                    )
+                    checkpoint = {
+                        **checkpoint,
+                        "state": "done",
+                        "current_stage": None,
+                        "observations": observations,
+                        "terminal_receipt": terminal_receipt,
+                    }
+                    promotion_state.save(operation_id, checkpoint)
                 return {
                     "contract": "promotion-execution-v1",
                     "operation_id": operation_id,
                     "completed": list(checkpoint.get("completed", ())),
                     "current_stage": None,
                     "state": "done",
-                    "observations": dict(checkpoint.get("observations", {})),
+                    "observations": observations,
+                    "terminal_receipt": dict(terminal_receipt),
                 }
             candidate_receipt = store.load_candidate(work_id, required=True)
             assert candidate_receipt is not None
@@ -769,7 +865,17 @@ def register_once_through_tools(
             if not change_id:
                 raise ValueError("PROMOTION_CHANGE_ID_MISSING: PromotionReady change identity is unavailable")
             if checkpoint is not None and len(completed_prefix) == 9 and not source_root.exists():
-                cleanup_state = await reconcile_governed_cleanup(change_id, source_root)
+                cleanup_observations = dict(checkpoint.get("observations", {}))
+                landed_observation = cleanup_observations.get("refresh_landed")
+                landed_sha = (
+                    str(landed_observation.get("landed_sha", "")).strip().lower()
+                    if isinstance(landed_observation, dict)
+                    else ""
+                )
+                restart_landed_sha = landed_sha if contract.project_id == "kis-mcp" else None
+                cleanup_state = await reconcile_governed_cleanup(
+                    change_id, source_root, restart_landed_sha
+                )
                 observations = dict(checkpoint.get("observations", {}))
                 observations["cleanup"] = cleanup_state
                 if cleanup_state.get("status") != "applied":
@@ -778,10 +884,12 @@ def register_once_through_tools(
                         "completed": completed_prefix, "current_stage": "cleanup",
                         "state": "blocked", "observations": observations,
                     }
+                terminal_receipt = build_terminal_receipt(operation_id, handoff, observations)
                 recovered = {
                     "contract": "promotion-execution-v1", "operation_id": operation_id,
                     "completed": completed_prefix + ["cleanup"], "current_stage": None,
                     "state": "done", "observations": observations,
+                    "terminal_receipt": terminal_receipt,
                     "handoff_fingerprint": checkpoint.get("handoff_fingerprint"),
                 }
                 promotion_state.save(operation_id, recovered)
