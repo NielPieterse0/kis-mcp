@@ -56,7 +56,7 @@ function Invoke-KisReceiptLock {
 
 function Test-KisPrimaryGovernedDirty {
     param(
-        [Parameter(Mandatory)][string[]]$StatusLines
+        [AllowEmptyCollection()][string[]]$StatusLines = @()
     )
     foreach ($Line in $StatusLines) {
         if ([string]::IsNullOrWhiteSpace($Line)) {
