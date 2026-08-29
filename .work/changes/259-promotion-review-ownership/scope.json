@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "259-promotion-review-ownership",
+  "status": "active",
+  "branch": "change/259-promotion-review-ownership",
+  "worktree": ".work/worktrees/259-promotion-review-ownership",
+  "base": "main",
+  "outcome": "Normalize pull-request-safe-closeout so promotion/GitOps consumes implementation review-closure evidence and never starts another KIS specialist review, while preserving GitHub policy approval gates.",
+  "owned_paths": [
+    "SPEC.md",
+    "src/kis_mcp/workflows/platform.py",
+    "tests/capabilities/test_registered_commit_workflow.py",
+    "tests/capabilities/test_decision_pipeline.py",
+    ".work/changes/259-promotion-review-ownership/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "9e392ae17c403f0ed2631700494f32de6ed9ba00",
+    "local_tree": "0e67cd9e9dcc3294ec999dcbabcc939e0163ebb0",
+    "upstream_sha": "9e392ae17c403f0ed2631700494f32de6ed9ba00",
+    "upstream_tree": "0e67cd9e9dcc3294ec999dcbabcc939e0163ebb0",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-578",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 578,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

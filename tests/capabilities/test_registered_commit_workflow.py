@@ -118,8 +118,13 @@ def test_workflow_descriptors_route_publish_and_closeout_to_virtual_operations()
         "github_actions_get",
     )
     assert "run_verification" not in closeout.required_steps
+    assert "github_review_pull_request" not in closeout.required_steps
+    assert "github.review" not in closeout.capabilities
     assert "kis_github_merge_registered_pull_request" in closeout.required_steps
     assert REMOVED_DESTRUCTIVE_OPERATION not in closeout.required_steps
     assert "operation.kis_github_delete_registered_branch" not in closeout.capabilities
+    assert "implementation review-closure evidence is already satisfied" in closeout.completion_criteria
+    assert "repository and provider merge policy is satisfied" in closeout.completion_criteria
+    assert "review findings are resolved" not in closeout.completion_criteria
     assert "remote review branch is retained" in closeout.completion_criteria
     assert "github_merge_pull_request" not in closeout.required_steps

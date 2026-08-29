@@ -264,12 +264,12 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         ),
         _workflow(
             "pull-request-safe-closeout",
-            "Review and merge pull request safely",
-            "Inspect the change, observe provider-native GitHub pull-request and Actions evidence for the exact head, review findings, merge only that approved head, refresh the verified default-branch tracking ref, retain the remote review branch, and clean the merged worktree.",
-            ("git.change.inspect", "github.pull-request.read", "github.actions.read", "github.review", "operation.kis_github_merge_registered_pull_request", "operation.kis_github_refresh_registered_default_branch", "git.worktree.cleanup"),
-            ("inspect_change", "github_pull_request_read", "github_actions_list", "github_actions_get", "github_review_pull_request", "kis_github_merge_registered_pull_request", "kis_github_refresh_registered_default_branch", "cleanup_change_worktree"),
-            ("checks pass", "review findings are resolved", "approved head is merged", "registered default-branch tracking equals exact GitHub truth", "remote review branch is retained", "worktree is cleaned"),
-            ("review and merge pull request", "merge pr safely", "pr completion", "clean worktree"),
+            "Promote and merge pull request safely",
+            "Consume previously established implementation review-closure evidence, observe provider-native GitHub pull-request and Actions evidence for the exact head, merge only that policy-approved head, refresh the verified default-branch tracking ref, retain the remote review branch, and clean the merged worktree. Repository-required human approval remains a provider policy gate and is not a KIS implementation review.",
+            ("git.change.inspect", "github.pull-request.read", "github.actions.read", "operation.kis_github_merge_registered_pull_request", "operation.kis_github_refresh_registered_default_branch", "git.worktree.cleanup"),
+            ("inspect_change", "github_pull_request_read", "github_actions_list", "github_actions_get", "kis_github_merge_registered_pull_request", "kis_github_refresh_registered_default_branch", "cleanup_change_worktree"),
+            ("implementation review-closure evidence is already satisfied", "checks pass", "repository and provider merge policy is satisfied", "approved head is merged", "registered default-branch tracking equals exact GitHub truth", "remote review branch is retained", "worktree is cleaned"),
+            ("promote and merge pull request", "merge pr safely", "pr completion", "clean worktree"),
             (read, change, external, process),
         ),
         _workflow(

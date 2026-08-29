@@ -193,7 +193,11 @@ def test_safe_closeout_uses_runtime_verification_capability() -> None:
     assert "github.pull-request.read" in descriptor.capabilities
     assert "github.actions.read" in descriptor.capabilities
     assert "verification.execute" not in descriptor.capabilities
+    assert "github.review" not in descriptor.capabilities
     assert "run_verification" not in descriptor.required_steps
+    assert "github_review_pull_request" not in descriptor.required_steps
+    assert "implementation review-closure evidence is already satisfied" in descriptor.completion_criteria
+    assert "review findings are resolved" not in descriptor.completion_criteria
 
 
 def test_workflow_recommendation_excludes_ineligible_candidates() -> None:
