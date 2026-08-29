@@ -409,6 +409,7 @@ def register_project_management_tools(
 
         try:
             work_record = work_record_from_json(record)
+            updated_record = work_record
             implementation_trace = implementation_trace_from_json(trace)
             if completion_revision is None:
                 event = create_documentation_reconciliation_due(
@@ -426,16 +427,32 @@ def register_project_management_tools(
                     and event.state
                     is DocumentationMilestoneState.DOCUMENTATION_RECONCILIATION_DUE
                 )
-                if len(matches) != 1:
+                if not matches and not required_updates:
+                    due = create_documentation_reconciliation_due(
+                        implementation_trace,
+                        pull_request_number,
+                        documentation_task_id,
+                        (),
+                    )
+                    updated_record = apply_documentation_reconciliation_event(
+                        updated_record,
+                        due,
+                    )
+                    event = complete_documentation_reconciliation(
+                        due,
+                        completion_revision,
+                    )
+                elif len(matches) == 1:
+                    event = complete_documentation_reconciliation(
+                        matches[0],
+                        completion_revision,
+                    )
+                else:
                     raise ValueError(
                         "exactly one due documentation reconciliation event is required"
                     )
-                event = complete_documentation_reconciliation(
-                    matches[0],
-                    completion_revision,
-                )
                 phase = "post_merge_complete"
-            updated = apply_documentation_reconciliation_event(work_record, event)
+            updated = apply_documentation_reconciliation_event(updated_record, event)
             return {
                 "phase": phase,
                 "event": event.to_json_dict(),

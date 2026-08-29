@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
+
+import pytest
 
 from kis_mcp.workflows.once_through.contracts import TaskHandoffContract
 from kis_mcp.workflows.once_through.promotion import PromotionStageService
@@ -185,12 +189,16 @@ def test_refresh_landed_accepts_merge_commit_in_newer_default_history(tmp_path: 
     invoker.responses.update({
         "github_get_commit": {"sha": newer},
         "kis_github_refresh_registered_default_branch": {"github_default_sha": newer},
-        "github_list_commits": {"commits": [{"sha": newer}, {"sha": LANDED}]},
     })
-    result = asyncio.run(_service(tmp_path, invoker).invoke(
-        "refresh_landed", _handoff(),
-        {"merge_exact_head": {"merge_commit_sha": LANDED}},
-    ))
+    with patch(
+        "kis_mcp.workflows.once_through.promotion.subprocess.run",
+        return_value=SimpleNamespace(returncode=0, stderr="", stdout=""),
+    ) as ancestry:
+        result = asyncio.run(_service(tmp_path, invoker).invoke(
+            "refresh_landed", _handoff(),
+            {"merge_exact_head": {"merge_commit_sha": LANDED}},
+        ))
+    ancestry.assert_called_once()
     assert result["status"] == "applied"
     assert result["landed_sha"] == newer
     assert result["merge_commit_sha"] == LANDED
@@ -518,3 +526,57 @@ def test_cleanup_requires_exact_landed_restart_proof_for_kis_mcp_main(tmp_path: 
     assert result["status"] == "applied"
     assert calls == [("263-test", tmp_path.resolve(), LANDED)]
     assert result["post_land_restart"]["launched_sha"] == LANDED
+
+
+def test_create_pull_request_reuses_work_title_without_source_issue_read(tmp_path: Path) -> None:
+    invoker = FakeInvoker()
+    invoker.responses["kis_github_create_registered_pull_request"] = {
+        "pull_number": 9, "head_sha": PUBLISHED,
+    }
+    result = asyncio.run(_service(tmp_path, invoker).invoke(
+        "create_pull_request", _handoff(), {
+            "refresh_default": {"github_default_sha": BASE},
+            "reconcile_candidate": {"commit_sha": PUBLISHED},
+        },
+    ))
+    assert result["head_sha"] == PUBLISHED
+    called = [str(args.get("operation", name)) for name, args in invoker.calls]
+    assert "github_issue_read" not in called
+    envelope = next(args for _, args in invoker.calls
+                    if args.get("operation") == "kis_github_create_registered_pull_request")
+    assert envelope["arguments"]["title"] == "Converge"
+
+
+def test_actions_discovery_is_one_workflow_scoped_page(tmp_path: Path) -> None:
+    invoker = FakeInvoker()
+    invoker.responses.update({
+        "github_actions_list": {"workflow_runs": []},
+    })
+    asyncio.run(_service(tmp_path, invoker).invoke(
+        "exact_head_actions", _handoff(),
+        {"create_pull_request": {"pull_number": 9, "head_sha": PUBLISHED}},
+    ))
+    calls = [args for name, args in invoker.calls if name == "github_actions_list"]
+    assert len(calls) == 1
+    assert calls[0]["page"] == 1
+    assert calls[0]["resource_id"] == "work-management.yml"
+
+
+def test_landed_ancestry_reports_git_start_failure(tmp_path: Path) -> None:
+    service = _service(tmp_path, FakeInvoker())
+    with patch(
+        "kis_mcp.workflows.once_through.promotion.subprocess.run",
+        side_effect=FileNotFoundError("git"),
+    ):
+        with pytest.raises(ValueError, match="PROMOTION_DEFAULT_ANCESTRY_UNAVAILABLE"):
+            asyncio.run(service._default_contains_commit("e" * 40, LANDED))
+
+
+def test_landed_ancestry_reports_invalid_git_result(tmp_path: Path) -> None:
+    service = _service(tmp_path, FakeInvoker())
+    with patch(
+        "kis_mcp.workflows.once_through.promotion.subprocess.run",
+        return_value=SimpleNamespace(returncode=128, stderr="bad repository", stdout=""),
+    ):
+        with pytest.raises(ValueError, match="PROMOTION_DEFAULT_ANCESTRY_INVALID: bad repository"):
+            asyncio.run(service._default_contains_commit("e" * 40, LANDED))

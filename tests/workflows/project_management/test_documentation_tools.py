@@ -143,3 +143,26 @@ def test_documentation_reconciliation_moves_verification_to_documentation_then_c
     assert completed["record"]["state"] == "documentation"
     assert completed["record"]["documentation_impact"] == "post_merge_complete"
     assert completed["record"]["documentation_milestone"] == "post_merge_complete"
+
+
+def test_noop_documentation_reconciliation_can_complete_in_one_call() -> None:
+    server = FastMCP("root")
+    register_project_management_tools(server, Service())
+
+    completed = asyncio.run(server.call_tool(
+        "project_management_documentation_reconcile",
+        {
+            "record": record(),
+            "trace": trace(merged=True),
+            "pull_request_number": 140,
+            "documentation_task_id": "TASK-110",
+            "required_updates": [],
+            "completion_revision": "c" * 40,
+        },
+    )).structured_content
+
+    assert completed is not None
+    assert completed["phase"] == "post_merge_complete"
+    assert completed["event"]["required_updates"] == []
+    assert completed["event"]["completion_revision"] == "c" * 40
+    assert completed["record"]["documentation_impact"] == "post_merge_complete"

@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "266-promotion-efficiency",
+  "status": "active",
+  "branch": "change/266-promotion-efficiency",
+  "worktree": ".work/worktrees/266-promotion-efficiency",
+  "base": "main",
+  "outcome": "Eliminate redundant provider reads, duplicate verification, and promotion choreography while preserving exact-head and Work safety gates.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/**",
+    "tests/workflows/once_through/**",
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "tests/workflows/project_management/test_documentation_tools.py",
+    "src/kis_mcp/work_management/traceability.py",
+    "tests/work_management/test_traceability.py",
+    "SPEC.md",
+    ".work/changes/266-promotion-efficiency/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "7feef6496d6a9770a6c100ba739105ffb0a52d09",
+    "local_tree": "b7252e259d922a234e0e4ea377428cf53a5fc321",
+    "upstream_sha": "7feef6496d6a9770a6c100ba739105ffb0a52d09",
+    "upstream_tree": "b7252e259d922a234e0e4ea377428cf53a5fc321",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-593",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 593,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex-workflow-efficiency"
+  }
+}
