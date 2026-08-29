@@ -413,6 +413,7 @@ def test_merge_is_approval_gated_exact_head_and_never_admin() -> None:
 
     assert result["state"] == "merged"
     assert result["authorized_head"] == TARGET
+    assert result["merge_commit_sha"] is None
     merge = runner.calls[2][0]
     assert merge == (
         "gh",
@@ -454,8 +455,9 @@ def test_kis_mcp_merge_schedules_development_restart(tmp_path: Path) -> None:
         project_id="kis-mcp", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
     )
     assert set(result) == {
-        "schema_version", "state", "project_id", "repository", "pull_number", "authorized_head", "merge_method"
+        "schema_version", "state", "project_id", "repository", "pull_number", "authorized_head", "merge_method", "merge_commit_sha"
     }
+    assert result["merge_commit_sha"] == REMOTE_DEFAULT
     assert calls == [("kis-mcp", tmp_path, "main", REMOTE_DEFAULT)]
 
 
@@ -487,8 +489,9 @@ def test_kis_mcp_merge_preserves_success_when_dispatcher_raises(tmp_path: Path) 
     )
     assert result["state"] == "merged"
     assert set(result) == {
-        "schema_version", "state", "project_id", "repository", "pull_number", "authorized_head", "merge_method"
+        "schema_version", "state", "project_id", "repository", "pull_number", "authorized_head", "merge_method", "merge_commit_sha"
     }
+    assert result["merge_commit_sha"] == REMOTE_DEFAULT
     assert len(failures) == 1
     assert isinstance(failures[0][-1], RuntimeError)
 
@@ -1189,3 +1192,51 @@ def test_kis_mcp_merge_never_dispatches_when_post_merge_verification_fails(
             merge_method="merge", approved=True,
         )
     assert calls == []
+
+
+def test_merge_recovers_existing_exact_merge_without_repeating_mutation() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "MERGED",
+        "isDraft": False,
+        "baseRefName": "main",
+        "mergeCommit": {"oid": REMOTE_DEFAULT},
+    }
+    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    result = operations.merge_pull_request(
+        project_id="college",
+        pull_number=7,
+        expected_head=TARGET,
+        merge_method="merge",
+        approved=True,
+    )
+
+    assert result["state"] == "merged"
+    assert result["recovery"] == "existing_exact"
+    assert result["merge_commit_sha"] == REMOTE_DEFAULT
+    assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
+
+
+def test_merge_existing_exact_waits_for_merge_commit_identity() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "MERGED",
+        "isDraft": False,
+        "baseRefName": "main",
+        "mergeCommit": None,
+    }
+    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
+
+    with pytest.raises(ToolError, match="PULL_REQUEST_MERGE_IDENTITY_PENDING"):
+        operations.merge_pull_request(
+            project_id="college",
+            pull_number=7,
+            expected_head=TARGET,
+            merge_method="merge",
+            approved=True,
+        )
+
+    assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)

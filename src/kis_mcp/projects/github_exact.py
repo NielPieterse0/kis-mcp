@@ -1587,6 +1587,28 @@ class RegisteredGitHubOperations:
             raise ToolError(
                 f"PULL_REQUEST_HEAD_MISMATCH: expected {authorized_head}, observed {observed_head or '<unknown>'}"
             )
+        if before.get("state") == "MERGED":
+            merge_commit = before.get("mergeCommit")
+            landed_sha = (
+                str(merge_commit.get("oid", "")).strip().lower()
+                if isinstance(merge_commit, Mapping)
+                else ""
+            )
+            if _SHA.fullmatch(landed_sha) is None:
+                raise ToolError(
+                    "PULL_REQUEST_MERGE_IDENTITY_PENDING: merged pull request has no exact merge commit SHA yet"
+                )
+            return {
+                "schema_version": 1,
+                "state": "merged",
+                "project_id": project.project_id,
+                "repository": repository,
+                "pull_number": pull_number,
+                "authorized_head": authorized_head,
+                "merge_method": merge_method,
+                "merge_commit_sha": landed_sha,
+                "recovery": "existing_exact",
+            }
         if before.get("state") != "OPEN" or before.get("isDraft") is True:
             raise ToolError("PULL_REQUEST_NOT_MERGEABLE_STATE: pull request must be open and non-draft")
         body = before.get("body")
@@ -1654,6 +1676,7 @@ class RegisteredGitHubOperations:
             "pull_number": pull_number,
             "authorized_head": authorized_head,
             "merge_method": merge_method,
+            "merge_commit_sha": exact_landed_sha,
         }
 
     def delete_remote_branch(

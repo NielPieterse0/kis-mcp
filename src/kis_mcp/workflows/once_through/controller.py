@@ -9,7 +9,7 @@ from typing import Any
 
 from .contracts import fingerprint
 
-PromotionInvoker = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
+PromotionInvoker = Callable[[str, dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]]]
 
 _STAGES = (
     "refresh_default",
@@ -90,7 +90,7 @@ class PromotionController:
         if tuple(done) != _STAGES[: len(done)] or len(set(done)) != len(done):
             raise ValueError("PROMOTION_STATE_INVALID: completed stages must be a unique ordered prefix")
         for stage in _STAGES[len(done) :]:
-            result = await self._invoker(stage, dict(promotion_handoff))
+            result = await self._invoker(stage, dict(promotion_handoff), dict(observations))
             observations[stage] = result
             if result.get("status") not in {"passed", "satisfied", "applied"}:
                 execution = PromotionExecution(operation_id, tuple(done), stage, "blocked", observations)
