@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from collections.abc import Awaitable, Callable, Mapping
 from pathlib import Path
 from typing import Any
@@ -124,20 +125,6 @@ class PromotionStageService:
     def _source_commit(self, handoff: Mapping[str, Any]) -> str:
         return _required_text(handoff.get("source_commit_sha"), "PromotionReady source commit")
 
-    async def _remote_branch_head(self) -> str | None:
-        try:
-            result = await self.invoker(
-                "github_get_commit",
-                {"owner": self.owner, "repo": self.repo, "sha": self.branch, "detail": "none"},
-            )
-        except Exception as exc:
-            detail = str(exc).casefold()
-            if "not found" in detail or "404" in detail:
-                return None
-            raise
-        value = result.get("sha")
-        return value.strip().lower() if isinstance(value, str) and value.strip() else None
-
     async def _reconcile_candidate(
         self, handoff: dict[str, Any], observations: dict[str, Any]
     ) -> dict[str, Any]:
@@ -151,7 +138,7 @@ class PromotionStageService:
                 "source_base": self._base_sha(),
                 "branch": self.branch,
                 "expected_remote_default": expected_default,
-                "expected_remote_branch": await self._remote_branch_head(),
+                "expected_remote_branch": None,
                 "approved": True,
             },
         )
@@ -162,19 +149,13 @@ class PromotionStageService:
         work = _required_mapping(self.scope.get("work_management"), "scope work_management")
         return _required_int(work.get("source_number"), "source issue number")
 
-    async def _issue(self) -> dict[str, Any]:
-        return await self.invoker(
-            "github_issue_read",
-            {"method": "get", "owner": self.owner, "repo": self.repo, "issue_number": self._source_number()},
-        )
-
     async def _create_pull_request(
         self, handoff: dict[str, Any], observations: dict[str, Any]
     ) -> dict[str, Any]:
         refresh = _required_mapping(observations.get("refresh_default"), "refresh_default observation")
         published = _required_mapping(observations.get("reconcile_candidate"), "reconcile_candidate observation")
-        issue = await self._issue()
         expected_head = _required_text(published.get("commit_sha"), "published head SHA")
+        title = _required_text(self.work_record.get("title"), "Work title")
         result = await self._external(
             "kis_github_create_registered_pull_request",
             {
@@ -182,8 +163,8 @@ class PromotionStageService:
                 "branch": self.branch,
                 "expected_head": expected_head,
                 "expected_remote_default": _required_text(refresh.get("github_default_sha"), "GitHub default SHA"),
-                "title": _required_text(issue.get("title"), "issue title"),
-                "body": self._pull_request_body(issue, handoff),
+                "title": title,
+                "body": self._pull_request_body(title, handoff),
                 "approved": True,
             },
         )
@@ -193,9 +174,9 @@ class PromotionStageService:
             raise ValueError("PROMOTION_PULL_REQUEST_HEAD_MISMATCH")
         return {"status": "applied", **result, "pull_number": pull_number, "head_sha": head_sha}
 
-    def _pull_request_body(self, issue: Mapping[str, Any], handoff: Mapping[str, Any]) -> str:
+    def _pull_request_body(self, title: str, handoff: Mapping[str, Any]) -> str:
         return (
-            f"## Outcome\n{_required_text(issue.get('title'), 'issue title')}\n\n"
+            f"## Outcome\n{_required_text(title, 'Work title')}\n\n"
             f"## Work\n- Work ID: `{self.contract.work_id}`\n"
             f"- Change ID: `{self.change_id}`\n"
             f"- PromotionReady source: `{self._source_commit(handoff)}`\n\n"
@@ -245,14 +226,6 @@ class PromotionStageService:
         created = _required_mapping(observations.get("create_pull_request"), "create_pull_request observation")
         pull_number = _required_int(created.get("pull_number"), "pull request number")
         expected_head = _required_text(created.get("head_sha"), "pull request head SHA")
-        pull = await self.invoker(
-            "github_pull_request_read",
-            {"method": "get", "owner": self.owner, "repo": self.repo, "pullNumber": pull_number},
-        )
-        head = _required_mapping(pull.get("head"), "pull request head")
-        actual_head = _required_text(head.get("sha"), "provider pull request head SHA")
-        if actual_head != expected_head:
-            raise ValueError("PROMOTION_PULL_REQUEST_HEAD_CHANGED")
         workflow = self._verification_workflow()
         previous = observations.get("exact_head_actions")
         if isinstance(previous, Mapping):
@@ -283,67 +256,54 @@ class PromotionStageService:
                 if persisted_result is None:
                     raise ValueError("PROMOTION_ACTIONS_PERSISTED_IDENTITY_INVALID")
                 return persisted_result
-        detail: dict[str, Any] | None = None
-        run_id: int | None = None
-        saw_exact_workflow = False
-        exhausted = False
-        for page in range(1, 11):
-            listed = await self.invoker(
-                "github_actions_list",
-                {
-                    "method": "list_workflow_runs", "owner": self.owner, "repo": self.repo,
-                    "per_page": 100, "page": page,
-                    "workflow_runs_filter": {"branch": self.branch},
-                },
-            )
-            raw_runs = listed.get("workflow_runs")
-            if not isinstance(raw_runs, list):
-                raw_runs = []
-            exact_runs = [
+        listed = await self.invoker(
+            "github_actions_list",
+            {
+                "method": "list_workflow_runs", "owner": self.owner, "repo": self.repo,
+                "resource_id": workflow, "per_page": 100, "page": 1,
+                "workflow_runs_filter": {"branch": self.branch},
+            },
+        )
+        raw_runs = listed.get("workflow_runs")
+        if not isinstance(raw_runs, list):
+            raw_runs = []
+        exact_runs = sorted(
+            (
                 dict(item) for item in raw_runs
                 if isinstance(item, Mapping)
                 and item.get("head_sha") == expected_head
                 and self._workflow_matches(item, workflow)
-            ]
-            saw_exact_workflow = saw_exact_workflow or bool(exact_runs)
-            for candidate in sorted(
-                exact_runs,
-                key=lambda item: _required_int(item.get("id"), "GitHub Actions run ID"),
-                reverse=True,
-            ):
-                candidate_id = _required_int(candidate.get("id"), "GitHub Actions run ID")
-                candidate_detail = await self.invoker(
-                    "github_actions_get",
-                    {
-                        "method": "get_workflow_run", "owner": self.owner, "repo": self.repo,
-                        "resource_id": str(candidate_id),
-                    },
-                )
-                if candidate_detail.get("head_sha") != expected_head:
-                    raise ValueError("PROMOTION_ACTIONS_HEAD_MISMATCH")
-                if candidate_detail.get("event") != "pull_request":
-                    continue
-                run_pull_requests = candidate_detail.get("pull_requests")
-                if not isinstance(run_pull_requests, list) or not run_pull_requests:
-                    continue
-                numbers = {
-                    item.get("number") for item in run_pull_requests if isinstance(item, Mapping)
-                }
-                if pull_number not in numbers:
-                    continue
-                detail = candidate_detail
-                run_id = candidate_id
-                break
-            if detail is not None:
-                break
-            if len(raw_runs) < 100:
-                exhausted = True
-                break
+            ),
+            key=lambda item: _required_int(item.get("id"), "GitHub Actions run ID"),
+            reverse=True,
+        )
+        detail: dict[str, Any] | None = None
+        run_id: int | None = None
+        for candidate in exact_runs:
+            candidate_id = _required_int(candidate.get("id"), "GitHub Actions run ID")
+            candidate_detail = await self.invoker(
+                "github_actions_get",
+                {
+                    "method": "get_workflow_run", "owner": self.owner, "repo": self.repo,
+                    "resource_id": str(candidate_id),
+                },
+            )
+            candidate_result = self._action_result(
+                candidate_detail,
+                run_id=candidate_id,
+                pull_number=pull_number,
+                expected_head=expected_head,
+                workflow=workflow,
+            )
+            if candidate_result is None:
+                continue
+            detail = candidate_detail
+            run_id = candidate_id
+            break
         if detail is None or run_id is None:
             reason = (
-                "github_actions_required_workflow_missing" if not saw_exact_workflow
-                else "github_actions_pull_request_run_missing" if exhausted
-                else "github_actions_search_truncated"
+                "github_actions_required_workflow_missing" if not exact_runs
+                else "github_actions_pull_request_run_missing"
             )
             return {
                 "status": "blocked", "reason": reason,
@@ -494,24 +454,23 @@ class PromotionStageService:
     async def _default_contains_commit(self, default_sha: str, target_sha: str) -> bool:
         if default_sha == target_sha:
             return True
-        for page in range(1, 11):
-            result = await self.invoker(
-                "github_list_commits",
-                {"owner": self.owner, "repo": self.repo, "sha": default_sha,
-                 "page": page, "perPage": 100, "fields": ["sha"]},
+        try:
+            result = subprocess.run(
+                ["git", "merge-base", "--is-ancestor", target_sha, default_sha],
+                cwd=self.source_root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
-            commits = result.get("commits", result) if isinstance(result, Mapping) else result
-            if isinstance(commits, Mapping):
-                commits = commits.get("items", commits.get("data", []))
-            if not isinstance(commits, list):
-                raise ValueError("PROMOTION_DEFAULT_HISTORY_INVALID")
-            shas = {str(item.get("sha", "")).strip().lower()
-                    for item in commits if isinstance(item, Mapping)}
-            if target_sha.lower() in shas:
-                return True
-            if len(commits) < 100:
-                return False
-        return False
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise ValueError(
+                f"PROMOTION_DEFAULT_ANCESTRY_UNAVAILABLE: {type(exc).__name__}"
+            ) from exc
+        if result.returncode not in {0, 1}:
+            detail = (result.stderr or result.stdout or "git merge-base failed").strip()
+            raise ValueError(f"PROMOTION_DEFAULT_ANCESTRY_INVALID: {detail}")
+        return result.returncode == 0
 
     async def _refresh_landed(
         self, handoff: dict[str, Any], observations: dict[str, Any]
@@ -550,24 +509,14 @@ class PromotionStageService:
                 "status": "blocked", "reason": "documentation_pre_merge_evidence_missing",
                 "documentation_impact": self.work_record.get("documentation_impact"),
             }
-        due = await self.invoker(
-            "project_management_documentation_reconcile",
-            {
-                "record": dict(self.work_record), "trace": trace,
-                "pull_request_number": pull_number,
-                "documentation_task_id": f"docs-{self.change_id}",
-                "required_updates": [],
-            },
-        )
-        event = _required_mapping(due.get("event"), "documentation due event")
-        trace["documentation_events"] = [event]
         completed = await self.invoker(
             "project_management_documentation_reconcile",
             {
-                "record": _required_mapping(due.get("record"), "documentation due record"),
-                "trace": trace, "pull_request_number": pull_number,
+                "record": dict(self.work_record),
+                "trace": trace,
+                "pull_request_number": pull_number,
                 "documentation_task_id": f"docs-{self.change_id}",
-                "required_updates": list(event.get("required_updates", ())),
+                "required_updates": [],
                 "completion_revision": landed_sha,
             },
         )

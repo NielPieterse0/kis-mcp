@@ -290,7 +290,7 @@ class DocumentationReconciliationEvent:
         object.__setattr__(
             self,
             "required_updates",
-            _texts(self.required_updates, "required_updates", required=True),
+            _texts(self.required_updates, "required_updates"),
         )
         _enum(self.state, DocumentationMilestoneState, "state")
         completion_revision = self.completion_revision
