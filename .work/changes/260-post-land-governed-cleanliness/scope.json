@@ -1,0 +1,29 @@
+{
+  "schema_version": 4,
+  "change_id": "260-post-land-governed-cleanliness",
+  "status": "active",
+  "branch": "change/260-post-land-governed-cleanliness",
+  "worktree": ".work/worktrees/260-post-land-governed-cleanliness",
+  "base": "main",
+  "outcome": "Allow post-land kis-dev restart to ignore canonical safe generated evidence while preserving fail-closed behavior for governed dirt",
+  "owned_paths": [
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/projects/test_post_land_restart.py",
+    ".work/changes/260-post-land-governed-cleanliness/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "4e5f439b255ea665f0618a19e834b54a178cf37c",
+    "local_tree": "d02be17b14f29147446a2a76ea0bca9c5c1f9b14",
+    "upstream_sha": "4e5f439b255ea665f0618a19e834b54a178cf37c",
+    "upstream_tree": "d02be17b14f29147446a2a76ea0bca9c5c1f9b14",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

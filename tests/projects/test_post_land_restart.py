@@ -387,7 +387,7 @@ def test_worker_behavior_invokes_only_kis_dev(tmp_path: Path) -> None:
         "flag = Path(os.environ['KIS_TEST_MERGE_FLAG'])\n"
         "fetch = ['-c','credential.https://github.com.helper=','-c','credential.https://github.com.helper=!gh auth git-credential','fetch','--no-tags','--no-recurse-submodules','--no-write-fetch-head','origin','refs/heads/main:refs/remotes/origin/main']\n"
         "if args == ['symbolic-ref','--quiet','--short','HEAD']:\n    print('main')\n"
-        "elif args == ['status','--porcelain=v1','--untracked-files=all']:\n    pass\n"
+        "elif args == ['status','--porcelain=v1','--untracked-files=all']:\n    print('?? .work/programmes/verification-review-evidence/run.json')\n"
         "elif args == fetch:\n    pass\n"
         "elif args == ['rev-parse','--verify','HEAD']:\n    print(REMOTE if flag.exists() else SHA)\n"
         "elif args == ['rev-parse','--verify','refs/remotes/origin/main']:\n    print(REMOTE)\n"
@@ -455,6 +455,49 @@ def test_worker_behavior_invokes_only_kis_dev(tmp_path: Path) -> None:
         "rev-parse|--verify|HEAD",
         f"merge-base|--is-ancestor|{SHA}|{REMOTE_AFTER}",
     ]
+
+
+def test_worker_still_rejects_governed_primary_dirt(tmp_path: Path) -> None:
+    root = tmp_path / "governed-dirty"
+    scripts = root / "scripts"
+    settings = root / "settings"
+    fake_bin = root / "bin"
+    state_root = root / "state"
+    for path in (scripts, settings, fake_bin, state_root):
+        path.mkdir(parents=True, exist_ok=True)
+    source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
+    (scripts / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    (settings / "kis-mcp.settings.json").write_text(
+        json.dumps({"github_cli": {"config_dir": str(root / "gh")}}), encoding="utf-8"
+    )
+    git_fake = fake_bin / "git_fake.py"
+    git_fake.write_text(
+        "import sys\nargs = sys.argv[1:]\n"
+        "if args == ['symbolic-ref','--quiet','--short','HEAD']:\n    print('main')\n"
+        "elif args == ['status','--porcelain=v1','--untracked-files=all']:\n    print('?? governed-source.txt')\n"
+        "else:\n    raise SystemExit(99)\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "git.cmd").write_text(
+        f'@echo off\n"{sys.executable}" "%~dp0git_fake.py" %*\nexit /b %ERRORLEVEL%\n',
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+    result = subprocess.run(
+        ["pwsh.exe", "-NoProfile", "-File", str(scripts / source.name),
+         "-ExpectedLandedSha", SHA, "-RepositoryRoot", str(root),
+         "-StateRoot", str(state_root), "-Worker", "-DelaySeconds", "0"],
+        cwd=root, env=env, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert result.returncode != 0
+    assert "POST_LAND_RESTART_PRIMARY_DIRTY" in result.stderr
+    receipt = json.loads(
+        (state_root / "runtime" / "kis-dev" / "state" /
+         "post-land-restart" / "latest.json").read_text(encoding="utf-8")
+    )
+    assert receipt["state"] == "failed"
+    assert receipt["detail"] == "POST_LAND_RESTART_PRIMARY_DIRTY"
 
 
 def test_unexpected_hook_failure_recorder_retains_bounded_evidence(tmp_path: Path) -> None:
