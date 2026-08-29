@@ -1,0 +1,50 @@
+{
+  "schema_version": 4,
+  "change_id": "265-promotion-resume-terminal-hardening",
+  "status": "active",
+  "branch": "change/265-promotion-resume-terminal-hardening",
+  "worktree": ".work/worktrees/265-promotion-resume-terminal-hardening",
+  "base": "main",
+  "outcome": "Make PromotionReady-to-Done resume from persisted external identities, reconcile uncertain mutations, prevent half-applied Work/source closeout, and emit one durable terminal receipt.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/controller.py",
+    "src/kis_mcp/workflows/once_through/promotion.py",
+    "src/kis_mcp/workflows/once_through/contracts.py",
+    "src/kis_mcp/workflows/once_through/state.py",
+    "src/kis_mcp/workflows/once_through/tools.py",
+    "tests/workflows/once_through/**",
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/projects/test_post_land_restart.py",
+    "SPEC.md",
+    ".work/changes/265-promotion-resume-terminal-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "5d0e7f982b091d00ab7fdefdd12ed4d2d56dd86c",
+    "local_tree": "f03877ba92d741c10d9f70bcfda3a2742ecd423e",
+    "upstream_sha": "5d0e7f982b091d00ab7fdefdd12ed4d2d56dd86c",
+    "upstream_tree": "f03877ba92d741c10d9f70bcfda3a2742ecd423e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-592",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 592,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex-workflow-efficiency"
+  }
+}

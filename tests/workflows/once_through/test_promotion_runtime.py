@@ -285,3 +285,236 @@ def test_trace_uses_typed_specification_identity_for_work_gate(tmp_path: Path) -
     })
     assert trace["implementation_record_id"] == "SPEC-585"
     assert trace["specification_record_id"] == "SPEC-585"
+
+
+def test_exact_head_actions_reuses_persisted_run_without_history_rescan(tmp_path: Path) -> None:
+    invoker = FakeInvoker()
+    invoker.responses["github_pull_request_read"] = {"head": {"sha": PUBLISHED}}
+    invoker.action_runs["11"] = {
+        "id": 11, "head_sha": PUBLISHED, "event": "pull_request",
+        "pull_requests": [{"number": 9}], "status": "completed", "conclusion": "success",
+    }
+    previous = {
+        "status": "blocked", "reason": "github_actions_pending",
+        "pull_number": 9, "head_sha": PUBLISHED,
+        "workflow": "work-management.yml", "run_ids": [11],
+    }
+    result = asyncio.run(_service(tmp_path, invoker).invoke(
+        "exact_head_actions", _handoff(), {
+            "create_pull_request": {"pull_number": 9, "head_sha": PUBLISHED},
+            "exact_head_actions": previous,
+        },
+    ))
+    assert result["status"] == "passed"
+    assert result["run_ids"] == [11]
+    operations = [str(args.get("operation", name)) for name, args in invoker.calls]
+    assert "github_actions_list" not in operations
+    assert operations.count("github_actions_get") == 1
+
+
+class _MergeResponseLostInvoker(FakeInvoker):
+    def __init__(self) -> None:
+        super().__init__()
+        self.merge_attempts = 0
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        operation = str(arguments.get("operation", tool_name))
+        if operation == "kis_github_merge_registered_pull_request":
+            self.calls.append((tool_name, arguments))
+            self.merge_attempts += 1
+            raise RuntimeError("transport response lost")
+        if operation == "github_pull_request_read":
+            self.calls.append((tool_name, arguments))
+            return {
+                "merged": True, "merge_commit_sha": LANDED,
+                "head": {"sha": PUBLISHED}, "number": 9,
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_merge_reconciles_provider_truth_after_response_loss(tmp_path: Path) -> None:
+    invoker = _MergeResponseLostInvoker()
+    result = asyncio.run(_service(tmp_path, invoker).invoke(
+        "merge_exact_head", _handoff(), {"merge_readiness": {
+            "status": "satisfied", "ready": True, "pull_number": 9, "head_sha": PUBLISHED,
+        }},
+    ))
+    assert result["status"] == "applied"
+    assert result["merge_commit_sha"] == LANDED
+    assert result["reconciled_after_error"] is True
+    assert invoker.merge_attempts == 1
+
+
+class _SourceCloseFlakyInvoker(FakeInvoker):
+    def __init__(self) -> None:
+        super().__init__()
+        self.close_attempts = 0
+        self.responses["project_management_complete_work"] = {
+            "mode": "apply", "source_close_required": True,
+        }
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        operation = str(arguments.get("operation", tool_name))
+        if operation == "github_issue_write":
+            self.calls.append((tool_name, arguments))
+            self.close_attempts += 1
+            if self.close_attempts == 1:
+                raise RuntimeError("source close unavailable")
+            return {"state": "closed"}
+        if operation == "github_issue_read":
+            self.calls.append((tool_name, arguments))
+            return {"state": "open"}
+        return await super().__call__(tool_name, arguments)
+
+
+def test_work_done_resumes_source_close_without_repeating_work_completion(tmp_path: Path) -> None:
+    invoker = _SourceCloseFlakyInvoker()
+    service = _service(tmp_path, invoker)
+    documentation = {"record": {**_record(), "documentation_impact": "post_merge_complete"}}
+    first = asyncio.run(service.invoke(
+        "work_done", _handoff(), {"documentation_reconcile": documentation}
+    ))
+    assert first["status"] == "blocked"
+    assert first["reason"] == "source_close_pending"
+    second = asyncio.run(service.invoke(
+        "work_done", _handoff(), {
+            "documentation_reconcile": documentation, "work_done": first,
+        },
+    ))
+    assert second["status"] == "applied"
+    operations = [str(args.get("operation", name)) for name, args in invoker.calls]
+    assert operations.count("project_management_complete_work") == 1
+    assert invoker.close_attempts == 2
+    assert second["source_close_applied"] is True
+
+
+def test_service_rejects_scope_work_identity_mismatch_before_promotion(tmp_path: Path) -> None:
+    invoker = FakeInvoker()
+    settings = tmp_path / "settings"
+    settings.mkdir(parents=True, exist_ok=True)
+    (settings / "github-merge-queue.settings.json").write_text(
+        '{"verification_workflow":"work-management.yml"}\n', encoding="utf-8"
+    )
+    scope = _scope(tmp_path)
+    scope["work_management"] = {**scope["work_management"], "record_id": "WORK-999"}
+    try:
+        PromotionStageService(
+            invoker=invoker, contract=_contract(tmp_path), scope=scope,
+            work_record=_record(), approved=True,
+        )
+    except ValueError as exc:
+        assert "PROMOTION_WORK_ID_MISMATCH" in str(exc)
+    else:
+        raise AssertionError("mismatched Work identity must fail before promotion")
+
+
+class _SourceCloseResponseLostInvoker(FakeInvoker):
+    def __init__(self) -> None:
+        super().__init__()
+        self.close_attempts = 0
+        self.closed = False
+        self.responses["project_management_complete_work"] = {
+            "mode": "apply", "source_close_required": True,
+        }
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        operation = str(arguments.get("operation", tool_name))
+        if operation == "github_issue_write":
+            self.calls.append((tool_name, arguments))
+            self.close_attempts += 1
+            self.closed = True
+            raise RuntimeError("close response lost")
+        if operation == "github_issue_read":
+            self.calls.append((tool_name, arguments))
+            return {"state": "closed" if self.closed else "open"}
+        return await super().__call__(tool_name, arguments)
+
+
+def test_source_close_response_loss_reconciles_closed_state_without_retry_write(tmp_path: Path) -> None:
+    invoker = _SourceCloseResponseLostInvoker()
+    documentation = {"record": {**_record(), "documentation_impact": "post_merge_complete"}}
+    result = asyncio.run(_service(tmp_path, invoker).invoke(
+        "work_done", _handoff(), {"documentation_reconcile": documentation}
+    ))
+    assert result["status"] == "applied"
+    assert result["source_close_applied"] is True
+    assert result["source_close_reconciled_after_error"] is True
+    assert invoker.close_attempts == 1
+
+
+class _SourceCloseReconcileFlakyInvoker(FakeInvoker):
+    def __init__(self) -> None:
+        super().__init__()
+        self.work_completion_calls = 0
+        self.close_attempts = 0
+        self.issue_reads = 0
+        self.responses["project_management_complete_work"] = {
+            "mode": "apply", "source_close_required": True,
+        }
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        operation = str(arguments.get("operation", tool_name))
+        if operation == "project_management_complete_work":
+            self.work_completion_calls += 1
+        if operation == "github_issue_write":
+            self.calls.append((tool_name, arguments))
+            self.close_attempts += 1
+            raise RuntimeError("close response lost")
+        if operation == "github_issue_read":
+            self.calls.append((tool_name, arguments))
+            self.issue_reads += 1
+            if self.issue_reads == 1:
+                raise RuntimeError("issue read unavailable")
+            return {"state": "closed"}
+        return await super().__call__(tool_name, arguments)
+
+
+def test_source_close_reconcile_retry_never_repeats_work_or_close_mutation(tmp_path: Path) -> None:
+    invoker = _SourceCloseReconcileFlakyInvoker()
+    service = _service(tmp_path, invoker)
+    documentation = {"record": {**_record(), "documentation_impact": "post_merge_complete"}}
+    first = asyncio.run(service.invoke(
+        "work_done", _handoff(), {"documentation_reconcile": documentation}
+    ))
+    assert first["status"] == "blocked"
+    assert first["reason"] == "source_close_reconcile_pending"
+
+    second = asyncio.run(service.invoke(
+        "work_done", _handoff(), {
+            "documentation_reconcile": documentation,
+            "work_done": first,
+        },
+    ))
+    assert second["status"] == "applied"
+    assert second["source_close_reconciled_after_error"] is True
+    assert invoker.work_completion_calls == 1
+    assert invoker.close_attempts == 1
+
+
+def test_cleanup_requires_exact_landed_restart_proof_for_kis_mcp_main(tmp_path: Path) -> None:
+    invoker = FakeInvoker()
+    calls: list[tuple[str, Path, str | None]] = []
+
+    async def cleanup(change_id: str, worktree: Path, landed_sha: str | None) -> dict[str, Any]:
+        calls.append((change_id, worktree, landed_sha))
+        return {
+            "status": "applied",
+            "removed": True,
+            "post_land_restart": {
+                "schema_version": 1,
+                "state": "launching",
+                "landed_sha": LANDED,
+                "launched_sha": LANDED,
+            },
+        }
+
+    service = PromotionStageService(
+        invoker=invoker, contract=_contract(tmp_path), scope=_scope(tmp_path),
+        work_record=_record(), approved=True, cleanup=cleanup,
+    )
+    result = asyncio.run(service.invoke(
+        "cleanup", _handoff(), {"refresh_landed": {"landed_sha": LANDED}}
+    ))
+    assert result["status"] == "applied"
+    assert calls == [("263-test", tmp_path.resolve(), LANDED)]
+    assert result["post_land_restart"]["launched_sha"] == LANDED
