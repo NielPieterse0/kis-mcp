@@ -39,6 +39,7 @@ from .project_management import (
     project_management_workflow_descriptors,
     register_project_management_tools,
 )
+from .once_through.tools import register_once_through_tools
 from .state_management import register_state_management_tools
 from .verification.descriptors import verification_workflow_descriptors
 
@@ -211,7 +212,7 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
         _workflow(
             "prepare-reviewable-pull-request",
             "Prepare a verified change for pull-request review",
-            "Verify one exact registered commit, reconcile its exact tree onto the remote default branch parent, and create an exact open pull request for human review.",
+            "Consume valid PromotionReady implementation evidence when available; otherwise execute only missing or invalid implementation evidence, then reconcile the exact tree onto the remote default parent and create the exact pull request.",
             (
                 "operation.execute_change_workflow",
                 "operation.kis_github_reconcile_registered_commit",
@@ -386,6 +387,7 @@ def register_platform_workflows(
         _build_code_review_agent(runtime, settings, provider_service),
     )
     register_state_management_tools(server, runtime)
+    register_once_through_tools(server, Path(runtime.state_root))
     project_settings = work_management_settings or load_work_management_settings()
     if not project_settings.enabled:
         return

@@ -64,6 +64,7 @@ def test_prepare_reviewable_pull_request_has_bounded_surface() -> None:
         "residual_state",
         "deadline_ms",
         "reconcile_only",
+        "promotion_work_id",
     }
     for forbidden in (
         "command", "tool_name", "operation", "repository", "remote_url",

@@ -25,6 +25,7 @@ from ..completion import (
     CompletionInvocationError,
     register_completion_tool,
 )
+from ..once_through.state import TaskHandoffStore
 from .execution import VerificationExecutionService
 from .selection import VerificationSelectionService
 from .tools import register_verification_selection_tool, register_verification_tool
@@ -127,11 +128,13 @@ def register_platform_verification(
         server,
         ChangeExecutionService(structured_invoker),
     )
+    promotion_store = TaskHandoffStore(Path(runtime.state_root) / "once-through")
     register_completion_tool(
         server,
         CompletionCoordinator(
             completion_invoker,
             lambda project_id: projects.project(project_id).local_root,
+            promotion_resolver=lambda work_id: promotion_store.load_promotion(work_id).to_json_dict(),
         ),
     )
 
