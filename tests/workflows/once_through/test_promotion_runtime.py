@@ -277,11 +277,11 @@ def test_merge_exact_head_blocks_until_merge_identity_exists(tmp_path: Path) -> 
     assert result["reason"] == "merge_identity_pending"
 
 
-def test_trace_preserves_source_and_typed_specification_identity(tmp_path: Path) -> None:
+def test_trace_uses_typed_specification_identity_for_work_gate(tmp_path: Path) -> None:
     service = _service(tmp_path, FakeInvoker())
     trace = service._trace({
         "create_pull_request": {"pull_number": 9, "head_sha": PUBLISHED},
         "exact_head_actions": {"status": "passed", "reference": "github-actions:11"},
     })
-    assert trace["implementation_record_id"] == "WORK-585"
+    assert trace["implementation_record_id"] == "SPEC-585"
     assert trace["specification_record_id"] == "SPEC-585"

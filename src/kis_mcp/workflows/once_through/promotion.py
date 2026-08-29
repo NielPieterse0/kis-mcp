@@ -293,7 +293,7 @@ class PromotionStageService:
         trace: dict[str, Any] = {
             "schema_version": 1,
             "project_id": self.contract.project_id,
-            "implementation_record_id": _required_text(self.contract.work_id, "Work handoff ID"),
+            "implementation_record_id": _required_text(self.work_record.get("record_id"), "Work record ID"),
             "specification_record_id": (
                 _required_text(self.work_record.get("record_id"), "Work record ID")
                 if self.work_record.get("record_type") == "specification_slice"
