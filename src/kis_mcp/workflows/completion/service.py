@@ -12,6 +12,7 @@ from .contracts import CompletionReceipt, CompletionResult
 
 Invoker = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
 ProjectResolver = Callable[[str], str]
+PromotionResolver = Callable[[str], Mapping[str, Any]]
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _OPERATION_STATES = frozenset({"not_started", "in_progress", "applied", "failed", "unknown"})
 _DEFAULT_COMPLETION_DEADLINE_MS = 120_000
@@ -102,10 +103,12 @@ class CompletionCoordinator:
         invoker: Invoker,
         project_resolver: ProjectResolver,
         *,
+        promotion_resolver: PromotionResolver | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._invoker = invoker
         self._project_resolver = project_resolver
+        self._promotion_resolver = promotion_resolver
         self._clock = clock
 
     async def _invoke_step(
@@ -238,6 +241,7 @@ class CompletionCoordinator:
         residual_state: str = "none declared",
         deadline_ms: int = _DEFAULT_COMPLETION_DEADLINE_MS,
         reconcile_only: bool = False,
+        promotion_work_id: str | None = None,
     ) -> CompletionResult | CompletionReceipt:
         project_key = _required(project_id, "project_id")
         commit_sha = _sha(commit, "commit")
@@ -267,6 +271,16 @@ class CompletionCoordinator:
             raise ValueError("approved must be true")
         if not isinstance(reconcile_only, bool):
             raise ValueError("reconcile_only must be a boolean")
+        promotion_handoff: Mapping[str, Any] | None = None
+        if promotion_work_id is not None:
+            work_id = _required(promotion_work_id, "promotion_work_id")
+            if self._promotion_resolver is None:
+                raise ValueError("promotion_work_id requires configured PromotionReady resolver")
+            promotion_handoff = self._promotion_resolver(work_id)
+            if promotion_handoff.get("work_id") != work_id:
+                raise ValueError("resolved PromotionReady handoff identity mismatch")
+            if promotion_handoff.get("source_commit_sha") != commit_sha:
+                raise ValueError("resolved PromotionReady handoff does not match completion commit")
         deadline_ms = _validate_deadline_ms(deadline_ms)
         operation_id = _operation_id(
             {
@@ -287,6 +301,7 @@ class CompletionCoordinator:
                 "review_model": review_model,
                 "documentation_impact": documentation_impact,
                 "residual_state": residual_state,
+                "promotion_work_id": promotion_work_id,
             }
         )
         deadline = _Deadline(deadline_ms, self._clock)
@@ -361,23 +376,27 @@ class CompletionCoordinator:
                     stage_timings_ms=stage_timings_ms,
                     publication=publication,
                 )
-            execution = await self._execute_verification(
-                project_root=project_root,
-                commit_sha=commit_sha,
-                task_terms=task_terms,
-                complexity=complexity,
-                risk_triggers=risk_triggers,
-                max_verifications=max_verifications,
-                verification_timeout_ms=verification_timeout_ms,
-                review_types=review_types,
-                review_backend=review_backend,
-                review_model=review_model,
-                deadline=deadline,
-                stage_timings_ms=stage_timings_ms,
-                operation_id=operation_id,
-                completed_steps=("publication",),
-                timeout_state="unknown",
-            )
+            execution = _promotion_execution(promotion_handoff, commit_sha)
+            if execution is None:
+                execution = await self._execute_verification(
+                    project_root=project_root,
+                    commit_sha=commit_sha,
+                    task_terms=task_terms,
+                    complexity=complexity,
+                    risk_triggers=risk_triggers,
+                    max_verifications=max_verifications,
+                    verification_timeout_ms=verification_timeout_ms,
+                    review_types=review_types,
+                    review_backend=review_backend,
+                    review_model=review_model,
+                    deadline=deadline,
+                    stage_timings_ms=stage_timings_ms,
+                    operation_id=operation_id,
+                    completed_steps=("publication",),
+                    timeout_state="unknown",
+                )
+            else:
+                stage_timings_ms["verification"] = 0
             if not _execution_passed(execution):
                 return CompletionReceipt(
                     project_id=project_key,
@@ -461,23 +480,27 @@ class CompletionCoordinator:
                 pull_request=pull_request,
             )
 
-        execution = await self._execute_verification(
-            project_root=project_root,
-            commit_sha=commit_sha,
-            task_terms=task_terms,
-            complexity=complexity,
-            risk_triggers=risk_triggers,
-            max_verifications=max_verifications,
-            verification_timeout_ms=verification_timeout_ms,
-            review_types=review_types,
-            review_backend=review_backend,
-            review_model=review_model,
-            deadline=deadline,
-            stage_timings_ms=stage_timings_ms,
-            operation_id=operation_id,
-            completed_steps=(),
-            timeout_state="not_started",
-        )
+        execution = _promotion_execution(promotion_handoff, commit_sha)
+        if execution is None:
+            execution = await self._execute_verification(
+                project_root=project_root,
+                commit_sha=commit_sha,
+                task_terms=task_terms,
+                complexity=complexity,
+                risk_triggers=risk_triggers,
+                max_verifications=max_verifications,
+                verification_timeout_ms=verification_timeout_ms,
+                review_types=review_types,
+                review_backend=review_backend,
+                review_model=review_model,
+                deadline=deadline,
+                stage_timings_ms=stage_timings_ms,
+                operation_id=operation_id,
+                completed_steps=(),
+                timeout_state="not_started",
+            )
+        else:
+            stage_timings_ms["verification"] = 0
         if execution.get("contract") != "change-execution-result-v2":
             raise self._error(
                 "COMPLETION_EXECUTION_INVALID",
@@ -748,6 +771,23 @@ def _execution_passed(execution: Mapping[str, Any]) -> bool:
         execution.get("contract") == "change-execution-result-v2"
         and execution.get("status") == "passed"
     )
+
+
+def _promotion_execution(
+    handoff: Mapping[str, Any] | None,
+    commit_sha: str,
+) -> dict[str, Any] | None:
+    if handoff is None or handoff.get("status") != "promotion_ready":
+        return None
+    if handoff.get("source_commit_sha") != commit_sha:
+        return None
+    pending = handoff.get("pending_obligations", ())
+    if pending not in (None, [], ()):
+        return None
+    execution = handoff.get("execution")
+    if not isinstance(execution, Mapping) or not _execution_passed(execution):
+        return None
+    return dict(execution)
 
 
 def _failure_code(exc: Exception) -> str | None:

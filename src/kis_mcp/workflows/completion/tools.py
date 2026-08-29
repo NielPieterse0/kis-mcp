@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Protocol
+from typing import Any, Protocol
 
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
@@ -43,6 +43,7 @@ class CompletionServicePort(Protocol):
         residual_state: str = "none declared",
         deadline_ms: int = 120_000,
         reconcile_only: bool = False,
+        promotion_work_id: str | None = None,
     ) -> CompletionResult | CompletionReceipt: ...
 
 
@@ -74,6 +75,7 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
         residual_state: str = "none declared",
         deadline_ms: int = 120_000,
         reconcile_only: bool = False,
+        promotion_work_id: str | None = None,
     ) -> dict[str, object]:
         """Verify one exact source commit, reconcile its tree, and create an open reviewable PR."""
         try:
@@ -99,6 +101,7 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
                 residual_state=residual_state,
                 deadline_ms=deadline_ms,
                 reconcile_only=reconcile_only,
+                promotion_work_id=promotion_work_id,
             )
             return result.to_json_dict()
         except CompletionInvocationError as exc:

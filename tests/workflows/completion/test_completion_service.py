@@ -116,6 +116,34 @@ def test_completion_coordinates_verification_publish_and_pr_in_fixed_order() -> 
     assert publish["arguments"]["approved"] is True
 
 
+def test_promotion_ready_handoff_consumes_existing_execution_without_rerun() -> None:
+    invoker = Invoker()
+    handoff = {
+        "work_id": "WORK-1", "status": "promotion_ready", "source_commit_sha": COMMIT,
+        "pending_obligations": [],
+        "execution": {"contract": "change-execution-result-v2", "status": "passed", "source_fingerprint": "c" * 64},
+    }
+    service = CompletionCoordinator(
+        invoker,
+        lambda project_id: r"C:\Projects\college",
+        promotion_resolver=lambda work_id: handoff,
+    )
+    result = asyncio.run(service.prepare(
+        project_id="college", commit=COMMIT, source_base=SOURCE_BASE,
+        branch="feature/example", expected_remote_branch=None,
+        expected_remote_default=DEFAULT, title="Review exact change",
+        body="Ready for review.", approved=True,
+        promotion_work_id="WORK-1",
+    ))
+
+    assert result.status == "reviewable"
+    assert [name for name, _ in invoker.calls] == [
+        "execute_external_action", "execute_external_action"
+    ]
+    assert result.execution["status"] == "passed"
+    assert result.stage_timings_ms["verification"] == 0
+
+
 def test_completion_creates_pr_only_for_published_exact_head() -> None:
     invoker = Invoker()
     _run(invoker)
