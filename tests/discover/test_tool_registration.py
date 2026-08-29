@@ -279,6 +279,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "start_task_candidate",
         "candidate_identity",
         "verify_task_candidate",
+        "stop_task_candidate",
         "derive_promotion_ready",
         "converge_change_to_done",
         "validate_agent_configuration",

@@ -1,17 +1,32 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import socket
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
 
 from kis_mcp.workflows.once_through import (
-    EvidenceReference, EvidenceState, EvidenceValidityClass,
-    PromotionController, PromotionStateStore, TaskHandoffContract, TaskHandoffStore,
-    assert_candidate_port_available, derive_promotion_ready, resolve_evidence,
+    EvidenceReference,
+    EvidenceState,
+    EvidenceValidityClass,
+    PromotionController,
+    PromotionStateStore,
+    TaskHandoffContract,
+    TaskHandoffStore,
+    assert_candidate_port_available,
+    derive_promotion_ready,
+    resolve_evidence,
 )
+from kis_mcp.workflows.once_through.activation import WorkActivationCoordinator
 from kis_mcp.workflows.once_through.contracts import fingerprint
+from kis_mcp.workflows.once_through.tools import (
+    _governed_source_binding,
+    _owned_candidate_stop_pid,
+    _promotion_reference,
+)
 
 
 def _contract(port: int, work_id: str = "WORK-572") -> TaskHandoffContract:
@@ -38,6 +53,124 @@ def test_candidate_ports_are_immutable_and_never_reused(tmp_path: Path) -> None:
     second = store.candidate_port("WORK-2")
     assert first != second
     assert store.candidate_port("WORK-1") == first
+
+
+def test_materialize_contract_is_atomic_and_idempotent_under_parallel_activation(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+
+    def materialize() -> TaskHandoffContract:
+        return store.materialize_contract(
+            project_id="kis-mcp", work_id="WORK-586", repository="NielPieterse0/kis-mcp",
+            requirements=("automatic handoff",), acceptance_criteria=("stable",),
+            affected_surfaces=("mcp", "work_management"),
+            obligations=("verification", "review_closed", "live_candidate_verification"),
+            source_identity="github-issue:NielPieterse0/kis-mcp#586",
+        )
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        contracts = tuple(executor.map(lambda _: materialize(), range(16)))
+
+    assert len({item.contract_fingerprint for item in contracts}) == 1
+    assert len({item.candidate_port for item in contracts}) == 1
+    assert store.load_contract("WORK-586") == contracts[0]
+    assert store.candidate_port("WORK-586") == contracts[0].candidate_port
+
+
+def test_evidence_lineage_extends_immutably_by_reference(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+    contract = store.materialize_contract(
+        project_id="kis-mcp", work_id="WORK-586", repository="NielPieterse0/kis-mcp",
+        requirements=("automatic handoff",), acceptance_criteria=("stable",),
+        affected_surfaces=("repository",), obligations=("verification", "review_closed"),
+        source_identity="github-issue:NielPieterse0/kis-mcp#586",
+    )
+    reference = EvidenceReference(
+        evidence_id="verify-586", kind="verification", subject=contract.source_identity,
+        validity_class=EvidenceValidityClass.CONTENT_STABLE,
+        validity_inputs={"tree": "a" * 40}, receipt_ref="change-execution:586",
+    )
+
+    assert store.append_evidence(contract.work_id, reference) == (reference,)
+    assert store.append_evidence(contract.work_id, reference) == (reference,)
+    with pytest.raises(RuntimeError, match="EVIDENCE_ID_IMMUTABLE"):
+        store.append_evidence(
+            contract.work_id,
+            EvidenceReference(
+                evidence_id="verify-586", kind="verification", subject=contract.source_identity,
+                validity_class=EvidenceValidityClass.CONTENT_STABLE,
+                validity_inputs={"tree": "b" * 40}, receipt_ref="change-execution:changed",
+            ),
+        )
+
+
+def test_work_activation_materializes_issue_contract_and_reuses_it(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+
+    async def load_issue(owner: str, repo: str, issue_number: int) -> dict[str, object]:
+        assert (owner, repo, issue_number) == ("NielPieterse0", "kis-mcp", 586)
+        return {
+            "title": "Automatic Work handoff",
+            "body": (
+                "## Outcome\nAutomate the handoff.\n\n"
+                "## Scope\n- Persist evidence lineage.\n- Manage MCP candidate lifecycle.\n\n"
+                "## Acceptance criteria\n- Re-entry is idempotent.\n"
+            ),
+        }
+
+    coordinator = WorkActivationCoordinator(store, load_issue)
+    first = asyncio.run(coordinator.materialize("kis-mcp", "NielPieterse0/kis-mcp", 586))
+    second = asyncio.run(coordinator.materialize("kis-mcp", "NielPieterse0/kis-mcp", 586))
+
+    assert first == second
+    assert first["work_id"] == "WORK-586"
+    assert first["source_identity"] == "github-issue:NielPieterse0/kis-mcp#586"
+    assert first["obligations"] == ["verification", "review_closed", "live_candidate_verification"]
+
+
+def test_promotion_receipts_extend_canonical_evidence_lineage() -> None:
+    exact = _promotion_reference(
+        "exact_head_actions", work_id="WORK-586", subject="github-issue:repo#586",
+        result={"status": "passed", "head_sha": "a" * 40, "reference": "github-actions:77"},
+        observations={},
+    )
+    landed = _promotion_reference(
+        "documentation_reconcile", work_id="WORK-586", subject="github-issue:repo#586",
+        result={"status": "satisfied", "completion_revision": "b" * 40},
+        observations={"refresh_landed": {"landed_sha": "b" * 40}},
+    )
+
+    assert exact is not None and exact.validity_class is EvidenceValidityClass.PROVIDER_EXACT_HEAD
+    assert exact.receipt_ref == "github-actions:77"
+    assert landed is not None and landed.validity_class is EvidenceValidityClass.POST_MERGE
+    assert landed.validity_inputs == {"landed": "b" * 40}
+
+
+def test_exact_candidate_cleanup_requires_owner_and_durable_live_proof() -> None:
+    contract = _contract(46000, work_id="WORK-586")
+    receipt = {"pid": 32123, "server_instance_id": "candidate-586"}
+    identity = {
+        "work_id": contract.work_id,
+        "contract_fingerprint": contract.contract_fingerprint,
+        "source_identity": contract.source_identity,
+        "server_instance_id": "candidate-586",
+        "pid": 32123,
+    }
+    live = EvidenceReference(
+        evidence_id="live-586", kind="live_candidate_verification",
+        subject=contract.source_identity,
+        validity_class=EvidenceValidityClass.RUNTIME_SENSITIVE,
+        validity_inputs={
+            "tree": "a" * 40, "runtime": "candidate-586",
+            "server_instance_id": "candidate-586",
+        },
+        receipt_ref="candidate:WORK-586:candidate-586",
+    )
+
+    assert _owned_candidate_stop_pid(contract, receipt, identity, (live,)) == (32123, live)
+    with pytest.raises(RuntimeError, match="CANDIDATE_OWNER_MISMATCH"):
+        _owned_candidate_stop_pid(contract, receipt, {**identity, "pid": 99999}, (live,))
+    with pytest.raises(RuntimeError, match="CANDIDATE_EVIDENCE_NOT_DURABLE"):
+        _owned_candidate_stop_pid(contract, receipt, identity, ())
 
 
 def test_unexpected_candidate_port_occupant_fails_closed() -> None:
@@ -194,3 +327,30 @@ def test_controller_persists_and_reuses_completed_prefix(tmp_path: Path) -> None
     ))
     assert second.state == "done"
     assert tuple(invoker.calls) == first_calls
+
+
+def test_work_id_paths_reject_lossy_aliases(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+    with pytest.raises(ValueError, match="canonical"):
+        store.contract_path("WORK/586")
+    assert store.contract_path("WORK-586").name == "WORK-586.json"
+
+
+def test_governed_source_binding_requires_exact_work_and_repository(tmp_path: Path) -> None:
+    contract = _contract(46000, work_id="WORK-586")
+    root = tmp_path / ".work" / "worktrees" / "264-security-binding"
+    (root / "src" / "kis_mcp").mkdir(parents=True)
+    change = root / ".work" / "changes" / root.name
+    change.mkdir(parents=True)
+    scope = {
+        "change_id": root.name,
+        "work_management": {
+            "record_id": "WORK-586",
+            "source_repository": contract.repository,
+        },
+    }
+    (change / "scope.json").write_text(json.dumps(scope), encoding="utf-8")
+    source_root, change_id, observed = _governed_source_binding(contract, str(root))
+    assert source_root == root.resolve()
+    assert change_id == root.name
+    assert observed["work_management"]["record_id"] == contract.work_id

@@ -40,6 +40,8 @@ class PromotionStageService:
         work_record: Mapping[str, Any],
         approved: bool,
         cleanup: CleanupInvoker | None = None,
+        change_id: str | None = None,
+        source_root: Path | None = None,
     ) -> None:
         if approved is not True:
             raise ValueError("APPROVAL_REQUIRED: approved must be true")
@@ -53,9 +55,10 @@ class PromotionStageService:
         if len(repository) != 2 or not all(repository):
             raise ValueError("contract repository must be owner/repo")
         self.owner, self.repo = repository
-        self.branch = f"change/{_required_text(contract.change_id, 'change_id')}"
+        self.change_id = _required_text(change_id or contract.change_id, "change_id")
+        self.branch = f"change/{self.change_id}"
         self.base_branch = _required_text(self.scope.get("base"), "scope base branch")
-        self.source_root = Path(contract.source_identity).resolve()
+        self.source_root = (source_root or Path(contract.source_identity)).resolve()
 
     def _verification_workflow(self) -> str:
         path = self.source_root / "settings" / "github-merge-queue.settings.json"
@@ -180,7 +183,7 @@ class PromotionStageService:
         return (
             f"## Outcome\n{_required_text(issue.get('title'), 'issue title')}\n\n"
             f"## Work\n- Work ID: `{self.contract.work_id}`\n"
-            f"- Change ID: `{self.contract.change_id}`\n"
+            f"- Change ID: `{self.change_id}`\n"
             f"- PromotionReady source: `{self._source_commit(handoff)}`\n\n"
             "Implementation verification and substantive KIS review are already closed in PromotionReady."
         )
@@ -299,7 +302,7 @@ class PromotionStageService:
                 if self.work_record.get("record_type") == "specification_slice"
                 else None
             ),
-            "change_id": _required_text(self.contract.change_id, "change_id"),
+            "change_id": self.change_id,
             "branch": self.branch,
             "worktree": _required_text(self.scope.get("worktree"), "scope worktree"),
             "pull_requests": [{
@@ -428,7 +431,7 @@ class PromotionStageService:
             {
                 "record": dict(self.work_record), "trace": trace,
                 "pull_request_number": pull_number,
-                "documentation_task_id": f"docs-{self.contract.change_id}",
+                "documentation_task_id": f"docs-{self.change_id}",
                 "required_updates": [],
             },
         )
@@ -439,7 +442,7 @@ class PromotionStageService:
             {
                 "record": _required_mapping(due.get("record"), "documentation due record"),
                 "trace": trace, "pull_request_number": pull_number,
-                "documentation_task_id": f"docs-{self.contract.change_id}",
+                "documentation_task_id": f"docs-{self.change_id}",
                 "required_updates": list(event.get("required_updates", ())),
                 "completion_revision": landed_sha,
             },
@@ -485,8 +488,8 @@ class PromotionStageService:
     ) -> dict[str, Any]:
         if self.cleanup is None:
             return {"status": "blocked", "reason": "cleanup_service_unavailable"}
-        worktree = Path(self.contract.source_identity).resolve()
-        result = await self.cleanup(_required_text(self.contract.change_id, "change_id"), worktree)
+        worktree = self.source_root
+        result = await self.cleanup(self.change_id, worktree)
         return {"status": "applied", **result}
 
 

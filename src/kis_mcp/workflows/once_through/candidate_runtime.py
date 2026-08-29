@@ -12,6 +12,8 @@ _WORK_ID = "KIS_MCP_CANDIDATE_WORK_ID"
 _CONTRACT = "KIS_MCP_CANDIDATE_CONTRACT_FINGERPRINT"
 _INSTANCE = "KIS_MCP_CANDIDATE_INSTANCE_ID"
 _SOURCE = "KIS_MCP_CANDIDATE_SOURCE_IDENTITY"
+_SOURCE_PATH = "KIS_MCP_CANDIDATE_SOURCE_PATH"
+_CHANGE_ID = "KIS_MCP_CANDIDATE_CHANGE_ID"
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -21,6 +23,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--contract-fingerprint", required=True)
     parser.add_argument("--instance-id", required=True)
     parser.add_argument("--source-identity", required=True)
+    parser.add_argument("--source-path", required=True)
+    parser.add_argument("--change-id", required=True)
     args = parser.parse_args(argv)
     if not 1024 <= args.port <= 65535:
         parser.error("--port must be between 1024 and 65535")
@@ -29,6 +33,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     os.environ[_CONTRACT] = args.contract_fingerprint
     os.environ[_INSTANCE] = args.instance_id
     os.environ[_SOURCE] = args.source_identity
+    os.environ[_SOURCE_PATH] = args.source_path
+    os.environ[_CHANGE_ID] = args.change_id
     config = load_runtime_config()
     server = build_server(config)
     server.run(
