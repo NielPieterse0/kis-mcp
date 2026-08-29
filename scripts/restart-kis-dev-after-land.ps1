@@ -54,6 +54,22 @@ function Invoke-KisReceiptLock {
     }
 }
 
+function Test-KisPrimaryGovernedDirty {
+    param(
+        [Parameter(Mandatory)][string[]]$StatusLines
+    )
+    foreach ($Line in $StatusLines) {
+        if ([string]::IsNullOrWhiteSpace($Line)) {
+            continue
+        }
+        if ($Line.StartsWith('?? .work/programmes/verification-review-evidence/', [StringComparison]::Ordinal)) {
+            continue
+        }
+        return $true
+    }
+    return $false
+}
+
 function Move-KisAtomicFile {
     param(
         [Parameter(Mandatory)][string]$Temporary,
@@ -231,7 +247,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw 'POST_LAND_RESTART_STATUS_FAILED'
     }
-    if ($Dirty.Count -gt 0) {
+    if (Test-KisPrimaryGovernedDirty -StatusLines $Dirty) {
         throw 'POST_LAND_RESTART_PRIMARY_DIRTY'
     }
 
