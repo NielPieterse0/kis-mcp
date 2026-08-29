@@ -18,7 +18,10 @@ from ..projects.github_merge_queue import (
 from ..projects.settings import load_project_registry_settings
 from ..work_management import evaluate_merge_readiness
 from .post_land import build_kis_post_land_hooks
-from .project_management import implementation_trace_from_json, work_record_from_json
+from .project_management.parsing import (
+    implementation_trace_from_json,
+    work_record_from_json,
+)
 
 
 def _governance_receipt(

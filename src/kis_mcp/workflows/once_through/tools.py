@@ -14,11 +14,25 @@ from fastmcp.exceptions import ToolError
 
 from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
 from ...work_management import WorkManagementService
-from .contracts import EvidenceReference, EvidenceValidityClass, TaskHandoffContract, fingerprint
+from .contracts import (
+    EvidenceReference,
+    EvidenceValidityClass,
+    TaskHandoffContract,
+    fingerprint,
+)
 from .controller import PromotionController, PromotionStateStore
+from .process_identity import (
+    WindowsProcessIdentity,
+    read_process_identity,
+    terminate_exact_process,
+)
 from .promotion import PromotionStageService
 from .service import derive_promotion_ready
-from .state import OnceThroughStateError, TaskHandoffStore, assert_candidate_port_available
+from .state import (
+    OnceThroughStateError,
+    TaskHandoffStore,
+    assert_candidate_port_available,
+)
 
 _READ = {"read_only_hint": True, "destructive_hint": False, "idempotent_hint": True, "open_world_hint": False}
 _CHANGE = {"read_only_hint": False, "destructive_hint": False, "idempotent_hint": True, "open_world_hint": False}
@@ -33,6 +47,101 @@ def _reference(value: dict[str, Any]) -> EvidenceReference:
         receipt_ref=str(value["receipt_ref"]),
         applicable_phase=str(value.get("applicable_phase", "implementation")),
     )
+
+
+def _promotion_reference(
+    stage: str,
+    *,
+    work_id: str,
+    subject: str,
+    result: dict[str, Any],
+    observations: dict[str, Any],
+) -> EvidenceReference | None:
+    if result.get("status") not in {"passed", "satisfied", "applied"}:
+        return None
+    if stage == "exact_head_actions":
+        head = str(result.get("head_sha", ""))
+        reference = str(result.get("reference", ""))
+        if not head or not reference:
+            return None
+        return EvidenceReference(
+            evidence_id=f"provider-exact-head-{work_id}-{fingerprint(result)[:20]}",
+            kind="provider_exact_head", subject=subject,
+            validity_class=EvidenceValidityClass.PROVIDER_EXACT_HEAD,
+            validity_inputs={"head": head, "provider": "github"},
+            receipt_ref=reference, applicable_phase="pull_request",
+        )
+    if stage == "merge_exact_head":
+        head = str(result.get("head_sha", ""))
+        merge_sha = str(result.get("merge_commit_sha") or result.get("merge_commit") or "")
+        if not head or not merge_sha:
+            return None
+        return EvidenceReference(
+            evidence_id=f"merge-{work_id}-{fingerprint(result)[:20]}", kind="merge",
+            subject=subject, validity_class=EvidenceValidityClass.PROVIDER_EXACT_HEAD,
+            validity_inputs={"head": head, "provider": "github"},
+            receipt_ref=f"merge:{merge_sha}", applicable_phase="pull_request",
+        )
+    if stage in {"refresh_landed", "documentation_reconcile", "work_done"}:
+        landed = str(
+            result.get("landed_sha") or result.get("completion_revision")
+            or observations.get("refresh_landed", {}).get("landed_sha") or ""
+        )
+        if not landed:
+            return None
+        return EvidenceReference(
+            evidence_id=f"{stage}-{work_id}-{fingerprint(result)[:20]}", kind=stage,
+            subject=subject, validity_class=EvidenceValidityClass.POST_MERGE,
+            validity_inputs={"landed": landed}, receipt_ref=f"promotion:{stage}:{fingerprint(result)[:24]}",
+            applicable_phase="post_merge",
+        )
+    return None
+
+
+def _candidate_matches(
+    contract: TaskHandoffContract,
+    receipt: dict[str, Any],
+    identity: dict[str, Any] | None,
+) -> bool:
+    if identity is None:
+        return False
+    expected = {
+        "work_id": contract.work_id,
+        "contract_fingerprint": contract.contract_fingerprint,
+        "source_identity": contract.source_identity,
+        "source_path": receipt.get("source_path"),
+        "change_id": receipt.get("change_id"),
+        "server_instance_id": receipt.get("server_instance_id"),
+        "pid": receipt.get("pid"),
+    }
+    return all(identity.get(key) == value for key, value in expected.items())
+
+
+def _owned_candidate_stop_pid(
+    contract: TaskHandoffContract,
+    receipt: dict[str, Any],
+    identity: dict[str, Any] | None,
+    evidence: tuple[EvidenceReference, ...],
+) -> tuple[int, EvidenceReference]:
+    if not _candidate_matches(contract, receipt, identity):
+        raise OnceThroughStateError(
+            "CANDIDATE_OWNER_MISMATCH",
+            "candidate endpoint does not prove ownership of the recorded PID/instance",
+        )
+    durable = tuple(
+        item for item in evidence
+        if item.kind == "live_candidate_verification"
+        and item.validity_inputs.get("server_instance_id") == receipt.get("server_instance_id")
+    )
+    if len(durable) != 1:
+        raise OnceThroughStateError(
+            "CANDIDATE_EVIDENCE_NOT_DURABLE",
+            "exact candidate cannot stop before its live proof is durably recorded",
+        )
+    pid = receipt.get("pid")
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        raise OnceThroughStateError("CANDIDATE_PID_INVALID", "recorded candidate PID is invalid")
+    return pid, durable[0]
 
 
 def _result_mapping(result: Any) -> dict[str, Any]:
@@ -93,6 +202,35 @@ def _typed_record_id(record_type: str, source_number: int) -> str:
     if prefix is None:
         raise ValueError(f"WORK_RECORD_TYPE_UNSUPPORTED: {record_type}")
     return f"{prefix}-{source_number}"
+
+
+def _governed_source_binding(
+    contract: TaskHandoffContract,
+    source_path: str,
+) -> tuple[Path, str, dict[str, Any]]:
+    source_root = Path(source_path).resolve()
+    if source_root.parent.name != "worktrees" or source_root.parent.parent.name != ".work":
+        raise OnceThroughStateError(
+            "CANDIDATE_SOURCE_NOT_GOVERNED",
+            "candidate source must be a governed .work/worktrees checkout",
+        )
+    change_id = source_root.name
+    scope_path = source_root / ".work" / "changes" / change_id / "scope.json"
+    try:
+        scope = json.loads(scope_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise OnceThroughStateError("CANDIDATE_SCOPE_INVALID", str(exc)) from exc
+    if not isinstance(scope, dict) or scope.get("change_id") != change_id:
+        raise OnceThroughStateError("CANDIDATE_SCOPE_INVALID", "change identity mismatch")
+    work = scope.get("work_management")
+    if not isinstance(work, dict) or work.get("record_id") != contract.work_id:
+        raise OnceThroughStateError("CANDIDATE_SCOPE_INVALID", "Work identity mismatch")
+    repository = str(work.get("source_repository") or contract.repository)
+    if repository.casefold() != contract.repository.casefold():
+        raise OnceThroughStateError("CANDIDATE_SCOPE_INVALID", "repository identity mismatch")
+    if not (source_root / "src" / "kis_mcp").is_dir():
+        raise OnceThroughStateError("CANDIDATE_SOURCE_INVALID", "source is not a KIS checkout")
+    return source_root, change_id, scope
 
 
 async def _resolve_work_record(
@@ -193,15 +331,63 @@ def register_once_through_tools(
             return {"status": "blocked", "reason": "cleanup_not_authoritatively_closed"}
         return {"status": "applied", "change_id": change_id, "removed": True, "recovered": True}
 
+    async def read_candidate_identity(contract: TaskHandoffContract) -> dict[str, Any] | None:
+        try:
+            async with Client(
+                f"http://127.0.0.1:{contract.candidate_port}/mcp",
+                timeout=5,
+                init_timeout=3,
+            ) as client:
+                return _result_mapping(await client.call_tool("candidate_identity", {}))
+        except Exception:
+            return None
+
+    async def stop_owned_candidate(work_id: str) -> dict[str, Any]:
+        contract = store.load_contract(work_id)
+        assert contract is not None
+        receipt = store.load_candidate(work_id, required=True)
+        assert receipt is not None
+        identity = await read_candidate_identity(contract)
+        pid, durable = _owned_candidate_stop_pid(
+            contract, receipt, identity, store.load_evidence(work_id)
+        )
+        raw_process = receipt.get("process_identity")
+        if not isinstance(raw_process, dict):
+            raise OnceThroughStateError(
+                "CANDIDATE_PROCESS_IDENTITY_MISSING",
+                "candidate receipt has no exact OS process identity",
+            )
+        expected_process = WindowsProcessIdentity(
+            pid=pid,
+            creation_time_100ns=int(raw_process.get("creation_time_100ns", 0)),
+            image_path=str(raw_process.get("image_path", "")),
+        )
+        terminated = await asyncio.to_thread(terminate_exact_process, expected_process)
+        stopped = {
+            **receipt,
+            "status": "stopped",
+            "terminated": terminated,
+            "stopped_after_evidence": durable.evidence_id,
+        }
+        store.save_candidate(work_id, stopped)
+        return stopped
+
     @server.tool(name="candidate_identity", annotations=_READ)
     async def candidate_identity() -> dict[str, Any]:
         """Return exact task-candidate identity when this server is a candidate instance."""
+        process_identity = await asyncio.to_thread(read_process_identity, os.getpid())
         return {
             "work_id": os.environ.get("KIS_MCP_CANDIDATE_WORK_ID"),
             "contract_fingerprint": os.environ.get("KIS_MCP_CANDIDATE_CONTRACT_FINGERPRINT"),
             "server_instance_id": os.environ.get("KIS_MCP_CANDIDATE_INSTANCE_ID"),
             "source_identity": os.environ.get("KIS_MCP_CANDIDATE_SOURCE_IDENTITY"),
+            "source_path": os.environ.get("KIS_MCP_CANDIDATE_SOURCE_PATH"),
+            "change_id": os.environ.get("KIS_MCP_CANDIDATE_CHANGE_ID"),
             "runtime_instance": os.environ.get("KIS_MCP_RUNTIME_INSTANCE", "stdio"),
+            "pid": os.getpid(),
+            "process_identity": (
+                process_identity.to_json_dict() if process_identity is not None else None
+            ),
         }
 
     @server.tool(name="materialize_task_handoff", annotations=_CHANGE)
@@ -213,14 +399,13 @@ def register_once_through_tools(
     ) -> dict[str, Any]:
         """Freeze one Work-ID-derived implementation handoff and permanent candidate endpoint."""
         try:
-            port = store.candidate_port(work_id)
-            contract = TaskHandoffContract(
+            contract = store.materialize_contract(
                 project_id=project_id, work_id=work_id, repository=repository,
                 requirements=tuple(requirements), acceptance_criteria=tuple(acceptance_criteria),
                 affected_surfaces=tuple(affected_surfaces), obligations=tuple(obligations),
-                candidate_port=port, source_identity=source_identity, change_id=change_id,
+                source_identity=source_identity, change_id=change_id,
             )
-            return store.save_contract(contract).to_json_dict()
+            return contract.to_json_dict()
         except (ValueError, OnceThroughStateError) as exc:
             raise ToolError(str(exc)) from exc
 
@@ -246,14 +431,22 @@ def register_once_through_tools(
             return {"status": "blocked", "work_id": work_id, "code": exc.code, "reason": str(exc)}
 
     @server.tool(name="start_task_candidate", annotations=_CHANGE)
-    async def start_task_candidate(work_id: str) -> dict[str, Any]:
-        """Launch the exact task source as an isolated localhost MCP candidate."""
+    async def start_task_candidate(work_id: str, source_path: str | None = None) -> dict[str, Any]:
+        """Launch or reuse the exact owned localhost candidate for one Work identity."""
         try:
             contract = store.load_contract(work_id)
             assert contract is not None
-            source_root = Path(contract.source_identity).resolve()
-            if not (source_root / "src" / "kis_mcp").is_dir():
-                raise OnceThroughStateError("CANDIDATE_SOURCE_INVALID", "handoff source_identity is not a KIS source checkout")
+            existing = store.load_candidate(work_id)
+            if existing is not None and existing.get("status") != "stopped":
+                identity = await read_candidate_identity(contract)
+                if _candidate_matches(contract, existing, identity):
+                    return {**existing, "status": "reused"}
+            if not isinstance(source_path, str) or not source_path.strip():
+                raise OnceThroughStateError(
+                    "CANDIDATE_SOURCE_REQUIRED",
+                    "first candidate start requires the governed change worktree path",
+                )
+            source_root, change_id, _scope = _governed_source_binding(contract, source_path)
             assert_candidate_port_available(contract.candidate_port)
             instance_id = uuid4().hex
             logs = state_root / "once-through" / "logs"
@@ -265,16 +458,43 @@ def register_once_through_tools(
                 sys.executable, "-m", "kis_mcp.workflows.once_through.candidate_runtime",
                 "--port", str(contract.candidate_port), "--work-id", work_id,
                 "--contract-fingerprint", contract.contract_fingerprint,
-                "--instance-id", instance_id, "--source-identity", contract.source_identity,
+                "--instance-id", instance_id,
+                "--source-identity", contract.source_identity,
+                "--source-path", str(source_root),
+                "--change-id", change_id,
             ]
             stream = log_path.open("ab")
-            process = subprocess.Popen(command, cwd=source_root, env=env, stdout=stream, stderr=subprocess.STDOUT)
-            stream.close()
-            receipt = {"status": "started", "work_id": work_id, "port": contract.candidate_port, "pid": process.pid, "server_instance_id": instance_id, "source_identity": contract.source_identity, "contract_fingerprint": contract.contract_fingerprint, "log_path": str(log_path)}
-            runtime_path = state_root / "once-through" / "candidates" / f"{work_id.replace(':', '_')}.json"
-            runtime_path.parent.mkdir(parents=True, exist_ok=True)
-            runtime_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
-            return receipt
+            try:
+                process = await asyncio.to_thread(
+                    subprocess.Popen,
+                    command,
+                    cwd=source_root,
+                    env=env,
+                    stdout=stream,
+                    stderr=subprocess.STDOUT,
+                )
+            finally:
+                stream.close()
+            process_identity = await asyncio.to_thread(read_process_identity, process.pid)
+            if process_identity is None:
+                raise OnceThroughStateError(
+                    "CANDIDATE_PROCESS_IDENTITY_MISSING",
+                    "candidate process exited before exact identity could be recorded",
+                )
+            receipt = {
+                "status": "started",
+                "work_id": work_id,
+                "port": contract.candidate_port,
+                "pid": process.pid,
+                "server_instance_id": instance_id,
+                "source_identity": contract.source_identity,
+                "source_path": str(source_root),
+                "change_id": change_id,
+                "contract_fingerprint": contract.contract_fingerprint,
+                "process_identity": process_identity.to_json_dict(),
+                "log_path": str(log_path),
+            }
+            return store.save_candidate(work_id, receipt)
         except (ValueError, OSError, OnceThroughStateError) as exc:
             raise ToolError(str(exc)) from exc
 
@@ -310,28 +530,201 @@ def register_once_through_tools(
                     if observed_error != expect_error:
                         raise OnceThroughStateError("LIVE_CANDIDATE_VERIFICATION_FAILED", f"scenario {tool_name} error expectation mismatched")
                     outcomes.append({"tool": tool_name, "status": "passed", "expected_error": expect_error})
-            return {"contract": "live-candidate-verification-v1", "status": "passed", "work_id": work_id, "candidate_identity": identity, "outcomes": outcomes}
+            receipt = store.load_candidate(work_id, required=True)
+            assert receipt is not None
+            if not _candidate_matches(contract, receipt, identity):
+                raise OnceThroughStateError("CANDIDATE_OWNER_MISMATCH", "verified endpoint is not the recorded candidate owner")
+            source_root = Path(str(receipt.get("source_path", ""))).resolve()
+            commit_result = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "rev-parse", "HEAD"],
+                cwd=source_root,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            tree_result = await asyncio.to_thread(
+                subprocess.run,
+                ["git", "rev-parse", "HEAD^{tree}"],
+                cwd=source_root,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            commit = commit_result.stdout.strip().lower()
+            tree = tree_result.stdout.strip().lower()
+            evidence_id = f"live-candidate-{work_id}-{identity['server_instance_id']}-{commit[:12]}"
+            reference = EvidenceReference(
+                evidence_id=evidence_id,
+                kind="live_candidate_verification",
+                subject=contract.source_identity,
+                validity_class=EvidenceValidityClass.RUNTIME_SENSITIVE,
+                validity_inputs={
+                    "tree": tree,
+                    "runtime": str(identity["server_instance_id"]),
+                    "source_commit": commit,
+                    "server_instance_id": str(identity["server_instance_id"]),
+                    "contract_fingerprint": contract.contract_fingerprint,
+                },
+                receipt_ref=f"candidate:{work_id}:{identity['server_instance_id']}",
+            )
+            store.append_evidence(work_id, reference)
+            return {
+                "contract": "live-candidate-verification-v1", "status": "passed",
+                "work_id": work_id, "source_commit_sha": commit, "source_tree": tree,
+                "candidate_identity": identity, "outcomes": outcomes,
+                "evidence": reference.to_json_dict(),
+            }
+        except (ValueError, OSError, subprocess.SubprocessError, OnceThroughStateError) as exc:
+            raise ToolError(str(exc)) from exc
+
+    @server.tool(name="stop_task_candidate", annotations=_CHANGE)
+    async def stop_task_candidate(work_id: str) -> dict[str, Any]:
+        """Stop only the exact owned candidate after its live evidence is durable."""
+        try:
+            return await stop_owned_candidate(work_id)
         except (ValueError, OSError, OnceThroughStateError) as exc:
             raise ToolError(str(exc)) from exc
 
-    @server.tool(name="derive_promotion_ready", annotations=_READ)
-    async def derive_promotion_ready_tool(
-        work_id: str, source_commit_sha: str, execution: dict[str, Any],
-        evidence: list[dict[str, Any]], observed_inputs: dict[str, str],
-        candidate_identity: dict[str, Any],
-    ) -> dict[str, Any]:
-        """Derive PROMOTION_READY from the frozen task contract and existing evidence only."""
+    @server.tool(name="derive_promotion_ready", annotations=_CHANGE)
+    async def derive_promotion_ready_tool(work_id: str) -> dict[str, Any]:
+        """Derive PromotionReady only from governed source and canonical execution evidence."""
         try:
             contract = store.load_contract(work_id)
             assert contract is not None
+            try:
+                existing_promotion = store.load_promotion(work_id)
+            except OnceThroughStateError as exc:
+                if exc.code != "PROMOTION_HANDOFF_MISSING":
+                    raise
+            else:
+                return existing_promotion.to_json_dict()
+            if work_management_service is None:
+                raise ValueError(
+                    "WORK_MANAGEMENT_UNAVAILABLE: PromotionReady requires Work authority"
+                )
+            receipt = store.load_candidate(work_id, required=True)
+            assert receipt is not None
+            source_path = receipt.get("source_path")
+            if not isinstance(source_path, str) or not source_path.strip():
+                raise OnceThroughStateError(
+                    "CANDIDATE_SOURCE_INVALID", "candidate source binding is missing"
+                )
+            source_root, change_id, scope = _governed_source_binding(contract, source_path)
+            if receipt.get("change_id") != change_id:
+                raise OnceThroughStateError(
+                    "CANDIDATE_SCOPE_INVALID", "candidate change binding mismatch"
+                )
+            identity = await read_candidate_identity(contract)
+            if not _candidate_matches(contract, receipt, identity):
+                raise OnceThroughStateError(
+                    "CANDIDATE_OWNER_MISMATCH",
+                    "live candidate does not match the persisted governed binding",
+                )
+            references = store.load_evidence(work_id)
+            live_matches = tuple(
+                item for item in references
+                if item.kind == "live_candidate_verification"
+                and item.validity_inputs.get("server_instance_id")
+                == receipt.get("server_instance_id")
+            )
+            if len(live_matches) != 1:
+                raise ValueError(
+                    "PROMOTION_NOT_READY: exact live-candidate evidence is required"
+                )
+            live = live_matches[0]
+            source_commit = live.validity_inputs.get("source_commit", "")
+            tree = live.validity_inputs.get("tree", "")
+            if len(source_commit) != 40 or not tree:
+                raise ValueError("PROMOTION_NOT_READY: live source identity is incomplete")
+            record = await _resolve_work_record(work_management_service, contract, scope)
+            execution = await nested_invoker(
+                "execute_change_workflow",
+                {
+                    "project": str(source_root),
+                    "source": "commit",
+                    "commit_ref": source_commit,
+                    "complexity": record["complexity"],
+                    "risk_triggers": list(record["risk_triggers"]),
+                },
+            )
+            if execution.get("contract") != "change-execution-result-v2":
+                raise ValueError("PROMOTION_NOT_READY: execution contract is invalid")
+            if execution.get("status") != "passed":
+                raise ValueError("PROMOTION_NOT_READY: canonical execution has not passed")
+            execution_receipt = {
+                "work_id": work_id,
+                "change_id": change_id,
+                "source_path": str(source_root),
+                "source_commit_sha": source_commit,
+                "source_tree": tree,
+                "contract_fingerprint": contract.contract_fingerprint,
+                "execution": execution,
+            }
+            stored_execution = store.save_execution(work_id, execution_receipt)
+            execution_ref = fingerprint(stored_execution)[:24]
+            current_kinds = {item.kind for item in references}
+            if "verification" not in current_kinds:
+                store.append_evidence(
+                    work_id,
+                    EvidenceReference(
+                        evidence_id=f"verification-{work_id}-{execution_ref}",
+                        kind="verification",
+                        subject=contract.source_identity,
+                        validity_class=EvidenceValidityClass.CONTENT_STABLE,
+                        validity_inputs={"tree": tree},
+                        receipt_ref=f"execution-receipt:{execution_ref}",
+                    ),
+                )
+            material_findings = []
+            for review in execution.get("reviews", ()):
+                if not isinstance(review, dict) or review.get("status") != "completed":
+                    raise ValueError("PROMOTION_NOT_READY: specialist review is incomplete")
+                payload = review.get("payload")
+                if isinstance(payload, dict):
+                    for finding in payload.get("findings", ()):
+                        if isinstance(finding, dict) and str(
+                            finding.get("severity", "")
+                        ).casefold() in {"critical", "high", "medium"}:
+                            material_findings.append(finding)
+            if material_findings:
+                raise ValueError("PROMOTION_NOT_READY: material review findings remain")
+            if "review_closed" not in current_kinds:
+                store.append_evidence(
+                    work_id,
+                    EvidenceReference(
+                        evidence_id=f"review-closed-{work_id}-{execution_ref}",
+                        kind="review_closed",
+                        subject=contract.source_identity,
+                        validity_class=EvidenceValidityClass.CONTENT_STABLE,
+                        validity_inputs={"tree": tree},
+                        receipt_ref=f"execution-receipt:{execution_ref}",
+                    ),
+                )
+            references = store.load_evidence(work_id)
+            observed = {
+                "tree": tree,
+                "runtime": live.validity_inputs["runtime"],
+                "source_commit": source_commit,
+                "server_instance_id": live.validity_inputs["server_instance_id"],
+                "contract_fingerprint": contract.contract_fingerprint,
+            }
             handoff = derive_promotion_ready(
-                contract, source_commit_sha=source_commit_sha, execution=execution,
-                evidence=tuple(_reference(item) for item in evidence),
-                observed_inputs=observed_inputs, candidate_identity=candidate_identity,
+                contract,
+                source_commit_sha=source_commit,
+                execution=execution,
+                evidence=references,
+                observed_inputs=observed,
+                candidate_identity=dict(identity or {}),
+                change_id=change_id,
             )
             store.save_promotion(handoff)
-            return handoff.to_json_dict()
-        except (KeyError, ValueError, OnceThroughStateError) as exc:
+            payload = handoff.to_json_dict()
+            payload["candidate_cleanup"] = await stop_owned_candidate(work_id)
+            return payload
+        except (KeyError, ValueError, OSError, OnceThroughStateError, ToolError) as exc:
             raise ToolError(str(exc)) from exc
 
     @server.tool(
@@ -365,10 +758,18 @@ def register_once_through_tools(
                     "state": "done",
                     "observations": dict(checkpoint.get("observations", {})),
                 }
-            source_root = Path(contract.source_identity).resolve()
+            candidate_receipt = store.load_candidate(work_id, required=True)
+            assert candidate_receipt is not None
+            source_path = candidate_receipt.get("source_path")
+            if not isinstance(source_path, str) or not source_path.strip():
+                raise ValueError("PROMOTION_SOURCE_PATH_MISSING: candidate source path is unavailable")
+            source_root = Path(source_path).resolve()
             completed_prefix = list(checkpoint.get("completed", ())) if checkpoint is not None else []
+            change_id = str(handoff.get("change_id") or contract.change_id or "")
+            if not change_id:
+                raise ValueError("PROMOTION_CHANGE_ID_MISSING: PromotionReady change identity is unavailable")
             if checkpoint is not None and len(completed_prefix) == 9 and not source_root.exists():
-                cleanup_state = await reconcile_governed_cleanup(str(contract.change_id or ""), source_root)
+                cleanup_state = await reconcile_governed_cleanup(change_id, source_root)
                 observations = dict(checkpoint.get("observations", {}))
                 observations["cleanup"] = cleanup_state
                 if cleanup_state.get("status") != "applied":
@@ -387,8 +788,6 @@ def register_once_through_tools(
                 return {key: value for key, value in recovered.items() if key != "handoff_fingerprint"}
             if work_management_service is None:
                 raise ValueError("WORK_MANAGEMENT_UNAVAILABLE: convergence requires configured Work Management")
-            source_root = Path(contract.source_identity).resolve()
-            change_id = str(contract.change_id or "")
             scope_path = source_root / ".work" / "changes" / change_id / "scope.json"
             scope = json.loads(scope_path.read_text(encoding="utf-8"))
             if not isinstance(scope, dict) or scope.get("change_id") != change_id:
@@ -401,8 +800,25 @@ def register_once_through_tools(
                 work_record=record,
                 approved=True,
                 cleanup=governed_cleanup,
+                change_id=change_id,
+                source_root=source_root,
             )
-            result = await PromotionController(service.invoke, promotion_state).converge(
+            async def invoke_and_record(
+                stage: str, promotion_handoff: dict[str, Any], observations: dict[str, Any]
+            ) -> dict[str, Any]:
+                stage_result = await service.invoke(stage, promotion_handoff, observations)
+                reference = _promotion_reference(
+                    stage,
+                    work_id=work_id,
+                    subject=contract.source_identity,
+                    result=stage_result,
+                    observations=observations,
+                )
+                if reference is not None:
+                    store.append_evidence(work_id, reference)
+                return stage_result
+
+            result = await PromotionController(invoke_and_record, promotion_state).converge(
                 operation_id=operation_id,
                 promotion_handoff=handoff,
             )

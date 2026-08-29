@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 from fastmcp import FastMCP
@@ -68,9 +68,20 @@ def _tool_error(code: str, exc: Exception) -> ToolError:
     return ToolError(error_json(code, exc))
 
 
+def _activation_succeeded(result: Mapping[str, Any] | None) -> bool:
+    if not isinstance(result, Mapping) or result.get("phase") != "active":
+        return False
+    outcomes = result.get("outcomes")
+    if not isinstance(outcomes, list) or not outcomes:
+        return False
+    return all(isinstance(item, Mapping) and item.get("success") is True for item in outcomes)
+
+
 def register_project_management_tools(
     server: FastMCP,
     service: WorkManagementService | Any,
+    *,
+    activation_materializer: Callable[[str, str, int], Awaitable[dict[str, Any]]] | None = None,
 ) -> None:
     tool_server = FastMCP("kis-mcp-project-management")
 
@@ -155,13 +166,22 @@ def register_project_management_tools(
         """Select and preview/claim the next eligible Ready issue in one bounded workflow."""
 
         try:
-            return await service.take_next_work(
+            result = await service.take_next_work(
                 project_id,
                 execution_owner,
                 apply=apply,
                 idempotency_key=idempotency_key,
                 item_limit=item_limit,
             )
+            claim = result.get("claim")
+            if apply and activation_materializer is not None and _activation_succeeded(claim):
+                selected = result.get("selection", {}).get("selected")
+                if isinstance(selected, Mapping):
+                    repository = selected.get("repository")
+                    number = selected.get("number")
+                    if isinstance(repository, str) and isinstance(number, int):
+                        result["task_handoff"] = await activation_materializer(project_id, repository, number)
+            return result
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_TAKE_NEXT_WORK_FAILED", exc) from exc
 
@@ -177,7 +197,7 @@ def register_project_management_tools(
         """Preview or claim one Ready issue using a conflict-safe two-phase claim."""
 
         try:
-            return await service.claim_work(
+            result = await service.claim_work(
                 project_id,
                 repository,
                 issue_number,
@@ -185,6 +205,9 @@ def register_project_management_tools(
                 apply=apply,
                 idempotency_key=idempotency_key,
             )
+            if apply and activation_materializer is not None and _activation_succeeded(result):
+                result["task_handoff"] = await activation_materializer(project_id, repository, issue_number)
+            return result
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_CLAIM_WORK_FAILED", exc) from exc
 

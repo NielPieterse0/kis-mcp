@@ -22,6 +22,7 @@ def derive_promotion_ready(
     evidence: tuple[EvidenceReference, ...],
     observed_inputs: Mapping[str, str],
     candidate_identity: Mapping[str, Any],
+    change_id: str | None = None,
 ) -> PromotionReadyHandoff:
     mandatory = {"review_closed"}
     if any(surface.casefold() == "mcp" for surface in contract.affected_surfaces):
@@ -65,9 +66,12 @@ def derive_promotion_ready(
                 "PROMOTION_NOT_READY: live candidate proof identity mismatch: "
                 + ", ".join(mismatched)
             )
+    resolved_change_id = change_id or contract.change_id
+    if not isinstance(resolved_change_id, str) or not resolved_change_id.strip():
+        raise ValueError("PROMOTION_NOT_READY: governed change identity is missing")
     return PromotionReadyHandoff(
         work_id=contract.work_id,
-        change_id=contract.change_id or "unassigned",
+        change_id=resolved_change_id,
         contract_fingerprint=contract.contract_fingerprint,
         source_commit_sha=source_commit_sha,
         candidate_identity=candidate_identity,

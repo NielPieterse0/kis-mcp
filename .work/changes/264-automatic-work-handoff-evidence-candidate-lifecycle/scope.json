@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "264-automatic-work-handoff-evidence-candidate-lifecycle",
+  "status": "active",
+  "branch": "change/264-automatic-work-handoff-evidence-candidate-lifecycle",
+  "worktree": ".work/worktrees/264-automatic-work-handoff-evidence-candidate-lifecycle",
+  "base": "main",
+  "outcome": "Automatically materialize immutable Work handoff, permanent candidate identity, evidence lineage, and exact-process lifecycle at implementation activation with idempotent re-entry.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/**",
+    "src/kis_mcp/workflows/merge_queue.py",
+    "src/kis_mcp/workflows/project_management/**",
+    "src/kis_mcp/workflows/platform.py",
+    "tests/workflows/once_through/**",
+    "tests/workflows/project_management/**",
+    "tests/discover/test_tool_registration.py",
+    "SPEC.md",
+    ".work/changes/264-automatic-work-handoff-evidence-candidate-lifecycle/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "adbc8c1b8adc9e92f68138eec803b0cfd2b23dc7",
+    "local_tree": "7e54dee1927b73cf543b4af003292356d1bc4bc9",
+    "upstream_sha": "adbc8c1b8adc9e92f68138eec803b0cfd2b23dc7",
+    "upstream_tree": "7e54dee1927b73cf543b4af003292356d1bc4bc9",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-586",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 586,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

@@ -35,11 +35,13 @@ from .code_review import (
     load_agent_settings_or_disabled,
     register_agent_tools,
 )
+from .once_through.activation import WorkActivationCoordinator, result_mapping
+from .once_through.state import TaskHandoffStore
+from .once_through.tools import register_once_through_tools
 from .project_management import (
     project_management_workflow_descriptors,
     register_project_management_tools,
 )
-from .once_through.tools import register_once_through_tools
 from .state_management import register_state_management_tools
 from .verification.descriptors import verification_workflow_descriptors
 
@@ -396,7 +398,24 @@ def register_platform_workflows(
         provider_service,
         project_settings,
     )
-    register_project_management_tools(server, service)
+    once_through_store = TaskHandoffStore(Path(runtime.state_root) / "once-through")
+
+    async def load_issue(owner: str, repo: str, issue_number: int) -> dict[str, Any]:
+        result = await server.call_tool(
+            "github_issue_read",
+            {"method": "get", "owner": owner, "repo": repo, "issue_number": issue_number},
+            run_middleware=True,
+        )
+        if getattr(result, "is_error", False):
+            raise ValueError(f"WORK_ACTIVATION_SOURCE_READ_FAILED: {owner}/{repo}#{issue_number}")
+        return result_mapping(result)
+
+    activation = WorkActivationCoordinator(once_through_store, load_issue)
+    register_project_management_tools(
+        server,
+        service,
+        activation_materializer=activation.materialize,
+    )
     register_once_through_tools(
         server,
         Path(runtime.state_root),

@@ -284,3 +284,83 @@ def test_portfolio_status_preserves_change_classification() -> None:
         "external_action",
         "public_contract",
     ]
+
+
+class ActivationService(Service):
+    async def take_next_work(self, project_id, execution_owner, **kwargs):
+        active = kwargs.get("apply") is True
+        return {
+            "mode": "apply" if active else "preview",
+            "selection": {"selected": {"repository": "owner/alpha", "number": 7}},
+            "claim": {"phase": "active", "outcomes": [{"success": True}]} if active else None,
+        }
+
+    async def claim_work(self, project_id, repository, issue_number, execution_owner, **kwargs):
+        active = kwargs.get("apply") is True
+        return {
+            "mode": "apply" if active else "preview",
+            "phase": "active" if active else "ready",
+            "outcomes": [{"success": True}] if active else [],
+            "repository": repository,
+            "issue_number": issue_number,
+        }
+
+
+def test_apply_claim_and_take_materialize_task_handoff_automatically() -> None:
+    server = FastMCP("root")
+    calls: list[tuple[str, str, int]] = []
+
+    async def materialize(project_id: str, repository: str, issue_number: int):
+        calls.append((project_id, repository, issue_number))
+        return {"work_id": f"WORK-{issue_number}", "repository": repository}
+
+    register_project_management_tools(
+        server, ActivationService(), activation_materializer=materialize
+    )
+    claim = asyncio.run(server.call_tool(
+        "project_management_claim_work",
+        {
+            "project_id": "alpha-project", "repository": "owner/alpha",
+            "issue_number": 7, "execution_owner": "codex", "apply": True,
+            "idempotency_key": "claim-7",
+        },
+    )).structured_content
+    take = asyncio.run(server.call_tool(
+        "project_management_take_next_work",
+        {
+            "project_id": "alpha-project", "execution_owner": "codex",
+            "apply": True, "idempotency_key": "take-7",
+        },
+    )).structured_content
+
+    assert claim is not None and claim["task_handoff"]["work_id"] == "WORK-7"
+    assert take is not None and take["task_handoff"]["work_id"] == "WORK-7"
+    assert calls == [
+        ("alpha-project", "owner/alpha", 7),
+        ("alpha-project", "owner/alpha", 7),
+    ]
+
+
+class FailedActivationService(ActivationService):
+    async def claim_work(self, project_id, repository, issue_number, execution_owner, **kwargs):
+        return {"mode": "apply", "phase": "active", "outcomes": [{"success": False}]}
+
+
+def test_failed_active_transition_does_not_materialize_task_handoff() -> None:
+    server = FastMCP("root")
+    calls: list[tuple[str, str, int]] = []
+
+    async def materialize(project_id: str, repository: str, issue_number: int):
+        calls.append((project_id, repository, issue_number))
+        return {"work_id": f"WORK-{issue_number}"}
+
+    register_project_management_tools(
+        server, FailedActivationService(), activation_materializer=materialize
+    )
+    result = asyncio.run(server.call_tool(
+        "project_management_claim_work",
+        {"project_id": "alpha-project", "repository": "owner/alpha", "issue_number": 7,
+         "execution_owner": "codex", "apply": True, "idempotency_key": "claim-fail"},
+    )).structured_content
+    assert result is not None and "task_handoff" not in result
+    assert calls == []

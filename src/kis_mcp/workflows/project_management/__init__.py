@@ -7,11 +7,17 @@ from .parsing import (
     traceability_stage,
     work_record_from_json,
 )
-from .tools import register_project_management_tools as _register_project_management_tools
+from .tools import (
+    register_project_management_tools as _register_project_management_tools,
+)
 
 
-def register_project_management_tools(server, service) -> None:
-    _register_project_management_tools(server, service)
+def register_project_management_tools(server, service, *, activation_materializer=None) -> None:
+    _register_project_management_tools(
+        server,
+        service,
+        activation_materializer=activation_materializer,
+    )
     register_project_management_enhancement_tools(server, service)
 
 
