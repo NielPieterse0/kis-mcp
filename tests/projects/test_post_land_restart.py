@@ -350,7 +350,13 @@ def test_worker_is_hardwired_to_kis_dev_only() -> None:
     assert "git merge --ff-only" in content
 
 
-def test_worker_behavior_invokes_only_kis_dev(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "status_line",
+    [None, "?? .work/programmes/verification-review-evidence/run.json"],
+)
+def test_worker_behavior_invokes_only_kis_dev(
+    tmp_path: Path, status_line: str | None
+) -> None:
     root = tmp_path / "worker"
     scripts = root / "scripts"
     settings = root / "settings"
@@ -387,7 +393,9 @@ def test_worker_behavior_invokes_only_kis_dev(tmp_path: Path) -> None:
         "flag = Path(os.environ['KIS_TEST_MERGE_FLAG'])\n"
         "fetch = ['-c','credential.https://github.com.helper=','-c','credential.https://github.com.helper=!gh auth git-credential','fetch','--no-tags','--no-recurse-submodules','--no-write-fetch-head','origin','refs/heads/main:refs/remotes/origin/main']\n"
         "if args == ['symbolic-ref','--quiet','--short','HEAD']:\n    print('main')\n"
-        "elif args == ['status','--porcelain=v1','--untracked-files=all']:\n    print('?? .work/programmes/verification-review-evidence/run.json')\n"
+        "elif args == ['status','--porcelain=v1','--untracked-files=all']:\n"
+        "    status = os.environ.get('KIS_TEST_STATUS_LINE')\n"
+        "    if status:\n        print(status)\n"
         "elif args == fetch:\n    pass\n"
         "elif args == ['rev-parse','--verify','HEAD']:\n    print(REMOTE if flag.exists() else SHA)\n"
         "elif args == ['rev-parse','--verify','refs/remotes/origin/main']:\n    print(REMOTE)\n"
@@ -419,6 +427,8 @@ def test_worker_behavior_invokes_only_kis_dev(tmp_path: Path) -> None:
     env["KIS_TEST_GIT_LOG"] = str(git_log)
     env["KIS_TEST_GH_LOG"] = str(gh_log)
     env["KIS_TEST_MERGE_FLAG"] = str(merge_flag)
+    if status_line is not None:
+        env["KIS_TEST_STATUS_LINE"] = status_line
     result = subprocess.run(
         [
             "pwsh.exe", "-NoProfile", "-File", str(scripts / source.name),
