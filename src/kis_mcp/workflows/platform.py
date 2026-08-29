@@ -387,9 +387,9 @@ def register_platform_workflows(
         _build_code_review_agent(runtime, settings, provider_service),
     )
     register_state_management_tools(server, runtime)
-    register_once_through_tools(server, Path(runtime.state_root))
     project_settings = work_management_settings or load_work_management_settings()
     if not project_settings.enabled:
+        register_once_through_tools(server, Path(runtime.state_root))
         return
     service = work_management_service or _build_work_management_service(
         server,
@@ -397,6 +397,11 @@ def register_platform_workflows(
         project_settings,
     )
     register_project_management_tools(server, service)
+    register_once_through_tools(
+        server,
+        Path(runtime.state_root),
+        work_management_service=service,
+    )
 
 
 __all__ = [

@@ -1,0 +1,49 @@
+{
+  "schema_version": 4,
+  "change_id": "263-promotion-ready-to-done",
+  "status": "active",
+  "branch": "change/263-promotion-ready-to-done",
+  "worktree": ".work/worktrees/263-promotion-ready-to-done",
+  "base": "main",
+  "outcome": "Expose a durable agentless PromotionReady-to-Done MCP convergence operation for Work #585.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/**",
+    "src/kis_mcp/workflows/verification/platform.py",
+    "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    "tests/workflows/once_through/**",
+    "tests/discover/test_tool_registration.py",
+    "SPEC.md",
+    ".work/changes/263-promotion-ready-to-done/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "7739434760b4f9cb6d7e174dd3cf6ea00bd06c2c",
+    "local_tree": "774e5ce710101d534faefe100949e7ec33f8b3e6",
+    "upstream_sha": "7739434760b4f9cb6d7e174dd3cf6ea00bd06c2c",
+    "upstream_tree": "774e5ce710101d534faefe100949e7ec33f8b3e6",
+    "upstream_ref": "refs/heads/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-585",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 585,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

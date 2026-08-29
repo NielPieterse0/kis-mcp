@@ -105,9 +105,43 @@ class _PromotionInvoker:
     def __init__(self) -> None:
         self.calls: list[str] = []
 
-    async def __call__(self, stage: str, handoff: dict[str, object]) -> dict[str, str]:
+    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, str]:
         self.calls.append(stage)
         return {"status": "satisfied"}
+
+
+class _ObservationInvoker:
+    def __init__(self) -> None:
+        self.received: list[tuple[str, dict[str, object]]] = []
+
+    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, str]:
+        self.received.append((stage, dict(observations)))
+        return {"status": "satisfied", "stage": stage}
+
+
+def test_controller_passes_persisted_observations_to_later_stages(tmp_path: Path) -> None:
+    invoker = _ObservationInvoker()
+    handoff = {"status": "promotion_ready", "work_id": "WORK-1"}
+    store = PromotionStateStore(tmp_path)
+    store.save("promotion-observations", {
+        "handoff_fingerprint": fingerprint(handoff),
+        "completed": ["refresh_default"],
+        "observations": {"refresh_default": {"status": "satisfied", "github_default_sha": "a" * 40}},
+    })
+
+    result = asyncio.run(PromotionController(invoker, store).converge(
+        operation_id="promotion-observations",
+        promotion_handoff=handoff,
+    ))
+
+    assert result.state == "done"
+    first_stage, first_observations = invoker.received[0]
+    assert first_stage == "reconcile_candidate"
+    assert first_observations["refresh_default"] == {
+        "status": "satisfied", "github_default_sha": "a" * 40
+    }
+    create_pr = next(observations for stage, observations in invoker.received if stage == "create_pull_request")
+    assert create_pr["reconcile_candidate"]["stage"] == "reconcile_candidate"
 
 
 def test_controller_resumes_without_repeating_satisfied_stages(tmp_path: Path) -> None:

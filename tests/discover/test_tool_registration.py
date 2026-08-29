@@ -280,6 +280,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "candidate_identity",
         "verify_task_candidate",
         "derive_promotion_ready",
+        "converge_change_to_done",
         "validate_agent_configuration",
         "kis_health",
         "kis_housekeeping_status",
