@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "python": {
+    "ownership": "shared_system",
+    "launcher": "py.exe",
+    "selector": "-3.11",
+    "major_minor": "3.11",
+    "authenticode_status": "Valid",
+    "publisher_subject_contains": "Python Software Foundation",
+    "uv_managed_python": "disabled"
+  },
+  "uv": {
+    "ownership": "shared_operator_bootstrap",
+    "command": "uv.exe",
+    "acquisition_policy": "authoritative_source_required"
+  },
+  "node": {
+    "ownership": "shared_system",
+    "command": "node.exe",
+    "authenticode_status": "Valid",
+    "publisher_subject_contains": "OpenJS Foundation",
+    "native_helpers_policy": "separate_artifact_verification"
+  }
+}

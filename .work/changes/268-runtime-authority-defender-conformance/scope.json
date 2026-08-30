@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "268-runtime-authority-defender-conformance",
+  "status": "active",
+  "branch": "change/268-runtime-authority-defender-conformance",
+  "worktree": ".work/worktrees/268-runtime-authority-defender-conformance",
+  "base": "main",
+  "outcome": "Make kis-mcp and Serena runtime construction explicitly use a verified signed system CPython without uv-managed Python fallback, classify Node/native helpers separately, and document Defender/SAC runtime authority and verification.",
+  "owned_paths": [
+    "settings/runtime-authority.settings.json",
+    "scripts/runtime-authority.ps1",
+    "scripts/bootstrap-python.ps1",
+    "scripts/install-serena.ps1",
+    "tests/test_runtime_authority.py",
+    "SPEC.md",
+    "docs/operations/setup.md",
+    "docs/operations/providers.md",
+    ".work/changes/268-runtime-authority-defender-conformance/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "persistent_state",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "6e50cb2fc9e190cb9562871d64bbfa113afda750",
+    "local_tree": "2ee69be4ca914a31be6643d69f3bc69323649918",
+    "upstream_sha": "6e50cb2fc9e190cb9562871d64bbfa113afda750",
+    "upstream_tree": "2ee69be4ca914a31be6643d69f3bc69323649918",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-541",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 541,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

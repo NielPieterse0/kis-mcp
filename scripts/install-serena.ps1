@@ -8,11 +8,12 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'runtime-authority.ps1')
 $SettingsPath = Join-Path $RepositoryRoot 'settings\providers\serena.provider.json'
 $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
 $TempRoot = 'C:\Projects\.kis-mcp\temp'
-$PythonLauncher = Get-Command 'py.exe' -CommandType Application -ErrorAction Stop |
-    Select-Object -First 1
+$RuntimeAuthority = Get-KisMcpRuntimeAuthority
+$PythonRuntime = Resolve-KisMcpSystemPython -Authority $RuntimeAuthority
 
 function Write-Utf8Json([string]$Path, [object]$Value) {
     $json = ($Value | ConvertTo-Json -Depth 10) + [Environment]::NewLine
@@ -49,7 +50,7 @@ if ($Mode -eq 'Acquire') {
     $env:TMP = $AcquisitionRoot
 
     $PackageSpec = "$($Settings.package_name)==$($Settings.package_version)"
-    & $PythonLauncher.Source -3.11 -m pip download $PackageSpec `
+    & $PythonRuntime.executable -m pip download $PackageSpec `
         --dest $Wheelhouse `
         --disable-pip-version-check
     if ($LASTEXITCODE -ne 0) {
@@ -86,6 +87,13 @@ if ($Mode -eq 'Acquire') {
         package = [string]$Settings.package_name
         version = [string]$Settings.package_version
         source_revision = [string]$Settings.source_revision
+        host_python = [ordered]@{
+            executable = $PythonRuntime.executable
+            version = $PythonRuntime.version
+            ownership = $PythonRuntime.ownership
+            signature_status = $PythonRuntime.signature_status
+            signer_subject = $PythonRuntime.signer_subject
+        }
         acquisition_root = $AcquisitionRoot
         wheelhouse = $Wheelhouse
         root_wheel = [ordered]@{
@@ -126,7 +134,7 @@ if ($Mode -eq 'PrepareInstall') {
         throw "SERENA_CANDIDATE_ALREADY_EXISTS: $CandidateRoot"
     }
     $CandidateVenv = Join-Path $CandidateRoot 'venv'
-    & $PythonLauncher.Source -3.11 -m venv $CandidateVenv
+    & $PythonRuntime.executable -m venv $CandidateVenv
     if ($LASTEXITCODE -ne 0) {
         throw "SERENA_VENV_CREATION_FAILED: Python exited with $LASTEXITCODE."
     }
@@ -196,6 +204,13 @@ if ($Mode -eq 'PrepareInstall') {
         acquisition_root = $AcquisitionRoot
         candidate_root = $CandidateRoot
         executable = $CandidateExecutable
+        host_python = [ordered]@{
+            executable = $PythonRuntime.executable
+            version = $PythonRuntime.version
+            ownership = $PythonRuntime.ownership
+            signature_status = $PythonRuntime.signature_status
+            signer_subject = $PythonRuntime.signer_subject
+        }
         source_wheelhouse = $Wheelhouse
         provider_executed = $false
         scan_status = 'pending_operator_scan'

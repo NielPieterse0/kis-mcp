@@ -21,13 +21,15 @@ If derived project recovery state must be reconstructed, quarantine the affected
 
 ## Install Python dependencies
 
+Runtime location and Windows execution trust are separate concerns. `settings/runtime-authority.settings.json` defines the shared-system Python and Node host classifications plus the supervised `uv` bootstrap classification. The Python bootstrap resolves the configured Windows Python launcher/selector, verifies the expected Python version and Authenticode publisher, and disables uv-managed Python fallback.
+
 Run the supervised bootstrap:
 
 ```powershell
 pwsh -File .\scripts\bootstrap-python.ps1
 ```
 
-Bootstrap may use external network access. Normal startup and verification use the locked external environment and do not perform dependency resolution as a substitute for bootstrap.
+If the existing generated KIS environment was built from another base interpreter, bootstrap moves that environment intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>` before rebuilding it. Bootstrap may use external network access. Normal startup and verification use the locked external environment and do not perform dependency resolution as a substitute for bootstrap. A binary being beneath `C:\Projects` is never evidence that Defender or Smart App Control trusts it; validate native `.pyd`, `.dll`, `.exe`, and `.node` dependencies through the canonical workload and fresh Code Integrity evidence.
 
 ## Install Desktop Commander
 

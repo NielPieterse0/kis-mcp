@@ -66,6 +66,8 @@ The future platform model does not alter the closed Work enforcement decision se
 | Quarantine service | Moves delete targets intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>`. |
 | Verification suite | Tests configuration, path boundaries, provider mappings, command-intent detection, and quarantine behavior. |
 
+Runtime authority is explicit and independent from filesystem location. `settings/runtime-authority.settings.json` classifies the supported shared-system Python and Node hosts, the supervised `uv` bootstrap tool, and the requirement to verify native helpers separately. Python environment construction resolves the configured system CPython through the Windows launcher, verifies its Authenticode publisher/version, disables uv-managed Python fallback, and quarantines an incompatible generated KIS environment before rebuilding it. A path beneath `C:\Projects` is never treated as execution-trust evidence.
+
 ## Request flow
 
 ```text
