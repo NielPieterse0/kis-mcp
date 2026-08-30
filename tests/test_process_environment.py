@@ -55,6 +55,19 @@ def _normalizer(tmp_path: Path, registry: ProjectRegistry) -> RepositoryProcessE
     )
 
 
+def test_default_process_shell_is_materialized_when_source_binding_is_added(tmp_path: Path) -> None:
+    root, registry = _registered_repo(tmp_path)
+    worktree = _worktree(root, "feature")
+    command = f"Set-Location -LiteralPath '{worktree}'; python -c 'print(1)'"
+
+    normalized = _normalizer(tmp_path, registry).normalize(
+        "start_process",
+        {"command": command, "timeout_ms": 1_000},
+    )
+
+    assert normalized["shell"] == "powershell.exe"
+    assert "$kisProcessSource" in normalized["command"]
+
 def test_powershell_process_binds_nearest_worktree_source(tmp_path: Path) -> None:
     root, registry = _registered_repo(tmp_path)
     worktree = _worktree(root, "feature")
@@ -81,11 +94,33 @@ def test_cmd_process_binds_registered_worktree_source(tmp_path: Path) -> None:
         {"command": command, "timeout_ms": 1_000, "shell": "cmd.exe"},
     )
 
-    assert 'if not exist "' in normalized["command"]
+    assert 'pushd "' in normalized["command"]
     assert 'set "PYTHONPATH=' in normalized["command"]
     assert str(worktree / "src") in normalized["command"]
     assert normalized["command"].endswith(command)
 
+
+@pytest.mark.skipif(os.name != "nt", reason="cmd.exe regression")
+def test_cmd_process_runs_when_selected_source_exists(tmp_path: Path) -> None:
+    root, registry = _registered_repo(tmp_path)
+    worktree = _worktree(root, "feature")
+    command = f'cd /d "{worktree}" && echo SOURCE_BOUND'
+    normalized = _normalizer(tmp_path, registry).normalize(
+        "start_process",
+        {"command": command, "timeout_ms": 1_000, "shell": "cmd.exe"},
+    )
+
+    completed = subprocess.run(
+        normalized["command"],
+        check=False,
+        capture_output=True,
+        text=True,
+        shell=True,
+        executable=os.environ.get("COMSPEC", "cmd.exe"),
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "SOURCE_BOUND" in completed.stdout
 
 @pytest.mark.skipif(os.name != "nt", reason="cmd.exe regression")
 def test_cmd_process_fails_if_selected_source_disappears_before_execution(tmp_path: Path) -> None:

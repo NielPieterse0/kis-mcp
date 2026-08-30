@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "269-runtime-recovery-workflow-hardening",
+  "status": "active",
+  "branch": "change/269-runtime-recovery-workflow-hardening",
+  "worktree": ".work/worktrees/269-runtime-recovery-workflow-hardening",
+  "base": "main",
+  "outcome": "Harden kis-dev runtime recovery, process execution, Serena/Skills reliability, and once-through workflow telemetry from live defects discovered during this run.",
+  "owned_paths": [
+    "src/kis_mcp/**",
+    "tests/**",
+    "scripts/**",
+    "docs/OPERATIONS.md",
+    "docs/operations/runtime.md",
+    "docs/operations/chatgpt-remote.md",
+    "docs/operations/recovery-troubleshooting.md",
+    ".work/changes/269-runtime-recovery-workflow-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "deployment",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "40a9f6f5655ce8328406b17cbe33a486d8dd1d2e",
+    "local_tree": "fefb9e197e595d4f8dd6da16e0736144b171fc09",
+    "upstream_sha": "40a9f6f5655ce8328406b17cbe33a486d8dd1d2e",
+    "upstream_tree": "fefb9e197e595d4f8dd6da16e0736144b171fc09",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

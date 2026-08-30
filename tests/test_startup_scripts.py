@@ -425,6 +425,25 @@ def test_chatgpt_shutdown_terminates_owned_process_trees() -> None:
     assert "$Server.Kill()" not in content
 
 
+def test_kis_dev_recovery_surface_is_hard_bound_to_development_instance() -> None:
+    content = _script("recover-kis-dev.ps1")
+
+    assert "-Instance 'kis-dev'" in content
+    assert '-Instance "kis-dev"' in content
+    assert "kis-op" not in content
+    assert "operation" not in content
+    assert "active_instance" not in content
+
+
+def test_kis_dev_recovery_surface_supports_foreground_and_detached_launch() -> None:
+    content = _script("recover-kis-dev.ps1")
+
+    assert "[switch]$Foreground" in content
+    assert "Invoke-CimMethod -ClassName Win32_Process -MethodName Create" in content
+    assert "KIS_DEV_RECOVERY_DETACH_FAILED" in content
+    assert "recovery_surface = 'local-shell'" in content
+
+
 def test_tunnel_setup_captures_provider_cli_output() -> None:
     content = _script("setup-tunnel.ps1")
 

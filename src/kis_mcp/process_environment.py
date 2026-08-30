@@ -120,7 +120,8 @@ class RepositoryProcessEnvironmentNormalizer:
         if not isinstance(command, str) or not command.strip():
             return normalized
 
-        shell = self._effective_shell(normalized.get("shell"))
+        shell_value = normalized.get("shell")
+        shell = self._effective_shell(shell_value)
         initial_cwd = self._working_directory(normalized)
         segments, _ = resolve_shell_segments(
             command,
@@ -150,6 +151,10 @@ class RepositoryProcessEnvironmentNormalizer:
             source_root=source_root,
             shell=shell,
         )
+        if shell_value is None or (
+            isinstance(shell_value, str) and not shell_value.strip()
+        ):
+            normalized["shell"] = "powershell.exe"
         return normalized
 
     def _working_directory(self, arguments: Mapping[str, Any]) -> str:
@@ -235,8 +240,8 @@ class RepositoryProcessEnvironmentNormalizer:
                     "The selected Python source root cannot be represented safely for cmd.exe.",
                 )
             return (
-                f'if not exist "{source_root}\\NUL" '
-                "(echo PROCESS_SOURCE_UNAVAILABLE: selected Python source root disappeared before execution. 1>&2 & exit /b 1) & "
+                f'((pushd "{source_root}" >nul 2>&1 && popd) || '
+                "(echo PROCESS_SOURCE_UNAVAILABLE: selected Python source root disappeared before execution. 1>&2 & exit /b 1)) && "
                 f'set "PYTHONPATH={source_root};%PYTHONPATH%" && {command}'
             )
         raise ProcessSourceIsolationError(

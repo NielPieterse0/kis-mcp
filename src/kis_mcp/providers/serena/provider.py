@@ -30,6 +30,12 @@ def serena_readiness(adapter: SerenaRuntimeAdapter) -> ProviderReadiness:
     settings = adapter.settings
     executable_present = settings.executable.is_file()
     install_present = settings.install_root.is_dir()
+    managed_pyright_launcher = (
+        str(adapter.managed_pyright_launcher)
+        if adapter.managed_pyright_launcher is not None
+        else None
+    )
+    managed_pyright_error = adapter.managed_pyright_error
     phase = adapter.startup_state.phase
     if not settings.enabled:
         state = ProviderState.DISABLED
@@ -37,6 +43,9 @@ def serena_readiness(adapter: SerenaRuntimeAdapter) -> ProviderReadiness:
     elif not executable_present or not install_present:
         state = ProviderState.UNAVAILABLE
         summary = "Serena pinned local installation is incomplete."
+    elif managed_pyright_launcher is None:
+        state = ProviderState.DEGRADED
+        summary = "Serena managed Pyright launcher is unavailable; deterministic Discover fallback remains active."
     elif phase is ProviderStartupPhase.FAILED:
         state = ProviderState.DEGRADED
         summary = "Serena failed to start; deterministic Discover fallback remains active."
@@ -57,6 +66,9 @@ def serena_readiness(adapter: SerenaRuntimeAdapter) -> ProviderReadiness:
             "protocol_mode": adapter.startup_state.protocol_mode,
             "protocol_version": adapter.startup_state.protocol_version,
             "offline_enforced": True,
+            "managed_pyright_launcher": managed_pyright_launcher,
+            "managed_pyright_error": managed_pyright_error,
+            "managed_runtime_provenance": managed_pyright_launcher is not None,
             "public_tools": [
                 "get_symbols_overview",
                 "find_symbol",

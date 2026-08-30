@@ -24,6 +24,7 @@ from kis_mcp.providers.serena import load_serena_settings
 from kis_mcp.providers.serena.adapter import (
     _prepare_serena_project_state,
     _provider_environment,
+    resolve_managed_pyright_launcher,
 )
 from kis_mcp.providers.serena.memory import quarantine_serena_memory_delete
 from kis_mcp.quarantine import QuarantineService
@@ -169,6 +170,7 @@ def _serena_transport(settings, project: Path) -> StdioTransport:
         settings,
         environment=environment,
         project_root=str(project),
+        pyright_launcher=resolve_managed_pyright_launcher(settings),
     )
     return StdioTransport(
         command=str(settings.executable),

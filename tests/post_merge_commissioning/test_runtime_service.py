@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -288,6 +289,62 @@ def test_scheduler_is_hosted_only_on_kis_op(tmp_path: Path) -> None:
     assert op.active is True
     asyncio.run(op.stop())
     assert op.active is False
+
+
+def test_stop_waits_for_foreign_running_loop_task(tmp_path: Path) -> None:
+    now = [datetime(2026, 8, 21, 15, 0, tzinfo=UTC)]
+    service = _service(tmp_path, now, FakeInvoker(), RecordingProcessor())
+    loop = asyncio.new_event_loop()
+    ready = threading.Event()
+    holder: dict[str, asyncio.Task[None]] = {}
+
+    def run_loop() -> None:
+        asyncio.set_event_loop(loop)
+
+        async def sleeper() -> None:
+            await asyncio.sleep(3600)
+
+        holder["task"] = loop.create_task(sleeper())
+        ready.set()
+        loop.run_forever()
+        loop.close()
+
+    thread = threading.Thread(target=run_loop, daemon=True)
+    thread.start()
+    assert ready.wait(timeout=2.0)
+    task = holder["task"]
+    service._tasks[REPOSITORY.casefold()] = task
+    service._active = True
+
+    asyncio.run(service.stop())
+
+    assert task.done()
+    assert service.active is False
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join(timeout=2.0)
+    assert not thread.is_alive()
+
+
+def test_stop_rejects_pending_task_on_stopped_foreign_loop(tmp_path: Path) -> None:
+    now = [datetime(2026, 8, 21, 15, 0, tzinfo=UTC)]
+    service = _service(tmp_path, now, FakeInvoker(), RecordingProcessor())
+    loop = asyncio.new_event_loop()
+
+    async def sleeper() -> None:
+        await asyncio.sleep(3600)
+
+    task = loop.create_task(sleeper())
+    service._tasks[REPOSITORY.casefold()] = task
+    service._active = True
+
+    with pytest.raises(RuntimeError, match="foreign task loop is stopped"):
+        asyncio.run(service.stop())
+
+    assert service.active is True
+    assert service._tasks[REPOSITORY.casefold()] is task
+    task.cancel()
+    loop.run_until_complete(asyncio.gather(task, return_exceptions=True))
+    loop.close()
 
 
 def test_truncated_candidate_search_preserves_checkpoint(tmp_path: Path) -> None:

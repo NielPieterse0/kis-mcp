@@ -81,6 +81,14 @@ This post-land path is development-instance-only: it does not select, inspect fo
 
 There is no automatic failover and no cross-instance process ownership. Keep each launcher window open while ChatGPT uses that tool.
 
+If `kis-dev` itself is unavailable and its normal MCP/tunnel path cannot perform recovery, use the independent local-shell recovery surface from the repository checkout:
+
+```powershell
+pwsh -File .\scripts\recover-kis-dev.ps1
+```
+
+The recovery script is hard-bound to `kis-dev`; it never selects `kis-op` or the configured active instance. By default it detaches a fresh `start-chatgpt.ps1 kis-dev` launcher through Windows process creation and returns the launched PID. Use `-Foreground` only when an attached recovery console is preferable for diagnosis.
+
 ## Create or switch the ChatGPT app
 
 In ChatGPT developer-mode app settings, create a custom app using the Secure MCP Tunnel connection. Select the available tunnel or paste the instance's configured tunnel ID, then scan the tools. Confirm that the scanned catalogue includes representative filesystem, editing, terminal/process, and gateway operations. Do not accept a reduced profile-based catalogue.

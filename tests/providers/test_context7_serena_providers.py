@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
+import os
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,8 +23,10 @@ from kis_mcp.providers.serena import (
 )
 from kis_mcp.providers.serena.adapter import (
     _SharedProviderClient,
+    _prepare_serena_project_state,
     _provider_environment,
     _repair_empty_project_languages,
+    resolve_managed_pyright_launcher,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -340,6 +344,143 @@ def test_serena_normalizes_symbols_and_references_without_schema_leakage() -> No
     assert evidence.symbols[0].path == "src/demo.py"
     assert evidence.relationships[0].kind == "reference"
     assert not hasattr(evidence.symbols[0], "name_path")
+
+
+def test_serena_child_environment_excludes_user_profile_launchers() -> None:
+    settings = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    source_path = os.pathsep.join(
+        [
+            r"C:\Users\piete\.local\bin",
+            r"C:\Projects\.tools\bin",
+            r"C:\Windows\System32",
+        ]
+    )
+    environment = _provider_environment(settings, {"PATH": source_path})
+
+    assert r"C:\Users\piete\.local\bin" not in environment["PATH"]
+    assert r"C:\Projects\.tools\bin" in environment["PATH"]
+    assert r"C:\Windows\System32" in environment["PATH"]
+
+
+def test_serena_managed_pyright_rejects_tampered_launcher(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    home_root = tmp_path / "home"
+    archive = home_root / "AppData" / "Local" / "uv" / "cache" / "archive-v0" / "archive"
+    launcher = archive / "Scripts" / "pyright-langserver.exe"
+    metadata = archive / "Lib" / "site-packages" / "pyright-1.1.403.dist-info" / "METADATA"
+    launcher.parent.mkdir(parents=True)
+    metadata.parent.mkdir(parents=True)
+    launcher.write_bytes(b"trusted-launcher")
+    metadata.write_bytes(b"trusted-metadata")
+    settings = replace(base, home_root=home_root)
+    monkeypatch.setattr(
+        "kis_mcp.providers.serena.adapter._PYRIGHT_LAUNCHER_SHA256",
+        hashlib.sha256(b"trusted-launcher").hexdigest(),
+    )
+    monkeypatch.setattr(
+        "kis_mcp.providers.serena.adapter._PYRIGHT_METADATA_SHA256",
+        hashlib.sha256(b"trusted-metadata").hexdigest(),
+    )
+
+    assert resolve_managed_pyright_launcher(settings) == launcher.resolve()
+    launcher.write_bytes(b"tampered-launcher")
+    with pytest.raises(RuntimeError, match="content-verified managed Pyright"):
+        resolve_managed_pyright_launcher(settings)
+
+
+def test_serena_revalidates_managed_pyright_before_build(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    home_root = tmp_path / "home"
+    archive = home_root / "AppData" / "Local" / "uv" / "cache" / "archive-v0" / "archive"
+    launcher = archive / "Scripts" / "pyright-langserver.exe"
+    metadata = archive / "Lib" / "site-packages" / "pyright-1.1.403.dist-info" / "METADATA"
+    launcher.parent.mkdir(parents=True)
+    metadata.parent.mkdir(parents=True)
+    launcher.write_bytes(b"trusted-launcher")
+    metadata.write_bytes(b"trusted-metadata")
+    install_root = tmp_path / "serena"
+    executable = install_root / "venv" / "Scripts" / "python.exe"
+    executable.parent.mkdir(parents=True)
+    executable.write_bytes(b"python")
+    settings = replace(
+        base,
+        home_root=home_root,
+        install_root=install_root,
+        executable=executable,
+        project_data_root=install_root / "projects",
+    )
+    monkeypatch.setattr(
+        "kis_mcp.providers.serena.adapter._PYRIGHT_LAUNCHER_SHA256",
+        hashlib.sha256(b"trusted-launcher").hexdigest(),
+    )
+    monkeypatch.setattr(
+        "kis_mcp.providers.serena.adapter._PYRIGHT_METADATA_SHA256",
+        hashlib.sha256(b"trusted-metadata").hexdigest(),
+    )
+    adapter = SerenaRuntimeAdapter(settings, environment={}, default_project=str(tmp_path))
+    assert adapter.managed_pyright_launcher == launcher.resolve()
+
+    launcher.write_bytes(b"tampered-after-construction")
+    with pytest.raises(RuntimeError, match="content-verified managed Pyright"):
+        adapter.build_server()
+    assert adapter.managed_pyright_launcher is None
+
+
+def test_serena_project_state_renders_managed_pyright_and_project_location_together(
+    tmp_path: Path,
+) -> None:
+    base = load_serena_settings(ROOT / "settings/providers/serena.provider.json")
+    install_root = tmp_path / "serena"
+    config_root = install_root / "config"
+    project_data_root = install_root / "projects"
+    config_root.mkdir(parents=True)
+    project_data_root.mkdir()
+    settings = replace(
+        base,
+        install_root=install_root,
+        executable=install_root / "venv" / "Scripts" / "python.exe",
+        config_root=config_root,
+        project_data_root=project_data_root,
+    )
+    config = config_root / "serena_config.yml"
+    config.write_text(
+        "ls_specific_settings: {}\n"
+        'project_serena_folder_location: "$projectDir/.serena"\n'
+        "projects: []\n",
+        encoding="utf-8",
+    )
+
+    pyright_launcher = tmp_path / "managed" / "pyright-langserver.exe"
+    pyright_launcher.parent.mkdir(parents=True)
+    pyright_launcher.write_bytes(b"test-launcher")
+    _prepare_serena_project_state(
+        settings,
+        environment={},
+        project_root=str(tmp_path),
+        pyright_launcher=pyright_launcher,
+    )
+
+    rendered = config.read_text(encoding="utf-8")
+    assert "ls_specific_settings:\n  python:\n    ls_path:" in rendered
+    assert str(pyright_launcher).replace("\\", "/") in rendered
+    assert (
+        f'project_serena_folder_location: "{settings.project_serena_folder_template.replace(chr(92), "/")}"'
+        in rendered
+    )
+
+    _prepare_serena_project_state(
+        settings,
+        environment={},
+        project_root=str(tmp_path),
+        pyright_launcher=pyright_launcher,
+    )
+    assert config.read_text(encoding="utf-8") == rendered
 
 
 def test_serena_child_environment_forces_utf8_text_streams() -> None:

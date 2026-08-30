@@ -209,19 +209,58 @@ function Write-KisDevRestartReceipt {
 }
 
 if (-not $Worker) {
-    $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
-    $CommandLine = (
-        '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -ExpectedLandedSha "{2}" -RepositoryRoot "{3}" -StateRoot "{4}" -DelaySeconds "{5}" -Worker' -f
-        $Pwsh, $PSCommandPath, $ExpectedLandedSha, $RepositoryRoot, $StateRoot, $DelaySeconds
-    )
-    $Created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
-        CommandLine = $CommandLine
+    $Schedule = Invoke-KisReceiptLock -Action {
+        if ([System.IO.File]::Exists($ReceiptPath)) {
+            try {
+                $Current = Get-Content -LiteralPath $ReceiptPath -Raw | ConvertFrom-Json
+                $CurrentState = [string]$Current.state
+                $CurrentSha = [string]$Current.landed_sha
+                $CurrentWorkerPid = [int]$Current.worker_pid
+                if (
+                    $CurrentSha -ceq $ExpectedLandedSha -and
+                    $CurrentState -in @('scheduled', 'synchronizing', 'launching') -and
+                    $CurrentWorkerPid -gt 0 -and
+                    $null -ne (Get-Process -Id $CurrentWorkerPid -ErrorAction SilentlyContinue)
+                ) {
+                    return [ordered]@{ state = 'scheduled'; pid = $CurrentWorkerPid; reused = $true }
+                }
+            }
+            catch {
+                # Malformed or stale evidence cannot reserve the restart lane.
+            }
+        }
+
+        $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+        $CommandLine = (
+            '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -ExpectedLandedSha "{2}" -RepositoryRoot "{3}" -StateRoot "{4}" -DelaySeconds "{5}" -Worker' -f
+            $Pwsh, $PSCommandPath, $ExpectedLandedSha, $RepositoryRoot, $StateRoot, $DelaySeconds
+        )
+        $Created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+            CommandLine = $CommandLine
+        }
+        if ([int]$Created.ReturnValue -ne 0 -or [int]$Created.ProcessId -le 0) {
+            throw "POST_LAND_RESTART_DETACH_FAILED: return=$($Created.ReturnValue)"
+        }
+        $WorkerPid = [int]$Created.ProcessId
+        $Document = [ordered]@{
+            schema_version = 1
+            state = 'scheduled'
+            landed_sha = $ExpectedLandedSha
+            launched_sha = ''
+            worker_pid = $WorkerPid
+            detail = ''
+            updated_utc = [DateTime]::UtcNow.ToString('o')
+        }
+        $Temporary = "$ReceiptPath.next-$([Guid]::NewGuid().ToString('N'))"
+        [System.IO.File]::WriteAllText(
+            $Temporary,
+            ($Document | ConvertTo-Json -Depth 6),
+            [System.Text.UTF8Encoding]::new($false)
+        )
+        Move-KisAtomicFile -Temporary $Temporary -Target $ReceiptPath
+        return [ordered]@{ state = 'scheduled'; pid = $WorkerPid; reused = $false }
     }
-    if ([int]$Created.ReturnValue -ne 0 -or [int]$Created.ProcessId -le 0) {
-        throw "POST_LAND_RESTART_DETACH_FAILED: return=$($Created.ReturnValue)"
-    }
-    $null = Write-KisDevRestartReceipt -State 'scheduled' -WorkerPid ([int]$Created.ProcessId)
-    [ordered]@{ state = 'scheduled'; pid = [int]$Created.ProcessId } |
+    [ordered]@{ state = 'scheduled'; pid = [int]$Schedule.pid } |
         ConvertTo-Json -Compress |
         Write-Output
     return
@@ -292,8 +331,31 @@ try {
     if (-not $OwnsReceipt) {
         return
     }
-    & (Join-Path $RepositoryRoot 'scripts\start-chatgpt.ps1') -Instance 'kis-dev'
-    $null = Write-KisDevRestartReceipt -State 'stopped' -Detail 'replacement launcher exited' -LaunchedSha $LaunchedSha -WorkerPid $PID
+    $RecoveryAttempts = 0
+    $MaxRecoveryAttempts = 2
+    while ($true) {
+        try {
+            & (Join-Path $RepositoryRoot 'scripts\start-chatgpt.ps1') -Instance 'kis-dev'
+            $null = Write-KisDevRestartReceipt -State 'stopped' -Detail 'replacement launcher exited' -LaunchedSha $LaunchedSha -WorkerPid $PID
+            return
+        }
+        catch {
+            if ($RecoveryAttempts -ge $MaxRecoveryAttempts) {
+                throw
+            }
+            $RecoveryAttempts += 1
+            $Detail = "replacement launcher failed; bounded recovery attempt $RecoveryAttempts/${MaxRecoveryAttempts}: $($_.Exception.Message)"
+            $OwnsReceipt = Write-KisDevRestartReceipt -State 'recovering' -Detail $Detail -LaunchedSha $LaunchedSha -WorkerPid $PID
+            if (-not $OwnsReceipt) {
+                return
+            }
+            Start-Sleep -Seconds ([Math]::Min(5, $RecoveryAttempts))
+            $OwnsReceipt = Write-KisDevRestartReceipt -State 'launching' -Detail "recovery attempt $RecoveryAttempts/$MaxRecoveryAttempts" -LaunchedSha $LaunchedSha -WorkerPid $PID
+            if (-not $OwnsReceipt) {
+                return
+            }
+        }
+    }
 }
 catch {
     $OriginalFailure = $_

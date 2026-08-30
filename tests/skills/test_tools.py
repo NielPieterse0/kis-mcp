@@ -83,6 +83,8 @@ def test_register_skills_tools_exposes_exact_twelve_operation_names(
         "activation_id",
         "project_id",
     }
+    assert "use skill_id" in by_name["load_skill"].description
+    assert "use skill_id" in by_name["read_skill_file"].description
     assert set(by_name["record_skill_outcome"].parameters["properties"]) == {
         "skill_id",
         "activation_id",

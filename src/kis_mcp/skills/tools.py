@@ -199,7 +199,7 @@ def register_skills_tools(
 
     @server.tool(
         name="load_skill",
-        description="Load one skill entrypoint and bounded catalogue evidence.",
+        description="Load one skill entrypoint by skill_id and return bounded catalogue evidence; use skill_id, not a display name argument.",
     )
     def load_skill(
         skill_id: str,
@@ -231,7 +231,7 @@ def register_skills_tools(
 
     @server.tool(
         name="read_skill_file",
-        description="Read one bounded file from an active skill snapshot.",
+        description="Read one bounded relative_path from an active skill identified by skill_id; use skill_id, not a display name argument.",
     )
     def read_skill_file(
         skill_id: str,
