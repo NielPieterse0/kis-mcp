@@ -28,15 +28,13 @@ pwsh -NoProfile -File .\scripts\commission-db-docker-providers.ps1
 
 If activation or commissioning rejects revision, entry point, configuration, binding, credentials, or live verification, correct the named canonical input. Do not substitute `latest`, widen the provider surface, or weaken validation in the runbook.
 
-For bounded Context7/Serena live smoke from the locked source environment:
+For bounded Context7/Serena live smoke from the locked source environment, invoke the already-built environment directly so verification does not depend on whichever `uv.exe` happens to resolve from the operator PATH:
 
 ```powershell
-$env:UV_PROJECT_ENVIRONMENT='C:\Projects\.kis-mcp\python-env'
-$env:UV_CACHE_DIR='C:\Projects\.kis-mcp\uv-cache'
-uv run --offline --no-sync python scripts\run-provider-live-smoke.py
+C:\Projects\.kis-mcp\python-env\Scripts\python.exe scripts\run-provider-live-smoke.py
 ```
 
-Use current provider settings/contracts for exact tested operations and state locations.
+Serena installation resolves the signed shared-system Python through `scripts/runtime-authority.ps1`, records that host identity in acquisition/candidate manifests, and builds the candidate venv from that exact interpreter. Node host trust is classified independently from provider-native `.node` helpers; a valid OpenJS signature on `node.exe` is not evidence that a loaded native helper is trusted. Use current provider settings/contracts for exact tested operations and state locations, and correlate the canonical workload with fresh Code Integrity 3033/3077 events when validating Defender/SAC conformance.
 
 ## Authenticate GitHub MCP
 
