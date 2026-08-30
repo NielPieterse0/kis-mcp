@@ -2,32 +2,30 @@
 
 ## Implemented scope
 
-- Corrected process source binding, post-land same-SHA/retry recovery, and independent local-shell `kis-dev` recovery without selecting or mutating `kis-op`.
-- Removed Serena user-profile launcher provenance; managed Pyright 1.1.403 is resolved once behind the adapter contract, content-bound to pinned launcher/metadata hashes, and rendered idempotently with canonical project state.
-- Clarified Skills `skill_id` invocation contracts and suppressed unchanged failed-stage once-through replay.
-- Fixed cross-event-loop commissioning shutdown discovered by canonical verification, including bounded acknowledgement before task ownership is cleared.
+- Corrected exact process source/argument binding and added regression coverage.
+- Hardened same-SHA post-land restart reuse and bounded transient `kis-dev` recovery.
+- Added independent local-shell `recover-kis-dev.ps1`, hard-bound to `kis-dev`.
+- Removed Serena user-profile launcher provenance; Pyright launcher/metadata are content-verified and revalidated before provider build.
+- Made Serena project configuration rendering idempotent and portable in tests.
+- Clarified Skills `skill_id` invocation contracts.
+- Suppressed immediate no-progress once-through stage replay.
+- Made commissioning scheduler shutdown loop-safe and fail-closed for unresolved foreign-loop tasks.
 
 ## Validation evidence
 
-- Focused affected suite: 161 tests passed before review fixes; Serena/configuration and commissioning regressions passed after review fixes, including tamper rejection and foreign-loop shutdown acknowledgement.
-- `pwsh -File scripts/change-workflow.ps1 check`: passed.
-- Canonical verification first exposed and drove the commissioning stop fix; a later isolated quarantine-listing failure passed 10/10 immediate reproductions and was not reproducible.
-- Final `pwsh -File scripts/verify.ps1`: passed completely (full pytest, configuration, interpreter/dependencies, Python syntax, change governance, and exact three-rule verification).
+- Focused regression suites passed, including recovery, restart, Serena, Skills, once-through, process binding, and commissioning lifecycle tests.
+- Final canonical `pwsh -File scripts/verify.ps1`: passed; pytest, configuration, interpreter/dependencies, syntax, governance, and exact three-rule verification all green.
+- One quarantine-listing failure from an earlier canonical attempt did not reproduce in 20/20 isolated retries on the unchanged tree; no unsupported product change was made.
+- `pwsh -File scripts/change-workflow.ps1 check`: passed before final promotion metadata reconciliation.
 
 ## Review
 
-- Architecture review found split Serena Pyright provenance ownership; fixed by adapter-owned cached provenance and provider consumption.
-- Code-quality review found non-idempotent managed YAML matching; fixed with block-bounded matching plus a second-reconciliation regression.
-- Clean exact-tree code-quality re-review reported no blocking/material findings.
-- Security review's executable-integrity finding was fixed with pinned launcher/metadata SHA-256 validation and tamper regression coverage; its later same-user TOCTOU concern is outside the authoritative private single-operator closed-environment threat model rather than another Work hard rule.
-- Security review's cross-loop shutdown finding was fixed with cancellation acknowledgement before ownership clear; focused regression passed.
-- High-level `execute_change_workflow` and one qualified reviewer route reproduced upstream 502s; lower-level verification/review surfaces were used instead of stopping.
+- Architecture: initial Serena provenance-ownership finding fixed; re-review clean.
+- Code quality: Serena YAML idempotence and test-portability findings fixed; final re-review clean.
+- Safety/security: Pyright content-authentication/TOCTOU and cross-loop shutdown findings fixed; final re-review clean.
 
-## Git and merge
+## Delivery
 
-- Branch: `change/269-runtime-recovery-workflow-hardening`; worktree: `.work/worktrees/269-runtime-recovery-workflow-hardening`.
-- Commit / pull request / merge / cleanup: pending governed promotion after final canonical verification.
-
-## Residual items
-
-- None intended; every reproducible defect discovered in this run is treated as issue #600 scope or recorded workflow evidence.
+- Branch: `change/269-runtime-recovery-workflow-hardening`.
+- Issue: `#600`.
+- PR, exact-head Actions, merge, Work/documentation reconciliation, and cleanup are completed through governed delivery evidence rather than a post-merge metadata-only commit.
