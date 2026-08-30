@@ -55,6 +55,7 @@ class WorkManagementBackend(ReconciliationBackend, Protocol):
         *,
         field_names: tuple[str, ...] = (),
         item_limit: int = 100,
+        query: str | None = None,
     ) -> ProjectInventory: ...
 
 
@@ -268,13 +269,19 @@ class WorkManagementService:
         *,
         field_names: tuple[str, ...] = (),
         item_limit: int = 1000,
+        query: str | None = None,
     ) -> ProjectInventory:
         project, binding = self._project_and_binding(project_id)
         backend = self._backend(project, binding)
+        arguments: dict[str, Any] = {
+            "field_names": field_names,
+            "item_limit": item_limit,
+        }
+        if isinstance(query, str) and query.strip():
+            arguments["query"] = query.strip()
         return await backend.read_inventory(
             self._project_binding(project, binding),
-            field_names=field_names,
-            item_limit=item_limit,
+            **arguments,
         )
 
     @staticmethod

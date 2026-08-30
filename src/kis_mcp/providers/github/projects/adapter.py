@@ -458,6 +458,7 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
         *,
         field_names: tuple[str, ...],
         item_limit: int,
+        query: str | None = None,
     ) -> tuple[tuple[ProjectItem, ...], bool, str | None]:
         items: list[ProjectItem] = []
         cursor: str | None = None
@@ -476,8 +477,13 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
                 }
                 if cursor is not None:
                     arguments["after"] = cursor
+                query_terms: list[str] = []
                 if binding.repository is not None:
-                    arguments["query"] = f"repo:{binding.repository}"
+                    query_terms.append(f"repo:{binding.repository}")
+                if isinstance(query, str) and query.strip():
+                    query_terms.append(query.strip())
+                if query_terms:
+                    arguments["query"] = " ".join(query_terms)
                 if requested_fields:
                     arguments["field_names"] = list(requested_fields)
                 document = await self._call(
@@ -541,6 +547,7 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
         *,
         field_names: tuple[str, ...] = (),
         item_limit: int = 100,
+        query: str | None = None,
     ) -> ProjectInventory:
         if not isinstance(project_binding, ProjectBinding):
             raise ValueError("project_binding must be a ProjectBinding")
@@ -574,6 +581,7 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
             project_binding,
             field_names=item_field_names,
             item_limit=item_limit,
+            query=query,
         )
         return ProjectInventory(
             binding=project_binding,

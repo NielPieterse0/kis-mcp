@@ -1,0 +1,50 @@
+{
+  "schema_version": 4,
+  "change_id": "267-workflow-terminal-audit",
+  "status": "active",
+  "branch": "change/267-workflow-terminal-audit",
+  "worktree": ".work/worktrees/267-workflow-terminal-audit",
+  "base": "main",
+  "outcome": "Make terminal workflow evidence canonical, typed, self-auditing, queryable, and efficiency-regression aware.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/**",
+    "tests/workflows/once_through/**",
+    "src/kis_mcp/workflows/project_management/**",
+    "tests/workflows/project_management/**",
+    "src/kis_mcp/work_management/**",
+    "tests/work_management/**",
+    "src/kis_mcp/providers/github/project_management.py",
+    "src/kis_mcp/providers/github/projects/**",
+    "tests/discover/test_tool_registration.py",
+    "SPEC.md",
+    ".work/changes/267-workflow-terminal-audit/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "4b6265c8661e07db22899100f5632b1efede8b69",
+    "local_tree": "f7475f01863bc212881bddddb2ed8a06a8de5ec2",
+    "upstream_sha": "4b6265c8661e07db22899100f5632b1efede8b69",
+    "upstream_tree": "f7475f01863bc212881bddddb2ed8a06a8de5ec2",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-594",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 594,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex-workflow-efficiency"
+  }
+}

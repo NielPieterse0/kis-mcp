@@ -61,7 +61,7 @@ def _inventory() -> ProjectInventory:
 
 class _Service:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, tuple[str, ...], int]] = []
+        self.calls: list[tuple[str, tuple[str, ...], int, str | None]] = []
 
     async def read_inventory(
         self,
@@ -69,8 +69,9 @@ class _Service:
         *,
         field_names: tuple[str, ...] = (),
         item_limit: int = 100,
+        query: str | None = None,
     ) -> ProjectInventory:
-        self.calls.append((project_id, field_names, item_limit))
+        self.calls.append((project_id, field_names, item_limit, query))
         return _inventory()
 
 
@@ -279,10 +280,10 @@ class _AdapterService:
             repository="NielPieterse0/kis-mcp",
         )
 
-    async def read_inventory(self, project_id, *, field_names=(), item_limit=100):
+    async def read_inventory(self, project_id, *, field_names=(), item_limit=100, query=None):
         assert project_id == "kis-mcp"
         return await self.adapter.read_inventory(
-            self.binding, field_names=field_names, item_limit=item_limit
+            self.binding, field_names=field_names, item_limit=item_limit, query=query
         )
 
 
@@ -352,3 +353,31 @@ def test_contract_exposes_canonical_work_semantics_and_fingerprints() -> None:
     ]
     assert "work_class" not in canonical["work_selection"]["fields"]
     assert service.calls == []
+
+
+def test_targeted_board_query_is_forwarded_before_provider_item_limit() -> None:
+    server = FastMCP("root")
+    service = _Service()
+    register_project_management_enhancement_tools(server, service)
+
+    result = asyncio.run(server.call_tool(
+        "project_management_board_data",
+        {"project_id": "kis-mcp", "query": "215", "item_limit": 20},
+    )).structured_content
+
+    assert result is not None
+    assert result["result"]["cards"][0]["number"] == 215
+    assert service.calls[-1][2] == 20
+    assert service.calls[-1][3] == "215"
+
+
+def test_github_inventory_applies_targeted_query_at_provider_boundary() -> None:
+    service = _AdapterService()
+    inventory = asyncio.run(service.read_inventory(
+        "kis-mcp", field_names=("Status",), item_limit=20, query="235",
+    ))
+
+    assert inventory.items
+    item_call = service.caller.calls[-1][1]
+    assert item_call["per_page"] == 20
+    assert item_call["query"] == "repo:NielPieterse0/kis-mcp 235"

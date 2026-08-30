@@ -580,3 +580,23 @@ def test_landed_ancestry_reports_invalid_git_result(tmp_path: Path) -> None:
     ):
         with pytest.raises(ValueError, match="PROMOTION_DEFAULT_ANCESTRY_INVALID: bad repository"):
             asyncio.run(service._default_contains_commit("e" * 40, LANDED))
+
+
+def test_promotion_rejects_typed_record_identity_mismatch_before_provider_calls(tmp_path: Path) -> None:
+    invoker = FakeInvoker()
+    settings = tmp_path / "settings"
+    settings.mkdir(parents=True, exist_ok=True)
+    (settings / "github-merge-queue.settings.json").write_text(
+        '{"verification_workflow":"work-management.yml"}\n', encoding="utf-8"
+    )
+    record = _record()
+    record["record_id"] = "TASK-585"
+    with pytest.raises(ValueError, match="PROMOTION_TYPED_RECORD_ID_MISMATCH"):
+        PromotionStageService(
+            invoker=invoker,
+            contract=_contract(tmp_path),
+            scope=_scope(tmp_path),
+            work_record=record,
+            approved=True,
+        )
+    assert invoker.calls == []

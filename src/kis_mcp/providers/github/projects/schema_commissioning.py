@@ -1175,9 +1175,11 @@ class GitHubProjectSchemaAwareBackend:
         )
         self.capabilities = getattr(delegate, "capabilities", None)
 
-    async def read_inventory(self, project_binding, *, field_names=(), item_limit=100):
+    async def read_inventory(
+        self, project_binding, *, field_names=(), item_limit=100, query=None
+    ):
         return await self._delegate.read_inventory(
-            project_binding, field_names=field_names, item_limit=item_limit
+            project_binding, field_names=field_names, item_limit=item_limit, query=query
         )
 
     async def read_schema_fields(self, project_binding):

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
+import re
 from collections.abc import Sequence
 
 from ...config import load_runtime_config
@@ -16,6 +18,13 @@ _SOURCE_PATH = "KIS_MCP_CANDIDATE_SOURCE_PATH"
 _CHANGE_ID = "KIS_MCP_CANDIDATE_CHANGE_ID"
 
 
+def _runtime_instance_id(work_id: str) -> str:
+    canonical = work_id.casefold()
+    suffix = re.sub(r"[^a-z0-9]+", "-", canonical).strip("-")
+    digest = hashlib.sha256(work_id.encode("utf-8")).hexdigest()[:10]
+    return f"candidate-{suffix or 'work'}-{digest}"
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Run one isolated task-candidate KIS MCP server.")
     parser.add_argument("--port", required=True, type=int)
@@ -28,7 +37,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(argv)
     if not 1024 <= args.port <= 65535:
         parser.error("--port must be between 1024 and 65535")
-    os.environ[_RUNTIME_INSTANCE] = f"candidate:{args.work_id}"
+    os.environ[_RUNTIME_INSTANCE] = _runtime_instance_id(args.work_id)
     os.environ[_WORK_ID] = args.work_id
     os.environ[_CONTRACT] = args.contract_fingerprint
     os.environ[_INSTANCE] = args.instance_id

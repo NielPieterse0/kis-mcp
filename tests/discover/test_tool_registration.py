@@ -278,6 +278,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "candidate_endpoint_status",
         "start_task_candidate",
         "candidate_identity",
+        "workflow_terminal_audit",
         "verify_task_candidate",
         "stop_task_candidate",
         "derive_promotion_ready",

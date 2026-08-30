@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
+from fastmcp import FastMCP
 
 from kis_mcp.workflows.once_through import (
     EvidenceReference,
@@ -21,10 +22,15 @@ from kis_mcp.workflows.once_through import (
     resolve_evidence,
 )
 from kis_mcp.workflows.once_through.activation import WorkActivationCoordinator
+from kis_mcp.workflows.once_through.candidate_runtime import _runtime_instance_id
 from kis_mcp.state import resolve_runtime_state_path
 from kis_mcp.workflows.once_through.contracts import fingerprint
 from kis_mcp.workflows.once_through.tools import (
     _governed_source_binding,
+    register_once_through_tools,
+    _record_promotion_operation,
+    _terminal_audit,
+    _terminate_launched_process,
     _post_land_restart_receipt,
     _owned_candidate_stop_pid,
     _promotion_reference,
@@ -47,6 +53,14 @@ def _evidence(kind: str, **inputs: str) -> EvidenceReference:
         validity_class=EvidenceValidityClass.CONTENT_STABLE,
         validity_inputs=inputs, receipt_ref=f"receipt:{kind}",
     )
+
+
+def test_candidate_runtime_instance_id_is_state_namespace_safe() -> None:
+    first = _runtime_instance_id("WORK-594")
+    assert first.startswith("candidate-work-594-")
+    assert first == _runtime_instance_id("WORK-594")
+    assert _runtime_instance_id("WORK:A") != _runtime_instance_id("WORK/A")
+    assert _runtime_instance_id("WORK:A") != _runtime_instance_id("WORK-A")
 
 
 def test_candidate_ports_are_immutable_and_never_reused(tmp_path: Path) -> None:
@@ -473,7 +487,10 @@ def test_controller_persists_terminal_delivery_receipt_and_done_replay_is_noop(t
         operation_id="promotion-terminal", promotion_handoff=handoff,
     ))
     assert second.state == "done"
-    assert second.terminal_receipt == receipt
+    assert second.terminal_receipt is not None
+    assert second.terminal_receipt["landed_sha"] == receipt["landed_sha"]
+    assert second.terminal_receipt["merge_commit_sha"] == receipt["merge_commit_sha"]
+    assert second.terminal_receipt["telemetry"]["replay_count"] == 1
     assert tuple(invoker.calls) == calls
 
 
@@ -502,3 +519,276 @@ def test_post_land_restart_receipt_requires_exact_landed_and_launched_sha(tmp_pa
 
     with pytest.raises(RuntimeError, match="POST_LAND_RESTART_RECEIPT_LANDED_MISMATCH"):
         _post_land_restart_receipt(tmp_path, "f" * 40)
+
+
+class _AuditedTerminalInvoker(_TerminalPromotionInvoker):
+    async def __call__(self, stage: str, handoff: dict[str, object], observations: dict[str, object]) -> dict[str, object]:
+        result = await super().__call__(stage, handoff, observations)
+        result["_audit"] = {
+            "provider_reads": 1 if stage in {"refresh_default", "exact_head_actions", "refresh_landed"} else 0,
+            "provider_mutations": 1 if stage in {"reconcile_candidate", "create_pull_request", "merge_exact_head"} else 0,
+            "list_pages_scanned": 1 if stage == "exact_head_actions" else 0,
+            "tool_calls": 1,
+            "verification_invocations": 0,
+            "review_invocations": 0,
+            "duplicate_proof_attempts": 0,
+            "proof_read_fingerprints": [f"proof-{stage}"] if stage == "work_done" else [],
+            "operation_counts": {stage: 1},
+        }
+        return result
+
+
+def test_terminal_receipt_carries_durable_metrics_and_generated_closeout(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    store = PromotionStateStore(state_root / "once-through" / "promotion-controller")
+    handoff = {
+        "status": "promotion_ready", "work_id": "WORK-592",
+        "change_id": "265-test", "source_commit_sha": "a" * 40,
+    }
+    result = asyncio.run(PromotionController(_AuditedTerminalInvoker(), store).converge(
+        operation_id="promotion-audited", promotion_handoff=handoff,
+    ))
+    receipt = result.terminal_receipt
+    assert receipt is not None
+    assert receipt["telemetry"]["provider_reads"] == 3
+    assert receipt["telemetry"]["provider_mutations"] == 3
+    assert receipt["telemetry"]["list_pages_scanned"] == 1
+    assert receipt["telemetry"]["proof_read_fingerprints"] == ["proof-work_done"]
+    assert receipt["closeout_projection"]["authority"] == "terminal_receipt"
+    assert receipt["closeout_projection"]["tracked_change_record_role"] == "historical_pre_merge"
+    assert all(receipt["closeout_projection"]["checklist"].values())
+    assert store.recent_terminal_receipts(1)[0]["operation_id"] == "promotion-audited"
+
+
+def test_workflow_terminal_audit_returns_one_bounded_self_contained_view(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    store = PromotionStateStore(state_root / "once-through" / "promotion-controller")
+    handoff = {
+        "status": "promotion_ready", "work_id": "WORK-592",
+        "change_id": "265-test", "source_commit_sha": "a" * 40,
+    }
+    asyncio.run(PromotionController(_AuditedTerminalInvoker(), store).converge(
+        operation_id="promotion-audit-tool", promotion_handoff=handoff,
+    ))
+    server = FastMCP("audit-test")
+    register_once_through_tools(server, state_root)
+
+    result = asyncio.run(server.call_tool(
+        "workflow_terminal_audit", {"limit": 1}
+    )).structured_content
+
+    assert result is not None
+    assert result["contract"] == "workflow-terminal-audit-v1"
+    assert result["count"] == 1
+    item = result["items"][0]
+    assert item["identities"]["source_commit_sha"] == "a" * 40
+    assert item["identities"]["actions_run_ids"] == [9001]
+    assert item["delivery"]["post_land_restart"]["launched_sha"] == "e" * 40
+    assert item["closeout"]["tracked_change_record_role"] == "historical_pre_merge"
+    assert item["complexity_budget"]["meaningful_transitions"] == 8
+
+
+def test_terminal_audit_distinguishes_distinct_reviews_from_duplicates() -> None:
+    receipt = {
+        "work_id": "WORK-594", "typed_record_id": "SPEC-594", "change_id": "267-test",
+        "source_commit_sha": "a" * 40, "pull_number": 1, "head_sha": "b" * 40,
+        "actions_run_ids": [2], "merge_commit_sha": "c" * 40, "landed_sha": "d" * 40,
+        "documentation_completion_revision": "d" * 40, "work_completion": {"mode": "apply"},
+        "source_close": {"required": True, "applied": True}, "cleanup": {"status": "applied"},
+        "telemetry": {"review_invocations": 3, "duplicate_review_attempts": 0, "promotion_review_invocations": 0},
+    }
+    clean = _terminal_audit(receipt)
+    assert "duplicate_review" not in clean["flags"]
+    receipt["telemetry"] = {"review_invocations": 3, "duplicate_review_attempts": 1, "promotion_review_invocations": 1}
+    flagged = _terminal_audit(receipt)
+    assert "duplicate_review" in flagged["flags"]
+    assert "promotion_review_ownership_regression" in flagged["flags"]
+
+def test_terminal_audit_flags_malformed_telemetry_without_failing() -> None:
+    receipt = {
+        "work_id": "WORK-594", "typed_record_id": "SPEC-594", "change_id": "267-test",
+        "source_commit_sha": "a" * 40, "pull_number": 1, "head_sha": "b" * 40,
+        "actions_run_ids": [2], "merge_commit_sha": "c" * 40, "landed_sha": "d" * 40,
+        "documentation_completion_revision": "d" * 40, "work_completion": {"mode": "apply"},
+        "source_close": {"required": True, "applied": True}, "cleanup": {"status": "applied"},
+        "telemetry": {"provider_reads": None, "provider_mutations": "bad", "duplicate_review_attempts": True},
+    }
+    audit = _terminal_audit(receipt)
+    assert audit["status"] == "attention"
+    assert "invalid_telemetry" in audit["flags"]
+    assert set(audit["invalid_telemetry_fields"]) >= {
+        "provider_reads", "provider_mutations", "duplicate_review_attempts"
+    }
+    assert audit["complexity_budget"]["provider_calls"] is None
+
+
+def test_done_replay_does_not_change_terminal_recency_order(tmp_path: Path) -> None:
+    store = PromotionStateStore(tmp_path)
+    invoker = _TerminalPromotionInvoker()
+    handoff_a = {"status": "promotion_ready", "work_id": "WORK-592", "change_id": "265-a", "source_commit_sha": "a" * 40}
+    handoff_b = {"status": "promotion_ready", "work_id": "WORK-593", "change_id": "266-b", "source_commit_sha": "b" * 40}
+    first = asyncio.run(PromotionController(invoker, store).converge(operation_id="promotion-a", promotion_handoff=handoff_a))
+    second = asyncio.run(PromotionController(invoker, store).converge(operation_id="promotion-b", promotion_handoff=handoff_b))
+    assert first.terminal_receipt is not None and second.terminal_receipt is not None
+    assert first.terminal_receipt["completed_at_ns"] < second.terminal_receipt["completed_at_ns"]
+    asyncio.run(PromotionController(invoker, store).converge(operation_id="promotion-a", promotion_handoff=handoff_a))
+    recent = store.recent_terminal_receipts(2)
+    assert [item["operation_id"] for item in recent] == ["promotion-b", "promotion-a"]
+
+def test_terminal_audit_does_not_treat_missing_telemetry_as_measured_zero() -> None:
+    receipt = {
+        "work_id": "WORK-594", "typed_record_id": "SPEC-594", "change_id": "267-test",
+        "source_commit_sha": "a" * 40, "pull_number": 1, "head_sha": "b" * 40,
+        "actions_run_ids": [2], "merge_commit_sha": "c" * 40, "landed_sha": "d" * 40,
+        "documentation_completion_revision": "d" * 40, "work_completion": {"mode": "apply"},
+        "source_close": {"required": True, "applied": True}, "cleanup": {"status": "applied"},
+    }
+    audit = _terminal_audit(receipt)
+    assert "invalid_telemetry" in audit["flags"]
+    assert audit["invalid_telemetry_fields"] == ["telemetry"]
+    assert audit["complexity_budget"]["provider_calls"] is None
+    assert audit["complexity_budget"]["meets_simplification_target"] is False
+
+def test_promotion_operation_metrics_detect_duplicate_verification_and_proof_reads() -> None:
+    metrics = {
+        "provider_reads": 0, "provider_mutations": 0, "list_pages_scanned": 0,
+        "tool_calls": 0, "verification_invocations": 0, "review_invocations": 0,
+        "duplicate_verification_attempts": 0, "promotion_review_invocations": 0,
+        "duplicate_proof_attempts": 0, "operation_counts": {},
+    }
+    seen: set[str] = set()
+    for _ in range(2):
+        _record_promotion_operation(
+            metrics, stage="merge_readiness", operation="run_verification",
+            arguments={"source": "commit"}, proof_reads_seen=seen,
+        )
+        _record_promotion_operation(
+            metrics, stage="work_done", operation="github_issue_read",
+            arguments={"method": "get", "issue_number": 594}, proof_reads_seen=seen,
+        )
+    assert metrics["verification_invocations"] == 2
+    assert metrics["duplicate_verification_attempts"] == 1
+    assert metrics["duplicate_proof_attempts"] == 1
+
+    established = dict(metrics)
+    established.update({"verification_invocations": 0, "duplicate_verification_attempts": 0, "operation_counts": {}})
+    _record_promotion_operation(
+        established, stage="merge_readiness", operation="run_verification",
+        arguments={"source": "commit"}, proof_reads_seen=set(),
+        implementation_verification_established=True,
+    )
+    assert established["duplicate_verification_attempts"] == 1
+
+def test_persisted_proof_fingerprint_detects_duplicate_after_retry() -> None:
+    first = {
+        "provider_reads": 0, "provider_mutations": 0, "list_pages_scanned": 0,
+        "tool_calls": 0, "verification_invocations": 0, "review_invocations": 0,
+        "duplicate_verification_attempts": 0, "promotion_review_invocations": 0,
+        "duplicate_proof_attempts": 0, "operation_counts": {},
+    }
+    seen: set[str] = set()
+    arguments = {"method": "get", "issue_number": 594}
+    _record_promotion_operation(
+        first, stage="work_done", operation="github_issue_read",
+        arguments=arguments, proof_reads_seen=seen,
+    )
+    retry = {**first, "provider_reads": 0, "tool_calls": 0, "duplicate_proof_attempts": 0, "operation_counts": {}}
+    restored = set(seen)
+    _record_promotion_operation(
+        retry, stage="work_done", operation="github_issue_read",
+        arguments=arguments, proof_reads_seen=restored,
+    )
+    assert retry["duplicate_proof_attempts"] == 1
+
+def test_terminal_audit_flags_malformed_identity_and_delivery() -> None:
+    receipt = {
+        "work_id": "WORK-594", "typed_record_id": "SPEC-594", "change_id": "267-test",
+        "source_commit_sha": "x" * 40, "pull_number": False, "head_sha": "b" * 40,
+        "actions_run_ids": {}, "merge_commit_sha": "c" * 40, "landed_sha": "d" * 40,
+        "documentation_completion_revision": "d" * 40, "work_completion": {},
+        "source_close": {}, "cleanup": {},
+        "telemetry": {
+            "provider_reads": 0, "provider_mutations": 0,
+            "duplicate_verification_attempts": 0, "duplicate_review_attempts": 0,
+            "promotion_review_invocations": 0, "duplicate_proof_attempts": 0,
+            "operation_counts": {"github_actions_list": 1},
+        },
+    }
+    audit = _terminal_audit(receipt)
+    assert audit["status"] == "attention"
+    assert "invalid_terminal_receipt" in audit["flags"]
+    assert {"source_commit_sha", "pull_number", "actions_run_ids", "work_completion", "source_close", "cleanup"} <= set(audit["invalid_terminal_fields"])
+
+
+def test_terminal_audit_treats_empty_telemetry_as_unknown() -> None:
+    receipt = {
+        "work_id": "WORK-594", "typed_record_id": "SPEC-594", "change_id": "267-test",
+        "source_commit_sha": "a" * 40, "pull_number": 1, "head_sha": "b" * 40,
+        "actions_run_ids": [2], "merge_commit_sha": "c" * 40, "landed_sha": "d" * 40,
+        "documentation_completion_revision": "d" * 40, "work_completion": {"mode": "apply"},
+        "source_close": {"required": True, "applied": True}, "cleanup": {"status": "applied"},
+        "telemetry": {},
+    }
+    audit = _terminal_audit(receipt)
+    assert "invalid_telemetry" in audit["flags"]
+    assert audit["complexity_budget"]["provider_calls"] is None
+    assert audit["complexity_budget"]["meets_simplification_target"] is False
+
+
+def test_controller_checkpoints_failed_stage_attempt_and_inflight_audit(tmp_path: Path) -> None:
+    store = PromotionStateStore(tmp_path)
+    handoff = {"status": "promotion_ready", "work_id": "WORK-594", "change_id": "267-test", "source_commit_sha": "a" * 40}
+    async def failing(stage, _handoff, _observations):
+        checkpoint = store.load("promotion-failure") or {}
+        checkpoint["inflight_audit"] = {"provider_reads": 1, "tool_calls": 1}
+        store.save("promotion-failure", checkpoint)
+        raise RuntimeError(stage)
+    with pytest.raises(RuntimeError, match="refresh_default"):
+        asyncio.run(PromotionController(failing, store).converge(operation_id="promotion-failure", promotion_handoff=handoff))
+    checkpoint = store.load("promotion-failure")
+    assert checkpoint is not None
+    assert checkpoint["telemetry"]["stage_attempts"]["refresh_default"] == 1
+    assert checkpoint["telemetry"]["provider_reads"] == 1
+    assert "refresh_default" in checkpoint["telemetry"]["stage_timings_ms"]
+
+
+class _FakeLaunchedProcess:
+    def __init__(self) -> None:
+        self.running = True
+        self.terminated = False
+        self.killed = False
+
+    def poll(self):
+        return None if self.running else 1
+
+    def terminate(self):
+        self.terminated = True
+        self.running = False
+
+    def wait(self, _timeout):
+        return 1
+
+    def kill(self):
+        self.killed = True
+        self.running = False
+
+
+def test_failed_candidate_start_terminates_exact_launched_child() -> None:
+    process = _FakeLaunchedProcess()
+    asyncio.run(_terminate_launched_process(process))
+    assert process.terminated is True
+    assert process.running is False
+    assert process.killed is False
+
+
+class _RaceExitedProcess(_FakeLaunchedProcess):
+    def terminate(self):
+        self.running = False
+        raise ProcessLookupError("already exited")
+
+
+def test_failed_candidate_cleanup_preserves_original_failure_on_exit_race() -> None:
+    process = _RaceExitedProcess()
+    asyncio.run(_terminate_launched_process(process))
+    assert process.running is False
+    assert process.killed is False
