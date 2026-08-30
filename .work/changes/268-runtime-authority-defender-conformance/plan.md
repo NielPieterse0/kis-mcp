@@ -34,7 +34,7 @@
 - [x] Run focused runtime/startup/provider tests from the candidate.
 - [x] Inventory Python native artifacts and Node `.node` helpers separately.
 - [x] Correlate fresh Code Integrity 3033/3077 events for the workload window.
-- [ ] Run final change governance, review, and affected verification on the final tree.
+- [x] Run final change governance, review, and affected verification on the final tree.
 
 ### Task 4: Deliver and commission
 

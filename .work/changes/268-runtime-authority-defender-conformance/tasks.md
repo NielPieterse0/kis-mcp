@@ -7,6 +7,6 @@
 - [x] Build and exercise a signed-system-Python candidate environment.
 - [x] Capture fresh Code Integrity and native-helper evidence.
 - [x] Update current architecture/operator documentation.
-- [ ] Run final focused checks and `scripts/change-workflow.ps1 check`.
-- [ ] Complete substantive review and resolve findings.
+- [x] Run final focused checks and `scripts/change-workflow.ps1 check`.
+- [x] Complete substantive code-quality and safety/security review; no actionable blockers remain.
 - [ ] Publish, PR, exact-head Actions, merge, post-land commissioning, Work closeout, issue close, and cleanup.
