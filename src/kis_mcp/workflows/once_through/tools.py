@@ -173,6 +173,27 @@ def _owned_candidate_stop_pid(
     return pid, durable[0]
 
 
+async def _terminate_launched_process(process: Any) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+    except (ProcessLookupError, OSError):
+        if process.poll() is not None:
+            return
+        raise
+    try:
+        await asyncio.to_thread(process.wait, 5)
+    except subprocess.TimeoutExpired:
+        try:
+            process.kill()
+        except (ProcessLookupError, OSError):
+            if process.poll() is not None:
+                return
+            raise
+        await asyncio.to_thread(process.wait, 5)
+
+
 def _result_mapping(result: Any) -> dict[str, Any]:
     data = getattr(result, "data", None)
     if isinstance(data, dict):
@@ -215,6 +236,205 @@ def _risk_triggers(value: Any) -> list[str]:
     if not isinstance(value, str) or not value.strip():
         return []
     return sorted({part.strip().casefold().replace("-", "_") for part in value.split(",") if part.strip()})
+
+
+def _audit_metric(value: Any, invalid: list[str], name: str) -> int:
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    if name not in invalid:
+        invalid.append(name)
+    return 0
+
+
+def _valid_sha(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 40
+        and all(char in "0123456789abcdef" for char in value)
+    )
+
+
+def _invalid_terminal_fields(receipt: dict[str, Any]) -> list[str]:
+    invalid: list[str] = []
+    for name in ("work_id", "typed_record_id", "change_id"):
+        value = receipt.get(name)
+        if not isinstance(value, str) or not value.strip():
+            invalid.append(name)
+    for name in (
+        "source_commit_sha", "head_sha", "merge_commit_sha", "landed_sha",
+        "documentation_completion_revision",
+    ):
+        if not _valid_sha(receipt.get(name)):
+            invalid.append(name)
+    pull_number = receipt.get("pull_number")
+    if isinstance(pull_number, bool) or not isinstance(pull_number, int) or pull_number <= 0:
+        invalid.append("pull_number")
+    run_ids = receipt.get("actions_run_ids")
+    if (
+        not isinstance(run_ids, list)
+        or not run_ids
+        or any(isinstance(value, bool) or not isinstance(value, int) or value <= 0 for value in run_ids)
+    ):
+        invalid.append("actions_run_ids")
+    work_completion = receipt.get("work_completion")
+    if not isinstance(work_completion, dict) or work_completion.get("mode") != "apply":
+        invalid.append("work_completion")
+    source_close = receipt.get("source_close")
+    if (
+        not isinstance(source_close, dict)
+        or not isinstance(source_close.get("required"), bool)
+        or not isinstance(source_close.get("applied"), bool)
+    ):
+        invalid.append("source_close")
+    cleanup = receipt.get("cleanup")
+    if not isinstance(cleanup, dict) or cleanup.get("status") not in {"applied", "satisfied", "passed"}:
+        invalid.append("cleanup")
+    post_land = receipt.get("post_land_restart")
+    if post_land is not None and not isinstance(post_land, dict):
+        invalid.append("post_land_restart")
+    return invalid
+
+
+def _record_promotion_operation(
+    metrics: dict[str, Any],
+    *,
+    stage: str,
+    operation: str,
+    arguments: dict[str, Any],
+    proof_reads_seen: set[str],
+    implementation_verification_established: bool = False,
+) -> None:
+    counts = metrics["operation_counts"]
+    assert isinstance(counts, dict)
+    counts[operation] = int(counts.get(operation, 0)) + 1
+    metrics["tool_calls"] += 1
+    if operation.startswith("github_") or operation.startswith("kis_github_"):
+        if operation in {
+            "github_actions_list", "github_actions_get", "github_pull_request_read",
+            "github_get_commit", "github_list_commits", "github_issue_read",
+        }:
+            metrics["provider_reads"] += 1
+        else:
+            metrics["provider_mutations"] += 1
+    if operation == "github_actions_list":
+        metrics["list_pages_scanned"] += 1
+    if operation in {"run_verification", "execute_change_workflow"}:
+        metrics["verification_invocations"] += 1
+        if implementation_verification_established or metrics["verification_invocations"] > 1:
+            metrics["duplicate_verification_attempts"] += 1
+    if operation in {"review_change_with_agent", "execute_review_workflow"}:
+        metrics["review_invocations"] += 1
+        metrics["promotion_review_invocations"] += 1
+    if operation in {"github_pull_request_read", "github_get_commit", "github_issue_read"}:
+        proof_key = fingerprint({"stage": stage, "operation": operation, "arguments": arguments})
+        if proof_key in proof_reads_seen:
+            metrics["duplicate_proof_attempts"] += 1
+        else:
+            proof_reads_seen.add(proof_key)
+
+
+def _terminal_audit(receipt: dict[str, Any]) -> dict[str, Any]:
+    required = (
+        "work_id", "typed_record_id", "change_id", "source_commit_sha", "pull_number",
+        "head_sha", "actions_run_ids", "merge_commit_sha", "landed_sha",
+        "documentation_completion_revision", "work_completion", "source_close", "cleanup",
+    )
+    missing = [
+        name for name in required
+        if receipt.get(name) is None or receipt.get(name) == "" or receipt.get(name) == () or receipt.get(name) == []
+    ]
+    invalid_terminal = _invalid_terminal_fields(receipt)
+    telemetry = receipt.get("telemetry")
+    telemetry_available = isinstance(telemetry, dict)
+    metrics = dict(telemetry) if telemetry_available else {}
+    operation_counts = metrics.get("operation_counts")
+    counts = dict(operation_counts) if isinstance(operation_counts, dict) else {}
+    invalid_metrics: list[str] = []
+    if not telemetry_available:
+        invalid_metrics.append("telemetry")
+        provider_reads = provider_mutations = actions_lists = 0
+        duplicate_verification = duplicate_review = promotion_review = duplicate_proof = 0
+    else:
+        provider_reads = _audit_metric(metrics.get("provider_reads"), invalid_metrics, "provider_reads")
+        provider_mutations = _audit_metric(
+            metrics.get("provider_mutations"), invalid_metrics, "provider_mutations"
+        )
+        actions_lists = _audit_metric(
+            counts.get("github_actions_list"), invalid_metrics, "operation_counts.github_actions_list"
+        )
+        duplicate_verification = _audit_metric(
+            metrics.get("duplicate_verification_attempts"), invalid_metrics, "duplicate_verification_attempts"
+        )
+        duplicate_review = _audit_metric(
+            metrics.get("duplicate_review_attempts"), invalid_metrics, "duplicate_review_attempts"
+        )
+        promotion_review = _audit_metric(
+            metrics.get("promotion_review_invocations"), invalid_metrics, "promotion_review_invocations"
+        )
+        duplicate_proof = _audit_metric(
+            metrics.get("duplicate_proof_attempts"), invalid_metrics, "duplicate_proof_attempts"
+        )
+    provider_metrics_available = (
+        telemetry_available
+        and "provider_reads" not in invalid_metrics
+        and "provider_mutations" not in invalid_metrics
+    )
+    provider_calls = provider_reads + provider_mutations
+    flags: list[str] = []
+    if missing:
+        flags.append("missing_terminal_identity")
+    if invalid_terminal:
+        flags.append("invalid_terminal_receipt")
+    if invalid_metrics:
+        flags.append("invalid_telemetry")
+    if actions_lists > 1:
+        flags.append("repeated_provider_discovery")
+    if duplicate_verification > 0:
+        flags.append("duplicate_verification")
+    if duplicate_review > 0:
+        flags.append("duplicate_review")
+    if promotion_review > 0:
+        flags.append("promotion_review_ownership_regression")
+    if duplicate_proof > 0:
+        flags.append("duplicate_proof")
+    if provider_calls > 14:
+        flags.append("provider_call_budget_exceeded")
+    post_land = receipt.get("post_land_restart")
+    if isinstance(post_land, dict) and post_land.get("landed_sha") != post_land.get("launched_sha"):
+        flags.append("post_land_restart_identity_mismatch")
+    return {
+        "contract": "workflow-terminal-audit-item-v1",
+        "status": "clean" if not flags else "attention",
+        "flags": flags,
+        "missing_fields": missing,
+        "invalid_terminal_fields": invalid_terminal,
+        "invalid_telemetry_fields": invalid_metrics,
+        "identities": {
+            key: receipt.get(key)
+            for key in (
+                "work_id", "typed_record_id", "specification_record_id", "change_id",
+                "source_commit_sha", "pull_number", "head_sha", "actions_run_ids",
+                "merge_commit_sha", "landed_sha",
+            )
+        },
+        "delivery": {
+            "documentation_completion_revision": receipt.get("documentation_completion_revision"),
+            "documentation_event": receipt.get("documentation_event"),
+            "work_completion": receipt.get("work_completion"),
+            "source_close": receipt.get("source_close"),
+            "cleanup": receipt.get("cleanup"),
+            "post_land_restart": receipt.get("post_land_restart"),
+        },
+        "closeout": receipt.get("closeout_projection", {}),
+        "telemetry": metrics,
+        "complexity_budget": {
+            "meaningful_transitions": 8,
+            "target_transitions": "7-8",
+            "provider_calls": provider_calls if provider_metrics_available else None,
+            "provider_call_target_max": 14,
+            "meets_simplification_target": provider_metrics_available and provider_calls <= 14,
+        },
+    }
 
 
 _RECORD_TYPE_PREFIX = {
@@ -454,6 +674,21 @@ def register_once_through_tools(
             ),
         }
 
+    @server.tool(name="workflow_terminal_audit", annotations=_READ)
+    async def workflow_terminal_audit(limit: int = 20) -> dict[str, Any]:
+        """Audit recent completed promotion receipts without reconstructing provider state manually."""
+        try:
+            receipts = promotion_state.recent_terminal_receipts(limit)
+            audits = [_terminal_audit(receipt) for receipt in receipts]
+            return {
+                "contract": "workflow-terminal-audit-v1",
+                "count": len(audits),
+                "attention_count": sum(item["status"] != "clean" for item in audits),
+                "items": audits,
+            }
+        except (OSError, ValueError) as exc:
+            raise ToolError(str(exc)) from exc
+
     @server.tool(name="materialize_task_handoff", annotations=_CHANGE)
     async def materialize_task_handoff(
         project_id: str, work_id: str, repository: str,
@@ -539,17 +774,53 @@ def register_once_through_tools(
                 )
             finally:
                 stream.close()
-            process_identity = await asyncio.to_thread(read_process_identity, process.pid)
-            if process_identity is None:
-                raise OnceThroughStateError(
-                    "CANDIDATE_PROCESS_IDENTITY_MISSING",
-                    "candidate process exited before exact identity could be recorded",
-                )
+            try:
+                identity: dict[str, Any] | None = None
+                for _attempt in range(120):
+                    identity = await read_candidate_identity(contract)
+                    if identity is not None:
+                        break
+                    if process.poll() is not None:
+                        break
+                    await asyncio.sleep(0.25)
+                if identity is None:
+                    raise OnceThroughStateError(
+                        "CANDIDATE_PROCESS_IDENTITY_MISSING",
+                        "candidate endpoint did not expose exact identity before startup completed",
+                    )
+                expected_identity = {
+                    "work_id": work_id,
+                    "contract_fingerprint": contract.contract_fingerprint,
+                    "server_instance_id": instance_id,
+                    "source_identity": contract.source_identity,
+                    "source_path": str(source_root),
+                    "change_id": change_id,
+                }
+                if any(identity.get(key) != value for key, value in expected_identity.items()):
+                    raise OnceThroughStateError(
+                        "CANDIDATE_IDENTITY_MISMATCH",
+                        "candidate endpoint identity does not match the launched governed binding",
+                    )
+                candidate_pid = identity.get("pid")
+                if isinstance(candidate_pid, bool) or not isinstance(candidate_pid, int) or candidate_pid <= 0:
+                    raise OnceThroughStateError(
+                        "CANDIDATE_PID_INVALID", "candidate endpoint returned an invalid PID"
+                    )
+                process_identity = await asyncio.to_thread(read_process_identity, candidate_pid)
+                if process_identity is None:
+                    raise OnceThroughStateError(
+                        "CANDIDATE_PROCESS_IDENTITY_MISSING",
+                        "candidate endpoint process identity could not be recorded",
+                    )
+            except Exception:
+                await _terminate_launched_process(process)
+                raise
             receipt = {
                 "status": "started",
                 "work_id": work_id,
                 "port": contract.candidate_port,
-                "pid": process.pid,
+                "pid": candidate_pid,
+                "launcher_pid": process.pid,
                 "server_instance_id": instance_id,
                 "source_identity": contract.source_identity,
                 "source_path": str(source_root),
@@ -835,7 +1106,10 @@ def register_once_through_tools(
                         )
                         observations["cleanup"] = cleanup
                     terminal_receipt = build_terminal_receipt(
-                        operation_id, handoff, observations
+                        operation_id,
+                        handoff,
+                        observations,
+                        checkpoint.get("telemetry") if isinstance(checkpoint.get("telemetry"), dict) else None,
                     )
                     checkpoint = {
                         **checkpoint,
@@ -884,7 +1158,12 @@ def register_once_through_tools(
                         "completed": completed_prefix, "current_stage": "cleanup",
                         "state": "blocked", "observations": observations,
                     }
-                terminal_receipt = build_terminal_receipt(operation_id, handoff, observations)
+                terminal_receipt = build_terminal_receipt(
+                    operation_id,
+                    handoff,
+                    observations,
+                    checkpoint.get("telemetry") if isinstance(checkpoint.get("telemetry"), dict) else None,
+                )
                 recovered = {
                     "contract": "promotion-execution-v1", "operation_id": operation_id,
                     "completed": completed_prefix + ["cleanup"], "current_stage": None,
@@ -901,8 +1180,81 @@ def register_once_through_tools(
             if not isinstance(scope, dict) or scope.get("change_id") != change_id:
                 raise ValueError("PROMOTION_SCOPE_INVALID: governed change scope is unavailable or mismatched")
             record = await _resolve_work_record(work_management_service, contract, scope)
+            call_metrics: dict[str, Any] = {
+                "provider_reads": 0,
+                "provider_mutations": 0,
+                "list_pages_scanned": 0,
+                "tool_calls": 0,
+                "verification_invocations": 0,
+                "review_invocations": 0,
+                "duplicate_verification_attempts": 0,
+                "promotion_review_invocations": 0,
+                "duplicate_proof_attempts": 0,
+                "operation_counts": {},
+            }
+            active_stage = {"name": ""}
+            persisted_telemetry = checkpoint.get("telemetry") if isinstance(checkpoint, dict) else None
+            persisted_proofs = (
+                persisted_telemetry.get("proof_read_fingerprints")
+                if isinstance(persisted_telemetry, dict)
+                else None
+            )
+            proof_reads_seen: set[str] = {
+                value for value in (persisted_proofs or ()) if isinstance(value, str) and value
+            }
+            persisted_duplicate_proofs = {"count": 0}
+
+            def persist_proof_telemetry() -> None:
+                current = promotion_state.load(operation_id) or {
+                    "handoff_fingerprint": fingerprint(handoff),
+                    "completed": [],
+                    "observations": {},
+                }
+                telemetry = dict(current.get("telemetry") or {})
+                existing = telemetry.get("proof_read_fingerprints")
+                proofs = [value for value in (existing or ()) if isinstance(value, str) and value]
+                for value in sorted(proof_reads_seen):
+                    if value not in proofs and len(proofs) < 128:
+                        proofs.append(value)
+                telemetry["proof_read_fingerprints"] = proofs
+                duplicate_delta = (
+                    int(call_metrics["duplicate_proof_attempts"])
+                    - persisted_duplicate_proofs["count"]
+                )
+                if duplicate_delta > 0:
+                    telemetry["duplicate_proof_attempts"] = (
+                        int(telemetry.get("duplicate_proof_attempts", 0)) + duplicate_delta
+                    )
+                    persisted_duplicate_proofs["count"] += duplicate_delta
+                current["telemetry"] = telemetry
+                promotion_state.save(operation_id, current)
+
+            async def audited_invoker(tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+                operation = str(arguments.get("operation") or tool_name)
+                _record_promotion_operation(
+                    call_metrics,
+                    stage=active_stage["name"],
+                    operation=operation,
+                    arguments=arguments,
+                    proof_reads_seen=proof_reads_seen,
+                    implementation_verification_established=True,
+                )
+                current = promotion_state.load(operation_id) or {
+                    "handoff_fingerprint": fingerprint(handoff),
+                    "completed": [],
+                    "observations": {},
+                }
+                current["inflight_audit"] = {
+                    **call_metrics,
+                    "proof_read_fingerprints": sorted(proof_reads_seen),
+                }
+                promotion_state.save(operation_id, current)
+                if operation in {"github_pull_request_read", "github_get_commit", "github_issue_read"}:
+                    persist_proof_telemetry()
+                return await nested_invoker(tool_name, arguments)
+
             service = PromotionStageService(
-                invoker=nested_invoker,
+                invoker=audited_invoker,
                 contract=contract,
                 scope=scope,
                 work_record=record,
@@ -914,7 +1266,32 @@ def register_once_through_tools(
             async def invoke_and_record(
                 stage: str, promotion_handoff: dict[str, Any], observations: dict[str, Any]
             ) -> dict[str, Any]:
+                active_stage["name"] = stage
+                before_proofs = set(proof_reads_seen)
+                before = {
+                    key: dict(value) if isinstance(value, dict) else int(value)
+                    for key, value in call_metrics.items()
+                }
                 stage_result = await service.invoke(stage, promotion_handoff, observations)
+                before_counts = before["operation_counts"]
+                current_counts = call_metrics["operation_counts"]
+                assert isinstance(before_counts, dict) and isinstance(current_counts, dict)
+                stage_result["_audit"] = {
+                    key: int(call_metrics[key]) - int(before[key])
+                    for key in (
+                        "provider_reads", "provider_mutations", "list_pages_scanned", "tool_calls",
+                        "verification_invocations", "review_invocations", "duplicate_verification_attempts",
+                        "promotion_review_invocations", "duplicate_proof_attempts",
+                    )
+                }
+                stage_result["_audit"]["operation_counts"] = {
+                    name: count - int(before_counts.get(name, 0))
+                    for name, count in current_counts.items()
+                    if count - int(before_counts.get(name, 0)) > 0
+                }
+                stage_result["_audit"]["proof_read_fingerprints"] = sorted(
+                    proof_reads_seen - before_proofs
+                )
                 reference = _promotion_reference(
                     stage,
                     work_id=work_id,

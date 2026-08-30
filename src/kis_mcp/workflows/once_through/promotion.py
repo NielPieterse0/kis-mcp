@@ -74,6 +74,22 @@ class PromotionStageService:
             raise ValueError("PROMOTION_CHANGE_ID_MISMATCH: scope change differs from handoff")
         if _required_text(self.work_record.get("project_id"), "Work record project ID") != self.contract.project_id:
             raise ValueError("PROMOTION_WORK_PROJECT_MISMATCH: Work record project differs from handoff")
+        source_number = _required_int(work.get("source_number"), "scope source issue number")
+        if self.contract.work_id != f"WORK-{source_number}":
+            raise ValueError("PROMOTION_WORK_SOURCE_IDENTITY_MISMATCH: handoff Work ID differs from source issue")
+        record_type = _required_text(self.work_record.get("record_type"), "Work record type")
+        prefixes = {
+            "idea": "IDEA", "task": "TASK", "specification_slice": "SPEC",
+            "review_run": "REV", "finding": "FIND", "decision": "DEC",
+            "assumption": "ASM", "risk": "RISK", "approval": "APP", "hold": "HOLD",
+            "research": "RES", "defect": "BUG", "security_finding": "SEC",
+        }
+        prefix = prefixes.get(record_type)
+        if prefix is None:
+            raise ValueError("PROMOTION_TYPED_RECORD_UNSUPPORTED: Work record type is unsupported")
+        expected_record_id = f"{prefix}-{source_number}"
+        if _required_text(self.work_record.get("record_id"), "typed Work record ID") != expected_record_id:
+            raise ValueError("PROMOTION_TYPED_RECORD_ID_MISMATCH: typed Work record differs from source identity")
 
     def _verification_workflow(self) -> str:
         path = self.source_root / "settings" / "github-merge-queue.settings.json"

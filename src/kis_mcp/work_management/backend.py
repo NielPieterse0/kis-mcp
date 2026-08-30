@@ -382,6 +382,7 @@ class ProjectInventoryBackend(Protocol):
         *,
         field_names: tuple[str, ...] = (),
         item_limit: int = 100,
+        query: str | None = None,
     ) -> ProjectInventory: ...
 
 

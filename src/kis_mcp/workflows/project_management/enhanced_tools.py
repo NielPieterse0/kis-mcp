@@ -88,6 +88,7 @@ def register_project_management_enhancement_tools(
                 project_id,
                 field_names=board_field_names(),
                 item_limit=item_limit,
+                query=query,
             )
             snapshot = build_work_board(
                 inventory,

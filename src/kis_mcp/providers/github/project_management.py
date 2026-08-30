@@ -241,6 +241,7 @@ class GitHubProjectManagementAdapter:
         *,
         field_names: tuple[str, ...] = (),
         item_limit: int = 100,
+        query: str | None = None,
     ) -> ProjectInventory:
         if not self.capabilities.read_inventory:
             raise GitHubProjectManagementError(
@@ -253,6 +254,7 @@ class GitHubProjectManagementAdapter:
             project_binding,
             field_names=field_names,
             item_limit=item_limit,
+            query=query,
         )
 
     async def read_schema_fields(
