@@ -15,6 +15,7 @@ from fastmcp.exceptions import ToolError
 from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
 from ...state import resolve_runtime_state_path
 from ...work_management import WorkManagementService
+from .candidate_runtime import candidate_binding, select_live_verification_scenarios
 from .contracts import (
     EvidenceReference,
     EvidenceValidityClass,
@@ -28,6 +29,7 @@ from .process_identity import (
     terminate_exact_process,
 )
 from .promotion import PromotionStageService
+from .review import closure_from_execution
 from .service import derive_promotion_ready
 from .state import (
     OnceThroughStateError,
@@ -143,6 +145,18 @@ def _candidate_matches(
         "server_instance_id": receipt.get("server_instance_id"),
         "pid": receipt.get("pid"),
     }
+    if receipt.get("identity_schema_version") == 2:
+        expected.update({
+            "source_commit": receipt.get("source_commit"),
+            "source_tree": receipt.get("source_tree"),
+            "policy_fingerprint": receipt.get("policy_fingerprint"),
+            "runtime_fingerprint": receipt.get("runtime_fingerprint"),
+            "endpoint": receipt.get("endpoint"),
+        })
+        return all(
+            value is not None and identity.get(key) == value
+            for key, value in expected.items()
+        )
     return all(identity.get(key) == value for key, value in expected.items())
 
 
@@ -667,6 +681,11 @@ def register_once_through_tools(
             "source_identity": os.environ.get("KIS_MCP_CANDIDATE_SOURCE_IDENTITY"),
             "source_path": os.environ.get("KIS_MCP_CANDIDATE_SOURCE_PATH"),
             "change_id": os.environ.get("KIS_MCP_CANDIDATE_CHANGE_ID"),
+            "source_commit": os.environ.get("KIS_MCP_CANDIDATE_SOURCE_COMMIT"),
+            "source_tree": os.environ.get("KIS_MCP_CANDIDATE_SOURCE_TREE"),
+            "policy_fingerprint": os.environ.get("KIS_MCP_CANDIDATE_POLICY_FINGERPRINT"),
+            "runtime_fingerprint": os.environ.get("KIS_MCP_CANDIDATE_RUNTIME_FINGERPRINT"),
+            "endpoint": os.environ.get("KIS_MCP_CANDIDATE_ENDPOINT"),
             "runtime_instance": os.environ.get("KIS_MCP_RUNTIME_INSTANCE", "stdio"),
             "pid": os.getpid(),
             "process_identity": (
@@ -739,13 +758,35 @@ def register_once_through_tools(
             if existing is not None and existing.get("status") != "stopped":
                 identity = await read_candidate_identity(contract)
                 if _candidate_matches(contract, existing, identity):
+                    if existing.get("identity_schema_version") != 2:
+                        raise OnceThroughStateError(
+                            "CANDIDATE_IDENTITY_UPGRADE_REQUIRED",
+                            "legacy candidate identity cannot be reused without exact source binding",
+                        )
+                    existing_source = Path(str(existing.get("source_path", ""))).resolve()
+                    current_binding = await asyncio.to_thread(
+                        candidate_binding, existing_source, contract.candidate_port
+                    )
+                    if identity is None or any(
+                        identity.get(key) != value for key, value in current_binding.items()
+                    ):
+                        raise OnceThroughStateError(
+                            "CANDIDATE_SOURCE_DRIFT",
+                            "candidate source, policy, runtime, or endpoint binding has drifted",
+                        )
                     return {**existing, "status": "reused"}
+                if identity is not None:
+                    raise OnceThroughStateError(
+                        "CANDIDATE_IDENTITY_MISMATCH",
+                        "occupied task endpoint is not the exact recorded candidate",
+                    )
             if not isinstance(source_path, str) or not source_path.strip():
                 raise OnceThroughStateError(
                     "CANDIDATE_SOURCE_REQUIRED",
                     "first candidate start requires the governed change worktree path",
                 )
             source_root, change_id, _scope = _governed_source_binding(contract, source_path)
+            binding = await asyncio.to_thread(candidate_binding, source_root, contract.candidate_port)
             assert_candidate_port_available(contract.candidate_port)
             instance_id = uuid4().hex
             logs = state_root / "once-through" / "logs"
@@ -795,6 +836,7 @@ def register_once_through_tools(
                     "source_identity": contract.source_identity,
                     "source_path": str(source_root),
                     "change_id": change_id,
+                    **binding,
                 }
                 if any(identity.get(key) != value for key, value in expected_identity.items()):
                     raise OnceThroughStateError(
@@ -817,6 +859,7 @@ def register_once_through_tools(
                 raise
             receipt = {
                 "status": "started",
+                "identity_schema_version": 2,
                 "work_id": work_id,
                 "port": contract.candidate_port,
                 "pid": candidate_pid,
@@ -826,6 +869,7 @@ def register_once_through_tools(
                 "source_path": str(source_root),
                 "change_id": change_id,
                 "contract_fingerprint": contract.contract_fingerprint,
+                **binding,
                 "process_identity": process_identity.to_json_dict(),
                 "log_path": str(log_path),
             }
@@ -834,19 +878,46 @@ def register_once_through_tools(
             raise ToolError(str(exc)) from exc
 
     @server.tool(name="verify_task_candidate", annotations=_READ)
-    async def verify_task_candidate(work_id: str, scenarios: list[dict[str, Any]]) -> dict[str, Any]:
-        """Exercise required scenarios through the real isolated MCP candidate transport."""
+    async def verify_task_candidate(
+        work_id: str,
+        scenarios: list[dict[str, Any]] | None = None,
+        changed_tools: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Exercise deterministic governed scenarios through the isolated candidate transport."""
         try:
             contract = store.load_contract(work_id)
             assert contract is not None
             url = f"http://127.0.0.1:{contract.candidate_port}/mcp"
             async with Client(url, timeout=60, init_timeout=30) as client:
                 identity = _result_mapping(await client.call_tool("candidate_identity", {}))
-                expected = {"work_id": work_id, "contract_fingerprint": contract.contract_fingerprint, "source_identity": contract.source_identity}
-                for key, value in expected.items():
-                    if identity.get(key) != value:
-                        raise OnceThroughStateError("CANDIDATE_IDENTITY_MISMATCH", f"candidate {key} does not match handoff")
+                receipt = store.load_candidate(work_id, required=True)
+                assert receipt is not None
+                if not _candidate_matches(contract, receipt, identity):
+                    raise OnceThroughStateError(
+                        "CANDIDATE_IDENTITY_MISMATCH",
+                        "candidate identity does not match the exact persisted binding",
+                    )
+                source_root = Path(str(receipt.get("source_path", ""))).resolve()
+                current_binding = await asyncio.to_thread(
+                    candidate_binding, source_root, contract.candidate_port
+                )
+                if any(identity.get(key) != value for key, value in current_binding.items()):
+                    raise OnceThroughStateError(
+                        "CANDIDATE_SOURCE_DRIFT",
+                        "candidate source, policy, runtime, or endpoint binding has drifted",
+                    )
                 tools = {item.name: item for item in await client.list_tools()}
+                if scenarios is None:
+                    schemas: dict[str, dict[str, Any]] = {}
+                    for name, item in tools.items():
+                        annotations = getattr(item, "annotations", None)
+                        raw_schema = getattr(item, "inputSchema", None) or getattr(item, "input_schema", None) or {}
+                        schemas[name] = {
+                            "required": list(raw_schema.get("required", ())) if isinstance(raw_schema, dict) else [],
+                            "read_only": bool(getattr(annotations, "read_only_hint", False)) if annotations is not None else False,
+                        }
+                    surfaces = tuple(contract.affected_surfaces) + tuple(changed_tools or ())
+                    scenarios = [dict(item) for item in select_live_verification_scenarios(surfaces, schemas)]
                 outcomes: list[dict[str, Any]] = []
                 for scenario in scenarios:
                     tool_name = str(scenario.get("tool", ""))
@@ -854,9 +925,17 @@ def register_once_through_tools(
                         raise OnceThroughStateError("CANDIDATE_SCENARIO_INVALID", f"unknown candidate tool: {tool_name}")
                     annotations = getattr(tools[tool_name], "annotations", None)
                     read_only = bool(getattr(annotations, "read_only_hint", False)) if annotations is not None else False
-                    if not read_only and scenario.get("approved_effect_boundary") is not True:
-                        raise OnceThroughStateError("CANDIDATE_EFFECT_BOUNDARY_REQUIRED", f"scenario {tool_name} is not read-only")
                     expect_error = scenario.get("expect_error") is True
+                    if not read_only and scenario.get("approved_effect_boundary") is not True:
+                        if expect_error and scenario.get("negative_path") == "effect_boundary":
+                            outcomes.append({
+                                "tool": tool_name,
+                                "status": "passed",
+                                "expected_error": True,
+                                "negative_path": "effect_boundary",
+                            })
+                            continue
+                        raise OnceThroughStateError("CANDIDATE_EFFECT_BOUNDARY_REQUIRED", f"scenario {tool_name} is not read-only")
                     try:
                         result = await client.call_tool(tool_name, dict(scenario.get("arguments", {})))
                         observed_error = bool(getattr(result, "is_error", False))
@@ -958,6 +1037,16 @@ def register_once_through_tools(
                     "CANDIDATE_OWNER_MISMATCH",
                     "live candidate does not match the persisted governed binding",
                 )
+            current_binding = await asyncio.to_thread(
+                candidate_binding, source_root, contract.candidate_port
+            )
+            if identity is None or any(
+                identity.get(key) != value for key, value in current_binding.items()
+            ):
+                raise OnceThroughStateError(
+                    "CANDIDATE_SOURCE_DRIFT",
+                    "candidate source, policy, runtime, or endpoint binding has drifted",
+                )
             references = store.load_evidence(work_id)
             live_matches = tuple(
                 item for item in references
@@ -1013,31 +1102,14 @@ def register_once_through_tools(
                         receipt_ref=f"execution-receipt:{execution_ref}",
                     ),
                 )
-            material_findings = []
-            for review in execution.get("reviews", ()):
-                if not isinstance(review, dict) or review.get("status") != "completed":
-                    raise ValueError("PROMOTION_NOT_READY: specialist review is incomplete")
-                payload = review.get("payload")
-                if isinstance(payload, dict):
-                    for finding in payload.get("findings", ()):
-                        if isinstance(finding, dict) and str(
-                            finding.get("severity", "")
-                        ).casefold() in {"critical", "high", "medium"}:
-                            material_findings.append(finding)
-            if material_findings:
-                raise ValueError("PROMOTION_NOT_READY: material review findings remain")
+            closure = closure_from_execution(
+                execution,
+                subject=contract.source_identity,
+                tree=tree,
+                receipt_ref=f"execution-receipt:{execution_ref}",
+            )
             if "review_closed" not in current_kinds:
-                store.append_evidence(
-                    work_id,
-                    EvidenceReference(
-                        evidence_id=f"review-closed-{work_id}-{execution_ref}",
-                        kind="review_closed",
-                        subject=contract.source_identity,
-                        validity_class=EvidenceValidityClass.CONTENT_STABLE,
-                        validity_inputs={"tree": tree},
-                        receipt_ref=f"execution-receipt:{execution_ref}",
-                    ),
-                )
+                store.append_evidence(work_id, closure.to_evidence())
             references = store.load_evidence(work_id)
             observed = {
                 "tree": tree,
