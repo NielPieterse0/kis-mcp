@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "273-merge-unmanaged-closing-reference",
+  "status": "active",
+  "branch": "change/273-merge-unmanaged-closing-reference",
+  "worktree": ".work/worktrees/273-merge-unmanaged-closing-reference",
+  "base": "main",
+  "outcome": "Prevent late registered-merge failures by normalizing GitHub issue-closing keywords in generated reviewable pull-request prose while preserving the merge-time guard",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "src/kis_mcp/workflows/completion/service.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    "tests/workflows/completion/test_completion_service.py",
+    ".work/changes/273-merge-unmanaged-closing-reference/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "d97a020cea1beb607bd67ba9bf8b43b985e59888",
+    "local_tree": "84bfe3edb76385e0eb6610a09bc085ce532e91c1",
+    "upstream_sha": "d97a020cea1beb607bd67ba9bf8b43b985e59888",
+    "upstream_tree": "84bfe3edb76385e0eb6610a09bc085ce532e91c1",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
