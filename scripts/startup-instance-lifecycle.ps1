@@ -24,6 +24,24 @@ function Test-KisMcpPathEqual {
     )
 }
 
+function Test-KisMcpSelectedServerIdentity {
+    param(
+        [Parameter(Mandatory)]$Process,
+        [Parameter(Mandatory)][string]$Instance
+    )
+
+    $CommandLine = [string]$Process.CommandLine
+    if ([string]::IsNullOrWhiteSpace($CommandLine)) {
+        return $false
+    }
+    $Pattern = (
+        '(?i)(^|\s)-m\s+kis_mcp\.remote_runtime\s+' +
+        '--instance\s+' +
+        [Regex]::Escape($Instance) + '(\s|$)'
+    )
+    return [Regex]::IsMatch($CommandLine, $Pattern)
+}
+
 function Test-KisMcpSelectedServerProcess {
     param(
         [Parameter(Mandatory)]$Process,
@@ -45,12 +63,7 @@ function Test-KisMcpSelectedServerProcess {
     if (-not $ExecutableMatches -and -not $CommandLineMatches) {
         return $false
     }
-    $Pattern = (
-        '(?i)(^|\s)-m\s+kis_mcp\.remote_runtime\s+' +
-        '--instance\s+' +
-        [Regex]::Escape($Instance) + '(\s|$)'
-    )
-    return [Regex]::IsMatch($CommandLine, $Pattern)
+    return Test-KisMcpSelectedServerIdentity -Process $Process -Instance $Instance
 }
 
 function Test-KisMcpSelectedTunnelProcess {
@@ -278,9 +291,8 @@ function Invoke-KisMcpSelectedInstancePreflight {
         $Processes = Get-KisMcpProcessSnapshot
         $ServerMatches = @(
             $Processes | Where-Object {
-                Test-KisMcpSelectedServerProcess `
+                Test-KisMcpSelectedServerIdentity `
                     -Process $_ `
-                    -PythonPath $PythonPath `
                     -Instance $Remote.name
             }
         )
@@ -305,9 +317,8 @@ function Invoke-KisMcpSelectedInstancePreflight {
                 Select-Object -First 1
             if (
                 $null -eq $ListenerProcess -or
-                -not (Test-KisMcpSelectedServerProcess `
+                -not (Test-KisMcpSelectedServerIdentity `
                     -Process $ListenerProcess `
-                    -PythonPath $PythonPath `
                     -Instance $Remote.name)
             ) {
                 $Name = if ($null -eq $ListenerProcess) { 'unknown' } else { [string]$ListenerProcess.Name }
