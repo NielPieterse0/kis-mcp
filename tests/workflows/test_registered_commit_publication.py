@@ -15,6 +15,7 @@ from kis_mcp.projects.github_exact import (
     RegisteredGitHubOperations,
     _contains_issue_closing_reference,
     execute_registered_github_operation,
+    normalize_issue_closing_references,
 )
 from kis_mcp.projects.post_land import PostLandHooks
 
@@ -300,6 +301,15 @@ def test_issue_closing_reference_detection_allows_normal_references() -> None:
         "fixesNielPieterse0/kis-mcp#379",
     ):
         assert _contains_issue_closing_reference(text) is False
+
+
+def test_issue_closing_reference_normalization_preserves_reference_without_closing_semantics() -> None:
+    normalized = normalize_issue_closing_references(
+        "Fixes #606 and RESOLVES NielPieterse0/kis-mcp#608. See #609."
+    )
+
+    assert normalized == "Related: #606 and Related: NielPieterse0/kis-mcp#608. See #609."
+    assert _contains_issue_closing_reference(normalized) is False
 
 
 def test_merge_rejects_closing_reference_in_pull_request_body_before_mutation() -> None:

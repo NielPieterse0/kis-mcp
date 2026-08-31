@@ -116,6 +116,27 @@ def test_completion_coordinates_verification_publish_and_pr_in_fixed_order() -> 
     assert publish["arguments"]["approved"] is True
 
 
+def test_completion_normalizes_issue_closing_keywords_before_pr_creation() -> None:
+    invoker = Invoker()
+    service = CompletionCoordinator(invoker, lambda project_id: r"C:\Projects\college")
+
+    asyncio.run(service.prepare(
+        project_id="college",
+        commit=COMMIT,
+        source_base=SOURCE_BASE,
+        branch="feature/example",
+        expected_remote_branch=None,
+        expected_remote_default=DEFAULT,
+        title="Review exact change",
+        body="Fixes #606. Related: #609.",
+        approved=True,
+    ))
+
+    created_body = invoker.calls[2][1]["arguments"]["body"]
+    assert "Related: #606. Related: #609." in created_body
+    assert "Fixes #606" not in created_body
+
+
 def test_promotion_ready_handoff_consumes_existing_execution_without_rerun() -> None:
     invoker = Invoker()
     handoff = {

@@ -8,6 +8,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
 
+from ...projects.github_exact import normalize_issue_closing_references
 from .contracts import CompletionReceipt, CompletionResult
 
 Invoker = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
@@ -844,7 +845,7 @@ def _render_pull_request_body(
         if isinstance(item, dict)
     ) or "none"
     scope = ", ".join(task_terms) if task_terms else "exact source commit"
-    detail = summary.strip() or "No additional summary supplied."
+    detail = normalize_issue_closing_references(summary.strip()) or "No additional summary supplied."
     return (
         f"## Outcome\n{outcome}\n\n"
         f"## Summary\n{detail}\n\n"

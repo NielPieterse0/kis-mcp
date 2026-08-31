@@ -28,7 +28,7 @@ from .settings import load_project_registry_settings
 _SHA = re.compile(r"^[0-9a-fA-F]{40}$")
 _ISSUE_CLOSING_REFERENCE = re.compile(
     r"\b(?:close(?:s|d)?|fix(?:es|ed)?|resolve(?:s|d)?)\s+"
-    r"(?:(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+))?#\d+\b",
+    r"(?P<reference>(?:(?:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+))?#\d+)\b",
     re.IGNORECASE,
 )
 _OPERATION_STATES = frozenset({"not_started", "in_progress", "applied", "failed", "unknown"})
@@ -41,6 +41,13 @@ MergeMethod = Literal["merge"]
 
 def _contains_issue_closing_reference(text: str) -> bool:
     return _ISSUE_CLOSING_REFERENCE.search(text) is not None
+
+
+def normalize_issue_closing_references(text: str) -> str:
+    return _ISSUE_CLOSING_REFERENCE.sub(
+        lambda match: f"Related: {match.group('reference')}",
+        text,
+    )
 
 
 class _Deadline:
