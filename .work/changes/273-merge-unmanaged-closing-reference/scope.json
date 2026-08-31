@@ -5,12 +5,10 @@
   "branch": "change/273-merge-unmanaged-closing-reference",
   "worktree": ".work/worktrees/273-merge-unmanaged-closing-reference",
   "base": "main",
-  "outcome": "Prevent late registered-merge failures by normalizing GitHub issue-closing keywords in generated reviewable pull-request prose while preserving the merge-time guard",
+  "outcome": "Allow registered merge closeout for confirmed unmanaged issue-closing references while preserving managed Work lifecycle protection and fail-closed lookup semantics",
   "owned_paths": [
     "src/kis_mcp/projects/github_exact.py",
-    "src/kis_mcp/workflows/completion/service.py",
     "tests/workflows/test_registered_commit_publication.py",
-    "tests/workflows/completion/test_completion_service.py",
     ".work/changes/273-merge-unmanaged-closing-reference/**"
   ],
   "shared_paths": [],
@@ -18,7 +16,7 @@
   "dependencies": [],
   "integration_owner": null,
   "complexity": "small",
-  "risk_triggers": [],
+  "risk_triggers": ["external_action"],
   "base_evidence": {
     "local_sha": "d97a020cea1beb607bd67ba9bf8b43b985e59888",
     "local_tree": "84bfe3edb76385e0eb6610a09bc085ce532e91c1",
@@ -27,5 +25,13 @@
     "upstream_ref": "refs/remotes/origin/main",
     "evidence_source": "local_remote_tracking_ref",
     "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-608",
+    "source_repository": "nielpieterse0/kis-mcp",
+    "source_number": 608,
+    "source_kind": "issue",
+    "documentation_impact": "none"
   }
 }
