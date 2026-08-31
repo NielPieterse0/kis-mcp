@@ -22,8 +22,20 @@ Verify the returned record/original path and inspect the restored path after com
 
 Permanent disposal is intentionally not exposed as a normal Work tool.
 
+## Development-runtime recovery
+
+If `kis-dev` is unavailable and recovery through its MCP/tunnel path is impossible, run the repository-local recovery script from a healthy local shell:
+
+```powershell
+pwsh -File .\scripts\recover-kis-dev.ps1
+```
+
+This surface is intentionally independent of the selected MCP runtime and tunnel. It is hard-bound to `kis-dev`, delegates ownership checks and stale-instance reclamation to the normal `start-chatgpt.ps1` launcher, and never selects or mutates `kis-op`. Use `-Foreground` to keep the launcher attached while diagnosing startup output.
+
 ## Troubleshooting
 
+- `KIS_DEV_RECOVERY_START_SCRIPT_MISSING`: restore the repository checkout's canonical `scripts\start-chatgpt.ps1` before attempting recovery.
+- `KIS_DEV_RECOVERY_DETACH_FAILED`: detached Windows process creation failed; retry with `-Foreground` to expose the underlying launcher failure directly.
 - `KIS_MCP_SOURCE_CHECKOUT_REQUIRED`: run the CLI/scripts from the repository checkout and restore the canonical settings/policy files identified by the error; do not substitute generated state or a standalone wheel for repository authority.
 - `KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED`: enter the real tunnel ID for the selected instance, set `configured` to `true`, and store its credential before setup or startup.
 - A missing vault entry for the selected tunnel reference: run `scripts\set-tunnel-credential.ps1` for that instance, then retry.

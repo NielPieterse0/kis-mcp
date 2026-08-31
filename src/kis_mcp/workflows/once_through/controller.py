@@ -12,6 +12,8 @@ from .contracts import fingerprint
 
 PromotionInvoker = Callable[[str, dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]]]
 
+_FAILURE_RETRY_BACKOFF_NS = 30_000_000_000
+
 _STAGES = (
     "refresh_default",
     "reconcile_candidate",
@@ -322,6 +324,42 @@ class PromotionController:
                 terminal_receipt = dict(stored_terminal)
         if tuple(done) != _STAGES[: len(done)] or len(set(done)) != len(done):
             raise ValueError("PROMOTION_STATE_INVALID: completed stages must be a unique ordered prefix")
+        if checkpoint is not None and checkpoint.get("state") == "failed":
+            failed_stage = checkpoint.get("current_stage")
+            retry_not_before_ns = checkpoint.get("retry_not_before_ns")
+            expected_stage = _STAGES[len(done)] if len(done) < len(_STAGES) else None
+            if (
+                failed_stage == expected_stage
+                and isinstance(retry_not_before_ns, int)
+                and not isinstance(retry_not_before_ns, bool)
+                and retry_not_before_ns > time.time_ns()
+            ):
+                telemetry["suppressed_no_progress_retries"] = int(
+                    telemetry.get("suppressed_no_progress_retries", 0)
+                ) + 1
+                blocked = telemetry.setdefault("blocked_reasons", [])
+                if "no_progress_retry_backoff" not in blocked:
+                    blocked.append("no_progress_retry_backoff")
+                self._store.save(
+                    operation_id,
+                    {
+                        **checkpoint,
+                        "telemetry": telemetry,
+                    },
+                )
+                guarded_observations = dict(observations)
+                guarded_observations[str(failed_stage)] = {
+                    "status": "blocked",
+                    "reason": "no_progress_retry_backoff",
+                    "retry_not_before_ns": retry_not_before_ns,
+                }
+                return PromotionExecution(
+                    operation_id,
+                    tuple(done),
+                    str(failed_stage),
+                    "blocked",
+                    guarded_observations,
+                )
         if tuple(done) == _STAGES and terminal_receipt is not None:
             terminal_receipt["telemetry"] = dict(telemetry)
             self._store.save(
@@ -366,6 +404,7 @@ class PromotionController:
                     "telemetry": telemetry,
                     "current_stage": stage,
                     "state": "failed",
+                    "retry_not_before_ns": time.time_ns() + _FAILURE_RETRY_BACKOFF_NS,
                 })
                 raise
             elapsed_ms = max(0, (time.perf_counter_ns() - started_ns) // 1_000_000)

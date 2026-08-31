@@ -148,6 +148,38 @@ def test_scheduler_receipt_replace_is_windows_powershell_compatible(tmp_path: Pa
     assert previous == {"state": "launching", "landed_sha": SHA}
 
 
+def test_scheduler_reuses_live_same_sha_worker_without_detaching_duplicate(tmp_path: Path) -> None:
+    root = tmp_path / "live-worker-reuse"
+    scripts = root / "scripts"
+    state_root = root / "state"
+    scripts.mkdir(parents=True)
+    state_root.mkdir()
+    source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
+    worker_script = scripts / source.name
+    worker_script.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
+    receipt.parent.mkdir(parents=True)
+    wrapper = root / "invoke-live-worker-reuse.ps1"
+    wrapper.write_text(
+        "$receipt = @{schema_version=1;state='launching';landed_sha='" + SHA + "';launched_sha='" + SHA + "';worker_pid=$PID;detail='live';updated_utc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json\n"
+        f"[IO.File]::WriteAllText('{receipt}', $receipt)\n"
+        "function Invoke-CimMethod { throw 'duplicate detach must not happen' }\n"
+        f"& '{worker_script}' -ExpectedLandedSha '{SHA}' -RepositoryRoot '{root}' "
+        f"-StateRoot '{state_root}' -DelaySeconds 0\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        ["pwsh.exe", "-NoProfile", "-File", str(wrapper)],
+        cwd=root, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    output = json.loads(result.stdout.strip().splitlines()[-1])
+    assert output["state"] == "scheduled"
+    evidence = json.loads(receipt.read_text(encoding="utf-8"))
+    assert evidence["state"] == "launching"
+    assert evidence["detail"] == "live"
+
+
 def test_windows_powershell_detach_failure_does_not_claim_scheduled(tmp_path: Path) -> None:
     root = tmp_path / "windows-powershell-detach-failure"
     scripts = root / "scripts"
@@ -465,6 +497,93 @@ def test_worker_behavior_invokes_only_kis_dev(
         "rev-parse|--verify|HEAD",
         f"merge-base|--is-ancestor|{SHA}|{REMOTE_AFTER}",
     ]
+
+
+def test_worker_retries_transient_kis_dev_launch_failure_then_succeeds(tmp_path: Path) -> None:
+    root = tmp_path / "worker-recovery"
+    scripts = root / "scripts"
+    settings = root / "settings"
+    fake_bin = root / "bin"
+    state_root = root / "state"
+    for path in (scripts, settings, fake_bin, state_root):
+        path.mkdir(parents=True, exist_ok=True)
+
+    source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
+    (scripts / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    attempts = root / "launch-attempts.txt"
+    (scripts / "start-chatgpt.ps1").write_text(
+        "param([string]$Instance)\n"
+        "if ($Instance -ne 'kis-dev') { throw 'unexpected instance' }\n"
+        "$count = if (Test-Path $env:KIS_TEST_ATTEMPTS) { [int](Get-Content $env:KIS_TEST_ATTEMPTS -Raw) } else { 0 }\n"
+        "$count += 1\n"
+        "[IO.File]::WriteAllText($env:KIS_TEST_ATTEMPTS, [string]$count)\n"
+        "if ($count -eq 1) { throw 'transient launch failure' }\n",
+        encoding="utf-8",
+    )
+    (settings / "kis-mcp.settings.json").write_text(
+        json.dumps({
+            "paths": {"state_root": str(state_root)},
+            "github_cli": {"config_dir": str(root / "gh")},
+        }),
+        encoding="utf-8",
+    )
+    git_log = root / "git-commands.txt"
+    gh_log = root / "gh-commands.txt"
+    git_fake = fake_bin / "git_fake.py"
+    git_fake.write_text(
+        "import os, sys\nfrom pathlib import Path\n"
+        f"SHA = {SHA!r}\n"
+        "args = sys.argv[1:]\n"
+        "with Path(os.environ['KIS_TEST_GIT_LOG']).open('a', encoding='utf-8') as handle:\n"
+        "    handle.write('|'.join(args) + '\\n')\n"
+        "fetch = ['-c','credential.https://github.com.helper=','-c','credential.https://github.com.helper=!gh auth git-credential','fetch','--no-tags','--no-recurse-submodules','--no-write-fetch-head','origin','refs/heads/main:refs/remotes/origin/main']\n"
+        "if args == ['symbolic-ref','--quiet','--short','HEAD']:\n    print('main')\n"
+        "elif args == ['status','--porcelain=v1','--untracked-files=all']:\n    pass\n"
+        "elif args == fetch:\n    pass\n"
+        "elif args == ['rev-parse','--verify','HEAD']:\n    print(SHA)\n"
+        "elif args == ['rev-parse','--verify','refs/remotes/origin/main']:\n    print(SHA)\n"
+        "elif args == ['merge-base','--is-ancestor',SHA,SHA]:\n    pass\n"
+        "elif args == ['merge','--ff-only','refs/remotes/origin/main']:\n    pass\n"
+        "else:\n    print('unexpected git command: ' + repr(args), file=sys.stderr); raise SystemExit(99)\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "git.cmd").write_text(
+        f'@echo off\n"{sys.executable}" "%~dp0git_fake.py" %*\nexit /b %ERRORLEVEL%\n',
+        encoding="utf-8",
+    )
+    gh_fake = fake_bin / "gh_fake.py"
+    gh_fake.write_text(
+        "import os, sys\nfrom pathlib import Path\nargs = sys.argv[1:]\n"
+        "with Path(os.environ['KIS_TEST_GH_LOG']).open('a', encoding='utf-8') as handle:\n"
+        "    handle.write('|'.join(args) + '\\n')\n"
+        "expected = ['auth','status','--active','--hostname','github.com']\n"
+        "if args != expected:\n    print('unexpected gh command: ' + repr(args), file=sys.stderr); raise SystemExit(99)\n",
+        encoding="utf-8",
+    )
+    (fake_bin / "gh.cmd").write_text(
+        f'@echo off\n"{sys.executable}" "%~dp0gh_fake.py" %*\nexit /b %ERRORLEVEL%\n',
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
+    env["KIS_TEST_ATTEMPTS"] = str(attempts)
+    env["KIS_TEST_GIT_LOG"] = str(git_log)
+    env["KIS_TEST_GH_LOG"] = str(gh_log)
+
+    result = subprocess.run(
+        ["pwsh.exe", "-NoProfile", "-File", str(scripts / source.name),
+         "-ExpectedLandedSha", SHA, "-RepositoryRoot", str(root),
+         "-StateRoot", str(state_root), "-Worker", "-DelaySeconds", "0"],
+        cwd=root, env=env, capture_output=True, text=True, timeout=30, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert attempts.read_text(encoding="utf-8") == "2"
+    receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
+    evidence = json.loads(receipt.read_text(encoding="utf-8"))
+    assert evidence["state"] == "stopped"
+    assert evidence["landed_sha"] == SHA
+    assert evidence["launched_sha"] == SHA
 
 
 def test_worker_still_rejects_governed_primary_dirt(tmp_path: Path) -> None:

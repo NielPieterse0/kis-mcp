@@ -752,6 +752,37 @@ def test_controller_checkpoints_failed_stage_attempt_and_inflight_audit(tmp_path
     assert "refresh_default" in checkpoint["telemetry"]["stage_timings_ms"]
 
 
+def test_controller_suppresses_immediate_no_progress_retry_after_stage_failure(tmp_path: Path) -> None:
+    store = PromotionStateStore(tmp_path)
+    handoff = {
+        "status": "promotion_ready",
+        "work_id": "WORK-594",
+        "change_id": "267-test",
+        "source_commit_sha": "a" * 40,
+    }
+    calls: list[str] = []
+
+    async def failing(stage, _handoff, _observations):
+        calls.append(stage)
+        raise RuntimeError("deterministic provider failure")
+
+    controller = PromotionController(failing, store)
+    with pytest.raises(RuntimeError, match="deterministic provider failure"):
+        asyncio.run(controller.converge(operation_id="promotion-backoff", promotion_handoff=handoff))
+
+    replay = asyncio.run(
+        controller.converge(operation_id="promotion-backoff", promotion_handoff=handoff)
+    )
+
+    assert calls == ["refresh_default"]
+    assert replay.state == "blocked"
+    assert replay.current_stage == "refresh_default"
+    assert replay.observations["refresh_default"]["reason"] == "no_progress_retry_backoff"
+    checkpoint = store.load("promotion-backoff")
+    assert checkpoint is not None
+    assert checkpoint["telemetry"]["suppressed_no_progress_retries"] == 1
+
+
 class _FakeLaunchedProcess:
     def __init__(self) -> None:
         self.running = True

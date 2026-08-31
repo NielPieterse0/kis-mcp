@@ -419,12 +419,44 @@ class CommissioningRuntimeService:
         return True
     async def stop(self) -> None:
         tasks = tuple(self._tasks.values())
+        current_loop = asyncio.get_running_loop()
+        local_tasks: list[asyncio.Task[None]] = []
+        foreign_waiters: list[asyncio.Future[None]] = []
+
+        async def cancel_foreign(task: asyncio.Task[None]) -> None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+        for task in tasks:
+            task_loop = task.get_loop()
+            if task.done() or task_loop.is_closed():
+                continue
+            if task_loop is current_loop:
+                task.cancel()
+                local_tasks.append(task)
+            elif task_loop.is_running():
+                submitted = asyncio.run_coroutine_threadsafe(cancel_foreign(task), task_loop)
+                foreign_waiters.append(asyncio.wrap_future(submitted))
+            else:
+                self._active = True
+                raise RuntimeError(
+                    "Commissioning scheduler shutdown cannot complete while a foreign task loop is stopped"
+                )
+
+        try:
+            if local_tasks:
+                await asyncio.gather(*local_tasks, return_exceptions=True)
+            if foreign_waiters:
+                await asyncio.wait_for(
+                    asyncio.gather(*foreign_waiters),
+                    timeout=5.0,
+                )
+        except Exception as exc:
+            self._active = True
+            raise RuntimeError("Commissioning scheduler shutdown did not complete") from exc
+
         self._tasks.clear()
         self._active = False
-        for task in tasks:
-            task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 __all__ = [

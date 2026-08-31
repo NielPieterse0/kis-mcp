@@ -78,6 +78,9 @@ def test_prepare_project_state_reconciles_before_startup(tmp_path: Path) -> None
     )
 
     assert _prepare_serena_project_state(
-        settings, environment={}, project_root=str(active)
+        settings,
+        environment={},
+        project_root=str(active),
+        pyright_launcher=tmp_path / "pyright-langserver.exe",
     ) == state_path
     assert str(stale) not in config.read_text(encoding="utf-8")

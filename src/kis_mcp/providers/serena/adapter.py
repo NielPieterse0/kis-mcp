@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import re
@@ -35,6 +36,13 @@ _PUBLIC_READ_TOOLS = frozenset(
     }
 )
 _SUPPORTED_SUFFIXES = frozenset({".py", ".js", ".jsx", ".ts", ".tsx"})
+_PYRIGHT_VERSION = "1.1.403"
+_PYRIGHT_LAUNCHER_SHA256 = "11d890dd43a9729a13135f665faf8d41eb8b4c89b0e9e21d5e316058e0b8eaaf"
+_PYRIGHT_METADATA_SHA256 = "1733517425e2e812cf12fcca6617d71233119797cf0b8bb138bab97424509933"
+_LS_SETTINGS_EMPTY = re.compile(r"(?m)^ls_specific_settings:\s*\{\}\s*$")
+_LS_SETTINGS_MANAGED = re.compile(
+    r'(?m)^ls_specific_settings:[ \t]*\r?\n  python:[ \t]*\r?\n    ls_path:[ \t]*"[^"\r\n]+"[ \t]*$'
+)
 
 
 def _result_text(result: Any) -> str:
@@ -46,15 +54,72 @@ def _result_text(result: Any) -> str:
     return "\n".join(texts).strip()
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def resolve_managed_pyright_launcher(settings: SerenaSettings) -> Path:
+    cache_root = settings.home_root / "AppData" / "Local" / "uv" / "cache" / "archive-v0"
+    matches: list[Path] = []
+    if cache_root.is_dir():
+        for archive in cache_root.iterdir():
+            launcher = archive / "Scripts" / "pyright-langserver.exe"
+            metadata = archive / "Lib" / "site-packages" / f"pyright-{_PYRIGHT_VERSION}.dist-info" / "METADATA"
+            if not launcher.is_file() or not metadata.is_file():
+                continue
+            if launcher.is_symlink() or metadata.is_symlink():
+                continue
+            resolved_launcher = launcher.resolve()
+            resolved_metadata = metadata.resolve()
+            try:
+                resolved_launcher.relative_to(archive.resolve())
+                resolved_metadata.relative_to(archive.resolve())
+            except ValueError:
+                continue
+            if _sha256(resolved_launcher) != _PYRIGHT_LAUNCHER_SHA256:
+                continue
+            if _sha256(resolved_metadata) != _PYRIGHT_METADATA_SHA256:
+                continue
+            matches.append(resolved_launcher)
+    if len(matches) != 1:
+        raise RuntimeError(
+            "Serena requires exactly one content-verified managed Pyright "
+            f"{_PYRIGHT_VERSION} launcher beneath {cache_root}; found {len(matches)}"
+        )
+    launcher = matches[0]
+    try:
+        launcher.relative_to(Path(settings.project_boundary))
+    except ValueError as exc:
+        raise RuntimeError("Serena Pyright launcher escaped the managed project boundary") from exc
+    return launcher
+
+
+def _managed_serena_path(source_path: str, settings: SerenaSettings) -> str:
+    entries = [item for item in source_path.split(os.pathsep) if item]
+    retained: list[str] = []
+    for item in entries:
+        lowered = item.casefold()
+        if lowered.startswith("c:\\users\\"):
+            continue
+        retained.append(item)
+    return os.pathsep.join(retained)
+
+
 def _provider_environment(
     settings: SerenaSettings,
     source: Mapping[str, str],
 ) -> dict[str, str]:
     environment = {
         key: source[key]
-        for key in ("PATH", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT")
+        for key in ("SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT")
         if source.get(key)
     }
+    if source.get("PATH"):
+        environment["PATH"] = _managed_serena_path(source["PATH"], settings)
     environment.update(
         {
             "HOME": str(settings.home_root),
@@ -166,6 +231,7 @@ def _prepare_serena_project_state(
     *,
     environment: Mapping[str, str],
     project_root: str,
+    pyright_launcher: Path,
 ) -> Path:
     settings.project_data_root.mkdir(parents=True, exist_ok=True)
     settings.config_root.mkdir(parents=True, exist_ok=True)
@@ -191,6 +257,25 @@ def _prepare_serena_project_state(
             raise RuntimeError("Serena global configuration bootstrap failed")
 
     content = config_path.read_text(encoding="utf-8")
+    rendered_launcher = str(pyright_launcher).replace("\\", "/")
+    managed_ls_settings = (
+        "ls_specific_settings:\n"
+        "  python:\n"
+        f'    ls_path: "{rendered_launcher}"'
+    )
+    if _LS_SETTINGS_EMPTY.search(content):
+        content = _LS_SETTINGS_EMPTY.sub(managed_ls_settings, content, count=1)
+        config_path.write_text(content, encoding="utf-8")
+    elif _LS_SETTINGS_MANAGED.search(content):
+        updated = _LS_SETTINGS_MANAGED.sub(managed_ls_settings, content, count=1)
+        if updated != content:
+            content = updated
+            config_path.write_text(content, encoding="utf-8")
+    elif "ls_specific_settings:" in content:
+        raise RuntimeError(
+            "Serena language-server settings are not in the managed Pyright form"
+        )
+
     matches = tuple(_PROJECT_STATE_SETTING.finditer(content))
     if len(matches) != 1:
         raise RuntimeError(
@@ -266,6 +351,12 @@ class SerenaRuntimeAdapter:
         self.client_factory = client_factory
         self.startup_state = ProviderStartupState()
         self.runtime_tools = ProviderRuntimeToolState()
+        self._managed_pyright_launcher: Path | None = None
+        self._managed_pyright_error: str | None = None
+        try:
+            self._managed_pyright_launcher = resolve_managed_pyright_launcher(settings)
+        except RuntimeError as exc:
+            self._managed_pyright_error = str(exc)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread_id: int | None = None
         self._active_client: Any | None = None
@@ -277,6 +368,14 @@ class SerenaRuntimeAdapter:
     @property
     def state_fingerprint(self) -> str:
         return f"{self.settings.source_revision}:{self.settings.package_sha256}:offline"
+
+    @property
+    def managed_pyright_launcher(self) -> Path | None:
+        return self._managed_pyright_launcher
+
+    @property
+    def managed_pyright_error(self) -> str | None:
+        return self._managed_pyright_error
 
     def public_runtime_tools(self) -> tuple[Any, ...]:
         """Project only the explicitly approved public Serena read surface."""
@@ -300,12 +399,21 @@ class SerenaRuntimeAdapter:
     def build_server(self) -> FastMCP:
         if not self.settings.executable.is_file():
             raise RuntimeError("Serena pinned venv interpreter is missing")
+        try:
+            verified_pyright = resolve_managed_pyright_launcher(self.settings)
+        except RuntimeError as exc:
+            self._managed_pyright_launcher = None
+            self._managed_pyright_error = str(exc)
+            raise
+        self._managed_pyright_launcher = verified_pyright
+        self._managed_pyright_error = None
         cwd = self.default_project or str(Path(__file__).resolve().parents[4])
         provider_environment = _provider_environment(self.settings, self.environment)
         _prepare_serena_project_state(
             self.settings,
             environment=provider_environment,
             project_root=cwd,
+            pyright_launcher=verified_pyright,
         )
         transport = StdioTransport(
             command=str(self.settings.executable),
