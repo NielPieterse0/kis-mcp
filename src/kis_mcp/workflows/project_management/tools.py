@@ -386,13 +386,29 @@ def register_project_management_tools(
     ) -> dict[str, Any]:
         """Evaluate exact-head traceability and pre-merge documentation readiness."""
 
+        if not record.get("record_id"):
+            return {
+                "schema_version": 1,
+                "status": "unmanaged",
+                "managed": False,
+                "ready": False,
+                "error_code": "not_found",
+                "blocking_reasons": [],
+                "advisories": ["work_record_not_found"],
+            }
         try:
             readiness = evaluate_merge_readiness(
                 work_record_from_json(record),
                 implementation_trace_from_json(trace),
                 pull_request_number,
             )
-            return readiness.to_json_dict()
+            return {
+                "schema_version": 1,
+                "status": "ready" if readiness.ready else "blocked",
+                "managed": True,
+                "error_code": None,
+                **readiness.to_json_dict(),
+            }
         except Exception as exc:
             raise _tool_error("PROJECT_MANAGEMENT_MERGE_READINESS_FAILED", exc) from exc
 
