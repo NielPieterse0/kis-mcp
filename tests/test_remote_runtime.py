@@ -43,7 +43,9 @@ def test_remote_instances_are_distinct_and_settings_driven() -> None:
     assert development.tunnel_secret_ref == (
         "secret://tunnel/development/authentication-token"
     )
-    assert config.tunnel_client_path == r"C:\Projects\.tools\openai-tunnel-client\tunnel-client.exe"
+    assert config.tunnel_client_path == (
+        r"C:\Projects\.tools\openai-tunnel-client\v0.0.13\tunnel-client.exe"
+    )
 
 
 def test_remote_transport_rejects_non_loopback_host(tmp_path: Path) -> None:

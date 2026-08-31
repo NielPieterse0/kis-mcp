@@ -214,9 +214,7 @@ if ($AuthenticationTimeoutSeconds -lt 30 -or $AuthenticationTimeoutSeconds -gt 3
 if ($ObservationSeconds -lt 0 -or $ObservationSeconds -gt 300) {
     throw 'KIS_MCP_OBSERVATION_SECONDS_INVALID: ObservationSeconds must be between 0 and 300.'
 }
-if (-not (Test-Path -LiteralPath $Remote.tunnel_client_path -PathType Leaf)) {
-    throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $($Remote.tunnel_client_path)"
-}
+Assert-KisMcpTunnelClientExecutable -Remote $Remote
 $ProfilePath = Join-Path $Remote.profile_root "$($Remote.profile_name).yaml"
 if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
     throw "KIS_MCP_TUNNEL_PROFILE_MISSING: run scripts\setup-tunnel.ps1 -Instance $($Remote.name)."

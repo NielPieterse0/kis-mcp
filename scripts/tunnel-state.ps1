@@ -47,6 +47,15 @@ function Assert-KisMcpRemoteConfiguration {
     if ([string]$Remote.path -ne '/mcp') {
         throw 'KIS_MCP_REMOTE_PATH_INVALID: remote MCP instances must use /mcp.'
     }
+    if ([string]$Remote.tunnel_client_version -notmatch '^\d+\.\d+\.\d+$') {
+        throw 'KIS_MCP_TUNNEL_CLIENT_VERSION_INVALID'
+    }
+    if ([string]$Remote.tunnel_client_sha256 -notmatch '^[0-9a-f]{64}$') {
+        throw 'KIS_MCP_TUNNEL_CLIENT_SHA256_INVALID'
+    }
+    if ([string]$Remote.tunnel_client_release_archive_sha256 -notmatch '^[0-9a-f]{64}$') {
+        throw 'KIS_MCP_TUNNEL_CLIENT_RELEASE_ARCHIVE_SHA256_INVALID'
+    }
 
     $Expected = [ordered]@{
         operation = [pscustomobject]@{ app_name = 'kis-op'; port = 8010 }
@@ -88,6 +97,26 @@ function Assert-KisMcpRemoteConfiguration {
                 "127.0.0.1:$($Canonical.port)."
             )
         }
+    }
+}
+
+function Assert-KisMcpTunnelClientExecutable {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$Remote)
+
+    if (-not (Test-Path -LiteralPath $Remote.tunnel_client_path -PathType Leaf)) {
+        throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $($Remote.tunnel_client_path)"
+    }
+    $ActualSha256 = (Get-FileHash -LiteralPath $Remote.tunnel_client_path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($ActualSha256 -cne [string]$Remote.tunnel_client_sha256) {
+        throw "KIS_MCP_TUNNEL_CLIENT_SHA256_MISMATCH: expected=$($Remote.tunnel_client_sha256); actual=$ActualSha256"
+    }
+    $VersionOutput = [string](& $Remote.tunnel_client_path --version 2>&1)
+    if ($LASTEXITCODE -ne 0 -or $VersionOutput -notmatch '^([0-9]+\.[0-9]+\.[0-9]+)(?:\+|\s|$)') {
+        throw 'KIS_MCP_TUNNEL_CLIENT_VERSION_UNREADABLE'
+    }
+    if ($Matches[1] -cne [string]$Remote.tunnel_client_version) {
+        throw "KIS_MCP_TUNNEL_CLIENT_VERSION_MISMATCH: expected=$($Remote.tunnel_client_version); actual=$($Matches[1])"
     }
 }
 
@@ -164,6 +193,8 @@ function Get-KisMcpRemoteInstance {
         tunnel_id = $TunnelId
         tunnel_secret_ref = $TunnelSecretRef
         tunnel_client_path = [string]$Remote.tunnel_client_path
+        tunnel_client_version = [string]$Remote.tunnel_client_version
+        tunnel_client_sha256 = [string]$Remote.tunnel_client_sha256
         python_environment_root = [string]$Settings.paths.python_environment_root
         state_root = $StateRoot
     }

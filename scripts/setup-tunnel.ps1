@@ -82,9 +82,7 @@ $Remote = Get-KisMcpRemoteInstance -Instance $Instance -RequireConfigured
 if ($TimeoutSeconds -lt 1 -or $TimeoutSeconds -gt 300) {
     throw 'KIS_MCP_TIMEOUT_INVALID: TimeoutSeconds must be between 1 and 300.'
 }
-if (-not (Test-Path -LiteralPath $Remote.tunnel_client_path -PathType Leaf)) {
-    throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $($Remote.tunnel_client_path)"
-}
+Assert-KisMcpTunnelClientExecutable -Remote $Remote
 
 [System.IO.Directory]::CreateDirectory($Remote.profile_root) | Out-Null
 [System.IO.Directory]::CreateDirectory($Remote.runtime_root) | Out-Null
