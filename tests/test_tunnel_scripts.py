@@ -46,7 +46,14 @@ def test_tunnel_configuration_uses_canonical_secret_references() -> None:
     remote = settings["remote_mcp"]
 
     assert remote["tunnel_client_path"] == (
-        r"C:\Projects\.tools\openai-tunnel-client\tunnel-client.exe"
+        r"C:\Projects\.tools\openai-tunnel-client\v0.0.13\tunnel-client.exe"
+    )
+    assert remote["tunnel_client_version"] == "0.0.13"
+    assert remote["tunnel_client_sha256"] == (
+        "83f08fb39b1c154747debd31b81b65dd4ee834cacf5a073b6301b2688699bc76"
+    )
+    assert remote["tunnel_client_release_archive_sha256"] == (
+        "17113162b353906bbb884c3ed7620facba5cc72b5fdc94fd54fd7208c7166edb"
     )
     assert set(remote["instances"]) == {"operation", "development"}
     expected_tunnel_ids = {
@@ -126,6 +133,18 @@ def test_tunnel_state_resolves_app_and_instance_aliases(
             "$Settings.remote_mcp.instances.development.port = 8010",
             "KIS_MCP_INSTANCE_PORT_DUPLICATE",
         ),
+        (
+            "$Settings.remote_mcp.tunnel_client_version = 'latest'",
+            "KIS_MCP_TUNNEL_CLIENT_VERSION_INVALID",
+        ),
+        (
+            "$Settings.remote_mcp.tunnel_client_sha256 = 'bad'",
+            "KIS_MCP_TUNNEL_CLIENT_SHA256_INVALID",
+        ),
+        (
+            "$Settings.remote_mcp.tunnel_client_release_archive_sha256 = 'bad'",
+            "KIS_MCP_TUNNEL_CLIENT_RELEASE_ARCHIVE_SHA256_INVALID",
+        ),
     ],
 )
 def test_tunnel_state_rejects_invalid_app_port_mappings(
@@ -163,6 +182,13 @@ def test_tunnel_state_helper_reads_non_secret_identifiers_and_reference() -> Non
     assert "tunnel_credential_target" not in content
     assert "tunnel_authentication_id" not in content
     assert "tunnel_client_path" in content
+    assert "tunnel_client_version" in content
+    assert "tunnel_client_sha256" in content
+    assert "Assert-KisMcpTunnelClientExecutable" in content
+    assert "Get-FileHash" in content
+    assert "--version" in content
+    assert "KIS_MCP_TUNNEL_CLIENT_SHA256_MISMATCH" in content
+    assert "KIS_MCP_TUNNEL_CLIENT_VERSION_MISMATCH" in content
 
 
 def test_startup_uses_application_vault_only_for_declared_runtime_secret_references() -> None:
@@ -224,6 +250,7 @@ def test_setup_script_reads_windows_credential_without_persisting_plaintext() ->
     assert "finally" in content
     assert "$Remote.tunnel_secret_ref" in content
     assert "BackupExistingProfile" in content
+    assert "Assert-KisMcpTunnelClientExecutable -Remote $Remote" in content
     assert "doctor" in content
     assert "--explain" in content
     assert "sk-" not in content
@@ -236,6 +263,7 @@ def test_chatgpt_launcher_keeps_tunnel_on_windows_credential_boundary() -> None:
     assert "kis_mcp.remote_runtime" in content
     assert "--mcp.server-url" in content
     assert "--health.url-file" in content
+    assert "Assert-KisMcpTunnelClientExecutable -Remote $Remote" in content
     assert "readyz" in content
     assert "$Tunnel.Kill($true)" in content
     assert "$Server.Kill($true)" in content

@@ -1,0 +1,43 @@
+{
+  "schema_version": 4,
+  "change_id": "609-no-auth-oauth-discovery",
+  "status": "active",
+  "branch": "change/609-no-auth-oauth-discovery",
+  "worktree": ".work/worktrees/609-no-auth-oauth-discovery",
+  "base": "main",
+  "outcome": "Upgrade and pin the OpenAI tunnel-client integration to a release that treats all-404 no-auth OAuth discovery as optional while preserving malformed and 5xx discovery diagnostics.",
+  "owned_paths": [
+    "settings/kis-mcp.settings.json",
+    "scripts/tunnel-state.ps1",
+    "scripts/setup-tunnel.ps1",
+    "scripts/start-chatgpt.ps1",
+    "tests/test_tunnel_scripts.py",
+    "tests/test_remote_runtime.py",
+    "docs/operations/chatgpt-remote.md",
+    ".work/changes/609-no-auth-oauth-discovery/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "local_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "upstream_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "KIS-MCP-609",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 609,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
