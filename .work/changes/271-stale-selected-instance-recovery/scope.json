@@ -1,0 +1,29 @@
+{
+  "schema_version": 4,
+  "change_id": "271-stale-selected-instance-recovery",
+  "status": "active",
+  "branch": "change/271-stale-selected-instance-recovery",
+  "worktree": ".work/worktrees/271-stale-selected-instance-recovery",
+  "base": "main",
+  "outcome": "Allow kis-dev recovery to reclaim a stale selected-instance listener even when its interpreter provenance is noncanonical, while rejecting unrelated port owners.",
+  "owned_paths": [
+    "scripts/startup-instance-lifecycle.ps1",
+    "tests/test_startup_scripts.py",
+    ".work/changes/271-stale-selected-instance-recovery/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": ["deployment"],
+  "base_evidence": {
+    "local_sha": "def6ccc5ed3d8985a0631233d058045f8ffaa5a7",
+    "local_tree": "0b8ae85976075217123fd577aecac6568098dca2",
+    "upstream_sha": "def6ccc5ed3d8985a0631233d058045f8ffaa5a7",
+    "upstream_tree": "0b8ae85976075217123fd577aecac6568098dca2",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
