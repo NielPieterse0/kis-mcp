@@ -16,11 +16,13 @@ def _document(name: str) -> str:
     return (REPOSITORY_ROOT / name).read_text(encoding="utf-8")
 
 
-def _run_startup_lifecycle(expression: str) -> subprocess.CompletedProcess[str]:
+def _run_startup_lifecycle(
+    expression: str, *, shell: str = "pwsh"
+) -> subprocess.CompletedProcess[str]:
     script_path = (SCRIPTS / "startup-instance-lifecycle.ps1").as_posix()
     return subprocess.run(
         [
-            "pwsh",
+            shell,
             "-NoProfile",
             "-Command",
             f"$ErrorActionPreference='Stop'; . '{script_path}'; {expression}",
@@ -42,6 +44,22 @@ def test_startup_lifecycle_atomic_json_replaces_existing_file(tmp_path: Path) ->
         "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{value=2}); "
         "$document=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; "
         "Write-Output $document.value"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "2"
+
+
+def test_startup_lifecycle_atomic_json_supports_windows_powershell(tmp_path: Path) -> None:
+    state_path = (tmp_path / "current.json").as_posix().replace("'", "''")
+    result = _run_startup_lifecycle(
+        "$path='"
+        + state_path
+        + "'; Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{value=1}); "
+        "Write-KisMcpAtomicJson -Path $path -Document ([ordered]@{value=2}); "
+        "$document=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json; "
+        "Write-Output $document.value",
+        shell="powershell.exe",
     )
 
     assert result.returncode == 0, result.stderr
