@@ -9,13 +9,12 @@ from typing import Mapping, Sequence
 import pytest
 from fastmcp.exceptions import ToolError
 
-from kis_mcp.projects import GitHubProjectBinding, ProjectDefinition, ProjectRegistry
+from kis_mcp.projects import GitHubProjectBinding, GitHubProjectResource, ProjectDefinition, ProjectRegistry
 from kis_mcp.projects.github_exact import (
     REGISTERED_GITHUB_OPERATION_SCHEMAS,
     RegisteredGitHubOperations,
     _contains_issue_closing_reference,
     execute_registered_github_operation,
-    normalize_issue_closing_references,
 )
 from kis_mcp.projects.post_land import PostLandHooks
 
@@ -75,7 +74,10 @@ def registry(*, github: bool = True) -> ProjectRegistry:
                 display_name="College",
                 local_root="C:\\Projects\\college",
                 github=(
-                    GitHubProjectBinding(repository="NielPieterse0/college")
+                    GitHubProjectBinding(
+                        repository="NielPieterse0/college",
+                        projects=(GitHubProjectResource("work-management", "NielPieterse0", "user", 1),),
+                    )
                     if github
                     else None
                 ),
@@ -303,16 +305,16 @@ def test_issue_closing_reference_detection_allows_normal_references() -> None:
         assert _contains_issue_closing_reference(text) is False
 
 
-def test_issue_closing_reference_normalization_preserves_reference_without_closing_semantics() -> None:
-    normalized = normalize_issue_closing_references(
-        "Fixes #606 and RESOLVES NielPieterse0/kis-mcp#608. See #609."
+def _project_membership(*, managed: bool, has_next_page: bool = False) -> str:
+    nodes = (
+        [{"project": {"number": 1, "owner": {"login": "NielPieterse0"}}}]
+        if managed
+        else []
     )
-
-    assert normalized == "Related: #606 and Related: NielPieterse0/kis-mcp#608. See #609."
-    assert _contains_issue_closing_reference(normalized) is False
+    return json.dumps({"data": {"repository": {"issue": {"projectItems": {"nodes": nodes, "pageInfo": {"hasNextPage": has_next_page}}}}}}) + "\n"
 
 
-def test_merge_rejects_closing_reference_in_pull_request_body_before_mutation() -> None:
+def test_merge_allows_confirmed_unmanaged_closing_reference() -> None:
     before = {
         "headRefOid": TARGET,
         "state": "OPEN",
@@ -320,43 +322,98 @@ def test_merge_rejects_closing_reference_in_pull_request_body_before_mutation() 
         "body": "Closes #379",
         "commits": [],
     }
-    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
-    operations = RegisteredGitHubOperations(registry(), runner=runner)
+    after = {**before, "state": "MERGED"}
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps(before) + "\n"),
+        Result(stdout=_project_membership(managed=False)),
+        Result(stdout="merged\n"),
+        Result(stdout=json.dumps(after) + "\n"),
+    ))
+    result = RegisteredGitHubOperations(registry(), runner=runner).merge_pull_request(
+        project_id="college", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
+    )
+    assert result["state"] == "merged"
+    assert any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
 
+
+def test_merge_rejects_work_managed_closing_reference_before_mutation() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "OPEN",
+        "isDraft": False,
+        "body": "Closes #379",
+        "commits": [],
+    }
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps(before) + "\n"),
+        Result(stdout=_project_membership(managed=True)),
+    ))
+    operations = RegisteredGitHubOperations(registry(), runner=runner)
     with pytest.raises(ToolError, match="ISSUE_CLOSING_REFERENCE_BLOCKED"):
         operations.merge_pull_request(
-            project_id="college",
-            pull_number=7,
-            expected_head=TARGET,
-            merge_method="merge",
-            approved=True,
+            project_id="college", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
         )
-
     assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
 
 
-def test_merge_rejects_closing_reference_in_commit_message_before_mutation() -> None:
+def test_merge_checks_closing_reference_in_commit_message() -> None:
     before = {
         "headRefOid": TARGET,
         "state": "OPEN",
         "isDraft": False,
         "body": "Related: #379",
-        "commits": [
-            {"messageHeadline": "Guard merge boundary", "messageBody": "FiXeS NielPieterse0/kis-mcp#379"}
-        ],
+        "commits": [{"messageHeadline": "Guard merge boundary", "messageBody": "Fixes NielPieterse0/college#379"}],
     }
-    runner = QueueRunner((Result(), Result(stdout=json.dumps(before) + "\n")))
-    operations = RegisteredGitHubOperations(registry(), runner=runner)
-
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps(before) + "\n"),
+        Result(stdout=_project_membership(managed=True)),
+    ))
     with pytest.raises(ToolError, match="ISSUE_CLOSING_REFERENCE_BLOCKED"):
-        operations.merge_pull_request(
-            project_id="college",
-            pull_number=7,
-            expected_head=TARGET,
-            merge_method="merge",
-            approved=True,
+        RegisteredGitHubOperations(registry(), runner=runner).merge_pull_request(
+            project_id="college", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
         )
 
+
+def test_merge_fails_closed_when_work_membership_is_ambiguous() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "OPEN",
+        "isDraft": False,
+        "body": "Closes #379",
+        "commits": [],
+    }
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps(before) + "\n"),
+        Result(stdout=_project_membership(managed=False, has_next_page=True)),
+    ))
+    with pytest.raises(ToolError, match="ISSUE_CLOSING_REFERENCE_UNVERIFIABLE"):
+        RegisteredGitHubOperations(registry(), runner=runner).merge_pull_request(
+            project_id="college", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
+        )
+    assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
+
+
+def test_merge_fails_closed_when_work_membership_provider_fails() -> None:
+    before = {
+        "headRefOid": TARGET,
+        "state": "OPEN",
+        "isDraft": False,
+        "body": "Closes #379",
+        "commits": [],
+    }
+    runner = QueueRunner((
+        Result(),
+        Result(stdout=json.dumps(before) + "\n"),
+        Result(returncode=1, stderr="provider unavailable"),
+    ))
+    with pytest.raises(ToolError, match="REGISTERED_GITHUB_COMMAND_FAILED"):
+        RegisteredGitHubOperations(registry(), runner=runner).merge_pull_request(
+            project_id="college", pull_number=7, expected_head=TARGET, merge_method="merge", approved=True
+        )
     assert not any(call[0][:3] == ("gh", "pr", "merge") for call in runner.calls)
 
 

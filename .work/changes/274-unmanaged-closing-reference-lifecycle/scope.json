@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "274-unmanaged-closing-reference-lifecycle",
+  "status": "active",
+  "branch": "change/274-unmanaged-closing-reference-lifecycle",
+  "worktree": ".work/worktrees/274-unmanaged-closing-reference-lifecycle",
+  "base": "main",
+  "outcome": "Allow registered merge closeout for confirmed unmanaged issue-closing references while preserving managed Work lifecycle protection and fail-closed lookup semantics",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    ".work/changes/274-unmanaged-closing-reference-lifecycle/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "9ce60d670acc77d446e2c042fbf1d34f20724f4d",
+    "local_tree": "e46acddfec57055a2df535860198ef2330e75ffc",
+    "upstream_sha": "9ce60d670acc77d446e2c042fbf1d34f20724f4d",
+    "upstream_tree": "e46acddfec57055a2df535860198ef2330e75ffc",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-608",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 608,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

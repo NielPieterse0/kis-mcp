@@ -50,6 +50,19 @@ def normalize_issue_closing_references(text: str) -> str:
     )
 
 
+def _issue_closing_references(text: str, default_repository: str) -> tuple[tuple[str, int], ...]:
+    references: list[tuple[str, int]] = []
+    seen: set[tuple[str, int]] = set()
+    for match in _ISSUE_CLOSING_REFERENCE.finditer(text):
+        raw = match.group("reference")
+        repository, number_text = (raw.rsplit("#", 1) if not raw.startswith("#") else (default_repository, raw[1:]))
+        item = (repository.casefold(), int(number_text))
+        if item not in seen:
+            seen.add(item)
+            references.append(item)
+    return tuple(references)
+
+
 class _Deadline:
     def __init__(self, timeout_ms: int, clock: Callable[[], float]) -> None:
         self.timeout_ms = timeout_ms
@@ -1570,6 +1583,84 @@ class RegisteredGitHubOperations:
             raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: gh returned a non-object")
         return payload
 
+    def _issue_is_work_managed(
+        self,
+        *,
+        project: ProjectDefinition,
+        repository: str,
+        issue_number: int,
+        cwd: Path,
+    ) -> bool:
+        if project.github is None or not project.github.projects:
+            raise ToolError(
+                "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: no registered Work project binding"
+            )
+        if "/" not in repository:
+            raise ToolError(
+                "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: referenced repository is not owner/name"
+            )
+        owner, repo = repository.split("/", 1)
+        query = (
+            "query($owner:String!,$repo:String!,$number:Int!){"
+            "repository(owner:$owner,name:$repo){issue(number:$number){"
+            "projectItems(first:100){nodes{project{number owner{"
+            "... on User{login} ... on Organization{login}}}}"
+            "pageInfo{hasNextPage}}}}}"
+        )
+        result = self._run(
+            (
+                "gh", "api", "graphql",
+                "-f", f"query={query}",
+                "-F", f"owner={owner}",
+                "-F", f"repo={repo}",
+                "-F", f"number={issue_number}",
+            ),
+            cwd,
+        )
+        try:
+            payload = json.loads(str(getattr(result, "stdout", "")))
+            issue = payload["data"]["repository"]["issue"]
+            if not isinstance(issue, Mapping):
+                raise ValueError("issue not found")
+            project_items = issue["projectItems"]
+            if project_items["pageInfo"]["hasNextPage"] is not False:
+                raise ValueError("project membership is paginated")
+            nodes = project_items["nodes"]
+            if not isinstance(nodes, list):
+                raise ValueError("project membership nodes are invalid")
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ToolError(
+                "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: Work membership lookup returned ambiguous evidence"
+            ) from exc
+        configured = {
+            (binding.owner.casefold(), binding.project_number)
+            for binding in project.github.projects
+        }
+        for node in nodes:
+            if not isinstance(node, Mapping):
+                raise ToolError(
+                    "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: Work membership node is invalid"
+                )
+            project_payload = node.get("project")
+            if not isinstance(project_payload, Mapping):
+                raise ToolError(
+                    "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: Work project identity is missing"
+                )
+            project_owner = project_payload.get("owner")
+            project_number = project_payload.get("number")
+            if not isinstance(project_owner, Mapping) or not isinstance(project_number, int):
+                raise ToolError(
+                    "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: Work project identity is malformed"
+                )
+            login = project_owner.get("login")
+            if not isinstance(login, str):
+                raise ToolError(
+                    "ISSUE_CLOSING_REFERENCE_UNVERIFIABLE: Work project owner is malformed"
+                )
+            if (login.casefold(), project_number) in configured:
+                return True
+        return False
+
     def merge_pull_request(
         self,
         *,
@@ -1621,10 +1712,7 @@ class RegisteredGitHubOperations:
         body = before.get("body")
         if body is not None and not isinstance(body, str):
             raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: pull request body is not text")
-        if _contains_issue_closing_reference(body or ""):
-            raise ToolError(
-                "ISSUE_CLOSING_REFERENCE_BLOCKED: pull request body contains a GitHub issue-closing reference"
-            )
+        closing_references = list(_issue_closing_references(body or "", repository))
         commits = before.get("commits", [])
         if not isinstance(commits, list):
             raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: pull request commits are not a list")
@@ -1635,9 +1723,22 @@ class RegisteredGitHubOperations:
             message_body = commit.get("messageBody", "")
             if not isinstance(headline, str) or not isinstance(message_body, str):
                 raise ToolError("PULL_REQUEST_STATE_UNVERIFIABLE: commit message is not text")
-            if _contains_issue_closing_reference(f"{headline}\n{message_body}"):
+            closing_references.extend(
+                ref
+                for ref in _issue_closing_references(f"{headline}\n{message_body}", repository)
+                if ref not in closing_references
+            )
+
+        for referenced_repository, issue_number in closing_references:
+            if self._issue_is_work_managed(
+                project=project,
+                repository=referenced_repository,
+                issue_number=issue_number,
+                cwd=cwd,
+            ):
                 raise ToolError(
-                    "ISSUE_CLOSING_REFERENCE_BLOCKED: pull request commit message contains a GitHub issue-closing reference"
+                    "ISSUE_CLOSING_REFERENCE_BLOCKED: referenced issue is Work-managed "
+                    f"({referenced_repository}#{issue_number})"
                 )
 
         self._run(
