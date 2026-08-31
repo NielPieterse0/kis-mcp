@@ -4,6 +4,7 @@ import asyncio
 from types import SimpleNamespace
 
 from fastmcp import FastMCP
+import pytest
 
 from kis_mcp.workflows.project_management import register_project_management_tools
 
@@ -103,8 +104,47 @@ def test_merge_readiness_enforces_pre_merge_documentation() -> None:
     )).structured_content
 
     assert ready is not None and ready["ready"] is True
+    assert ready["status"] == "ready" and ready["managed"] is True
     assert blocked is not None and blocked["ready"] is False
+    assert blocked["status"] == "blocked" and blocked["managed"] is True
     assert blocked["blocking_reasons"] == ["documentation_pre_merge_incomplete"]
+
+
+def test_merge_readiness_returns_typed_unmanaged_result_without_work_record() -> None:
+    server = FastMCP("root")
+    register_project_management_tools(server, Service())
+
+    result = asyncio.run(server.call_tool(
+        "project_management_merge_readiness",
+        {"record": {}, "trace": trace(merged=False), "pull_request_number": 140},
+    )).structured_content
+
+    assert result is not None
+    assert result == {
+        "schema_version": 1,
+        "status": "unmanaged",
+        "managed": False,
+        "ready": False,
+        "error_code": "not_found",
+        "blocking_reasons": [],
+        "advisories": ["work_record_not_found"],
+    }
+
+
+def test_merge_readiness_keeps_partial_managed_record_as_validation_error() -> None:
+    server = FastMCP("root")
+    register_project_management_tools(server, Service())
+
+    with pytest.raises(Exception, match="PROJECT_MANAGEMENT_MERGE_READINESS_FAILED"):
+        asyncio.run(server.call_tool(
+            "project_management_merge_readiness",
+            {
+                "record": {"record_id": "TASK-606"},
+                "trace": trace(merged=False),
+                "pull_request_number": 140,
+            },
+        ))
+
 
 def test_documentation_reconciliation_moves_verification_to_documentation_then_completes() -> None:
     server = FastMCP("root")

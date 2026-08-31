@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "272-merge-readiness-unmanaged-result",
+  "status": "active",
+  "branch": "change/272-merge-readiness-unmanaged-result",
+  "worktree": ".work/worktrees/272-merge-readiness-unmanaged-result",
+  "base": "main",
+  "outcome": "Return typed unmanaged/not_found merge-readiness results for source issues without a Work record while preserving managed exact-head readiness behavior.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "tests/workflows/project_management/test_documentation_tools.py",
+    ".work/changes/272-merge-readiness-unmanaged-result/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "ac8884cdf335cb68453e92e0a568614117132f20",
+    "local_tree": "eba71fa7e330904833ad28f1e653951134b4cc27",
+    "upstream_sha": "ac8884cdf335cb68453e92e0a568614117132f20",
+    "upstream_tree": "eba71fa7e330904833ad28f1e653951134b4cc27",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
