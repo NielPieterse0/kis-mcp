@@ -50,6 +50,10 @@ def normalize_issue_closing_references(text: str) -> str:
     )
 
 
+def _canonical_pull_request_body(text: str) -> str:
+    return normalize_issue_closing_references(text).replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _issue_closing_references(text: str, default_repository: str) -> tuple[tuple[str, int], ...]:
     references: list[tuple[str, int]] = []
     seen: set[tuple[str, int]] = set()
@@ -1183,7 +1187,7 @@ class RegisteredGitHubOperations:
             raise ToolError("INVALID_PULL_REQUEST_TITLE: title must contain 1 to 256 characters")
         if not isinstance(body, str) or len(body) > 20_000:
             raise ToolError("INVALID_PULL_REQUEST_BODY: body must be a string of at most 20000 characters")
-        body_text = normalize_issue_closing_references(body)
+        body_text = _canonical_pull_request_body(body)
         operation_id = _operation_id(
             "create_registered_pull_request",
             {
@@ -1323,7 +1327,8 @@ class RegisteredGitHubOperations:
                 if str(item.get("headRefOid", "")).lower() == head_sha
                 and item.get("baseRefName") == default_branch
                 and item.get("title") == title_text
-                and item.get("body") == body_text
+                and isinstance(item.get("body"), str)
+                and _canonical_pull_request_body(str(item.get("body"))) == body_text
             ]
             if not existing:
                 return "not_started", None
@@ -1480,7 +1485,8 @@ class RegisteredGitHubOperations:
                 or after_head != head_sha
                 or after.get("baseRefName") != default_branch
                 or after.get("title") != title_text
-                or after.get("body") != body_text
+                or not isinstance(after.get("body"), str)
+                or _canonical_pull_request_body(str(after.get("body"))) != body_text
             ):
                 raise ToolError(
                     "PULL_REQUEST_CREATE_NOT_VERIFIED: created pull request state/head/base mismatch"

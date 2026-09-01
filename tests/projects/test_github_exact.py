@@ -691,6 +691,37 @@ def test_create_pull_request_malformed_success_ack_reconciles_exact_existing_pr(
     assert sum(call[:3] == ("gh", "pr", "create") for call, _cwd, _env in runner.calls) == 1
 
 
+def test_create_pull_request_accepts_github_newline_canonicalization() -> None:
+    head = "d" * 40
+    default = "b" * 40
+    branch = "change/example"
+    ref = f"refs/heads/{branch}"
+    title = "Exact change"
+    body = "Summary\n\nRelated: #617"
+    github_body = "Summary\\r\\n\\r\\nRelated: #617"
+    view_payload = (
+        '{"number":9,"url":"https://github.com/example/repo/pull/9",'
+        f'"title":"{title}","body":"{github_body}","headRefOid":"{head}",'
+        '"baseRefName":"main","state":"OPEN","isDraft":false}'
+    )
+    runner = QueueRunner((
+        Result(), Result(), *_default_remote(default), _ls_remote(ref, head),
+        Result(stdout="[]"),
+        Result(stdout="https://github.com/example/repo/pull/9"),
+        Result(stdout=view_payload),
+    ))
+
+    result = RegisteredGitHubOperations(_registry(), runner=runner).create_pull_request(
+        project_id="kis-mcp", branch=branch, expected_head=head,
+        expected_remote_default=default, title=title, body=body,
+        approved=True, deadline_ms=20_000,
+    )
+
+    assert result["operation_state"] == "applied"
+    assert result["state"] == "open"
+    assert sum(call[:3] == ("gh", "pr", "create") for call, _cwd, _env in runner.calls) == 1
+
+
 def test_create_pull_request_post_create_metadata_drift_is_not_acknowledged_as_applied() -> None:
     head = "d" * 40
     default = "b" * 40

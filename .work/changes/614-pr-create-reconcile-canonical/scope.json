@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "614-pr-create-reconcile-canonical",
+  "status": "active",
+  "branch": "change/614-pr-create-reconcile-canonical",
+  "worktree": ".work/worktrees/614-pr-create-reconcile-canonical",
+  "base": "main",
+  "outcome": "Reconcile successful registered PR creation against canonical normalized request state without false conflicts or duplicate mutation.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/projects/test_github_exact.py",
+    ".work/changes/614-pr-create-reconcile-canonical/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "ffd2a2f49a11fa019fa492223ff4cea4977dcb37",
+    "local_tree": "de042b68d2e0c494ce76ca28570e661179e0b089",
+    "upstream_sha": "ffd2a2f49a11fa019fa492223ff4cea4977dcb37",
+    "upstream_tree": "de042b68d2e0c494ce76ca28570e661179e0b089",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-617",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 617,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
