@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "616-491-final-reconstruction-reconciliation",
+  "status": "active",
+  "branch": "change/616-491-final-reconstruction-reconciliation",
+  "worktree": ".work/worktrees/616-491-final-reconstruction-reconciliation",
+  "base": "main",
+  "outcome": "Repair exact Change 190 landed evidence and reconcile retained Change 195 payload against current architecture without losing useful work.",
+  "owned_paths": [
+    ".work/changes/190-repository-scoped-work-projection/change.md",
+    "docs/development/audits/2026-09-01-change195-reconciliation.md",
+    ".work/changes/616-491-final-reconstruction-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "local_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "upstream_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-622",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 622,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
