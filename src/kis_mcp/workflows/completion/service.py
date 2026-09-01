@@ -273,13 +273,30 @@ class CompletionCoordinator:
         if not isinstance(reconcile_only, bool):
             raise ValueError("reconcile_only must be a boolean")
         promotion_handoff: Mapping[str, Any] | None = None
+        resolved_promotion_work_id: str | None = None
         if promotion_work_id is not None:
-            work_id = _required(promotion_work_id, "promotion_work_id")
+            resolved_promotion_work_id = _required(promotion_work_id, "promotion_work_id")
             if self._promotion_resolver is None:
                 raise ValueError("promotion_work_id requires configured PromotionReady resolver")
-            promotion_handoff = self._promotion_resolver(work_id)
-            if promotion_handoff.get("work_id") != work_id:
+            promotion_handoff = self._promotion_resolver(resolved_promotion_work_id)
+            if promotion_handoff.get("work_id") != resolved_promotion_work_id:
                 raise ValueError("resolved PromotionReady handoff identity mismatch")
+        elif self._promotion_resolver is not None and branch_name.startswith("change/"):
+            change_id = branch_name.removeprefix("change/")
+            lookup_key = f"@change:{change_id}:{commit_sha}"
+            try:
+                promotion_handoff = self._promotion_resolver(lookup_key)
+            except Exception as exc:
+                code = getattr(exc, "code", None)
+                if code != "PROMOTION_HANDOFF_MISSING":
+                    raise
+            else:
+                resolved_promotion_work_id = _required(
+                    str(promotion_handoff.get("work_id", "")), "resolved PromotionReady Work ID"
+                )
+                if promotion_handoff.get("change_id") != change_id:
+                    raise ValueError("resolved PromotionReady handoff change identity mismatch")
+        if promotion_handoff is not None:
             if promotion_handoff.get("source_commit_sha") != commit_sha:
                 raise ValueError("resolved PromotionReady handoff does not match completion commit")
         deadline_ms = _validate_deadline_ms(deadline_ms)

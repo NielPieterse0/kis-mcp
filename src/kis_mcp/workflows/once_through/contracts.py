@@ -6,7 +6,41 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Mapping
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
+LEGACY_SCHEMA_VERSION = 1
+SUPPORTED_SCHEMA_VERSIONS = frozenset({LEGACY_SCHEMA_VERSION, SCHEMA_VERSION})
+
+
+class ObligationPhase(StrEnum):
+    IMPLEMENTATION = "implementation"
+    REVIEW = "review"
+    CANDIDATE = "candidate"
+    PULL_REQUEST = "pull_request"
+    DOCUMENTATION = "documentation"
+    COMMISSIONING = "commissioning"
+    COMPLETION = "completion"
+
+
+class TaskObligation(StrEnum):
+    VERIFICATION = "verification"
+    REVIEW_CLOSED = "review_closed"
+    LIVE_CANDIDATE_VERIFICATION = "live_candidate_verification"
+    PROVIDER_PROOF = "provider_proof"
+    DOCUMENTATION = "documentation"
+    COMMISSIONING = "commissioning"
+    COMPLETION = "completion"
+
+    @property
+    def phase(self) -> ObligationPhase:
+        return {
+            TaskObligation.VERIFICATION: ObligationPhase.IMPLEMENTATION,
+            TaskObligation.REVIEW_CLOSED: ObligationPhase.REVIEW,
+            TaskObligation.LIVE_CANDIDATE_VERIFICATION: ObligationPhase.CANDIDATE,
+            TaskObligation.PROVIDER_PROOF: ObligationPhase.PULL_REQUEST,
+            TaskObligation.DOCUMENTATION: ObligationPhase.DOCUMENTATION,
+            TaskObligation.COMMISSIONING: ObligationPhase.COMMISSIONING,
+            TaskObligation.COMPLETION: ObligationPhase.COMPLETION,
+        }[self]
 
 
 class EvidenceValidityClass(StrEnum):
@@ -101,7 +135,7 @@ class TaskHandoffContract:
     requirements: tuple[str, ...]
     acceptance_criteria: tuple[str, ...]
     affected_surfaces: tuple[str, ...]
-    obligations: tuple[str, ...]
+    obligations: tuple[TaskObligation | str, ...]
     candidate_port: int
     source_identity: str
     change_id: str | None = None
@@ -109,8 +143,15 @@ class TaskHandoffContract:
     contract_fingerprint: str = field(init=False)
 
     def __post_init__(self) -> None:
-        if self.schema_version != SCHEMA_VERSION:
+        if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
             raise ValueError("handoff schema version is unsupported")
+        try:
+            normalized_obligations = tuple(TaskObligation(item) for item in self.obligations)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("obligations contain an unsupported obligation") from exc
+        if len(set(normalized_obligations)) != len(normalized_obligations):
+            raise ValueError("obligations must be unique")
+        object.__setattr__(self, "obligations", normalized_obligations)
         for label, value in (
             ("project_id", self.project_id), ("work_id", self.work_id),
             ("repository", self.repository), ("source_identity", self.source_identity),
@@ -138,12 +179,30 @@ class TaskHandoffContract:
             "requirements": list(self.requirements),
             "acceptance_criteria": list(self.acceptance_criteria),
             "affected_surfaces": list(self.affected_surfaces),
-            "obligations": list(self.obligations), "candidate_port": self.candidate_port,
+            "obligations": [item.value for item in self.obligations],
+            "candidate_port": self.candidate_port,
             "source_identity": self.source_identity, "change_id": self.change_id,
         }
 
     def to_json_dict(self) -> dict[str, Any]:
-        return {**self._identity_payload(), "contract_fingerprint": self.contract_fingerprint}
+        payload = {**self._identity_payload(), "contract_fingerprint": self.contract_fingerprint}
+        if self.schema_version >= 2:
+            active = set(self.obligations)
+            payload["typed_obligations"] = [
+                {
+                    "kind": item.value,
+                    "phase": item.phase.value,
+                    "declared": item in active,
+                }
+                for item in TaskObligation
+            ]
+        return payload
+
+    def obligations_through(self, phase: ObligationPhase | str) -> tuple[TaskObligation, ...]:
+        resolved = ObligationPhase(phase)
+        order = tuple(ObligationPhase)
+        limit = order.index(resolved)
+        return tuple(item for item in self.obligations if order.index(item.phase) <= limit)
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,8 +217,11 @@ class PromotionReadyHandoff:
     satisfied_obligations: tuple[str, ...]
     pending_obligations: tuple[str, ...] = ()
     status: str = "promotion_ready"
+    schema_version: int = SCHEMA_VERSION
 
     def __post_init__(self) -> None:
+        if self.schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+            raise ValueError("promotion schema version is unsupported")
         if self.status != "promotion_ready":
             raise ValueError("promotion handoff status is fixed")
         if len(self.source_commit_sha) != 40 or any(c not in "0123456789abcdef" for c in self.source_commit_sha):
@@ -182,7 +244,7 @@ class PromotionReadyHandoff:
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
-            "schema_version": SCHEMA_VERSION, "status": self.status,
+            "schema_version": self.schema_version, "status": self.status,
             "work_id": self.work_id, "change_id": self.change_id,
             "contract_fingerprint": self.contract_fingerprint,
             "source_commit_sha": self.source_commit_sha,

@@ -544,3 +544,66 @@ def test_completion_total_deadline_expires_before_mutation_with_conclusive_not_s
     assert error.elapsed_ms >= 0
     assert "verification" in error.stage_timings_ms
     assert invoker.calls == ["execute_change_workflow"]
+
+
+def test_promotion_ready_is_auto_resolved_for_governed_change_without_hint() -> None:
+    invoker = Invoker()
+    lookups: list[str] = []
+    handoff = {
+        "work_id": "WORK-588", "change_id": "612-auto",
+        "status": "promotion_ready", "source_commit_sha": COMMIT,
+        "pending_obligations": [],
+        "execution": {"contract": "change-execution-result-v2", "status": "passed"},
+    }
+    def resolver(key: str) -> dict[str, Any]:
+        lookups.append(key)
+        return handoff
+    service = CompletionCoordinator(
+        invoker, lambda project_id: r"C:\Projects\kis-mcp", promotion_resolver=resolver
+    )
+    result = asyncio.run(service.prepare(
+        project_id="kis-mcp", commit=COMMIT, source_base=SOURCE_BASE,
+        branch="change/612-auto", expected_remote_branch=None,
+        expected_remote_default=DEFAULT, title="Typed obligations",
+        body="Ready.", approved=True,
+    ))
+    assert lookups == [f"@change:612-auto:{COMMIT}"]
+    assert result.execution["status"] == "passed"
+    assert "execute_change_workflow" not in [name for name, _ in invoker.calls]
+
+
+def test_auto_promotion_lookup_falls_back_only_when_handoff_is_missing() -> None:
+    invoker = Invoker()
+    class Missing(RuntimeError):
+        code = "PROMOTION_HANDOFF_MISSING"
+    def resolver(_key: str) -> dict[str, Any]:
+        raise Missing("not found")
+    service = CompletionCoordinator(
+        invoker, lambda project_id: r"C:\Projects\kis-mcp", promotion_resolver=resolver
+    )
+    result = asyncio.run(service.prepare(
+        project_id="kis-mcp", commit=COMMIT, source_base=SOURCE_BASE,
+        branch="change/612-auto", expected_remote_branch=None,
+        expected_remote_default=DEFAULT, title="Typed obligations",
+        body="Ready.", approved=True,
+    ))
+    assert result.execution["status"] == "passed"
+    assert [name for name, _ in invoker.calls][0] == "execute_change_workflow"
+
+
+def test_auto_promotion_lookup_fails_closed_on_ambiguity() -> None:
+    invoker = Invoker()
+    class Ambiguous(RuntimeError):
+        code = "PROMOTION_HANDOFF_AMBIGUOUS"
+    service = CompletionCoordinator(
+        invoker, lambda project_id: r"C:\Projects\kis-mcp",
+        promotion_resolver=lambda _key: (_ for _ in ()).throw(Ambiguous("ambiguous")),
+    )
+    with pytest.raises(Ambiguous, match="ambiguous"):
+        asyncio.run(service.prepare(
+            project_id="kis-mcp", commit=COMMIT, source_base=SOURCE_BASE,
+            branch="change/612-auto", expected_remote_branch=None,
+            expected_remote_default=DEFAULT, title="Typed obligations",
+            body="Ready.", approved=True,
+        ))
+    assert invoker.calls == []
