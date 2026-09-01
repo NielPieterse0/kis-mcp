@@ -292,6 +292,8 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "kis_post_merge_commissioning_receipt",
         "kis_post_merge_commissioning_execution",
         "kis_post_merge_commissioning_run",
+        "commission_mcp_extension",
+        "mcp_extension_commissioning_status",
         "kis_list_projects",
         "kis_project_status",
         "kis_list_quarantine",

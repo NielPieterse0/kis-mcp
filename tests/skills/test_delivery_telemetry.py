@@ -316,3 +316,47 @@ def test_delivery_report_drops_identity_split_by_row_bound(tmp_path: Path) -> No
     assert report.truncated is True
     assert report.groups == ()
     assert report.comparisons == ()
+
+
+def test_commissioned_status_requires_exact_receipt_and_runtime_identity(tmp_path: Path) -> None:
+    store = SkillTelemetryStore(tmp_path / "skills.sqlite3")
+    common = {
+        "source": "observed",
+        "skill_id": "alpha-skill",
+        "snapshot_id": "snapshot-1",
+        "content_sha256": "a" * 64,
+        "delivery_path": "mcp_resource",
+        "server_identity_fingerprint": "b" * 64,
+        "protocol_version": "2026-07-28",
+        "extension_id": "io.modelcontextprotocol/skills",
+        "extension_settings_fingerprint": "c" * 64,
+        "commissioning_receipt_id": "d" * 64,
+        "canonical_skill_uri": "skill:///alpha-skill/SKILL.md",
+        "resource_set_fingerprint": "e" * 64,
+    }
+    store.record(
+        SkillTelemetryEvent(
+            event_name="skill_loaded",
+            resource_uri="skill:///alpha-skill/SKILL.md",
+            resource_class="SKILL.md",
+            digest_verified=True,
+            integrity_proof="ordinary_digest",
+            **common,
+        )
+    )
+    store.record(
+        SkillTelemetryEvent(
+            event_name="skill_commissioned",
+            integrity_proof="live_commissioning",
+            **{**common, "server_identity_fingerprint": "f" * 64},
+        )
+    )
+
+    report = store.delivery_report(skill_id="alpha-skill")
+    [group] = report.groups
+    [comparison] = report.comparisons
+    assert group.commissioning_correlated_load_count == 0
+    assert group.uncommissioned_load_count == 1
+    assert group.live_commissioned_count == 0
+    assert comparison.mcp_commissioned is False
+    assert comparison.commissioning_reason == "no_live_commissioning"

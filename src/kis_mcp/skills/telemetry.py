@@ -14,6 +14,11 @@ _EVENT_NAMES = frozenset(
         "skill_loaded",
         "skill_resource_discovered",
         "skill_resource_read",
+        "skills_list_observed",
+        "skills_get_observed",
+        "skill_directory_read",
+        "skill_commissioned",
+        "skills_negative_negotiation_observed",
         "skill_catalogue_exposed",
         "skill_catalogue_refreshed",
         "skill_evaluated",
@@ -59,6 +64,14 @@ class SkillTelemetryEvent:
     resource_uri: str | None = None
     resource_class: str | None = None
     server_origin: str | None = None
+    server_identity_fingerprint: str | None = None
+    protocol_version: str | None = None
+    extension_id: str | None = None
+    extension_settings_fingerprint: str | None = None
+    commissioning_receipt_id: str | None = None
+    canonical_skill_uri: str | None = None
+    resource_set_fingerprint: str | None = None
+    integrity_proof: str | None = None
     digest_verified: bool | None = None
     occurred_at: str | None = None
 
@@ -111,6 +124,11 @@ class SkillDeliveryTelemetryGroup:
     error_count: int
     digest_verified_count: int
     digest_failed_count: int
+    commissioning_correlated_load_count: int
+    uncommissioned_load_count: int
+    live_commissioned_count: int
+    skills_get_count: int
+    directory_read_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +138,8 @@ class SkillDeliveryComparison:
     project_id: str | None
     comparable: bool
     reason: str
+    mcp_commissioned: bool
+    commissioning_reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,8 +148,10 @@ class SkillDeliveryTelemetryReport:
     comparisons: tuple[SkillDeliveryComparison, ...]
     event_count: int
     catalogue_exposure_count: int
+    protocol_observation_count: int
+    negative_negotiation_count: int
     truncated: bool
-    schema_version: int = 1
+    schema_version: int = 2
 
 
 def _optional_id(value: str | None, label: str) -> str | None:
@@ -185,10 +207,31 @@ def _normalize_event(event: SkillTelemetryEvent) -> SkillTelemetryEvent:
     if resource_class is not None and resource_class not in _RESOURCE_CLASSES:
         raise ValueError("resource_class is invalid")
     server_origin = _optional_text(event.server_origin, "server_origin", max_length=256)
-    if event.delivery_path == "kis_native" and any(
-        value is not None for value in (resource_uri, resource_class, server_origin, event.digest_verified)
+    server_identity_fingerprint = event.server_identity_fingerprint
+    extension_settings_fingerprint = event.extension_settings_fingerprint
+    resource_set_fingerprint = event.resource_set_fingerprint
+    for value, label in (
+        (server_identity_fingerprint, "server_identity_fingerprint"),
+        (extension_settings_fingerprint, "extension_settings_fingerprint"),
+        (resource_set_fingerprint, "resource_set_fingerprint"),
     ):
-        raise ValueError("MCP resource attribution requires mcp_resource delivery_path")
+        if value is not None and _SHA256.fullmatch(value) is None:
+            raise ValueError(f"{label} must be a lowercase SHA-256 value")
+    protocol_version = _optional_text(event.protocol_version, "protocol_version", max_length=64)
+    extension_id = _optional_text(event.extension_id, "extension_id", max_length=256)
+    commissioning_receipt_id = event.commissioning_receipt_id
+    if commissioning_receipt_id is not None and _SHA256.fullmatch(commissioning_receipt_id) is None:
+        raise ValueError("commissioning_receipt_id must be a lowercase SHA-256 value")
+    canonical_skill_uri = _optional_text(event.canonical_skill_uri, "canonical_skill_uri", max_length=2048)
+    integrity_proof = _optional_text(event.integrity_proof, "integrity_proof", max_length=64)
+    mcp_fields = (
+        resource_uri, resource_class, server_origin, server_identity_fingerprint,
+        protocol_version, extension_id, extension_settings_fingerprint,
+        commissioning_receipt_id, canonical_skill_uri, resource_set_fingerprint,
+        integrity_proof, event.digest_verified,
+    )
+    if event.delivery_path == "kis_native" and any(value is not None for value in mcp_fields):
+        raise ValueError("MCP attribution requires mcp_resource delivery_path")
     return SkillTelemetryEvent(
         event_name=event.event_name,
         source=event.source,
@@ -209,6 +252,14 @@ def _normalize_event(event: SkillTelemetryEvent) -> SkillTelemetryEvent:
         resource_uri=resource_uri,
         resource_class=resource_class,
         server_origin=server_origin,
+        server_identity_fingerprint=server_identity_fingerprint,
+        protocol_version=protocol_version,
+        extension_id=extension_id,
+        extension_settings_fingerprint=extension_settings_fingerprint,
+        commissioning_receipt_id=commissioning_receipt_id,
+        canonical_skill_uri=canonical_skill_uri,
+        resource_set_fingerprint=resource_set_fingerprint,
+        integrity_proof=integrity_proof,
         digest_verified=event.digest_verified,
         occurred_at=event.occurred_at or _timestamp(),
     )
@@ -264,6 +315,14 @@ class SkillTelemetryStore:
                     resource_uri TEXT,
                     resource_class TEXT,
                     server_origin TEXT,
+                    server_identity_fingerprint TEXT,
+                    protocol_version TEXT,
+                    extension_id TEXT,
+                    extension_settings_fingerprint TEXT,
+                    commissioning_receipt_id TEXT,
+                    canonical_skill_uri TEXT,
+                    resource_set_fingerprint TEXT,
+                    integrity_proof TEXT,
                     digest_verified INTEGER
                 )
                 """
@@ -276,6 +335,14 @@ class SkillTelemetryStore:
                 ("resource_uri", "TEXT"),
                 ("resource_class", "TEXT"),
                 ("server_origin", "TEXT"),
+                ("server_identity_fingerprint", "TEXT"),
+                ("protocol_version", "TEXT"),
+                ("extension_id", "TEXT"),
+                ("extension_settings_fingerprint", "TEXT"),
+                ("commissioning_receipt_id", "TEXT"),
+                ("canonical_skill_uri", "TEXT"),
+                ("resource_set_fingerprint", "TEXT"),
+                ("integrity_proof", "TEXT"),
                 ("digest_verified", "INTEGER"),
             ):
                 if name not in existing_columns:
@@ -299,8 +366,11 @@ class SkillTelemetryStore:
                     content_sha256, project_id, activation_id, request_id,
                     outcome, duration_ms, error_class, total_tokens, tool_calls,
                     retries, verification_passed, delivery_path, resource_uri,
-                    resource_class, server_origin, digest_verified
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    resource_class, server_origin, server_identity_fingerprint,
+                    protocol_version, extension_id, extension_settings_fingerprint,
+                    commissioning_receipt_id, canonical_skill_uri,
+                    resource_set_fingerprint, integrity_proof, digest_verified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     selected.occurred_at,
@@ -323,6 +393,14 @@ class SkillTelemetryStore:
                     selected.resource_uri,
                     selected.resource_class,
                     selected.server_origin,
+                    selected.server_identity_fingerprint,
+                    selected.protocol_version,
+                    selected.extension_id,
+                    selected.extension_settings_fingerprint,
+                    selected.commissioning_receipt_id,
+                    selected.canonical_skill_uri,
+                    selected.resource_set_fingerprint,
+                    selected.integrity_proof,
                     None if selected.digest_verified is None else int(selected.digest_verified),
                 ),
             )
@@ -361,15 +439,16 @@ class SkillTelemetryStore:
         project_id: str | None,
         delivery_path: str = "kis_native",
     ) -> bool:
-        values = (
-            _optional_id(skill_id, "skill_id"),
+        normalized_skill_id = _optional_id(skill_id, "skill_id")
+        values = [
+            normalized_skill_id,
             _optional_id(activation_id, "activation_id"),
             _optional_id(snapshot_id, "snapshot_id"),
             content_sha256,
             _optional_id(project_id, "project_id"),
             _optional_id(project_id, "project_id"),
             delivery_path,
-        )
+        ]
         if _SHA256.fullmatch(content_sha256) is None:
             raise ValueError("content_sha256 must be a lowercase SHA-256 value")
         if delivery_path not in _DELIVERY_PATHS:
@@ -383,9 +462,23 @@ class SkillTelemetryStore:
                   AND content_sha256 = ?
                   AND ((project_id = ?) OR (project_id IS NULL AND ? IS NULL))
                   AND delivery_path = ?
+                  {canonical_clause}
                 LIMIT 1
-                """,
-                values,
+                """.format(
+                    canonical_clause=(
+                        "AND canonical_skill_uri = ?"
+                        if delivery_path == "mcp_resource"
+                        else ""
+                    )
+                ),
+                (
+                    *values,
+                    *(
+                        (f"skill:///{normalized_skill_id}/SKILL.md",)
+                        if delivery_path == "mcp_resource"
+                        else ()
+                    ),
+                ),
             ).fetchone()
         return row is not None
 
@@ -490,6 +583,20 @@ class SkillTelemetryStore:
                         "AND delivery_path = 'mcp_resource'"
                     ).fetchone()[0]
                 )
+            protocol_observation_count = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM skill_events{where}{' AND ' if where else ' WHERE '}"
+                    "event_name IN ('skills_list_observed', 'skills_get_observed', 'skill_directory_read')",
+                    values,
+                ).fetchone()[0]
+            )
+            negative_negotiation_count = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM skill_events{where}{' AND ' if where else ' WHERE '}"
+                    "event_name = 'skills_negative_negotiation_observed'",
+                    values,
+                ).fetchone()[0]
+            )
             rows = connection.execute(
                 f"""
                 SELECT skill_id, content_sha256, project_id, delivery_path,
@@ -499,8 +606,71 @@ class SkillTelemetryStore:
                   SUM(event_name = 'skill_completed' AND outcome = 'success'),
                   SUM(event_name = 'skill_failed'),
                   SUM(outcome != 'success'),
-                  SUM(digest_verified = 1), SUM(digest_verified = 0)
-                FROM skill_events{meaningful_where}
+                  SUM(digest_verified = 1), SUM(digest_verified = 0),
+                  SUM(
+                    event_name = 'skill_loaded' AND outcome = 'success'
+                    AND commissioning_receipt_id IS NOT NULL
+                    AND EXISTS (
+                      SELECT 1 FROM skill_events AS c
+                      WHERE c.event_name = 'skill_commissioned'
+                        AND c.outcome = 'success'
+                        AND c.integrity_proof = 'live_commissioning'
+                        AND c.skill_id IS e.skill_id
+                        AND c.content_sha256 IS e.content_sha256
+                        AND c.project_id IS e.project_id
+                        AND c.delivery_path IS e.delivery_path
+                        AND c.commissioning_receipt_id IS e.commissioning_receipt_id
+                        AND c.server_identity_fingerprint IS e.server_identity_fingerprint
+                        AND c.protocol_version IS e.protocol_version
+                        AND c.extension_id IS e.extension_id
+                        AND c.extension_settings_fingerprint IS e.extension_settings_fingerprint
+                        AND c.canonical_skill_uri IS e.canonical_skill_uri
+                        AND c.resource_set_fingerprint IS e.resource_set_fingerprint
+                    )
+                  ),
+                  SUM(
+                    event_name = 'skill_loaded' AND outcome = 'success'
+                    AND NOT EXISTS (
+                      SELECT 1 FROM skill_events AS c
+                      WHERE c.event_name = 'skill_commissioned'
+                        AND c.outcome = 'success'
+                        AND c.integrity_proof = 'live_commissioning'
+                        AND c.skill_id IS e.skill_id
+                        AND c.content_sha256 IS e.content_sha256
+                        AND c.project_id IS e.project_id
+                        AND c.delivery_path IS e.delivery_path
+                        AND c.commissioning_receipt_id IS e.commissioning_receipt_id
+                        AND c.server_identity_fingerprint IS e.server_identity_fingerprint
+                        AND c.protocol_version IS e.protocol_version
+                        AND c.extension_id IS e.extension_id
+                        AND c.extension_settings_fingerprint IS e.extension_settings_fingerprint
+                        AND c.canonical_skill_uri IS e.canonical_skill_uri
+                        AND c.resource_set_fingerprint IS e.resource_set_fingerprint
+                    )
+                  ),
+                  SUM(
+                    event_name = 'skill_commissioned' AND outcome = 'success'
+                    AND integrity_proof = 'live_commissioning'
+                    AND EXISTS (
+                      SELECT 1 FROM skill_events AS l
+                      WHERE l.event_name = 'skill_loaded'
+                        AND l.outcome = 'success'
+                        AND l.skill_id IS e.skill_id
+                        AND l.content_sha256 IS e.content_sha256
+                        AND l.project_id IS e.project_id
+                        AND l.delivery_path IS e.delivery_path
+                        AND l.commissioning_receipt_id IS e.commissioning_receipt_id
+                        AND l.server_identity_fingerprint IS e.server_identity_fingerprint
+                        AND l.protocol_version IS e.protocol_version
+                        AND l.extension_id IS e.extension_id
+                        AND l.extension_settings_fingerprint IS e.extension_settings_fingerprint
+                        AND l.canonical_skill_uri IS e.canonical_skill_uri
+                        AND l.resource_set_fingerprint IS e.resource_set_fingerprint
+                    )
+                  ),
+                  SUM(event_name = 'skills_get_observed' AND outcome = 'success'),
+                  SUM(event_name = 'skill_directory_read' AND outcome = 'success')
+                FROM skill_events AS e{meaningful_where}
                 GROUP BY skill_id, content_sha256, project_id, delivery_path
                 ORDER BY skill_id, content_sha256, project_id, delivery_path
                 LIMIT ?
@@ -522,6 +692,8 @@ class SkillTelemetryStore:
             comparisons=self._comparisons(groups),
             event_count=event_count,
             catalogue_exposure_count=catalogue_exposure_count,
+            protocol_observation_count=protocol_observation_count,
+            negative_negotiation_count=negative_negotiation_count,
             truncated=truncated,
         )
 
@@ -567,6 +739,11 @@ class SkillTelemetryStore:
             error_count=int(row[9] or 0),
             digest_verified_count=int(row[10] or 0),
             digest_failed_count=int(row[11] or 0),
+            commissioning_correlated_load_count=int(row[12] or 0),
+            uncommissioned_load_count=int(row[13] or 0),
+            live_commissioned_count=int(row[14] or 0),
+            skills_get_count=int(row[15] or 0),
+            directory_read_count=int(row[16] or 0),
         )
 
     @staticmethod
@@ -597,6 +774,14 @@ class SkillTelemetryStore:
                 comparable, reason = False, "digest_unverified"
             else:
                 comparable, reason = True, "matched_content_sha256"
+            if mcp is None:
+                mcp_commissioned, commissioning_reason = False, "missing_mcp_resource"
+            elif mcp.live_commissioned_count < 1:
+                mcp_commissioned, commissioning_reason = False, "no_live_commissioning"
+            elif mcp.commissioning_correlated_load_count < 1:
+                mcp_commissioned, commissioning_reason = False, "no_commissioning_correlated_load"
+            else:
+                mcp_commissioned, commissioning_reason = True, "live_commissioning_correlated"
             comparisons.append(
                 SkillDeliveryComparison(
                     skill_id=skill_id,
@@ -604,6 +789,8 @@ class SkillTelemetryStore:
                     project_id=project_id,
                     comparable=comparable,
                     reason=reason,
+                    mcp_commissioned=mcp_commissioned,
+                    commissioning_reason=commissioning_reason,
                 )
             )
         return tuple(comparisons)

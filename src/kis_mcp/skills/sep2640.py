@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from collections.abc import Sequence
 from typing import Any, Literal
 from urllib.parse import unquote, urlparse
@@ -19,6 +20,9 @@ from pydantic import AnyUrl, BaseModel
 from .catalogue import SkillCatalogue
 from .errors import SkillsError
 from .frontmatter import parse_skill_frontmatter
+from .telemetry import SkillTelemetryEvent, SkillTelemetryStore
+
+LOGGER = logging.getLogger(__name__)
 
 SEP2640_EXTENSION_ID = "io.modelcontextprotocol/skills"
 SEP2640_BASELINE = "draft-v1-2026-08-25"
@@ -222,8 +226,57 @@ def _directory_offset(catalogue: SkillCatalogue, uri: str, cursor: str | None) -
 class Sep2640SkillsExtension(ServerExtension):
     identifier = SEP2640_EXTENSION_ID
 
-    def __init__(self, catalogue: SkillCatalogue) -> None:
+    def __init__(
+        self,
+        catalogue: SkillCatalogue,
+        telemetry: SkillTelemetryStore | None = None,
+        *,
+        server_identity_fingerprint: str | None = None,
+    ) -> None:
         self.catalogue = catalogue
+        self.telemetry = telemetry
+        self.server_identity_fingerprint = server_identity_fingerprint
+
+    def _record_protocol_event(
+        self,
+        event_name: str,
+        ctx: ServerRequestContext,
+        params: mcp_types.RequestParams,
+        *,
+        skill_id: str | None = None,
+        canonical_skill_uri: str | None = None,
+        resource_set_fingerprint: str | None = None,
+    ) -> None:
+        if self.telemetry is None:
+            return
+        try:
+            version = self.catalogue.load_skill(skill_id) if skill_id else None
+            meta = params.meta if isinstance(params.meta, dict) else {}
+            settings = self.client_settings(ctx) or {}
+            settings_hash = hashlib.sha256(
+                json.dumps(settings, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            self.telemetry.record(
+                SkillTelemetryEvent(
+                    event_name=event_name,
+                    source="observed",
+                    skill_id=skill_id,
+                    snapshot_id=version.snapshot_id if version else None,
+                    content_sha256=version.sha256 if version else None,
+                    project_id=meta.get("kis_project_id"),
+                    activation_id=meta.get("kis_activation_id"),
+                    delivery_path="mcp_resource",
+                    server_identity_fingerprint=self.server_identity_fingerprint,
+                    protocol_version=str(ctx.protocol_version),
+                    extension_id=SEP2640_EXTENSION_ID,
+                    extension_settings_fingerprint=settings_hash,
+                    commissioning_receipt_id=meta.get("kis_commissioning_receipt_id"),
+                    canonical_skill_uri=canonical_skill_uri,
+                    resource_set_fingerprint=resource_set_fingerprint,
+                )
+            )
+        except Exception:
+            LOGGER.warning("SEP-2640 protocol telemetry persistence failed", exc_info=True)
 
     def settings(self) -> dict[str, Any]:
         return {"directoryRead": True, "baseline": SEP2640_BASELINE}
@@ -266,6 +319,7 @@ class Sep2640SkillsExtension(ServerExtension):
                     "SKILLS_SEP2640_SIZE_LIMIT_EXCEEDED",
                 }:
                     raise
+        self._record_protocol_event("skills_list_observed", ctx, params)
         return SkillsListResult(skills=entries, nextCursor=page.next_cursor)
 
     async def _skills_get(
@@ -273,7 +327,21 @@ class Sep2640SkillsExtension(ServerExtension):
     ) -> SkillsGetResult:
         self._require_negotiated(ctx)
         skill_id = _skill_id_from_entrypoint_uri(str(params.uri))
-        return SkillsGetResult(skill=_skill_entry(self.catalogue, skill_id))
+        entry = _skill_entry(self.catalogue, skill_id)
+        identity = (
+            skill_resource_set_fingerprint(self.server_identity_fingerprint, entry)
+            if self.server_identity_fingerprint
+            else None
+        )
+        self._record_protocol_event(
+            "skills_get_observed",
+            ctx,
+            params,
+            skill_id=skill_id,
+            canonical_skill_uri=str(entry.uri),
+            resource_set_fingerprint=identity,
+        )
+        return SkillsGetResult(skill=entry)
 
     async def _directory_read(
         self, ctx: ServerRequestContext, params: ResourcesDirectoryReadParams
@@ -291,13 +359,33 @@ class Sep2640SkillsExtension(ServerExtension):
             if offset + page_size < len(children)
             else None
         )
+        skill_id, _relative_path, _is_directory = _resource_target(uri)
+        self._record_protocol_event(
+            "skill_directory_read",
+            ctx,
+            params,
+            skill_id=skill_id,
+            canonical_skill_uri=_file_uri(skill_id, "SKILL.md"),
+        )
         return ResourcesDirectoryReadResult(resources=page, nextCursor=next_cursor)
 
 
-def register_sep2640_extension(server: FastMCP, catalogue: SkillCatalogue) -> None:
+def register_sep2640_extension(
+    server: FastMCP,
+    catalogue: SkillCatalogue,
+    telemetry: SkillTelemetryStore | None = None,
+    *,
+    server_identity_fingerprint: str | None = None,
+) -> None:
     """Register the draft SEP-2640 transport binding over the KIS catalogue."""
     server.add_provider(SkillDirectResourceProvider(catalogue))
-    server.add_extension(Sep2640SkillsExtension(catalogue))
+    server.add_extension(
+        Sep2640SkillsExtension(
+            catalogue,
+            telemetry,
+            server_identity_fingerprint=server_identity_fingerprint,
+        )
+    )
 
 
 __all__ = [
@@ -312,11 +400,19 @@ __all__ = [
     "SkillsGetResult",
     "SkillsListParams",
     "SkillsListResult",
+    "catalogue_skill_resource_set_fingerprint",
     "register_sep2640_extension",
     "skill_requires_reapproval",
     "skill_resource_set_fingerprint",
     "verify_advertised_skill_resource",
 ]
+
+
+def catalogue_skill_resource_set_fingerprint(
+    catalogue: SkillCatalogue, skill_id: str, server_identity: str
+) -> str:
+    """Bind one canonical catalogue skill to server identity and its full resource set."""
+    return skill_resource_set_fingerprint(server_identity, _skill_entry(catalogue, skill_id))
 
 
 def skill_resource_set_fingerprint(server_identity: str, entry: SkillEntry) -> str:

@@ -131,4 +131,24 @@ def test_existing_database_migrates_delivery_columns_without_rewriting_native_ro
     assert report.groups[0].delivery_path == "kis_native"
     with sqlite3.connect(path) as connection:
         columns = {row[1] for row in connection.execute("PRAGMA table_info(skill_events)")}
-    assert {"delivery_path", "resource_uri", "resource_class", "server_origin", "digest_verified"} <= columns
+    assert {
+        "delivery_path",
+        "resource_uri",
+        "resource_class",
+        "server_origin",
+        "server_identity_fingerprint",
+        "protocol_version",
+        "extension_id",
+        "extension_settings_fingerprint",
+        "commissioning_receipt_id",
+        "canonical_skill_uri",
+        "resource_set_fingerprint",
+        "integrity_proof",
+        "digest_verified",
+    } <= columns
+    with sqlite3.connect(path) as connection:
+        migrated = connection.execute(
+            "SELECT delivery_path, server_identity_fingerprint, commissioning_receipt_id "
+            "FROM skill_events WHERE skill_id = 'alpha-skill'"
+        ).fetchone()
+    assert migrated == ("kis_native", None, None)

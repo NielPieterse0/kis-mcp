@@ -1,0 +1,51 @@
+{
+  "schema_version": 4,
+  "change_id": "615-mcp-extension-commissioning",
+  "status": "active",
+  "branch": "change/615-mcp-extension-commissioning",
+  "worktree": ".work/worktrees/615-mcp-extension-commissioning",
+  "base": "main",
+  "outcome": "Add reusable in-process MCP-extension live commissioning with SEP-2640 Skills as the first profile, plus exact bounded Skills delivery/commissioning telemetry identity, integrity, drift, migration, readiness, and negative-negotiation evidence.",
+  "owned_paths": [
+    "src/kis_mcp/mcp_extensions/**",
+    "src/kis_mcp/skills/**",
+    "tests/mcp_extensions/**",
+    "tests/skills/**",
+    "tests/discover/test_tool_registration.py",
+    "docs/SKILLS-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/615-mcp-extension-commissioning/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/commissioning/**",
+    "src/kis_mcp/commissioning_runtime/**",
+    "tests/commissioning/**",
+    "tests/commissioning_runtime/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "local_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "upstream_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-621",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 621,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "agent-a"
+  }
+}
