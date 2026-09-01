@@ -230,13 +230,17 @@ class PromotionReadyHandoff:
             raise ValueError("contract_fingerprint must be SHA-256")
         if self.pending_obligations:
             raise ValueError("promotion_ready cannot contain pending obligations")
-        if self.candidate_identity.get("work_id") != self.work_id:
-            raise ValueError("candidate identity work_id mismatch")
-        if self.candidate_identity.get("contract_fingerprint") != self.contract_fingerprint:
-            raise ValueError("candidate identity contract fingerprint mismatch")
-        server_instance = self.candidate_identity.get("server_instance_id")
-        if not isinstance(server_instance, str) or not server_instance:
-            raise ValueError("candidate identity server_instance_id is required")
+        live_candidate_required = (
+            TaskObligation.LIVE_CANDIDATE_VERIFICATION.value in self.satisfied_obligations
+        )
+        if live_candidate_required:
+            if self.candidate_identity.get("work_id") != self.work_id:
+                raise ValueError("candidate identity work_id mismatch")
+            if self.candidate_identity.get("contract_fingerprint") != self.contract_fingerprint:
+                raise ValueError("candidate identity contract fingerprint mismatch")
+            server_instance = self.candidate_identity.get("server_instance_id")
+            if not isinstance(server_instance, str) or not server_instance:
+                raise ValueError("candidate identity server_instance_id is required")
         if self.execution.get("contract") != "change-execution-result-v2" or self.execution.get("status") != "passed":
             raise ValueError("promotion_ready requires passed implementation execution")
         if not self.satisfied_obligations or len(set(self.satisfied_obligations)) != len(self.satisfied_obligations):
