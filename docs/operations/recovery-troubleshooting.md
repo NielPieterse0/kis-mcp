@@ -32,10 +32,26 @@ pwsh -File .\scripts\recover-kis-dev.ps1
 
 This surface is intentionally independent of the selected MCP runtime and tunnel. It is hard-bound to `kis-dev`, delegates ownership checks and stale-instance reclamation to the normal `start-chatgpt.ps1` launcher, and never selects or mutates `kis-op`. Use `-Foreground` to keep the launcher attached while diagnosing startup output.
 
+When the MCP path itself cannot be trusted, the same script provides a bounded repository read that does not start or contact either KIS runtime or any tunnel:
+
+```powershell
+pwsh -File .\scripts\recover-kis-dev.ps1 -ReadPath AGENTS.md
+```
+
+`-ReadPath` accepts only repository-relative UTF-8 files, rejects traversal and reparse-point targets, and caps a single diagnostic read at 1 MiB. It returns a JSON envelope with `state=read`, `recovery_surface=local-shell`, the normalized relative path, byte count, and content. This is the KIS-owned recovery/read contract; it remains usable even when the selected MCP route cannot answer.
+
+Do not conflate transport failures with the no-auth metadata behavior fixed under #609. An OAuth discovery 404 from the optional protected-resource metadata probe is allowed for the configured no-auth tunnel profile. By contrast, a failed `mcp-tool.fetch` operation reported as `invalid_mcp_response` after an MCP probe returns 404, 429, or 5xx is an operation failure and must remain an error. The independent local-shell read above bypasses that connector/tunnel boundary rather than treating its failed response as successful content.
+
 ## Troubleshooting
 
 - `KIS_DEV_RECOVERY_START_SCRIPT_MISSING`: restore the repository checkout's canonical `scripts\start-chatgpt.ps1` before attempting recovery.
 - `KIS_DEV_RECOVERY_DETACH_FAILED`: detached Windows process creation failed; retry with `-Foreground` to expose the underlying launcher failure directly.
+- `KIS_DEV_RECOVERY_READ_PATH_INVALID`: use a repository-relative path with no `.` or `..` traversal segment.
+- `KIS_DEV_RECOVERY_READ_NOT_FOUND`: verify the requested diagnostic file exists in the authoritative checkout.
+- `KIS_DEV_RECOVERY_READ_REPARSE_POINT`: do not route recovery reads through links, junctions, or other reparse points.
+- `KIS_DEV_RECOVERY_READ_TOO_LARGE`: select a diagnostic UTF-8 file no larger than 1 MiB.
+- `KIS_DEV_RECOVERY_READ_NOT_UTF8`: use a text diagnostic artifact; binary recovery reads are not part of this surface.
+- `KIS_DEV_RECOVERY_MODE_INVALID`: do not combine `-ReadPath` with the foreground launcher mode.
 - `KIS_MCP_SOURCE_CHECKOUT_REQUIRED`: run the CLI/scripts from the repository checkout and restore the canonical settings/policy files identified by the error; do not substitute generated state or a standalone wheel for repository authority.
 - `KIS_MCP_REMOTE_INSTANCE_NOT_CONFIGURED`: enter the real tunnel ID for the selected instance, set `configured` to `true`, and store its credential before setup or startup.
 - A missing vault entry for the selected tunnel reference: run `scripts\set-tunnel-credential.ps1` for that instance, then retry.
