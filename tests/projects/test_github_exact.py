@@ -517,6 +517,74 @@ def test_create_pull_request_status_only_and_timeout_reconcile_do_not_duplicate(
     assert sum(call[:3] == ("gh", "pr", "create") for call, _cwd, _env in timeout_runner.calls) == 1
 
 
+def test_create_pull_request_neutralizes_issue_closing_references_before_reconciliation() -> None:
+    head = "d" * 40
+    default = "b" * 40
+    branch = "change/example"
+    ref = f"refs/heads/{branch}"
+    title = "Exact change"
+    requested_body = "ClOsEs #614; Fixes NielPieterse0/kis-mcp#608; Resolves #609"
+    safe_body = "Related: #614; Related: NielPieterse0/kis-mcp#608; Related: #609"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        *_default_remote(default),
+        _ls_remote(ref, head),
+        Result(stdout=_pr_pages(head=head, title=title, body=safe_body)),
+    ))
+
+    result = RegisteredGitHubOperations(_registry(), runner=runner).create_pull_request(
+        project_id="kis-mcp",
+        branch=branch,
+        expected_head=head,
+        expected_remote_default=default,
+        title=title,
+        body=requested_body,
+        approved=True,
+        status_only=True,
+        deadline_ms=20_000,
+    )
+
+    assert result["operation_state"] == "applied"
+    assert result["state"] == "open"
+    assert result["recovery"] == "existing_exact"
+    assert not any(call[:3] == ("gh", "pr", "create") for call, _cwd, _env in runner.calls)
+
+
+def test_create_pull_request_sends_only_neutralized_body_to_github() -> None:
+    head = "d" * 40
+    default = "b" * 40
+    branch = "change/example"
+    ref = f"refs/heads/{branch}"
+    requested_body = "Fixes #614 and resolves other/repo#22"
+    safe_body = "Related: #614 and Related: other/repo#22"
+    runner = QueueRunner((
+        Result(),
+        Result(),
+        *_default_remote(default),
+        _ls_remote(ref, head),
+        Result(stdout="[]"),
+        ToolError("REGISTERED_GITHUB_COMMAND_FAILED: simulated create failure"),
+        Result(stdout="[]"),
+    ))
+
+    RegisteredGitHubOperations(_registry(), runner=runner).create_pull_request(
+        project_id="kis-mcp",
+        branch=branch,
+        expected_head=head,
+        expected_remote_default=default,
+        title="Exact change",
+        body=requested_body,
+        approved=True,
+        deadline_ms=20_000,
+    )
+
+    create_call = next(call for call, _cwd, _env in runner.calls if call[:3] == ("gh", "pr", "create"))
+    body_index = create_call.index("--body") + 1
+    assert create_call[body_index] == safe_body
+    assert requested_body not in create_call
+
+
 def test_create_pull_request_status_only_rejects_exact_plus_conflicting_history() -> None:
     head = "d" * 40
     default = "b" * 40
