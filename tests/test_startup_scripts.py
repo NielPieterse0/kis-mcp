@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -477,6 +478,126 @@ def test_kis_dev_recovery_surface_supports_foreground_and_detached_launch() -> N
     assert "Invoke-CimMethod -ClassName Win32_Process -MethodName Create" in content
     assert "KIS_DEV_RECOVERY_DETACH_FAILED" in content
     assert "recovery_surface = 'local-shell'" in content
+
+
+def test_kis_dev_recovery_surface_reads_repository_file_without_runtime() -> None:
+    script = SCRIPTS / "recover-kis-dev.ps1"
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-File",
+            str(script),
+            "-ReadPath",
+            "AGENTS.md",
+        ],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["state"] == "read"
+    assert payload["recovery_surface"] == "local-shell"
+    assert payload["path"] == "AGENTS.md"
+    assert "# kis-mcp" in payload["content"]
+
+
+def test_kis_dev_recovery_surface_rejects_repository_escape() -> None:
+    script = SCRIPTS / "recover-kis-dev.ps1"
+    result = subprocess.run(
+        ["pwsh", "-NoProfile", "-File", str(script), "-ReadPath", "..\\AGENTS.md"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "KIS_DEV_RECOVERY_READ_PATH_INVALID" in result.stderr
+
+
+def test_kis_dev_recovery_read_does_not_require_runtime_launcher(tmp_path: Path) -> None:
+    (tmp_path / "diagnostic.txt").write_text("independent-read\n", encoding="utf-8")
+    script = SCRIPTS / "recover-kis-dev.ps1"
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-File",
+            str(script),
+            "-RepositoryRoot",
+            str(tmp_path),
+            "-ReadPath",
+            "diagnostic.txt",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert not (tmp_path / "scripts" / "start-chatgpt.ps1").exists()
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["content"].replace("\r\n", "\n") == "independent-read\n"
+
+
+def test_kis_dev_recovery_read_rejects_invalid_utf8(tmp_path: Path) -> None:
+    (tmp_path / "binary.dat").write_bytes(b"\xff\xfe\xfd")
+    script = SCRIPTS / "recover-kis-dev.ps1"
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-File",
+            str(script),
+            "-RepositoryRoot",
+            str(tmp_path),
+            "-ReadPath",
+            "binary.dat",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "KIS_DEV_RECOVERY_READ_NOT_UTF8" in result.stderr
+
+
+def test_kis_dev_recovery_read_rejects_oversized_file(tmp_path: Path) -> None:
+    (tmp_path / "large.txt").write_bytes(b"x" * (1048576 + 1))
+    script = SCRIPTS / "recover-kis-dev.ps1"
+    result = subprocess.run(
+        [
+            "pwsh",
+            "-NoProfile",
+            "-File",
+            str(script),
+            "-RepositoryRoot",
+            str(tmp_path),
+            "-ReadPath",
+            "large.txt",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "KIS_DEV_RECOVERY_READ_TOO_LARGE" in result.stderr
+
+
+def test_recovery_docs_distinguish_oauth_discovery_from_mcp_operation_failure() -> None:
+    content = _document("docs/operations/recovery-troubleshooting.md")
+
+    assert "OAuth discovery 404" in content
+    assert "mcp-tool.fetch" in content
+    assert "invalid_mcp_response" in content
+    assert "404, 429, or 5xx" in content
+    assert "must remain an error" in content
+    assert "-ReadPath" in content
 
 
 def test_tunnel_setup_captures_provider_cli_output() -> None:

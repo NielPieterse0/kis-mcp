@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "620-independent-recovery-read",
+  "status": "active",
+  "branch": "change/620-independent-recovery-read",
+  "worktree": ".work/worktrees/620-independent-recovery-read",
+  "base": "main",
+  "outcome": "Provide a KIS-owned local recovery/read surface independent of selected MCP runtime and tunnel, with deterministic error classification and live commissioning for issue 626.",
+  "owned_paths": [
+    "scripts/recover-kis-dev.ps1",
+    "tests/test_startup_scripts.py",
+    "docs/operations/recovery-troubleshooting.md",
+    ".work/changes/620-independent-recovery-read/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "2d2e88a31e674888e24dcadd3b57c1dfc4124561",
+    "local_tree": "bd675dc86889500230602841038d3afc57ad85cf",
+    "upstream_sha": "2d2e88a31e674888e24dcadd3b57c1dfc4124561",
+    "upstream_tree": "bd675dc86889500230602841038d3afc57ad85cf",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-626",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 626,
+    "source_kind": "issue",
+    "documentation_impact": "in_progress",
+    "execution_owner": "codex"
+  }
+}
