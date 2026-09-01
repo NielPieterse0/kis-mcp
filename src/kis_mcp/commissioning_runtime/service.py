@@ -274,11 +274,43 @@ class CommissioningRuntimeService:
                 minimum_closed_at=state.initialized_at if first_scan else None,
             )
             candidate_count = len(candidates)
+            candidate_error_types: set[str] = set()
             for pull_number in candidates:
-                outcome = await self.processor(repository, pull_number, bounded)
-                if not isinstance(outcome, dict):
-                    raise TypeError("candidate processor result must be an object")
-                outcomes.append(outcome)
+                try:
+                    outcome = await self.processor(repository, pull_number, bounded)
+                    if not isinstance(outcome, dict):
+                        raise TypeError("candidate processor result must be an object")
+                    outcomes.append(outcome)
+                except CommissioningBudgetError:
+                    raise
+                except (RuntimeError, TypeError, ValueError, KeyError) as exc:
+                    candidate_error_types.add(type(exc).__name__)
+                    failure = {
+                        "pull_number": pull_number,
+                        "classification": "unresolved_candidate",
+                        "error_type": type(exc).__name__,
+                    }
+                    error_code = getattr(exc, "code", None)
+                    if isinstance(error_code, str) and error_code:
+                        failure["error_code"] = error_code
+                    outcomes.append(failure)
+            if candidate_error_types:
+                error_type = (
+                    next(iter(candidate_error_types))
+                    if len(candidate_error_types) == 1
+                    else "MultipleCandidateErrors"
+                )
+                payload = self._receipt_payload(
+                    repository=repository,
+                    occurred_at=now,
+                    complete=False,
+                    initialized=False,
+                    candidate_count=candidate_count,
+                    outcomes=outcomes,
+                    error_type=error_type,
+                )
+                ref = self.store.persist_receipt(payload, now)
+                return self._result(payload, ref.receipt_id)
         except (RuntimeError, TypeError, ValueError, KeyError) as exc:
             payload = self._receipt_payload(
                 repository=repository,
