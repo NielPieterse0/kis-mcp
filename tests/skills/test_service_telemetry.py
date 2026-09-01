@@ -203,6 +203,35 @@ def test_reported_outcome_requires_same_delivery_path_as_observed_load(
             resource_uri="skill:///alpha-skill/SKILL.md",
             resource_class="SKILL.md",
             server_origin="kis-test",
+            canonical_skill_uri="skill:///wrong-skill/SKILL.md",
+            digest_verified=True,
+        )
+    )
+    with pytest.raises(SkillsError, match="SKILLS_TELEMETRY_ATTRIBUTION_REQUIRED"):
+        service.record_skill_outcome(
+            skill_id="alpha-skill",
+            activation_id="activation-1",
+            snapshot_id=loaded.snapshot_id,
+            content_sha256=loaded.sha256,
+            project_id="project-alpha",
+            phase="completed",
+            delivery_path="mcp_resource",
+        )
+
+    store.record(
+        SkillTelemetryEvent(
+            event_name="skill_loaded",
+            source="observed",
+            skill_id="alpha-skill",
+            snapshot_id=loaded.snapshot_id,
+            content_sha256=loaded.sha256,
+            project_id="project-alpha",
+            activation_id="activation-1",
+            delivery_path="mcp_resource",
+            resource_uri="skill:///alpha-skill/SKILL.md",
+            resource_class="SKILL.md",
+            server_origin="kis-test",
+            canonical_skill_uri="skill:///alpha-skill/SKILL.md",
             digest_verified=True,
         )
     )

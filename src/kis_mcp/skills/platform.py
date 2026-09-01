@@ -13,12 +13,14 @@ from ..capabilities.contracts import (
 )
 from ..capabilities.normalization import default_quality, normalize_effects
 from ..capabilities.settings import CapabilitySettings, load_capability_settings
+from ..mcp_extensions import negotiated_extension_settings, register_mcp_extension_commissioning
 from ..runtime_observability import get_runtime_observability
+from .commissioning import Sep2640SkillsCommissioningProfile
 from .delivery_telemetry import register_skill_delivery_telemetry
 from .metadata import enrich_skill_card
 from .models import SkillCard
 from .resources import register_skill_resources
-from .sep2640 import register_sep2640_extension
+from .sep2640 import catalogue_skill_resource_set_fingerprint, register_sep2640_extension
 from .service import SkillsService
 from .status import (
     SkillsRuntimeStatus,
@@ -133,10 +135,33 @@ def register_platform_skills(server, *, state_root: Path | str | None = None):
     service = register_skills_tools(server, telemetry=telemetry)
     if not isinstance(service, SkillsService):
         return service, ()
+    commissioning = register_mcp_extension_commissioning(server)
+    profile = Sep2640SkillsCommissioningProfile(service.catalogue, telemetry)
+    commissioning.register_profile(profile)
     register_skill_resources(server, service.catalogue)
-    register_sep2640_extension(server, service.catalogue)
+    register_sep2640_extension(
+        server,
+        service.catalogue,
+        telemetry,
+        server_identity_fingerprint=commissioning.server_identity_fingerprint,
+    )
     if telemetry is not None:
-        register_skill_delivery_telemetry(server, service.catalogue, telemetry)
+        register_skill_delivery_telemetry(
+            server,
+            service.catalogue,
+            telemetry,
+            server_identity_fingerprint=commissioning.server_identity_fingerprint,
+            extension_id=profile.extension_id,
+            resource_set_fingerprint_resolver=lambda skill_id: catalogue_skill_resource_set_fingerprint(
+                service.catalogue,
+                skill_id,
+                commissioning.server_identity_fingerprint,
+            ),
+            negotiated_settings_resolver=negotiated_extension_settings,
+            commissioning_receipt_validator=lambda receipt_id: commissioning.is_active_receipt(
+                receipt_id, profile.profile_id
+            ),
+        )
     response = service._list_catalogue_skills(
         limit=service.catalogue.config.limits.list_max_limit
     )
