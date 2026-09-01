@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "617-post-merge-observer-failure-isolation",
+  "status": "active",
+  "branch": "change/617-post-merge-observer-failure-isolation",
+  "worktree": ".work/worktrees/617-post-merge-observer-failure-isolation",
+  "base": "main",
+  "outcome": "Isolate historical post-merge commissioning candidate failures so valid later merges remain observable without weakening merge identity or checkpoint safety.",
+  "owned_paths": [
+    "src/kis_mcp/commissioning_runtime/service.py",
+    "tests/post_merge_commissioning/test_runtime_service.py",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/617-post-merge-observer-failure-isolation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "local_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "upstream_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "DEFECT-620",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 620,
+    "source_kind": "issue",
+    "documentation_impact": "pre_merge_complete",
+    "execution_owner": "agent-c"
+  }
+}

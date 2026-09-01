@@ -80,14 +80,45 @@ class RecordingProcessor:
 
 
 class RetryableEvidenceProcessor(RecordingProcessor):
+    def __init__(self, *, fail_on: int | None = None) -> None:
+        super().__init__()
+        self.fail_on = fail_on
+
     async def __call__(
         self, repository: str, pull_number: int, invoker: Any
     ) -> dict[str, Any]:
         assert repository == REPOSITORY
         self.calls.append(pull_number)
-        raise MergeEvidenceError(
-            "provider_evidence_invalid", "provider detail must not persist"
-        )
+        if self.fail_on is None or self.fail_on == pull_number:
+            raise MergeEvidenceError(
+                "provider_evidence_invalid", "provider detail must not persist"
+            )
+        return {
+            "pull_number": pull_number,
+            "classification": "not_required",
+            "merge_sha": str(pull_number).zfill(40),
+            "commissioning_keys": [],
+            "issue_numbers": [],
+        }
+
+
+class MixedFailureProcessor(RecordingProcessor):
+    async def __call__(
+        self, repository: str, pull_number: int, invoker: Any
+    ) -> dict[str, Any]:
+        assert repository == REPOSITORY
+        self.calls.append(pull_number)
+        if pull_number == 565:
+            raise MergeEvidenceError("provider_evidence_invalid", "hidden")
+        if pull_number == 570:
+            raise ValueError("hidden")
+        return {
+            "pull_number": pull_number,
+            "classification": "not_required",
+            "merge_sha": str(pull_number).zfill(40),
+            "commissioning_keys": [],
+            "issue_numbers": [],
+        }
 
 
 def _search(
@@ -225,9 +256,78 @@ def test_retryable_merge_evidence_error_preserves_checkpoint(tmp_path: Path) -> 
 
     assert result["complete"] is False
     assert result["error_type"] == "MergeEvidenceError"
+    assert result["outcomes"] == [
+        {
+            "pull_number": 452,
+            "classification": "unresolved_candidate",
+            "error_type": "MergeEvidenceError",
+            "error_code": "provider_evidence_invalid",
+        }
+    ]
     assert service.store.load_checkpoint(REPOSITORY) == original
     receipt = service.store.load_receipt(result["receipt_id"])
     assert "provider detail" not in str(receipt)
+
+
+def test_historical_merge_evidence_failure_does_not_wedge_later_merge(tmp_path: Path) -> None:
+    now = [datetime(2026, 9, 1, 9, 0, tzinfo=UTC)]
+    invoker = FakeInvoker(
+        {
+            "github_search_pull_requests": [
+                _search(565, 570, 615, closed_at="2026-09-01T09:01:00Z")
+            ]
+        }
+    )
+    processor = RetryableEvidenceProcessor(fail_on=570)
+    service = _service(tmp_path, now, invoker, processor)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    original = service.store.load_checkpoint(REPOSITORY)
+
+    now[0] = now[0] + timedelta(seconds=300)
+    result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    assert result["complete"] is False
+    assert result["candidate_count"] == 3
+    assert result["error_type"] == "MergeEvidenceError"
+    assert processor.calls == [565, 570, 615]
+    assert result["outcomes"][0]["pull_number"] == 565
+    assert result["outcomes"][0]["classification"] == "not_required"
+    assert result["outcomes"][1] == {
+        "pull_number": 570,
+        "classification": "unresolved_candidate",
+        "error_type": "MergeEvidenceError",
+        "error_code": "provider_evidence_invalid",
+    }
+    assert result["outcomes"][2]["pull_number"] == 615
+    assert result["outcomes"][2]["classification"] == "not_required"
+    assert service.store.load_checkpoint(REPOSITORY) == original
+
+
+def test_mixed_candidate_failures_preserve_each_error_type(tmp_path: Path) -> None:
+    now = [datetime(2026, 9, 1, 9, 0, tzinfo=UTC)]
+    invoker = FakeInvoker(
+        {
+            "github_search_pull_requests": [
+                _search(565, 570, 615, closed_at="2026-09-01T09:01:00Z")
+            ]
+        }
+    )
+    processor = MixedFailureProcessor()
+    service = _service(tmp_path, now, invoker, processor)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    original = service.store.load_checkpoint(REPOSITORY)
+
+    now[0] = now[0] + timedelta(seconds=300)
+    result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    assert result["complete"] is False
+    assert result["error_type"] == "MultipleCandidateErrors"
+    assert [item["error_type"] for item in result["outcomes"][:2]] == [
+        "MergeEvidenceError",
+        "ValueError",
+    ]
+    assert result["outcomes"][2]["pull_number"] == 615
+    assert service.store.load_checkpoint(REPOSITORY) == original
 
 
 def test_corrupt_checkpoint_recovers_at_current_time_without_backfill(tmp_path: Path) -> None:
