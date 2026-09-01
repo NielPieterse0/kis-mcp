@@ -24,7 +24,18 @@ from kis_mcp.workflows.once_through import (
 from kis_mcp.workflows.once_through.activation import WorkActivationCoordinator
 from kis_mcp.workflows.once_through.candidate_runtime import _runtime_instance_id
 from kis_mcp.state import resolve_runtime_state_path
-from kis_mcp.workflows.once_through.contracts import fingerprint
+from kis_mcp.workflows.once_through.contracts import (
+    LEGACY_SCHEMA_VERSION,
+    ObligationPhase,
+    PromotionReadyHandoff,
+    TaskObligation,
+    fingerprint,
+)
+from kis_mcp.workflows.once_through.evidence import (
+    required_obligations,
+    validate_effect_safe_scenarios,
+    validate_mcp_tool_schemas,
+)
 from kis_mcp.workflows.once_through.tools import (
     _governed_source_binding,
     register_once_through_tools,
@@ -823,3 +834,112 @@ def test_failed_candidate_cleanup_preserves_original_failure_on_exit_race() -> N
     asyncio.run(_terminate_launched_process(process))
     assert process.running is False
     assert process.killed is False
+
+
+def test_v2_handoff_exposes_typed_phase_plan_and_normalizes_strings() -> None:
+    contract = _contract(46011, work_id="WORK-588")
+    payload = contract.to_json_dict()
+    assert contract.schema_version == 2
+    assert contract.obligations == (
+        TaskObligation.VERIFICATION,
+        TaskObligation.REVIEW_CLOSED,
+        TaskObligation.LIVE_CANDIDATE_VERIFICATION,
+    )
+    plan = {item["kind"]: item for item in payload["typed_obligations"]}
+    assert plan["verification"] == {
+        "kind": "verification", "phase": "implementation", "declared": True
+    }
+    assert plan["provider_proof"]["phase"] == "pull_request"
+    assert plan["documentation"]["phase"] == "documentation"
+    assert plan["commissioning"]["phase"] == "commissioning"
+    assert plan["completion"]["phase"] == "completion"
+    assert contract.obligations_through(ObligationPhase.REVIEW) == (
+        TaskObligation.VERIFICATION, TaskObligation.REVIEW_CLOSED,
+    )
+
+
+def test_conditional_obligations_fail_closed_and_remain_phase_aware() -> None:
+    obligations = tuple(TaskObligation)
+    with pytest.raises(ValueError, match="OBLIGATION_CONDITION_UNRESOLVED: mcp_surface"):
+        required_obligations(
+            obligations, phase=ObligationPhase.CANDIDATE, conditions={}
+        )
+    required = required_obligations(
+        obligations,
+        phase=ObligationPhase.COMPLETION,
+        conditions={
+            "mcp_surface": True,
+            "provider_required": True,
+            "documentation_required": False,
+            "commissioning_required": True,
+        },
+    )
+    assert TaskObligation.LIVE_CANDIDATE_VERIFICATION in required
+    assert TaskObligation.PROVIDER_PROOF in required
+    assert TaskObligation.DOCUMENTATION not in required
+    assert TaskObligation.COMMISSIONING in required
+    assert TaskObligation.COMPLETION in required
+
+
+def test_published_mcp_schema_validation_requires_exact_input_and_output() -> None:
+    expected = {"mutate": {
+        "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}},
+        "outputSchema": {"type": "object", "required": ["status"]},
+    }}
+    assert set(validate_mcp_tool_schemas(expected, expected)) == {"mutate"}
+    changed = {"mutate": {
+        "inputSchema": expected["mutate"]["inputSchema"],
+        "outputSchema": {"type": "object", "required": ["result"]},
+    }}
+    with pytest.raises(ValueError, match="MCP_TOOL_SCHEMA_MISMATCH: mutate.outputSchema"):
+        validate_mcp_tool_schemas(expected, changed)
+
+
+def test_mutating_live_scenario_requires_disposable_cleanup_or_recovery_evidence() -> None:
+    scenario = {"effect": "external", "effect_boundary": {
+        "fixture_id": "fixture-588", "disposable": True,
+    }}
+    with pytest.raises(ValueError, match="LIVE_EFFECT_CLEANUP_EVIDENCE_REQUIRED"):
+        validate_effect_safe_scenarios((scenario,), ({"status": "passed"},))
+    proofs = validate_effect_safe_scenarios(
+        (scenario,), ({"status": "passed", "cleanup": {"status": "applied"}},)
+    )
+    assert len(proofs) == 1 and len(proofs[0]) == 64
+
+
+def test_schema_v1_contract_and_promotion_records_remain_loadable(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+    legacy = TaskHandoffContract(
+        project_id="kis-mcp", work_id="WORK-588", repository="NielPieterse0/kis-mcp",
+        requirements=("legacy",), acceptance_criteria=("loads",),
+        affected_surfaces=("mcp",), obligations=("verification", "review_closed"),
+        candidate_port=46011, source_identity="legacy:588", change_id="612-legacy",
+        schema_version=LEGACY_SCHEMA_VERSION,
+    )
+    store.contracts.mkdir(parents=True)
+    store.contract_path("WORK-588").write_text(
+        json.dumps(legacy.to_json_dict()), encoding="utf-8"
+    )
+    loaded = store.load_contract("WORK-588")
+    assert loaded is not None and loaded.schema_version == LEGACY_SCHEMA_VERSION
+    assert loaded.obligations == (TaskObligation.VERIFICATION, TaskObligation.REVIEW_CLOSED)
+
+    promotion = PromotionReadyHandoff(
+        work_id="WORK-588", change_id="612-legacy",
+        contract_fingerprint=legacy.contract_fingerprint, source_commit_sha="a" * 40,
+        candidate_identity={
+            "work_id": "WORK-588", "contract_fingerprint": legacy.contract_fingerprint,
+            "server_instance_id": "candidate-588",
+        },
+        execution={"contract": "change-execution-result-v2", "status": "passed"},
+        evidence=(), satisfied_obligations=("verification",),
+        schema_version=LEGACY_SCHEMA_VERSION,
+    )
+    store.promotions.mkdir(parents=True)
+    store.promotion_path("WORK-588").write_text(
+        json.dumps(promotion.to_json_dict()), encoding="utf-8"
+    )
+    loaded_promotion = store.load_promotion("WORK-588")
+    assert loaded_promotion.schema_version == LEGACY_SCHEMA_VERSION
+    assert loaded_promotion.source_commit_sha == "a" * 40
+    assert store.resolve_promotion("612-legacy", "a" * 40) == loaded_promotion

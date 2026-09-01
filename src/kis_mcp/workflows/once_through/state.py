@@ -12,6 +12,7 @@ from typing import Any
 from uuid import uuid4
 
 from .contracts import (
+    LEGACY_SCHEMA_VERSION,
     EvidenceReference,
     EvidenceValidityClass,
     PromotionReadyHandoff,
@@ -191,6 +192,7 @@ class TaskHandoffStore:
             candidate_port=value.get("candidate_port"),
             source_identity=str(value.get("source_identity", "")),
             change_id=value.get("change_id"),
+            schema_version=int(value.get("schema_version", LEGACY_SCHEMA_VERSION)),
         )
         if value.get("contract_fingerprint") != contract.contract_fingerprint:
             raise OnceThroughStateError("HANDOFF_CONTRACT_INVALID", "task handoff fingerprint mismatch")
@@ -296,6 +298,14 @@ class TaskHandoffStore:
     def promotion_path(self, work_id: str) -> Path:
         return self.promotions / f"{self._safe_work_id(work_id)}.json"
 
+    @staticmethod
+    def promotion_lookup_key(change_id: str, source_commit_sha: str) -> str:
+        if not isinstance(change_id, str) or not change_id.strip() or ":" in change_id:
+            raise ValueError("change_id is invalid for PromotionReady lookup")
+        if not isinstance(source_commit_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", source_commit_sha):
+            raise ValueError("source_commit_sha is invalid for PromotionReady lookup")
+        return f"@change:{change_id}:{source_commit_sha}"
+
     def save_promotion(self, handoff: PromotionReadyHandoff) -> PromotionReadyHandoff:
         contract = self.load_contract(handoff.work_id)
         assert contract is not None
@@ -305,6 +315,32 @@ class TaskHandoffStore:
         return handoff
 
     def load_promotion(self, work_id: str) -> PromotionReadyHandoff:
+        if work_id.startswith("@change:"):
+            parts = work_id.split(":", 2)
+            if len(parts) != 3:
+                raise OnceThroughStateError("PROMOTION_LOOKUP_INVALID", "PromotionReady lookup identity is invalid")
+            return self.resolve_promotion(parts[1], parts[2])
+        return self._load_promotion_exact(work_id)
+
+    def resolve_promotion(self, change_id: str, source_commit_sha: str) -> PromotionReadyHandoff:
+        lookup = self.promotion_lookup_key(change_id, source_commit_sha)
+        matches: list[PromotionReadyHandoff] = []
+        for path in sorted(self.promotions.glob("*.json")):
+            try:
+                candidate = self._load_promotion_exact(path.stem)
+            except OnceThroughStateError as exc:
+                if exc.code == "PROMOTION_HANDOFF_MISSING":
+                    continue
+                raise
+            if candidate.change_id == change_id and candidate.source_commit_sha == source_commit_sha:
+                matches.append(candidate)
+        if not matches:
+            raise OnceThroughStateError("PROMOTION_HANDOFF_MISSING", f"no PromotionReady handoff exists for {lookup}")
+        if len(matches) != 1:
+            raise OnceThroughStateError("PROMOTION_HANDOFF_AMBIGUOUS", f"multiple PromotionReady handoffs match {lookup}")
+        return matches[0]
+
+    def _load_promotion_exact(self, work_id: str) -> PromotionReadyHandoff:
         try:
             value = json.loads(self.promotion_path(work_id).read_text(encoding="utf-8"))
         except FileNotFoundError as exc:
@@ -331,6 +367,7 @@ class TaskHandoffStore:
             satisfied_obligations=tuple(value.get("satisfied_obligations", ())),
             pending_obligations=tuple(value.get("pending_obligations", ())),
             status=str(value.get("status", "")),
+            schema_version=int(value.get("schema_version", LEGACY_SCHEMA_VERSION)),
         )
         contract = self.load_contract(work_id)
         assert contract is not None

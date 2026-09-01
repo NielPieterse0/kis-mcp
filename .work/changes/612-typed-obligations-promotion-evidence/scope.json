@@ -1,0 +1,54 @@
+{
+  "schema_version": 4,
+  "change_id": "612-typed-obligations-promotion-evidence",
+  "status": "active",
+  "branch": "change/612-typed-obligations-promotion-evidence",
+  "worktree": ".work/worktrees/612-typed-obligations-promotion-evidence",
+  "base": "main",
+  "outcome": "Implement #588 typed phase-aware obligations, default PromotionReady reuse, governed MCP schema verification, effect-safe live evidence, and compatibility migration coverage",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/contracts.py",
+    "src/kis_mcp/workflows/once_through/promotion.py",
+    "src/kis_mcp/workflows/once_through/evidence.py",
+    "src/kis_mcp/workflows/once_through/state.py",
+    "src/kis_mcp/workflows/completion/service.py",
+    "tests/workflows/once_through/test_once_through.py",
+    "tests/workflows/once_through/test_promotion_runtime.py",
+    "tests/workflows/completion/test_completion_service.py",
+    ".work/changes/612-typed-obligations-promotion-evidence/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/workflows/once_through/review.py",
+    "src/kis_mcp/workflows/once_through/candidate_runtime.py",
+    "src/kis_mcp/workflows/once_through/process_identity.py",
+    "src/kis_mcp/workflows/once_through/tools.py",
+    "src/kis_mcp/skills/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "local_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "upstream_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-588",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 588,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-b"
+  }
+}
