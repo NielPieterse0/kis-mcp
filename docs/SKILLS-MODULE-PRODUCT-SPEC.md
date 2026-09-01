@@ -59,20 +59,22 @@ ChatGPT loads skill instructions and performs the described workflow by calling 
 | `skill_telemetry_report` | Return the backwards-compatible bounded usage/outcome aggregates grouped by skill package hash and project. |
 | `skill_delivery_telemetry_report` | Compare bounded usage/outcome evidence for the same canonical skill/package hash across `kis_native` and `mcp_resource` delivery. |
 
-## MCP resource delivery
+## MCP Skills extension delivery
 
-The same immutable validated catalogue is also exposed as read-only MCP resources; this is a delivery surface, not a second catalogue or lifecycle authority.
+The same immutable validated catalogue is also exposed through the draft SEP-2640 `io.modelcontextprotocol/skills` extension. This is a read-only delivery surface, not a second catalogue or lifecycle authority.
 
-| Resource identity | Meaning |
+| Extension surface | Meaning |
 |---|---|
-| `skill:///` | First deterministic bounded catalogue page containing active skill IDs, canonical entrypoint URIs, active snapshot identity, entrypoint SHA-256 values, and a continuation URI when truncated. |
-| `skill:///catalogue?cursor=<cursor>` | Deterministic bounded continuation page tied to the same snapshot cursor contract. |
-| `skill:///<skill-id>/SKILL.md` | Exact canonical entrypoint bytes represented by the active validated snapshot. |
-| `skill:///<skill-id>/resource?path=<relative-path>` | Exact canonical supporting-resource bytes for a validated relative path, including references, scripts, assets, agents, and other configured package resources. |
+| `skills/list` | Paginated active-snapshot entries with verbatim frontmatter, `resultType: complete`, private zero-TTL cache metadata, and a complete per-file `{uri, digest, size}` manifest. |
+| `skills/get` | URI-keyed retrieval of one canonical skill entry independent of whether it appeared in a prior listing. |
+| `resources/read` on `skill:///<skill-id>/<relative-path>` | Exact bytes for one file represented by the active validated snapshot. |
+| `resources/directory/read` | Optional `directoryRead` enumeration of direct children only; directory resources use `inode/directory`. |
 
-Supporting resources remain progressively disclosed: catalogue discovery does not eagerly enumerate their paths or contents. `SKILL.md` has exactly one canonical resource identity and cannot be aliased through the supporting-resource template. Before returning bytes, KIS revalidates the path boundary and verifies size plus SHA-256 against the active snapshot; post-snapshot mutation, traversal, link/reparse escape, unsupported package content, or other integrity drift fails closed.
+The extension advertises the pinned draft baseline `draft-v1-2026-08-25` through FastMCP's extension capability surface, and its methods require per-request client negotiation. Individual resources use canonical direct `skill:///` URIs; archives and alternate package carriers are not exposed. Before returning bytes, KIS revalidates the path boundary and verifies size plus SHA-256 against the active snapshot, so post-snapshot mutation, traversal, link/reparse escape, unsupported package content, or other integrity drift fails closed.
 
-Resource delivery grants no execution authority. Script files and other executable-looking assets are returned only as data. Existing KIS-native Skills tools, mutation routing through Work middleware, and catalogue authority remain unchanged.
+The advertised manifest is content-binding evidence. Host-side verification helpers reject unlisted resources, digest/size mismatches, and `SKILL.md` frontmatter that differs from the advertised entry. A persisted approval fingerprint binds the host-assigned originating-server identity, canonical skill URI, and complete resource URI/digest/size set, so server identity changes or adding, removing, or changing a file requires reapproval. KIS serves only stable manifest-backed skills and rejects SEP-2640 exposure above 512 resources or 16,777,216 total bytes; the stricter configured catalogue size limits still apply first.
+
+Resource delivery grants no execution authority. Script files and other executable-looking assets are returned only as data. Existing KIS-native Skills tools, mutation routing through Work middleware, catalogue authority, and telemetry remain unchanged.
 
 ## Usage telemetry
 
@@ -93,7 +95,8 @@ skills.config       strict JSON configuration and limits
 skills.frontmatter  conservative SKILL.md metadata parser
 skills.source       path safety, file collection, and source normalization
 skills.catalogue    immutable snapshots, read/query operations, and snapshot-verified resource bytes
-skills.resources    read-only FastMCP resource index and progressive resource templates
+skills.resources    legacy-compatible read-only FastMCP resource index and templates
+skills.sep2640      negotiated SEP-2640 list/get/directory methods plus direct resource provider and content-binding verification
 skills.delivery_telemetry  MCP resource-boundary attribution and digest evidence
 skills.backend      narrow Work mutation protocol and FastMCP adapter
 skills.telemetry    bounded redacted live/durable usage, outcome, and delivery comparison evidence

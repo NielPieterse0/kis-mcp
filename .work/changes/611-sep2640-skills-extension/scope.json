@@ -1,0 +1,38 @@
+{
+  "schema_version": 4,
+  "change_id": "611-sep2640-skills-extension",
+  "status": "active",
+  "branch": "change/611-sep2640-skills-extension",
+  "worktree": ".work/worktrees/611-sep2640-skills-extension",
+  "base": "main",
+  "outcome": "Implement #569 SEP-2640 Skills-over-MCP conformance while preserving KIS Skills catalogue, integrity, telemetry, and trust boundaries.",
+  "owned_paths": [
+    "src/kis_mcp/skills/**",
+    "tests/skills/**",
+    "docs/SKILLS-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/611-sep2640-skills-extension/**"
+  ],
+  "shared_paths": [
+    "SPEC.md"
+  ],
+  "excluded_paths": [
+    "src/kis_mcp/workflows/once_through/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "local_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "upstream_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

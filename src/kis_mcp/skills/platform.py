@@ -18,6 +18,7 @@ from .delivery_telemetry import register_skill_delivery_telemetry
 from .metadata import enrich_skill_card
 from .models import SkillCard
 from .resources import register_skill_resources
+from .sep2640 import register_sep2640_extension
 from .service import SkillsService
 from .status import (
     SkillsRuntimeStatus,
@@ -133,6 +134,7 @@ def register_platform_skills(server, *, state_root: Path | str | None = None):
     if not isinstance(service, SkillsService):
         return service, ()
     register_skill_resources(server, service.catalogue)
+    register_sep2640_extension(server, service.catalogue)
     if telemetry is not None:
         register_skill_delivery_telemetry(server, service.catalogue, telemetry)
     response = service._list_catalogue_skills(
