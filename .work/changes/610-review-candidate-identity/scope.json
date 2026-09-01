@@ -1,0 +1,52 @@
+{
+  "schema_version": 4,
+  "change_id": "610-review-candidate-identity",
+  "status": "active",
+  "branch": "change/610-review-candidate-identity",
+  "worktree": ".work/worktrees/610-review-candidate-identity",
+  "base": "main",
+  "outcome": "Complete issue #587: automatic targeted review closure, exact candidate identity/reuse, and deterministic effect-aware live-verification scenario selection.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/review.py",
+    "src/kis_mcp/workflows/once_through/candidate_runtime.py",
+    "src/kis_mcp/workflows/once_through/process_identity.py",
+    "tests/workflows/once_through/test_review_candidate_identity.py",
+    ".work/changes/610-review-candidate-identity/**"
+  ],
+  "shared_paths": [
+    "src/kis_mcp/workflows/once_through/tools.py"
+  ],
+  "excluded_paths": [
+    "src/kis_mcp/workflows/once_through/contracts.py",
+    "src/kis_mcp/workflows/once_through/promotion.py",
+    "src/kis_mcp/workflows/once_through/evidence.py",
+    "src/kis_mcp/workflows/once_through/state.py",
+    "src/kis_mcp/skills/**"
+  ],
+  "dependencies": [
+    "612-typed-obligations-promotion-evidence"
+  ],
+  "integration_owner": "610-review-candidate-identity",
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "local_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_sha": "456e86ffaa098bc2e1ae05e93f42dc29e6fc4122",
+    "upstream_tree": "08e5a6651b9e8cc1f28b2095cd008564e708d392",
+    "upstream_ref": "refs/heads/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-587",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 587,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-a"
+  }
+}
