@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "618-promotion-conditional-candidate-identity",
+  "status": "active",
+  "branch": "change/618-promotion-conditional-candidate-identity",
+  "worktree": ".work/worktrees/618-promotion-conditional-candidate-identity",
+  "base": "main",
+  "outcome": "Make PromotionReady candidate identity conditional on declared live-candidate obligation.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/contracts.py",
+    "src/kis_mcp/workflows/once_through/service.py",
+    "src/kis_mcp/workflows/once_through/tools.py",
+    "tests/workflows/once_through/test_once_through.py",
+    ".work/changes/618-promotion-conditional-candidate-identity/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "local_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_sha": "d64ff85ffb88cd7e4d11a93f3df896c5a49faf1d",
+    "upstream_tree": "88e210d2ca981c0d47fa4b0209c081196ffa287d",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-624",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 624,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

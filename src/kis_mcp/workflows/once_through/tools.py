@@ -20,6 +20,7 @@ from .contracts import (
     EvidenceReference,
     EvidenceValidityClass,
     TaskHandoffContract,
+    TaskObligation,
     fingerprint,
 )
 from .controller import PromotionController, PromotionStateStore, build_terminal_receipt
@@ -494,6 +495,44 @@ def _governed_source_binding(
     if not (source_root / "src" / "kis_mcp").is_dir():
         raise OnceThroughStateError("CANDIDATE_SOURCE_INVALID", "source is not a KIS checkout")
     return source_root, change_id, scope
+
+
+def _work_source_number(contract: TaskHandoffContract) -> int:
+    marker = contract.source_identity.rsplit("#", 1)[-1]
+    if marker.isdigit() and int(marker) > 0:
+        return int(marker)
+    marker = contract.work_id.rsplit("-", 1)[-1]
+    if marker.isdigit() and int(marker) > 0:
+        return int(marker)
+    raise ValueError("WORK_SOURCE_NUMBER_UNRESOLVED")
+
+
+async def _governed_source_without_candidate(
+    service: WorkManagementService,
+    contract: TaskHandoffContract,
+) -> tuple[Path, str, dict[str, Any]]:
+    number = _work_source_number(contract)
+    inventory = await service.read_inventory(
+        contract.project_id,
+        field_names=("Change ID",),
+        item_limit=1000,
+    )
+    matches = [
+        item for item in inventory.items
+        if item.number == number
+        and item.repository
+        and item.repository.casefold() == contract.repository.casefold()
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"WORK_RECORD_UNRESOLVED: expected one Project item for {contract.repository}#{number}"
+        )
+    change_id = str(_project_field(matches[0], "Change ID") or "").strip()
+    if not change_id:
+        raise ValueError("PROMOTION_CHANGE_ID_MISSING: Work Change ID is unavailable")
+    repository_root = Path(__file__).resolve().parents[4]
+    source_path = repository_root / ".work" / "worktrees" / change_id
+    return _governed_source_binding(contract, str(source_path))
 
 
 async def _resolve_work_record(
@@ -1019,50 +1058,81 @@ def register_once_through_tools(
                 raise ValueError(
                     "WORK_MANAGEMENT_UNAVAILABLE: PromotionReady requires Work authority"
                 )
-            receipt = store.load_candidate(work_id, required=True)
-            assert receipt is not None
-            source_path = receipt.get("source_path")
-            if not isinstance(source_path, str) or not source_path.strip():
-                raise OnceThroughStateError(
-                    "CANDIDATE_SOURCE_INVALID", "candidate source binding is missing"
-                )
-            source_root, change_id, scope = _governed_source_binding(contract, source_path)
-            if receipt.get("change_id") != change_id:
-                raise OnceThroughStateError(
-                    "CANDIDATE_SCOPE_INVALID", "candidate change binding mismatch"
-                )
-            identity = await read_candidate_identity(contract)
-            if not _candidate_matches(contract, receipt, identity):
-                raise OnceThroughStateError(
-                    "CANDIDATE_OWNER_MISMATCH",
-                    "live candidate does not match the persisted governed binding",
-                )
-            current_binding = await asyncio.to_thread(
-                candidate_binding, source_root, contract.candidate_port
+            requires_live_candidate = (
+                TaskObligation.LIVE_CANDIDATE_VERIFICATION in contract.obligations
             )
-            if identity is None or any(
-                identity.get(key) != value for key, value in current_binding.items()
-            ):
-                raise OnceThroughStateError(
-                    "CANDIDATE_SOURCE_DRIFT",
-                    "candidate source, policy, runtime, or endpoint binding has drifted",
-                )
             references = store.load_evidence(work_id)
-            live_matches = tuple(
-                item for item in references
-                if item.kind == "live_candidate_verification"
-                and item.validity_inputs.get("server_instance_id")
-                == receipt.get("server_instance_id")
-            )
-            if len(live_matches) != 1:
-                raise ValueError(
-                    "PROMOTION_NOT_READY: exact live-candidate evidence is required"
+            identity: dict[str, Any] = {}
+            live: EvidenceReference | None = None
+            if requires_live_candidate:
+                receipt = store.load_candidate(work_id, required=True)
+                assert receipt is not None
+                source_path = receipt.get("source_path")
+                if not isinstance(source_path, str) or not source_path.strip():
+                    raise OnceThroughStateError(
+                        "CANDIDATE_SOURCE_INVALID", "candidate source binding is missing"
+                    )
+                source_root, change_id, scope = _governed_source_binding(contract, source_path)
+                if receipt.get("change_id") != change_id:
+                    raise OnceThroughStateError(
+                        "CANDIDATE_SCOPE_INVALID", "candidate change binding mismatch"
+                    )
+                observed_identity = await read_candidate_identity(contract)
+                if not _candidate_matches(contract, receipt, observed_identity):
+                    raise OnceThroughStateError(
+                        "CANDIDATE_OWNER_MISMATCH",
+                        "live candidate does not match the persisted governed binding",
+                    )
+                current_binding = await asyncio.to_thread(
+                    candidate_binding, source_root, contract.candidate_port
                 )
-            live = live_matches[0]
-            source_commit = live.validity_inputs.get("source_commit", "")
-            tree = live.validity_inputs.get("tree", "")
-            if len(source_commit) != 40 or not tree:
-                raise ValueError("PROMOTION_NOT_READY: live source identity is incomplete")
+                if observed_identity is None or any(
+                    observed_identity.get(key) != value for key, value in current_binding.items()
+                ):
+                    raise OnceThroughStateError(
+                        "CANDIDATE_SOURCE_DRIFT",
+                        "candidate source, policy, runtime, or endpoint binding has drifted",
+                    )
+                identity = dict(observed_identity)
+                live_matches = tuple(
+                    item for item in references
+                    if item.kind == "live_candidate_verification"
+                    and item.validity_inputs.get("server_instance_id")
+                    == receipt.get("server_instance_id")
+                )
+                if len(live_matches) != 1:
+                    raise ValueError(
+                        "PROMOTION_NOT_READY: exact live-candidate evidence is required"
+                    )
+                live = live_matches[0]
+                source_commit = live.validity_inputs.get("source_commit", "")
+                tree = live.validity_inputs.get("tree", "")
+                if len(source_commit) != 40 or not tree:
+                    raise ValueError("PROMOTION_NOT_READY: live source identity is incomplete")
+            else:
+                source_root, change_id, scope = await _governed_source_without_candidate(
+                    work_management_service, contract
+                )
+                commit_result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=source_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                tree_result = await asyncio.to_thread(
+                    subprocess.run,
+                    ["git", "rev-parse", "HEAD^{tree}"],
+                    cwd=source_root,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                source_commit = commit_result.stdout.strip().lower()
+                tree = tree_result.stdout.strip().lower()
             record = await _resolve_work_record(work_management_service, contract, scope)
             execution = await nested_invoker(
                 "execute_change_workflow",
@@ -1113,11 +1183,14 @@ def register_once_through_tools(
             references = store.load_evidence(work_id)
             observed = {
                 "tree": tree,
-                "runtime": live.validity_inputs["runtime"],
                 "source_commit": source_commit,
-                "server_instance_id": live.validity_inputs["server_instance_id"],
                 "contract_fingerprint": contract.contract_fingerprint,
             }
+            if live is not None:
+                observed.update({
+                    "runtime": live.validity_inputs["runtime"],
+                    "server_instance_id": live.validity_inputs["server_instance_id"],
+                })
             handoff = derive_promotion_ready(
                 contract,
                 source_commit_sha=source_commit,
@@ -1129,7 +1202,11 @@ def register_once_through_tools(
             )
             store.save_promotion(handoff)
             payload = handoff.to_json_dict()
-            payload["candidate_cleanup"] = await stop_owned_candidate(work_id)
+            payload["candidate_cleanup"] = (
+                await stop_owned_candidate(work_id)
+                if requires_live_candidate
+                else {"status": "not_required"}
+            )
             return payload
         except (KeyError, ValueError, OSError, OnceThroughStateError, ToolError) as exc:
             raise ToolError(str(exc)) from exc
@@ -1200,16 +1277,21 @@ def register_once_through_tools(
                     "observations": observations,
                     "terminal_receipt": dict(terminal_receipt),
                 }
-            candidate_receipt = store.load_candidate(work_id, required=True)
-            assert candidate_receipt is not None
-            source_path = candidate_receipt.get("source_path")
-            if not isinstance(source_path, str) or not source_path.strip():
-                raise ValueError("PROMOTION_SOURCE_PATH_MISSING: candidate source path is unavailable")
-            source_root = Path(source_path).resolve()
             completed_prefix = list(checkpoint.get("completed", ())) if checkpoint is not None else []
             change_id = str(handoff.get("change_id") or contract.change_id or "")
             if not change_id:
                 raise ValueError("PROMOTION_CHANGE_ID_MISSING: PromotionReady change identity is unavailable")
+            candidate_receipt = store.load_candidate(work_id, required=False)
+            source_path = (
+                candidate_receipt.get("source_path")
+                if isinstance(candidate_receipt, dict)
+                else None
+            )
+            source_root = (
+                Path(source_path).resolve()
+                if isinstance(source_path, str) and source_path.strip()
+                else Path(__file__).resolve().parents[4] / ".work" / "worktrees" / change_id
+            )
             if checkpoint is not None and len(completed_prefix) == 9 and not source_root.exists():
                 cleanup_observations = dict(checkpoint.get("observations", {}))
                 landed_observation = cleanup_observations.get("refresh_landed")

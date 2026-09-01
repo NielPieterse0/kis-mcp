@@ -40,17 +40,17 @@ def derive_promotion_ready(
         raise ValueError(f"PROMOTION_NOT_READY: {detail}")
     if execution.get("contract") != "change-execution-result-v2" or execution.get("status") != "passed":
         raise ValueError("PROMOTION_NOT_READY: implementation execution evidence has not passed")
-    expected_candidate = {
-        "work_id": contract.work_id,
-        "contract_fingerprint": contract.contract_fingerprint,
-        "source_identity": contract.source_identity,
-    }
-    for key, expected in expected_candidate.items():
-        if candidate_identity.get(key) != expected:
-            raise ValueError(f"PROMOTION_NOT_READY: candidate identity mismatch for {key}")
-    if not isinstance(candidate_identity.get("server_instance_id"), str) or not candidate_identity["server_instance_id"]:
-        raise ValueError("PROMOTION_NOT_READY: candidate server instance identity is missing")
     if "live_candidate_verification" in required_kinds:
+        expected_candidate = {
+            "work_id": contract.work_id,
+            "contract_fingerprint": contract.contract_fingerprint,
+            "source_identity": contract.source_identity,
+        }
+        for key, expected in expected_candidate.items():
+            if candidate_identity.get(key) != expected:
+                raise ValueError(f"PROMOTION_NOT_READY: candidate identity mismatch for {key}")
+        if not isinstance(candidate_identity.get("server_instance_id"), str) or not candidate_identity["server_instance_id"]:
+            raise ValueError("PROMOTION_NOT_READY: candidate server instance identity is missing")
         live = next(item for item in evidence if item.kind == "live_candidate_verification")
         expected_live_inputs = {
             "source_commit": source_commit_sha,

@@ -261,6 +261,63 @@ def test_promotion_ready_requires_all_declared_evidence() -> None:
     assert handoff.pending_obligations == ()
 
 
+def test_non_mcp_promotion_ready_does_not_require_candidate_identity() -> None:
+    contract = TaskHandoffContract(
+        project_id="kis-mcp", work_id="WORK-624", repository="NielPieterse0/kis-mcp",
+        requirements=("fix",), acceptance_criteria=("passes",),
+        affected_surfaces=("work_management", "provider"),
+        obligations=("verification", "review_closed"),
+        candidate_port=46024,
+        source_identity="github-issue:NielPieterse0/kis-mcp#624",
+        change_id="618-promotion-conditional-candidate-identity",
+    )
+    refs = tuple(
+        EvidenceReference(
+            evidence_id=f"ev-{kind}", kind=kind, subject=contract.source_identity,
+            validity_class=EvidenceValidityClass.CONTENT_STABLE,
+            validity_inputs={"tree": "t1"}, receipt_ref=f"receipt:{kind}",
+        )
+        for kind in contract.obligations
+    )
+    handoff = derive_promotion_ready(
+        contract,
+        source_commit_sha="a" * 40,
+        execution={"contract": "change-execution-result-v2", "status": "passed"},
+        evidence=refs,
+        observed_inputs={"tree": "t1", "source_commit": "a" * 40},
+        candidate_identity={},
+    )
+    assert handoff.status == "promotion_ready"
+    assert handoff.candidate_identity == {}
+    assert handoff.satisfied_obligations == ("verification", "review_closed")
+
+
+def test_live_candidate_promotion_still_requires_candidate_identity() -> None:
+    contract = _contract(46025, work_id="WORK-625")
+    refs = tuple(
+        EvidenceReference(
+            evidence_id=f"ev-{kind}", kind=kind, subject=contract.source_identity,
+            validity_class=EvidenceValidityClass.CONTENT_STABLE,
+            validity_inputs={"tree": "t1", "source_commit": "a" * 40,
+                             "server_instance_id": "candidate-1",
+                             "contract_fingerprint": contract.contract_fingerprint},
+            receipt_ref=f"receipt:{kind}",
+        )
+        for kind in contract.obligations
+    )
+    with pytest.raises(ValueError, match="candidate identity mismatch"):
+        derive_promotion_ready(
+            contract,
+            source_commit_sha="a" * 40,
+            execution={"contract": "change-execution-result-v2", "status": "passed"},
+            evidence=refs,
+            observed_inputs={"tree": "t1", "source_commit": "a" * 40,
+                             "server_instance_id": "candidate-1",
+                             "contract_fingerprint": contract.contract_fingerprint},
+            candidate_identity={},
+        )
+
+
 def _controller_handoff() -> dict[str, object]:
     return {
         "status": "promotion_ready",
