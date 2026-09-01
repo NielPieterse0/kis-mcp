@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "613-pr-autoclose-guard",
+  "status": "active",
+  "branch": "change/613-pr-autoclose-guard",
+  "worktree": ".work/worktrees/613-pr-autoclose-guard",
+  "base": "main",
+  "outcome": "Block implicit GitHub auto-close keywords in managed registered PR creation while preserving neutral references and deterministic retry reconciliation.",
+  "owned_paths": [
+    "src/kis_mcp/projects/github_exact.py",
+    "tests/projects/test_github_exact.py",
+    "tests/workflows/test_registered_commit_publication.py",
+    ".work/changes/613-pr-autoclose-guard/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "external_action"
+  ],
+  "base_evidence": {
+    "local_sha": "e27e559982bf37aa895a4657474c604161a0d0cf",
+    "local_tree": "14ca5fcada56eb2e9db5e83f4c97a344a05dc6e6",
+    "upstream_sha": "e27e559982bf37aa895a4657474c604161a0d0cf",
+    "upstream_tree": "14ca5fcada56eb2e9db5e83f4c97a344a05dc6e6",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-614",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 614,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
