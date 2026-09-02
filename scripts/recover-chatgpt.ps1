@@ -80,7 +80,7 @@ function Test-RecoveryReady {
     }
     $RunProperty = $Current.PSObject.Properties['run_id']
     if ($null -eq $RunProperty -or [string]::IsNullOrWhiteSpace([string]$RunProperty.Value)) { return $false }
-    foreach ($Name in @('launcher_pid','server_pid','tunnel_pid')) {
+    foreach ($Name in @('launcher_pid','server_pid','server_listener_pid','tunnel_pid')) {
         $Property = $Current.PSObject.Properties[$Name]
         if ($null -eq $Property) { return $false }
         try { $ProcessId = [int]$Property.Value } catch { return $false }
@@ -88,10 +88,10 @@ function Test-RecoveryReady {
         if ($null -eq (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) { return $false }
     }
     try {
-        $ServerPid = [int]$Current.PSObject.Properties['server_pid'].Value
+        $ServerListenerPid = [int]$Current.PSObject.Properties['server_listener_pid'].Value
         $EndpointUri = [Uri]$Endpoint
         $ServerListener = @(Get-NetTCPConnection -State Listen -LocalPort $EndpointUri.Port -ErrorAction SilentlyContinue |
-            Where-Object { [int]$_.OwningProcess -eq $ServerPid })
+            Where-Object { [int]$_.OwningProcess -eq $ServerListenerPid })
         if ($ServerListener.Count -eq 0) { return $false }
         $Payload = @{jsonrpc='2.0';id=1;method='initialize';params=@{protocolVersion='2025-06-18';capabilities=@{};clientInfo=@{name='kis-recovery';version='1.0'}}} | ConvertTo-Json -Depth 8 -Compress
         $Response = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers @{Accept='application/json, text/event-stream';'MCP-Protocol-Version'='2025-06-18'} -ContentType 'application/json' -Body $Payload -TimeoutSec 2

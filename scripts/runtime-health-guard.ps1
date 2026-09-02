@@ -4,7 +4,7 @@ param(
     [Parameter(Mandatory)][string]$RunId,
     [string]$RepositoryRoot = (Split-Path -Parent $PSScriptRoot),
     [ValidateRange(1,60)][int]$PollSeconds = 2,
-    [ValidateRange(1,60)][int]$FailureGraceSeconds = 3,
+    [ValidateRange(1,60)][int]$FailureGraceSeconds = 60,
     [ValidateRange(0,1000)][int]$MaxRecoveryAttempts = 0,
     [ValidateRange(1,300)][int]$RecoveryBackoffSeconds = 2,
     [ValidateRange(1,300)][int]$MaxRecoveryBackoffSeconds = 60
@@ -37,17 +37,17 @@ function Read-OwnedCurrent {
 
 function Test-OwnedHealth {
     param([Parameter(Mandatory)]$Current)
-    foreach ($Name in @('launcher_pid','server_pid','tunnel_pid')) {
+    foreach ($Name in @('launcher_pid','server_pid','server_listener_pid','tunnel_pid')) {
         $Property = $Current.PSObject.Properties[$Name]
         if ($null -eq $Property) { return $false }
         try { $Value = [int]$Property.Value } catch { return $false }
         if ($Value -le 0 -or $null -eq (Get-Process -Id $Value -ErrorAction SilentlyContinue)) { return $false }
     }
     try {
-        $ServerPid = [int]$Current.PSObject.Properties['server_pid'].Value
+        $ServerListenerPid = [int]$Current.PSObject.Properties['server_listener_pid'].Value
         $EndpointUri = [Uri]$Endpoint
         $ServerListener = @(Get-NetTCPConnection -State Listen -LocalPort $EndpointUri.Port -ErrorAction SilentlyContinue |
-            Where-Object { [int]$_.OwningProcess -eq $ServerPid })
+            Where-Object { [int]$_.OwningProcess -eq $ServerListenerPid })
         if ($ServerListener.Count -eq 0) { return $false }
         $Payload = @{jsonrpc='2.0';id=1;method='initialize';params=@{protocolVersion='2025-06-18';capabilities=@{};clientInfo=@{name='kis-health-guard';version='1.0'}}} | ConvertTo-Json -Depth 8 -Compress
         $Response = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers @{Accept='application/json, text/event-stream';'MCP-Protocol-Version'='2025-06-18'} -ContentType 'application/json' -Body $Payload -TimeoutSec 2
@@ -68,6 +68,22 @@ function Test-OwnedHealth {
     } catch { return $false }
     return $true
 }
+
+$GuardLockPath = Join-Path $RuntimeRoot "health-guard-$RunId.lock"
+$GuardLock = $null
+try {
+    try {
+        $GuardLock = [IO.File]::Open(
+            $GuardLockPath,
+            [IO.FileMode]::OpenOrCreate,
+            [IO.FileAccess]::ReadWrite,
+            [IO.FileShare]::None
+        )
+    }
+    catch [IO.IOException] {
+        return
+    }
+
 while ($true) {
     $Current = Read-OwnedCurrent
     if ($null -eq $Current) { return }
@@ -87,12 +103,7 @@ while ($true) {
     while ($MaxRecoveryAttempts -eq 0 -or $Attempt -lt $MaxRecoveryAttempts) {
         $Attempt += 1
         try {
-            if ($Attempt -eq 1) {
-                & $RecoveryScript -Instance $Instance -RepositoryRoot $RepositoryRoot -ExpectedRunId $RunId | Write-Output
-            }
-            else {
-                & $RecoveryScript -Instance $Instance -RepositoryRoot $RepositoryRoot | Write-Output
-            }
+            & $RecoveryScript -Instance $Instance -RepositoryRoot $RepositoryRoot -ExpectedRunId $RunId | Write-Output
             return
         }
         catch {
@@ -102,4 +113,8 @@ while ($true) {
             $Backoff = [Math]::Min($MaxRecoveryBackoffSeconds, [Math]::Max($Backoff + 1, $Backoff * 2))
         }
     }
+}
+}
+finally {
+    if ($null -ne $GuardLock) { $GuardLock.Dispose() }
 }

@@ -1,0 +1,36 @@
+{
+  "schema_version": 4,
+  "change_id": "622-health-guard-recovery-hardening",
+  "status": "active",
+  "branch": "change/622-health-guard-recovery-hardening",
+  "worktree": ".work/worktrees/622-health-guard-recovery-hardening",
+  "base": "main",
+  "outcome": "Harden kis-dev startup, health-guard grace, failure ownership, and automatic restart recovery without touching kis-op",
+  "owned_paths": [
+    "scripts/runtime-health-guard.ps1",
+    "scripts/recover-chatgpt.ps1",
+    "scripts/start-chatgpt.ps1",
+    "tests/test_runtime_health_guard.py",
+    "tests/test_startup_recovery.py",
+    "tests/test_startup_scripts.py",
+    ".work/changes/622-health-guard-recovery-hardening/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "deployment",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "cc9c31ea8eb165bd076e875c68d11d907a3162ba",
+    "local_tree": "2750a7645ab3f91d968e6a3e82256134196640ef",
+    "upstream_sha": "cc9c31ea8eb165bd076e875c68d11d907a3162ba",
+    "upstream_tree": "2750a7645ab3f91d968e6a3e82256134196640ef",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
