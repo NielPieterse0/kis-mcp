@@ -505,7 +505,8 @@ class GitHubProjectManagementAdapter:
         if not isinstance(decision, ReconciliationDecision):
             raise ValueError("decision must be ReconciliationDecision")
         binding = self._binding(decision.project_id)
-        self._require_repository_binding(binding, decision)
+        if decision.action is ReconciliationAction.CREATE:
+            self._require_repository_binding(binding, decision)
         replay = self._idempotency_result(decision, idempotency_key)
         if replay is not None:
             return replay

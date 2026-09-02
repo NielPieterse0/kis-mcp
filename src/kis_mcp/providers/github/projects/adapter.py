@@ -462,28 +462,20 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
     ) -> tuple[tuple[ProjectItem, ...], bool, str | None]:
         items: list[ProjectItem] = []
         cursor: str | None = None
-        resume_cursor: str | None = None
-        limit_reached = False
         requested_fields = field_names
         fields_reconciled = False
-        repository = binding.repository.casefold() if binding.repository else None
         for _page in range(self._max_pages):
             while True:
                 remaining = max(1, item_limit - len(items))
                 arguments = {
                     "method": "list_project_items",
                     **self._base_arguments(binding),
-                    "per_page": self._page_size if limit_reached else min(self._page_size, remaining),
+                    "per_page": min(self._page_size, remaining),
                 }
                 if cursor is not None:
                     arguments["after"] = cursor
-                query_terms: list[str] = []
-                if binding.repository is not None:
-                    query_terms.append(f"repo:{binding.repository}")
                 if isinstance(query, str) and query.strip():
-                    query_terms.append(query.strip())
-                if query_terms:
-                    arguments["query"] = " ".join(query_terms)
+                    arguments["query"] = query.strip()
                 if requested_fields:
                     arguments["field_names"] = list(requested_fields)
                 document = await self._call(
@@ -506,37 +498,15 @@ class GitHubProjectInventoryAdapter(ProjectInventoryBackend):
                 break
             has_next, next_cursor = _page_info(page_source, "list_project_items")
             normalized = [_normalize_item(node, "list_project_items") for node in nodes]
-            matching = [
-                item
-                for item in normalized
-                if repository is None
-                or (item.repository is not None and item.repository.casefold() == repository)
-            ]
-            if limit_reached:
-                if matching:
-                    return tuple(items), True, resume_cursor
-                if not has_next:
-                    return tuple(items), False, None
-                cursor = next_cursor
-                continue
-            for item in matching:
+            for item in normalized:
                 if len(items) >= item_limit:
                     return tuple(items), True, cursor
                 items.append(item)
             if len(items) >= item_limit:
-                if not has_next:
-                    return tuple(items), False, None
-                if repository is None:
-                    return tuple(items), True, next_cursor
-                resume_cursor = next_cursor
-                limit_reached = True
-                cursor = next_cursor
-                continue
+                return tuple(items), has_next, next_cursor if has_next else None
             if not has_next:
                 return tuple(items), False, None
             cursor = next_cursor
-        if limit_reached and resume_cursor is not None:
-            return tuple(items), True, resume_cursor
         if cursor is None:
             raise _invalid("list_project_items", "page limit exceeded without cursor")
         return tuple(items), True, cursor

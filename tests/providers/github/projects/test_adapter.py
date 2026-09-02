@@ -135,14 +135,13 @@ def test_inventory_uses_fixed_read_calls_and_normalizes_results() -> None:
                 "owner_type": "user",
                 "project_number": 12,
                 "per_page": 25,
-                "query": "repo:ExampleOwner/alpha",
                 "field_names": ["Status"],
             },
         ),
     ]
 
 
-def test_inventory_scopes_shared_project_items_to_binding_repository() -> None:
+def test_inventory_preserves_shared_project_items_across_repositories() -> None:
     caller = FakeCaller(
         {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
         {"fields": [], "pageInfo": page_info(False)},
@@ -180,16 +179,13 @@ def test_inventory_scopes_shared_project_items_to_binding_repository() -> None:
         GitHubProjectInventoryAdapter(caller, page_size=1).read_inventory(binding())
     )
 
-    assert [item.item_id for item in inventory.items] == ["I_LOCAL"]
+    assert [item.item_id for item in inventory.items] == ["I_FOREIGN", "I_LOCAL"]
     assert inventory.truncated is False
     assert [call[1].get("after") for call in caller.calls[-2:]] == [None, "CURSOR_2"]
-    assert [call[1].get("query") for call in caller.calls[-2:]] == [
-        "repo:ExampleOwner/alpha",
-        "repo:ExampleOwner/alpha",
-    ]
+    assert [call[1].get("query") for call in caller.calls[-2:]] == [None, None]
 
 
-def test_inventory_limit_counts_only_repository_scoped_items() -> None:
+def test_inventory_limit_counts_shared_project_items() -> None:
     caller = FakeCaller(
         {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
         {"fields": [], "pageInfo": page_info(False)},
@@ -230,8 +226,24 @@ def test_inventory_limit_counts_only_repository_scoped_items() -> None:
     )
 
     assert [item.item_id for item in inventory.items] == ["I_LOCAL"]
-    assert inventory.truncated is False
-    assert len(caller.calls) == 4
+    assert inventory.truncated is True
+    assert inventory.next_cursor == "CURSOR_2"
+    assert len(caller.calls) == 3
+
+
+def test_inventory_preserves_explicit_query_without_binding_repository_filter() -> None:
+    caller = FakeCaller(
+        {"project": {"id": "PVT_1", "title": "Programme", "closed": False}},
+        {"fields": [], "pageInfo": page_info(False)},
+        {"items": [], "pageInfo": page_info(False)},
+    )
+
+    inventory = asyncio.run(
+        GitHubProjectInventoryAdapter(caller).read_inventory(binding(), query="140")
+    )
+
+    assert inventory.items == ()
+    assert caller.calls[-1][1]["query"] == "140"
 
 
 def test_inventory_without_repository_binding_preserves_shared_visibility() -> None:
@@ -382,7 +394,6 @@ def test_inventory_paginates_and_reports_truncation() -> None:
             "project_number": 12,
             "per_page": 1,
             "after": "CURSOR_2",
-            "query": "repo:ExampleOwner/alpha",
         },
     )
 
@@ -415,7 +426,7 @@ def test_inventory_stops_at_exact_limit_with_resume_cursor() -> None:
     assert [item.item_id for item in inventory.items] == ["I_1", "I_2"]
     assert inventory.truncated is True
     assert inventory.next_cursor == "CURSOR_2"
-    assert len(caller.calls) == 4
+    assert len(caller.calls) == 3
 
 
 def test_inventory_accepts_list_field_values_and_result_objects() -> None:

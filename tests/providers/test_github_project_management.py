@@ -97,10 +97,7 @@ def test_missing_read_or_write_tools_disable_only_affected_operations() -> None:
     assert write_only.update_item is False
 
 
-@pytest.mark.parametrize("action", [ReconciliationAction.CREATE, ReconciliationAction.UPDATE])
-def test_reconciliation_rejects_foreign_source_repository_before_provider_calls(
-    action: ReconciliationAction,
-) -> None:
+def test_create_rejects_foreign_source_repository_before_provider_calls() -> None:
     caller = Caller()
     adapter = GitHubProjectManagementAdapter(
         caller,
@@ -112,20 +109,42 @@ def test_reconciliation_rejects_foreign_source_repository_before_provider_calls(
         asyncio.run(
             adapter.apply_reconciliation(
                 decision(
-                    action,
+                    ReconciliationAction.CREATE,
                     source_repository="ExampleOwner/college",
-                    external_id=None if action is ReconciliationAction.CREATE else "I_1",
-                    observed_revision=(
-                        None
-                        if action is ReconciliationAction.CREATE
-                        else "2026-08-07T00:00:00Z"
-                    ),
+                    external_id=None,
+                    observed_revision=None,
                 ),
-                idempotency_key=f"foreign-{action.value}",
+                idempotency_key="foreign-create",
             )
         )
 
     assert caller.calls == []
+
+
+def test_update_allows_existing_foreign_repository_project_item() -> None:
+    caller = Caller(
+        {"item": {"id": "I_1", "updatedAt": "2026-08-07T00:00:00Z"}},
+        {"item": {"id": "I_1", "updatedAt": "2026-08-07T00:01:00Z"}},
+    )
+    adapter = GitHubProjectManagementAdapter(
+        caller,
+        {"alpha-project": binding()},
+        available_tools=("projects_get", "projects_list", "projects_write"),
+    )
+
+    result = asyncio.run(
+        adapter.apply_reconciliation(
+            decision(
+                ReconciliationAction.UPDATE,
+                source_repository="ExampleOwner/college",
+            ),
+            idempotency_key="foreign-update",
+        )
+    )
+
+    assert result.success is True
+    assert result.applied is True
+    assert [call[0] for call in caller.calls] == ["projects_get", "projects_write"]
 
 
 def test_update_preflights_revision_then_updates_changed_fields() -> None:

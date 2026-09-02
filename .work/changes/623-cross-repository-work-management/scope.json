@@ -1,0 +1,46 @@
+{
+  "schema_version": 4,
+  "change_id": "623-cross-repository-work-management",
+  "status": "active",
+  "branch": "change/623-cross-repository-work-management",
+  "worktree": ".work/worktrees/623-cross-repository-work-management",
+  "base": "main",
+  "outcome": "Restore cross-repository Work Management inventory and claim visibility for shared GitHub Projects while preserving repository-scoped project bindings.",
+  "owned_paths": [
+    "src/kis_mcp/providers/github/projects/adapter.py",
+    "src/kis_mcp/providers/github/project_management.py",
+    "tests/providers/github/projects/test_adapter.py",
+    "tests/providers/test_github_project_management.py",
+    "tests/work_management/test_command_service.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    ".work/changes/623-cross-repository-work-management/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [
+    "619-work-management-live-record-adapters"
+  ],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary"
+  ],
+  "base_evidence": {
+    "local_sha": "1320d8c1b5c5565cd45968b10af79ccce146b78b",
+    "local_tree": "371eea3a7ce89655827b25ee4cf976f9972a909c",
+    "upstream_sha": "1320d8c1b5c5565cd45968b10af79ccce146b78b",
+    "upstream_tree": "371eea3a7ce89655827b25ee4cf976f9972a909c",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-651",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 651,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}
