@@ -94,6 +94,65 @@ def test_execution_uses_only_selected_verifications_and_allowlisted_reviews() ->
     assert invoker.calls[3][1]["head_ref"] is None
 
 
+class _CanonicalVerificationInvoker(_Invoker):
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "select_change_verification":
+            self.calls.append((tool_name, arguments))
+            return {
+                "contract": "verification-selection-v1",
+                "source_fingerprint": "f" * 64,
+                "selected": [
+                    {
+                        "verification_id": "powershell-verify-script",
+                        "category": "repository_verification",
+                        "profile": "powershell_verify",
+                    },
+                    {
+                        "verification_id": "python-module-verify",
+                        "category": "repository_verification",
+                        "profile": "python",
+                    },
+                    {
+                        "verification_id": "python-pytest",
+                        "category": "test",
+                        "profile": "python",
+                    },
+                ],
+                "skipped": [],
+                "omitted_count": 0,
+                "truncated": False,
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_passed_canonical_repository_verifier_suppresses_redundant_verifications() -> None:
+    invoker = _CanonicalVerificationInvoker()
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            review_types=(),
+        )
+    )
+
+    assert result.status == "passed"
+    assert [name for name, _ in invoker.calls].count("run_verification") == 1
+    assert [name for name, _ in invoker.calls][:2] == [
+        "select_change_verification",
+        "run_verification",
+    ]
+    assert [item.status for item in result.verifications] == [
+        "passed",
+        "completed",
+        "completed",
+    ]
+    for item in result.verifications[1:]:
+        assert item.payload == {
+            "disposition": "redundant",
+            "reason": "CANONICAL_REPOSITORY_VERIFICATION_PASSED",
+            "canonical_verification_id": "powershell-verify-script",
+        }
+
+
 def test_execution_retains_verification_failure_and_review_error() -> None:
     result = asyncio.run(
         ChangeExecutionService(
@@ -110,6 +169,62 @@ def test_execution_retains_verification_failure_and_review_error() -> None:
     assert result.verifications[1].status == "failed"
     assert result.reviews[1].status == "error"
     assert result.reviews[1].error_code == "AGENT_REVIEW_FAILED"
+
+
+class _TransientReviewTransportInvoker(_Invoker):
+    def __init__(self, *, persistent: bool = False) -> None:
+        super().__init__()
+        self.persistent = persistent
+        self.review_attempts = 0
+
+    async def __call__(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        if tool_name == "review_change_with_agent":
+            self.calls.append((tool_name, arguments))
+            self.review_attempts += 1
+            if self.persistent or self.review_attempts == 1:
+                raise RuntimeError("simulated connector 502")
+            return {
+                "status": "completed",
+                "backend": "nvidia-nim",
+                "review_type": arguments["review_type"],
+                "source_fingerprint": "f" * 64,
+                "evidence_complete": True,
+                "summary": "review complete after retry",
+                "findings": [],
+                "unknowns": [],
+                "diagnostics": [],
+            }
+        return await super().__call__(tool_name, arguments)
+
+
+def test_execution_retries_untyped_review_transport_failure_once() -> None:
+    invoker = _TransientReviewTransportInvoker()
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            complexity="medium",
+        )
+    )
+
+    assert result.status == "passed"
+    assert result.review_error_count == 0
+    assert invoker.review_attempts == 2
+
+
+def test_execution_converts_persistent_untyped_review_failure_to_incomplete() -> None:
+    invoker = _TransientReviewTransportInvoker(persistent=True)
+    result = asyncio.run(
+        ChangeExecutionService(invoker).execute(
+            project=r"C:\Projects\fixture",
+            complexity="medium",
+        )
+    )
+
+    assert result.status == "incomplete"
+    assert result.review_error_count == 1
+    assert invoker.review_attempts == 2
+    assert result.reviews[0].error_code == "CHANGE_EXECUTION_NESTED_INVOCATION_FAILED"
+    assert result.reviews[0].reason == "review_change_with_agent failed with RuntimeError"
 
 
 @pytest.mark.parametrize(

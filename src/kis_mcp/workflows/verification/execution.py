@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import os
 import re
+import subprocess
 import time
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any, Protocol
@@ -196,6 +198,20 @@ class VerificationExecutionService:
         return stall_timeout_ms
 
     async def _terminate_process(self, pid: int) -> None:
+        if os.name == "nt":
+            try:
+                await asyncio.shield(
+                    asyncio.to_thread(
+                        subprocess.run,
+                        ["taskkill.exe", "/PID", str(pid), "/T", "/F"],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        timeout=15,
+                    )
+                )
+            except Exception:  # noqa: BLE001 - provider kill remains the fallback
+                pass
         try:
             await asyncio.shield(self._runner("kill_process", {"pid": pid}))
         except Exception:  # noqa: BLE001 - best-effort cleanup must not mask cancellation

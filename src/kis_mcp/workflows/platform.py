@@ -36,6 +36,9 @@ from .code_review import (
     register_agent_tools,
 )
 from .once_through.activation import WorkActivationCoordinator, result_mapping
+from .once_through.controller import PromotionStateStore
+from .once_through.lifecycle import LifecycleDecisionService
+from .once_through.lifecycle_tools import register_lifecycle_decision_tool
 from .once_through.state import TaskHandoffStore
 from .once_through.tools import register_once_through_tools
 from .project_management import (
@@ -180,6 +183,21 @@ def workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             ("execute change workflow", "verify and review current change", "run change checks"),
             (process,),
             executable_steps=("execute_change_workflow",),
+        ),
+        _workflow(
+            "decide-change-lifecycle",
+            "Decide the next change lifecycle action",
+            "Project existing once-through evidence into one exact-source lifecycle decision with canonical evidence owners and operation dispositions.",
+            ("work.traceability.verify", "operation.change_lifecycle_decision"),
+            ("change_lifecycle_decision",),
+            (
+                "decision is bound to exact source SHA and tree",
+                "canonical evidence ownership is explicit",
+                "one normal next action is returned when progress is possible",
+                "redundant operations are machine-readable",
+            ),
+            ("lifecycle decision", "next required action", "once-through guard"),
+            (read,),
         ),
         _workflow(
             "develop-isolated-change",
@@ -390,6 +408,16 @@ def register_platform_workflows(
     )
     register_state_management_tools(server, runtime)
     project_settings = work_management_settings or load_work_management_settings()
+    once_through_root = Path(runtime.state_root) / "once-through"
+    once_through_store = TaskHandoffStore(once_through_root)
+    register_lifecycle_decision_tool(
+        server,
+        LifecycleDecisionService(
+            once_through_store,
+            PromotionStateStore(once_through_root / "promotion-controller"),
+        ),
+        project_boundary=runtime.project_boundary,
+    )
     if not project_settings.enabled:
         register_once_through_tools(server, Path(runtime.state_root))
         return
@@ -398,7 +426,6 @@ def register_platform_workflows(
         provider_service,
         project_settings,
     )
-    once_through_store = TaskHandoffStore(Path(runtime.state_root) / "once-through")
 
     async def load_issue(owner: str, repo: str, issue_number: int) -> dict[str, Any]:
         result = await server.call_tool(

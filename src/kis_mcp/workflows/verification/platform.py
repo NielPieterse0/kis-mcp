@@ -66,6 +66,33 @@ def _build_change_analyzer(
     )
 
 
+async def _invoke_local_verification_stage(
+    selection_service: VerificationSelectionService,
+    verification_service: VerificationExecutionService,
+    tool_name: str,
+    arguments: dict[str, Any],
+) -> dict[str, Any] | None:
+    if tool_name == "select_change_verification":
+        return selection_service.select(
+            project=str(arguments.get("project", "")),
+            source=str(arguments.get("source", "working_tree")),
+            commit_ref=arguments.get("commit_ref"),
+            base_ref=arguments.get("base_ref"),
+            head_ref=arguments.get("head_ref"),
+            task_terms=tuple(arguments.get("task_terms") or ()),
+            max_verifications=int(arguments.get("max_verifications", 20)),
+        ).to_json_dict()
+    if tool_name == "run_verification":
+        return (
+            await verification_service.run(
+                project=str(arguments.get("project", "")),
+                verification_id=str(arguments.get("verification_id", "")),
+                timeout_ms=int(arguments.get("timeout_ms", 120_000)),
+            )
+        ).to_json_dict()
+    return None
+
+
 def register_platform_verification(
     server: FastMCP,
     runtime: RuntimeConfig,
@@ -86,15 +113,31 @@ def register_platform_verification(
     async def runner(tool_name: str, arguments: dict[str, Any]) -> Any:
         return await _run_with_middleware(server, tool_name, arguments)
 
+    selection_service = VerificationSelectionService(analyzer=analyzer, inspector=inspector)
+    verification_service = VerificationExecutionService(inspector=inspector, runner=runner)
+
     async def structured_invoker(
         tool_name: str,
         arguments: dict[str, Any],
     ) -> dict[str, Any]:
         try:
+            local = await _invoke_local_verification_stage(
+                selection_service,
+                verification_service,
+                tool_name,
+                arguments,
+            )
+            if local is not None:
+                return local
             result = await _run_with_middleware(server, tool_name, arguments)
         except ToolError as exc:
             code, reason = _nested_error(exc)
             raise ChangeExecutionInvocationError(code, reason) from exc
+        except Exception as exc:
+            raise ChangeExecutionInvocationError(
+                "CHANGE_EXECUTION_NESTED_INVOCATION_FAILED",
+                f"{tool_name} failed with {type(exc).__name__}",
+            ) from exc
         return _structured_payload(result)
 
     async def completion_invoker(
@@ -116,14 +159,8 @@ def register_platform_verification(
             "Nested completion operation returned no structured object result.",
         )
 
-    register_verification_selection_tool(
-        server,
-        VerificationSelectionService(analyzer=analyzer, inspector=inspector),
-    )
-    register_verification_tool(
-        server,
-        VerificationExecutionService(inspector=inspector, runner=runner),
-    )
+    register_verification_selection_tool(server, selection_service)
+    register_verification_tool(server, verification_service)
     register_change_execution_tool(
         server,
         ChangeExecutionService(structured_invoker),

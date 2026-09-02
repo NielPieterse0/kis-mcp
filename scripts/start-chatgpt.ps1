@@ -490,6 +490,22 @@ try {
         -StartupStatePath $StartupStatePath
     $CurrentStateWritten = $true
 
+    $HealthGuardScript = Join-Path $RepositoryRoot 'scripts\runtime-health-guard.ps1'
+    if (-not [IO.File]::Exists($HealthGuardScript)) {
+        throw "KIS_MCP_HEALTH_GUARD_MISSING: $HealthGuardScript"
+    }
+    $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
+    $HealthGuardCommand = (
+        '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -Instance "{2}" -RunId "{3}" -RepositoryRoot "{4}"' -f
+        $Pwsh, $HealthGuardScript, $Remote.app_name, $RunId, $RepositoryRoot
+    )
+    $HealthGuard = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+        CommandLine = $HealthGuardCommand
+    }
+    if ([int]$HealthGuard.ReturnValue -ne 0 -or [int]$HealthGuard.ProcessId -le 0) {
+        throw "KIS_MCP_HEALTH_GUARD_START_FAILED: return=$($HealthGuard.ReturnValue)"
+    }
+
     Write-Host 'health=ready'
     Write-Host "app=$($Remote.app_name)"
     Write-Host "instance=$($Remote.name)"

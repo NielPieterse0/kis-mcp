@@ -59,6 +59,30 @@ class ChangeExecutionInvocationError(RuntimeError):
         super().__init__(f"{code}: {reason}")
 
 
+async def _invoke_nested(
+    invoker: Invoker,
+    tool_name: str,
+    arguments: dict[str, Any],
+    *,
+    retry_untyped_once: bool = True,
+) -> dict[str, Any]:
+    attempts = 2 if retry_untyped_once else 1
+    for attempt in range(1, attempts + 1):
+        try:
+            return await invoker(tool_name, arguments)
+        except ChangeExecutionInvocationError:
+            raise
+        except Exception as exc:
+            if attempt < attempts:
+                await asyncio.sleep(0.25)
+                continue
+            raise ChangeExecutionInvocationError(
+                "CHANGE_EXECUTION_NESTED_INVOCATION_FAILED",
+                f"{tool_name} failed with {type(exc).__name__}",
+            ) from exc
+    raise AssertionError("unreachable nested invocation state")
+
+
 class ChangeExecutionService:
     def __init__(self, invoker: Invoker) -> None:
         self._invoker = invoker
@@ -110,7 +134,8 @@ class ChangeExecutionService:
         )
         if not isinstance(review_adjudication, bool):
             raise TypeError("review_adjudication must be a boolean")
-        selection = await self._invoker(
+        selection = await _invoke_nested(
+            self._invoker,
             "select_change_verification",
             {
                 "project": project,
@@ -122,29 +147,48 @@ class ChangeExecutionService:
                 "max_verifications": verification_limit,
             },
         )
-        source_fingerprint, verification_ids = _selection_identity(selection)
+        source_fingerprint, verification_items = _selection_identity(selection)
         verification_results: list[ChangeExecutionStepResult] = []
         verification_failed_count = 0
         verification_incomplete_count = 0
-        for verification_id in verification_ids:
-            try:
-                payload = await self._invoker(
-                    "run_verification",
-                    {
-                        "project": project,
-                        "verification_id": verification_id,
-                        "timeout_ms": verification_timeout_ms,
-                    },
-                )
-                step = _verification_step(verification_id, payload)
-            except ChangeExecutionInvocationError as exc:
+        canonical_verification_id: str | None = None
+        for verification_item in verification_items:
+            verification_id = str(verification_item["verification_id"])
+            if canonical_verification_id is not None:
                 step = ChangeExecutionStepResult(
                     step_id=verification_id,
                     kind="verification",
-                    status="error",
-                    error_code=exc.code,
-                    reason=exc.reason,
+                    status="completed",
+                    payload={
+                        "disposition": "redundant",
+                        "reason": "CANONICAL_REPOSITORY_VERIFICATION_PASSED",
+                        "canonical_verification_id": canonical_verification_id,
+                    },
                 )
+            else:
+                try:
+                    payload = await _invoke_nested(
+                        self._invoker,
+                        "run_verification",
+                        {
+                            "project": project,
+                            "verification_id": verification_id,
+                            "timeout_ms": verification_timeout_ms,
+                        },
+                    )
+                    step = _verification_step(verification_id, payload)
+                except ChangeExecutionInvocationError as exc:
+                    step = ChangeExecutionStepResult(
+                        step_id=verification_id,
+                        kind="verification",
+                        status="error",
+                        error_code=exc.code,
+                        reason=exc.reason,
+                    )
+                if step.status == "passed" and _is_canonical_repository_verification(
+                    verification_item
+                ):
+                    canonical_verification_id = verification_id
             verification_results.append(step)
             if step.status == "failed":
                 verification_failed_count += 1
@@ -310,7 +354,7 @@ async def _execute_reviews(
         try:
             invocation_count += 1
             payload = await asyncio.wait_for(
-                invoker("review_change_with_agent", arguments),
+                _invoke_nested(invoker, "review_change_with_agent", arguments),
                 timeout=remaining_seconds,
             )
             if not isinstance(payload, Mapping):
@@ -469,7 +513,7 @@ def _selection_identity(selection: Mapping[str, Any]) -> tuple[str, tuple[str, .
             "CHANGE_EXECUTION_SELECTION_INVALID",
             "Verification selection returned an invalid selected list.",
         )
-    identifiers: list[str] = []
+    selected_items: list[dict[str, Any]] = []
     for item in raw_selected:
         if not isinstance(item, Mapping):
             raise ChangeExecutionInvocationError(
@@ -482,8 +526,17 @@ def _selection_identity(selection: Mapping[str, Any]) -> tuple[str, tuple[str, .
                 "CHANGE_EXECUTION_SELECTION_INVALID",
                 "Verification selection item has no verification_id.",
             )
-        identifiers.append(identifier.strip())
-    return fingerprint, tuple(identifiers)
+        normalized = dict(item)
+        normalized["verification_id"] = identifier.strip()
+        selected_items.append(normalized)
+    return fingerprint, tuple(selected_items)
+
+
+def _is_canonical_repository_verification(item: Mapping[str, Any]) -> bool:
+    return (
+        item.get("category") == "repository_verification"
+        and item.get("profile") == "powershell_verify"
+    )
 
 
 def _review_payload_retention_error(payload: Mapping[str, Any]) -> str | None:

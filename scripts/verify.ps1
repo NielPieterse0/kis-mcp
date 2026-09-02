@@ -1,5 +1,6 @@
 param(
-    [switch]$SkipDependencySync
+    [switch]$SkipDependencySync,
+    [switch]$DiagnosticOverride
 )
 
 $ErrorActionPreference = 'Stop'
@@ -10,10 +11,57 @@ $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
 $SkillsSettingsPath = Join-Path $RepositoryRoot 'settings\skills.settings.json'
 $PolicyPath = Join-Path $RepositoryRoot 'policy\kis-mcp.policy.json'
 $LockPath = Join-Path $RepositoryRoot 'uv.lock'
+$CanonicalStateRoot = 'C:\Projects\.kis-mcp'
+
+if ($env:GITHUB_ACTIONS -ne 'true') {
+    $Branch = (& git -C $RepositoryRoot symbolic-ref --quiet --short HEAD 2>$null)
+    if ($LASTEXITCODE -eq 0 -and $Branch -match '^change/(?<changeId>\d{3,}-[a-z0-9][a-z0-9-]*)$') {
+        $Dirty = @(& git -C $RepositoryRoot status --porcelain=v1 --untracked-files=all)
+        if ($LASTEXITCODE -ne 0) {
+            throw 'LIFECYCLE_GUARD_SOURCE_STATUS_UNAVAILABLE'
+        }
+        if (@($Dirty | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -eq 0) {
+            $SourceSha = (& git -C $RepositoryRoot rev-parse --verify HEAD).Trim().ToLowerInvariant()
+            $SourceTree = (& git -C $RepositoryRoot rev-parse --verify 'HEAD^{tree}').Trim().ToLowerInvariant()
+            if ($LASTEXITCODE -ne 0) {
+                throw 'LIFECYCLE_GUARD_SOURCE_IDENTITY_UNAVAILABLE'
+            }
+            $GuardArguments = @(
+                '-NoProfile', '-File', (Join-Path $PSScriptRoot 'verify-lifecycle-guard.ps1'),
+                '-ChangeId', $Matches.changeId,
+                '-SourceSha', $SourceSha,
+                '-SourceTree', $SourceTree,
+                '-StateRoot', (Join-Path $CanonicalStateRoot 'once-through')
+            )
+            if ($DiagnosticOverride) {
+                $GuardArguments += '-DiagnosticOverride'
+            }
+            $GuardOutput = & pwsh.exe @GuardArguments
+            $GuardExitCode = $LASTEXITCODE
+            if ($GuardOutput) {
+                $GuardOutput | Write-Output
+            }
+            if ($GuardExitCode -eq 23) {
+                $FinalDirty = @(& git -C $RepositoryRoot status --porcelain=v1 --untracked-files=all)
+                $FinalSha = (& git -C $RepositoryRoot rev-parse --verify HEAD).Trim().ToLowerInvariant()
+                $FinalTree = (& git -C $RepositoryRoot rev-parse --verify 'HEAD^{tree}').Trim().ToLowerInvariant()
+                if (
+                    $LASTEXITCODE -eq 0 -and
+                    @($FinalDirty | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -eq 0 -and
+                    $FinalSha -ceq $SourceSha -and
+                    $FinalTree -ceq $SourceTree
+                ) {
+                    exit 23
+                }
+            }
+            elseif ($GuardExitCode -ne 0) {
+                throw "LIFECYCLE_GUARD_FAILED: exit=$GuardExitCode"
+            }
+        }
+    }
+}
 
 & (Join-Path $PSScriptRoot 'configure-repository.ps1')
-
-$CanonicalStateRoot = 'C:\Projects\.kis-mcp'
 $CanonicalSkillsRoot = 'C:\Projects\.agents\skills'
 $CanonicalSkillsStagingRoot = 'C:\Projects\.kis-mcp\temp\skills'
 $CanonicalRequiredSkill = 'kis-mcp'

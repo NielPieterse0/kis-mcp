@@ -6,7 +6,7 @@ param(
     [ValidateRange(0,300)][int]$WaitSeconds = 60
 )
 $Arguments = @{
-    Instance = 'kis-dev'
+    Instance = 'kis-op'
     RepositoryRoot = $RepositoryRoot
     WaitSeconds = $WaitSeconds
 }

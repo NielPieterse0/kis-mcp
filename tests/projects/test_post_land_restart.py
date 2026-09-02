@@ -375,9 +375,9 @@ def test_worker_settings_failure_replaces_scheduled_receipt(
 def test_worker_is_hardwired_to_kis_dev_only() -> None:
     script = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
     content = script.read_text(encoding="utf-8")
-    assert "(Join-Path $RepositoryRoot 'scripts\\start-chatgpt.ps1') -Instance 'kis-dev'" in content
+    assert "(Join-Path $RepositoryRoot 'scripts\\recover-kis-dev.ps1')" in content
+    assert "recover-kis-op.ps1" not in content
     assert "-Instance 'kis-op'" not in content
-    assert "-Instance 'operation'" not in content
     assert "Invoke-CimMethod" in content
     assert "git merge --ff-only" in content
 
@@ -400,9 +400,9 @@ def test_worker_behavior_invokes_only_kis_dev(
     source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
     (scripts / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     target_log = root / "restart-target.txt"
-    (scripts / "start-chatgpt.ps1").write_text(
-        "param([string]$Instance)\n"
-        "[IO.File]::WriteAllText($env:KIS_TEST_TARGET, $Instance)\n",
+    (scripts / "recover-kis-dev.ps1").write_text(
+        "param([string]$RepositoryRoot,[int]$WaitSeconds)\n"
+        "[IO.File]::WriteAllText($env:KIS_TEST_TARGET, 'kis-dev')\n",
         encoding="utf-8",
     )
     (settings / "kis-mcp.settings.json").write_text(
@@ -480,7 +480,7 @@ def test_worker_behavior_invokes_only_kis_dev(
         (state_root / "runtime" / "kis-dev" / "state" /
          "post-land-restart" / "latest.json").read_text(encoding="utf-8")
     )
-    assert receipt["state"] == "stopped"
+    assert receipt["state"] == "ready"
     assert receipt["landed_sha"] == SHA
     assert receipt["launched_sha"] == REMOTE_AFTER
     assert gh_log.read_text(encoding="utf-8").splitlines() == [
@@ -511,9 +511,8 @@ def test_worker_retries_transient_kis_dev_launch_failure_then_succeeds(tmp_path:
     source = Path(__file__).parents[2] / "scripts" / "restart-kis-dev-after-land.ps1"
     (scripts / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     attempts = root / "launch-attempts.txt"
-    (scripts / "start-chatgpt.ps1").write_text(
-        "param([string]$Instance)\n"
-        "if ($Instance -ne 'kis-dev') { throw 'unexpected instance' }\n"
+    (scripts / "recover-kis-dev.ps1").write_text(
+        "param([string]$RepositoryRoot,[int]$WaitSeconds)\n"
         "$count = if (Test-Path $env:KIS_TEST_ATTEMPTS) { [int](Get-Content $env:KIS_TEST_ATTEMPTS -Raw) } else { 0 }\n"
         "$count += 1\n"
         "[IO.File]::WriteAllText($env:KIS_TEST_ATTEMPTS, [string]$count)\n"
@@ -581,7 +580,7 @@ def test_worker_retries_transient_kis_dev_launch_failure_then_succeeds(tmp_path:
     assert attempts.read_text(encoding="utf-8") == "2"
     receipt = state_root / "runtime" / "kis-dev" / "state" / "post-land-restart" / "latest.json"
     evidence = json.loads(receipt.read_text(encoding="utf-8"))
-    assert evidence["state"] == "stopped"
+    assert evidence["state"] == "ready"
     assert evidence["landed_sha"] == SHA
     assert evidence["launched_sha"] == SHA
 

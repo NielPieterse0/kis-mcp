@@ -98,6 +98,19 @@ def register_verification_tool(
                     separators=(",", ":"),
                 )
             ) from exc
+        except Exception as exc:
+            raise ToolError(
+                json.dumps(
+                    {
+                        "code": "VERIFICATION_EXECUTION_UNEXPECTED",
+                        "message": "Verification execution encountered an unexpected runtime failure.",
+                        "reason": type(exc).__name__,
+                        "retryable": True,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+            ) from exc
 
 
 def register_verification_selection_tool(
