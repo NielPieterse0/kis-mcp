@@ -21,8 +21,11 @@ $CurrentPath = Join-Path $RuntimeRoot 'current.json'
 function Read-OwnedCurrent {
     if (-not [IO.File]::Exists($CurrentPath)) { return $null }
     try { $Current = Get-Content $CurrentPath -Raw | ConvertFrom-Json } catch { return $null }
+    $Lifecycle = $Current.PSObject.Properties['lifecycle']
+    if ($null -eq $Lifecycle -or [string]$Lifecycle.Value -notin @('ready', 'stopped')) {
+        return $null
+    }
     $Expected = [ordered]@{
-        lifecycle = 'ready'
         run_id = $RunId
         app = $Instance
     }
