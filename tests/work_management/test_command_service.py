@@ -110,6 +110,7 @@ def project_item(
     revision: str = "rev-1",
     status: str = "Ready",
     owner: str | None = None,
+    repository: str = "owner/alpha",
 ) -> ProjectItem:
     values = [
         ProjectFieldValue(field_name="Status", value=status),
@@ -125,7 +126,7 @@ def project_item(
         item_id=f"item-{number}",
         kind=ProjectItemKind.ISSUE,
         title=f"Issue {number}",
-        repository="owner/alpha",
+        repository=repository,
         number=number,
         state="OPEN",
         revision=revision,
@@ -283,6 +284,25 @@ def test_exact_target_claim_resolves_beyond_default_inventory_bound() -> None:
 
     assert result["mode"] == "preview"
     assert backend.read_limits[0] > 100
+
+
+def test_claim_work_accepts_cross_repository_item_from_shared_project() -> None:
+    backend = Backend(project_item(number=140, repository="owner/chatgpt-skill"))
+    service = WorkManagementService(wm_settings(), {"github": backend})
+
+    result = asyncio.run(
+        service.claim_work(
+            "alpha-project",
+            "owner/chatgpt-skill",
+            140,
+            "kis-dev/session-1",
+            apply=False,
+        )
+    )
+
+    assert result["mode"] == "preview"
+    decision, _key = backend.applied[0] if backend.applied else (None, None)
+    assert decision is None
 
 
 def test_complete_work_resolves_beyond_default_bound_and_preserves_revision() -> None:
