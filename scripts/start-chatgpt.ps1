@@ -282,6 +282,7 @@ $Server = $null
 $Tunnel = $null
 $ServerListenerPid = $null
 $CurrentStateWritten = $false
+$PreserveCurrentForHealthRecovery = $false
 $CurrentStatePath = $null
 $RuntimeUnlockCredentialTarget = Get-KisMcpRuntimeUnlockCredentialTarget
 $RuntimeUnlockCredential = $null
@@ -496,7 +497,7 @@ try {
     }
     $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
     $HealthGuardCommand = (
-        '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -Instance "{2}" -RunId "{3}" -RepositoryRoot "{4}"' -f
+        '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -Instance "{2}" -RunId "{3}" -RepositoryRoot "{4}" -FailureGraceSeconds 60' -f
         $Pwsh, $HealthGuardScript, $Remote.app_name, $RunId, $RepositoryRoot
     )
     $HealthGuard = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
@@ -532,6 +533,7 @@ try {
     }
     Drain-OwnedProcessLogs -Process $Server -EchoStandardError
     Drain-OwnedProcessLogs -Process $Tunnel
+    $PreserveCurrentForHealthRecovery = $true
     if ($Server.HasExited) {
         throw "KIS_MCP_HTTP_EXITED: $($Server.ExitCode)"
     }
@@ -546,10 +548,10 @@ finally {
         $Server.Kill($true)
         $null = $Server.WaitForExit(5000)
     }
-    if ($CurrentStateWritten) {
+    if ($CurrentStateWritten -and -not $PreserveCurrentForHealthRecovery) {
         Set-KisMcpCurrentInstanceStopped -Remote $Remote -RunId $RunId
     }
-    else {
+    elseif (-not $CurrentStateWritten) {
         Set-KisMcpCurrentInstanceStartupFailed -Remote $Remote -RunId $RunId
     }
     Stop-OwnedProcessLogging -Process $Tunnel
