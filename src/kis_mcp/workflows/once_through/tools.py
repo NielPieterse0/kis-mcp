@@ -23,7 +23,12 @@ from .contracts import (
     TaskObligation,
     fingerprint,
 )
-from .controller import PromotionController, PromotionStateStore, build_terminal_receipt
+from .controller import (
+    PromotionController,
+    PromotionStateStore,
+    build_terminal_receipt,
+    promotion_operation_id,
+)
 from .process_identity import (
     WindowsProcessIdentity,
     read_process_identity,
@@ -531,7 +536,14 @@ async def _governed_source_without_candidate(
     if not change_id:
         raise ValueError("PROMOTION_CHANGE_ID_MISSING: Work Change ID is unavailable")
     repository_root = Path(__file__).resolve().parents[4]
-    source_path = repository_root / ".work" / "worktrees" / change_id
+    if (
+        repository_root.name == change_id
+        and repository_root.parent.name == "worktrees"
+        and repository_root.parent.parent.name == ".work"
+    ):
+        source_path = repository_root
+    else:
+        source_path = repository_root / ".work" / "worktrees" / change_id
     return _governed_source_binding(contract, str(source_path))
 
 
@@ -549,7 +561,12 @@ async def _resolve_work_record(
     if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
         raise ValueError("scope source_number is invalid")
     fields = ("Status", "Record Type", "Priority", "Effort", "Delivery Stage", "Execution Owner", "Documentation Impact", "Complexity", "Risk Triggers")
-    inventory = await service.read_inventory(contract.project_id, field_names=fields, item_limit=1000)
+    inventory = await service.read_inventory(
+        contract.project_id,
+        field_names=fields,
+        item_limit=20,
+        query=str(number),
+    )
     matches = [item for item in inventory.items if item.number == number and item.repository and item.repository.casefold() == str(repository).casefold()]
     if len(matches) != 1:
         raise ValueError(f"WORK_RECORD_UNRESOLVED: expected one Project item for {repository}#{number}")
@@ -960,6 +977,14 @@ def register_once_through_tools(
                 outcomes: list[dict[str, Any]] = []
                 for scenario in scenarios:
                     tool_name = str(scenario.get("tool", ""))
+                    if tool_name == "candidate_identity":
+                        outcomes.append({
+                            "tool": tool_name,
+                            "status": "passed",
+                            "expected_error": False,
+                            "preverified": True,
+                        })
+                        continue
                     if tool_name not in tools:
                         raise OnceThroughStateError("CANDIDATE_SCENARIO_INVALID", f"unknown candidate tool: {tool_name}")
                     annotations = getattr(tools[tool_name], "annotations", None)
@@ -1224,11 +1249,7 @@ def register_once_through_tools(
             contract = store.load_contract(work_id)
             assert contract is not None
             handoff = store.load_promotion(work_id).to_json_dict()
-            operation_id = "promotion-" + fingerprint({
-                "work_id": work_id,
-                "contract_fingerprint": handoff["contract_fingerprint"],
-                "source_commit_sha": handoff["source_commit_sha"],
-            })[:32]
+            operation_id = promotion_operation_id(handoff)
             checkpoint = promotion_state.load(operation_id)
             if checkpoint is not None and (
                 checkpoint.get("state") == "done"

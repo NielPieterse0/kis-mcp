@@ -28,6 +28,37 @@ _STAGES = (
 )
 
 
+def promotion_operation_id(handoff: Mapping[str, Any]) -> str:
+    return "promotion-" + fingerprint({
+        "work_id": handoff.get("work_id"),
+        "contract_fingerprint": handoff.get("contract_fingerprint"),
+        "source_commit_sha": handoff.get("source_commit_sha"),
+    })[:32]
+
+
+def project_promotion_checkpoint(checkpoint: Mapping[str, Any] | None) -> dict[str, Any]:
+    if checkpoint is None:
+        return {"state": "ready", "completed": [], "current_stage": _STAGES[0]}
+    completed = list(checkpoint.get("completed", ()))
+    if tuple(completed) != _STAGES[: len(completed)] or len(set(completed)) != len(completed):
+        raise ValueError("PROMOTION_STATE_INVALID: completed stages must be a unique ordered prefix")
+    complete = len(completed) == len(_STAGES)
+    state = str(checkpoint.get("state") or ("done" if complete else "ready"))
+    current_stage = checkpoint.get("current_stage")
+    expected_stage = None if complete else _STAGES[len(completed)]
+    if state == "done" and not complete:
+        raise ValueError("PROMOTION_STATE_INVALID: done requires every controller stage")
+    if complete and state != "done":
+        raise ValueError("PROMOTION_STATE_INVALID: every controller stage requires done state")
+    if complete and current_stage is not None:
+        raise ValueError("PROMOTION_STATE_INVALID: completed controller cannot retain current_stage")
+    if not complete and current_stage is not None and current_stage != expected_stage:
+        raise ValueError("PROMOTION_STATE_INVALID: current_stage does not match completed prefix")
+    if current_stage is None:
+        current_stage = expected_stage
+    return {"state": state, "completed": completed, "current_stage": current_stage}
+
+
 @dataclass(frozen=True, slots=True)
 class PromotionExecution:
     operation_id: str

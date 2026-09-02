@@ -24,13 +24,14 @@ Permanent disposal is intentionally not exposed as a normal Work tool.
 
 ## Development-runtime recovery
 
-If `kis-dev` is unavailable and recovery through its MCP/tunnel path is impossible, run the repository-local recovery script from a healthy local shell:
+If either ChatGPT-facing runtime is unavailable and recovery through its MCP/tunnel path is impossible, run the fixed-instance repository-local recovery wrapper from a healthy local shell:
 
 ```powershell
 pwsh -File .\scripts\recover-kis-dev.ps1
+pwsh -File .\scripts\recover-kis-op.ps1
 ```
 
-This surface is intentionally independent of the selected MCP runtime and tunnel. It is hard-bound to `kis-dev`, delegates ownership checks and stale-instance reclamation to the normal `start-chatgpt.ps1` launcher, and never selects or mutates `kis-op`. Use `-Foreground` to keep the launcher attached while diagnosing startup output.
+Both wrappers delegate to `recover-chatgpt.ps1` with an explicit fixed instance. The recovery surface is independent of the selected MCP runtime and tunnel, reuses an already healthy matching generation, otherwise launches only the requested instance, and verifies local MCP plus tunnel readiness before success. It never falls back to the peer or to `active_instance`. Each ready generation also installs a generation-scoped health guard that invokes the same recovery primitive only if that generation remains authoritative after a bounded health-failure grace period.
 
 When the MCP path itself cannot be trusted, the same script provides a bounded repository read that does not start or contact either KIS runtime or any tunnel:
 

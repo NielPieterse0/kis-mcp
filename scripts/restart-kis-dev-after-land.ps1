@@ -335,8 +335,8 @@ try {
     $MaxRecoveryAttempts = 2
     while ($true) {
         try {
-            & (Join-Path $RepositoryRoot 'scripts\start-chatgpt.ps1') -Instance 'kis-dev'
-            $null = Write-KisDevRestartReceipt -State 'stopped' -Detail 'replacement launcher exited' -LaunchedSha $LaunchedSha -WorkerPid $PID
+            & (Join-Path $RepositoryRoot 'scripts\recover-kis-dev.ps1') -RepositoryRoot $RepositoryRoot -WaitSeconds 90
+            $null = Write-KisDevRestartReceipt -State 'ready' -Detail 'replacement runtime recovered and verified ready' -LaunchedSha $LaunchedSha -WorkerPid $PID
             return
         }
         catch {

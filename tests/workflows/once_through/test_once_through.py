@@ -5,6 +5,7 @@ import json
 import socket
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastmcp import FastMCP
@@ -38,6 +39,7 @@ from kis_mcp.workflows.once_through.evidence import (
 )
 from kis_mcp.workflows.once_through.tools import (
     _governed_source_binding,
+    _resolve_work_record,
     register_once_through_tools,
     _record_promotion_operation,
     _terminal_audit,
@@ -64,6 +66,42 @@ def _evidence(kind: str, **inputs: str) -> EvidenceReference:
         validity_class=EvidenceValidityClass.CONTENT_STABLE,
         validity_inputs=inputs, receipt_ref=f"receipt:{kind}",
     )
+
+
+def test_promotion_work_resolution_uses_targeted_issue_query() -> None:
+    calls: list[dict[str, object]] = []
+
+    class Service:
+        async def read_inventory(self, project_id: str, **kwargs: object) -> SimpleNamespace:
+            calls.append({"project_id": project_id, **kwargs})
+            fields = [
+                SimpleNamespace(field_name="Record Type", value="task"),
+                SimpleNamespace(field_name="Status", value="active"),
+                SimpleNamespace(field_name="Complexity", value="large"),
+                SimpleNamespace(field_name="Risk Triggers", value="deployment,persistent_state"),
+            ]
+            return SimpleNamespace(items=(SimpleNamespace(
+                number=650,
+                repository="NielPieterse0/kis-mcp",
+                title="Lifecycle decision",
+                field_values=tuple(fields),
+            ),))
+
+    contract = _contract(46031, work_id="WORK-650")
+    scope = {
+        "work_management": {
+            "record_id": "WORK-650",
+            "source_repository": "NielPieterse0/kis-mcp",
+            "source_number": 650,
+        }
+    }
+    record = asyncio.run(_resolve_work_record(Service(), contract, scope))
+
+    assert record["record_id"] == "TASK-650"
+    assert record["complexity"] == "large"
+    assert calls[0]["project_id"] == "kis-mcp"
+    assert calls[0]["item_limit"] == 20
+    assert calls[0]["query"] == "650"
 
 
 def test_candidate_runtime_instance_id_is_state_namespace_safe() -> None:

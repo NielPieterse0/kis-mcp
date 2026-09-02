@@ -15,6 +15,7 @@ from kis_mcp.workflows.verification.contracts import (
     VerificationSelectionResult,
 )
 from kis_mcp.workflows.verification.execution import VerificationExecutionError
+from kis_mcp.workflows.verification.platform import _invoke_local_verification_stage
 from kis_mcp.workflows.verification.tools import (
     register_verification_selection_tool,
     register_verification_tool,
@@ -109,6 +110,25 @@ def test_structural_verification_errors_are_not_hr_policy_codes() -> None:
     assert "HR-" not in str(raised.value)
 
 
+def test_untyped_verification_runtime_failure_is_translated_to_typed_tool_error() -> None:
+    server = FastMCP("verification-runtime-error-test")
+    register_verification_tool(server, _Service(error=RuntimeError("simulated transport 502")))
+    with pytest.raises(ToolError) as raised:
+        asyncio.run(
+            server.call_tool(
+                "run_verification",
+                {
+                    "project": r"C:\Projects\fixture",
+                    "verification_id": "powershell-verify-script",
+                },
+            )
+        )
+    payload = json.loads(str(raised.value))
+    assert payload["code"] == "VERIFICATION_EXECUTION_UNEXPECTED"
+    assert payload["retryable"] is True
+    assert payload["reason"] == "RuntimeError"
+
+
 def test_discover_errors_are_translated_without_fastmcp_exception_failure() -> None:
     server = FastMCP("verification-discover-error-test")
     register_verification_tool(
@@ -192,3 +212,41 @@ def test_select_change_verification_is_read_only_and_does_not_accept_commands() 
     assert result.structured_content["contract"] == "verification-selection-v1"
     assert result.structured_content["selected"][0]["execution_available"] is False
     assert service.calls[0]["task_terms"] == ("tests",)
+
+
+def test_change_execution_local_stages_bypass_fastmcp_reentry() -> None:
+    selection = _SelectionService()
+    verification = _Service()
+
+    selected = asyncio.run(
+        _invoke_local_verification_stage(
+            selection,
+            verification,
+            "select_change_verification",
+            {
+                "project": r"C:\Projects\fixture",
+                "task_terms": ["tests"],
+                "max_verifications": 3,
+            },
+        )
+    )
+    executed = asyncio.run(
+        _invoke_local_verification_stage(
+            selection,
+            verification,
+            "run_verification",
+            {
+                "project": r"C:\Projects\fixture",
+                "verification_id": "python-pytest",
+                "timeout_ms": 45_000,
+            },
+        )
+    )
+
+    assert selected is not None and selected["contract"] == "verification-selection-v1"
+    assert executed is not None and executed["contract"] == "verification-result-v1"
+    assert selection.calls[0]["task_terms"] == ("tests",)
+    assert verification.calls[0]["timeout_ms"] == 45_000
+    assert asyncio.run(
+        _invoke_local_verification_stage(selection, verification, "review_change_with_agent", {})
+    ) is None

@@ -462,22 +462,23 @@ def test_chatgpt_shutdown_terminates_owned_process_trees() -> None:
 
 
 def test_kis_dev_recovery_surface_is_hard_bound_to_development_instance() -> None:
-    content = _script("recover-kis-dev.ps1")
+    wrapper = _script("recover-kis-dev.ps1")
+    general = _script("recover-chatgpt.ps1")
 
-    assert "-Instance 'kis-dev'" in content
-    assert '-Instance "kis-dev"' in content
-    assert "kis-op" not in content
-    assert "operation" not in content
-    assert "active_instance" not in content
+    assert "Instance = 'kis-dev'" in wrapper
+    assert "recover-chatgpt.ps1" in wrapper
+    assert "active_instance" not in wrapper
+    assert "KIS_MCP_RECOVERY_INSTANCE_INVALID" in general
 
 
 def test_kis_dev_recovery_surface_supports_foreground_and_detached_launch() -> None:
-    content = _script("recover-kis-dev.ps1")
+    wrapper = _script("recover-kis-dev.ps1")
+    general = _script("recover-chatgpt.ps1")
 
-    assert "[switch]$Foreground" in content
-    assert "Invoke-CimMethod -ClassName Win32_Process -MethodName Create" in content
-    assert "KIS_DEV_RECOVERY_DETACH_FAILED" in content
-    assert "recovery_surface = 'local-shell'" in content
+    assert "[switch]$Foreground" in wrapper
+    assert "Invoke-CimMethod -ClassName Win32_Process -MethodName Create" in general
+    assert "KIS_MCP_RECOVERY_DETACH_FAILED" in general
+    assert "recovery_surface = 'local-shell'" in general
 
 
 def test_kis_dev_recovery_surface_reads_repository_file_without_runtime() -> None:
@@ -516,7 +517,7 @@ def test_kis_dev_recovery_surface_rejects_repository_escape() -> None:
     )
 
     assert result.returncode != 0
-    assert "KIS_DEV_RECOVERY_READ_PATH_INVALID" in result.stderr
+    assert "KIS_MCP_RECOVERY_READ_PATH_INVALID" in result.stderr
 
 
 def test_kis_dev_recovery_read_does_not_require_runtime_launcher(tmp_path: Path) -> None:
@@ -563,7 +564,7 @@ def test_kis_dev_recovery_read_rejects_invalid_utf8(tmp_path: Path) -> None:
     )
 
     assert result.returncode != 0
-    assert "KIS_DEV_RECOVERY_READ_NOT_UTF8" in result.stderr
+    assert "KIS_MCP_RECOVERY_READ_NOT_UTF8" in result.stderr
 
 
 def test_kis_dev_recovery_read_rejects_oversized_file(tmp_path: Path) -> None:
@@ -586,7 +587,7 @@ def test_kis_dev_recovery_read_rejects_oversized_file(tmp_path: Path) -> None:
     )
 
     assert result.returncode != 0
-    assert "KIS_DEV_RECOVERY_READ_TOO_LARGE" in result.stderr
+    assert "KIS_MCP_RECOVERY_READ_TOO_LARGE" in result.stderr
 
 
 def test_recovery_docs_distinguish_oauth_discovery_from_mcp_operation_failure() -> None:
