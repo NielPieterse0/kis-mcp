@@ -380,4 +380,4 @@ def test_github_inventory_applies_targeted_query_at_provider_boundary() -> None:
     assert inventory.items
     item_call = service.caller.calls[-1][1]
     assert item_call["per_page"] == 20
-    assert item_call["query"] == "repo:NielPieterse0/kis-mcp 235"
+    assert item_call["query"] == "235"

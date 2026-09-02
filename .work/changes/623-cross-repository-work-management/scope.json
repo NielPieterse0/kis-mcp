@@ -12,6 +12,7 @@
     "tests/providers/github/projects/test_adapter.py",
     "tests/providers/test_github_project_management.py",
     "tests/work_management/test_command_service.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
     ".work/changes/623-cross-repository-work-management/**"
   ],
   "shared_paths": [],
