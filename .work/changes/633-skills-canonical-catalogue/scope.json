@@ -1,0 +1,41 @@
+{
+  "schema_version": 4,
+  "change_id": "633-skills-canonical-catalogue",
+  "status": "active",
+  "branch": "change/633-skills-canonical-catalogue",
+  "worktree": ".work/worktrees/633-skills-canonical-catalogue",
+  "base": "main",
+  "outcome": "Make C:\\Projects\\.agents\\skills the sole canonical Skills catalogue and make reconciliation atomic across added, removed, modified, malformed, and empty catalogues without stale or repo-local fallback state.",
+  "owned_paths": [
+    "src/kis_mcp/skills/**",
+    "tests/skills/**",
+    ".work/changes/633-skills-canonical-catalogue/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "636e01b06d31b320440442e49c18476a7565cb86",
+    "local_tree": "eba785b09d1cadbd2939b4a6ad24fbc8692ffd2b",
+    "upstream_sha": "636e01b06d31b320440442e49c18476a7565cb86",
+    "upstream_tree": "eba785b09d1cadbd2939b4a6ad24fbc8692ffd2b",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "SPEC-633",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 673,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-c"
+  }
+}

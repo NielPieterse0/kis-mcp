@@ -36,6 +36,13 @@ class _Snapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class SkillRefreshDiagnostic:
+    source_directory: str
+    code: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
 class ProposedSkillCreate:
     skill_id: str
     content: str
@@ -62,6 +69,7 @@ class SkillCatalogue:
         self.source_reader = SkillSourceReader(config)
         self.root = self.source_reader.root
         self._snapshot: _Snapshot | None = None
+        self._diagnostics: tuple[SkillRefreshDiagnostic, ...] = ()
         self.refresh_skills()
 
     @property
@@ -74,11 +82,26 @@ class SkillCatalogue:
     def skill_count(self) -> int:
         return len(self._active())
 
+    @property
+    def diagnostics(self) -> tuple[SkillRefreshDiagnostic, ...]:
+        return self._diagnostics
+
     def refresh_skills(self) -> SkillRefreshResponse:
         accepted: list[SkillSource] = []
-        problems: list[str] = []
+        diagnostics: list[SkillRefreshDiagnostic] = []
         canonical_sources: dict[str, str] = {}
-        for path in sorted(self.root.iterdir(), key=lambda item: item.name.casefold()):
+        try:
+            paths = sorted(self.root.iterdir(), key=lambda item: item.name.casefold())
+        except OSError as exc:
+            paths = []
+            diagnostics.append(
+                SkillRefreshDiagnostic(
+                    source_directory=".",
+                    code="SKILLS_ROOT_UNAVAILABLE",
+                    message=str(exc),
+                )
+            )
+        for path in paths:
             if path.name.startswith("."):
                 continue
             try:
@@ -97,20 +120,32 @@ class SkillCatalogue:
                 canonical_sources[entry.id] = path.name
                 accepted.append(entry)
             except SkillsError as exc:
-                problems.append(f"{path.name}: {exc}")
+                diagnostics.append(
+                    SkillRefreshDiagnostic(
+                        source_directory=path.name,
+                        code=exc.code,
+                        message=exc.message,
+                    )
+                )
+            except OSError as exc:
+                diagnostics.append(
+                    SkillRefreshDiagnostic(
+                        source_directory=path.name,
+                        code="SKILLS_SOURCE_UNREADABLE",
+                        message=str(exc),
+                    )
+                )
 
         present_ids = {entry.id for entry in accepted}
-        missing_required = tuple(
-            skill_id for skill_id in self.config.required_skills if skill_id not in present_ids
-        )
-        if missing_required:
-            raise SkillsError(
-                "SKILLS_REQUIRED_MISSING",
-                "Required canonical Skills are missing or invalid: "
-                + ", ".join(missing_required),
-            )
-        if problems:
-            raise SkillsError("SKILLS_REFRESH_REJECTED", "; ".join(problems))
+        for skill_id in self.config.required_skills:
+            if skill_id not in present_ids:
+                diagnostics.append(
+                    SkillRefreshDiagnostic(
+                        source_directory=skill_id,
+                        code="SKILLS_REQUIRED_MISSING",
+                        message="Configured required skill is missing or invalid",
+                    )
+                )
 
         accepted.sort(key=lambda item: item.id)
         snapshot_id = hashlib.sha256(
@@ -121,6 +156,7 @@ class SkillCatalogue:
             ).encode("utf-8")
         ).hexdigest()[:16]
         self._snapshot = _Snapshot(snapshot_id=snapshot_id, skills=tuple(accepted))
+        self._diagnostics = tuple(diagnostics)
         return SkillRefreshResponse(
             snapshot_id=snapshot_id,
             skill_count=len(accepted),
