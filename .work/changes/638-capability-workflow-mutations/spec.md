@@ -5,7 +5,7 @@
 - **Risk trigger**: `public_contract`
 
 ## Outcome
-Restore executable `create_change_worktree` and `commit_change` operations for the governed development workflow without expanding the direct tool surface.
+Restore executable governed-change operations used by progressive-disclosure workflows, including development and safe repository-worktree cleanup, without expanding the direct tool surface.
 
 ## Authority and scope
 - Authority: `AGENTS.md`, current capability contracts/source/tests.
@@ -13,10 +13,11 @@ Restore executable `create_change_worktree` and `commit_change` operations for t
 - Excluded: workflow descriptor definitions owned by active change #637; `kis-op` runtime operations.
 
 ## Requirements
-- **REQ-001**: Capability discovery resolves both missing operation names as eligible discoverable operations.
-- **REQ-002**: `execute_change_action` dispatches both operations instead of returning `UNKNOWN_CAPABILITY_OPERATION`.
-- **REQ-003**: Worktree creation uses the repository's governed `scripts/change-workflow.ps1 new` path.
+- **REQ-001**: Capability discovery resolves governed development and cleanup operation names as eligible discoverable operations.
+- **REQ-002**: `execute_read_action` dispatches `list_worktrees` and `validate_change_claims`; `execute_change_action` dispatches `create_change_worktree`, `commit_change`, and `cleanup_change_worktree` instead of returning `UNKNOWN_CAPABILITY_OPERATION`.
+- **REQ-003**: Worktree creation, listing, validation, and cleanup delegate to the repository's governed `scripts/change-workflow.ps1` commands.
 - **REQ-004**: Commit creation is restricted to a `change/*` branch and explicit repository-relative pathspecs.
+- **REQ-005**: Progressive disclosure derives executable workflow steps from required steps that resolve to enabled operations or workflow IDs, so cleanup does not advertise unresolved executable work.
 
 ## Acceptance
 1. Focused capability/execution tests pass.
@@ -29,4 +30,4 @@ Restore executable `create_change_worktree` and `commit_change` operations for t
 - Recovery: revert the bounded commit; no durable external state is required by the change itself.
 
 ## Out of scope
-`list_worktrees`, `cleanup_change_worktree`, and broader workflow-catalog reconciliation follow after the development path is operational.
+Workflow descriptor source changes owned by active Change 637 and any cleanup behavior beyond the existing governed repository cleanup command.

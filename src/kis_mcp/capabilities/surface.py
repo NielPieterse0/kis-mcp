@@ -11,7 +11,13 @@ from ..projects.github_merge_queue import (
     REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS,
 )
 from ..projects.github_tracking import REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS
-from .governed_change import COMMIT_CHANGE_SCHEMA, CREATE_CHANGE_WORKTREE_SCHEMA
+from .governed_change import (
+    CLEANUP_CHANGE_WORKTREE_SCHEMA,
+    COMMIT_CHANGE_SCHEMA,
+    CREATE_CHANGE_WORKTREE_SCHEMA,
+    LIST_WORKTREES_SCHEMA,
+    VALIDATE_CHANGE_CLAIMS_SCHEMA,
+)
 from .contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -157,6 +163,42 @@ def capability_control_contribution() -> CapabilityContribution:
             quality=default_quality(context_cost=10, reversibility=90, reliability=95, workflow_integration=100),
             tags=("governed-change", "virtual"),
             input_schema=COMMIT_CHANGE_SCHEMA,
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.list-worktrees",
+            name="list_worktrees",
+            description="List active governed change worktree claims through the repository change workflow.",
+            capabilities=("operation.list_worktrees", "repository.git-read"),
+            effects=(OperationEffect.READ_ONLY,),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=98),
+            quality=default_quality(context_cost=10, reversibility=100, reliability=95, workflow_integration=100),
+            tags=("governed-change", "virtual"),
+            input_schema=LIST_WORKTREES_SCHEMA,
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.validate-change-claims",
+            name="validate_change_claims",
+            description="Validate governed change claims without mutating repository state.",
+            capabilities=("operation.validate_change_claims", "repository.git-read"),
+            effects=(OperationEffect.READ_ONLY,),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=98),
+            quality=default_quality(context_cost=10, reversibility=100, reliability=95, workflow_integration=100),
+            tags=("governed-change", "virtual"),
+            input_schema=VALIDATE_CHANGE_CLAIMS_SCHEMA,
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.cleanup-change-worktree",
+            name="cleanup_change_worktree",
+            description="Remove one clean merged governed change worktree through the repository cleanup workflow.",
+            capabilities=("operation.cleanup_change_worktree", "git.worktree.cleanup"),
+            effects=(OperationEffect.LOCAL_CHANGE, OperationEffect.PROCESS),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=98),
+            quality=default_quality(context_cost=10, reversibility=95, reliability=95, workflow_integration=100),
+            tags=("governed-change", "virtual"),
+            input_schema=CLEANUP_CHANGE_WORKTREE_SCHEMA,
         ),
         OperationDescriptor(
             operation_id="capability-control.kis-github-publish-registered-commit",
