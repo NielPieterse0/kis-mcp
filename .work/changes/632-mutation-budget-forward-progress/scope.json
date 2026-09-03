@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "632-mutation-budget-forward-progress",
+  "status": "active",
+  "branch": "change/632-mutation-budget-forward-progress",
+  "worktree": ".work/worktrees/632-mutation-budget-forward-progress",
+  "base": "main",
+  "outcome": "Process newer commissioning candidates first so fresh merges are evaluated before historical backlog can exhaust the shared scan-wide mutation budget, while preserving fail-closed mutation exhaustion.",
+  "owned_paths": [
+    "src/kis_mcp/commissioning_runtime/service.py",
+    "tests/post_merge_commissioning/test_runtime_service.py",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/632-mutation-budget-forward-progress/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "eae74ac65fa5a30f06ab698b39465e47221f432c",
+    "local_tree": "69e003941fd0e1ff2600fff47aa2846b3aefcf16",
+    "upstream_sha": "eae74ac65fa5a30f06ab698b39465e47221f432c",
+    "upstream_tree": "69e003941fd0e1ff2600fff47aa2846b3aefcf16",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-641",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 641,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
