@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "tool": "open-code-review",
+  "package": {
+    "name": "@alibaba-group/open-code-review",
+    "version": "1.11.2",
+    "integrity": "sha512-CdNWXg5FKpPlbPRMVQ6lwiOFpY683/02CDa3FOUeKQhYx2xxSIkh0Y0kX2b0v7qYF+ReaWhdgF2FDZjkxkFQ2Q==",
+    "platform_package": "@alibaba-group/ocr-win32-x64@1.11.2",
+    "platform_integrity": "sha512-lM68rf/hYmN343FqsLMQcpTGYx9+UO0jz+PA5BsLjHTkkjDEfNAKRa/hqV8nbn+aUl9gO3EF6+W2NCdpDbzUQQ=="
+  },
+  "runtime": {
+    "mode": "pinned_offline_disposable",
+    "network_used_for_install": false,
+    "github_credentials_exposed": false,
+    "ocr_llm_credentials_exposed": false,
+    "executable": false,
+    "successful_reviews": 0,
+    "failure_code": "WINDOWS_APPLICATION_CONTROL_BLOCKED",
+    "fallback": "WSL2 present; linux-x64 OCR payload absent from approved local npm cache (ENOTCACHED)"
+  },
+  "corpus": [
+    {
+      "id": "security",
+      "historical_evidence_revision": "8c3f9bee0ff8723a3334b8bf46bc2fa1699eca99",
+      "change": "218-hr003-remote-branch-retention",
+      "evidence": "safety/security and API-contract review boundary"
+    },
+    {
+      "id": "architecture",
+      "historical_evidence_revision": "d3f9647452faf877e843637b06ed73c221e7fef2",
+      "change": "120-kis-speculative-landing-queue",
+      "evidence": "two resolved architecture findings"
+    },
+    {
+      "id": "api-contract",
+      "historical_evidence_revision": "61aaacf56b3290595c25d2d5fb99cc221aded9a8",
+      "change": "249-review-map",
+      "evidence": "two resolved public-contract findings"
+    },
+    {
+      "id": "test-quality",
+      "historical_evidence_revision": "01e56e4700ea4c9565f4c549a8f3d1045801f583",
+      "change": "145-skill-usage-telemetry",
+      "evidence": "review-driven boundary regression correction"
+    },
+    {
+      "id": "documentation-authority",
+      "historical_evidence_revision": "145052fb1fefd15bd5b2fb53babaccdfcee69916",
+      "change": "110-work-management-documentation-completion",
+      "evidence": "three resolved documentation authority findings"
+    },
+    {
+      "id": "clean",
+      "historical_evidence_revision": "2f353fb07a4eee1924368c7f9085c97bb9fb4ea7",
+      "change": "211-purpose-specific-reviewer",
+      "evidence": "independent code-quality and safety/security reviews returned zero findings"
+    },
+    {
+      "id": "large-change",
+      "historical_evidence_revision": "d3f9647452faf877e843637b06ed73c221e7fef2",
+      "change": "120-kis-speculative-landing-queue",
+      "evidence": "large cross-cutting queue/work-management change"
+    }
+  ],
+  "metrics": {
+    "status": "not_measurable",
+    "successful_ocr_reviews": 0,
+    "incremental_validated_findings": null
+  },
+  "decision": "not_adopted",
+  "product_integration_authorized": false
+}
