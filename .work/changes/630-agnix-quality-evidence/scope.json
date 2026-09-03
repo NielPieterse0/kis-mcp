@@ -1,0 +1,39 @@
+{
+  "schema_version": 4,
+  "change_id": "630-agnix-quality-evidence",
+  "status": "active",
+  "branch": "change/630-agnix-quality-evidence",
+  "worktree": ".work/worktrees/630-agnix-quality-evidence",
+  "base": "main",
+  "outcome": "Integrate MCP 2026-native Agnix diagnostics as reusable KIS quality evidence for issue 568.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/agent_validation/**",
+    "tests/workflows/agent_validation/**",
+    "docs/AGNIX-MCP-2026-EVIDENCE.md",
+    ".work/changes/630-agnix-quality-evidence/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": ["src/kis_mcp/workflows/once_through/**", "src/kis_mcp/work_management/**"],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": ["public_contract"],
+  "base_evidence": {
+    "local_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "local_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "upstream_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "github_branch_plus_local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-568",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 568,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "agent-b"
+  }
+}
