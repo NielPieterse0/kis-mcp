@@ -221,6 +221,11 @@ if (-not (Test-Path -LiteralPath $ProfilePath -PathType Leaf)) {
 }
 
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$SourceRevision = [string](& git -C $RepositoryRoot rev-parse --verify HEAD)
+if ($LASTEXITCODE -ne 0 -or $SourceRevision.Trim() -notmatch '^[0-9a-fA-F]{40}$') {
+    throw 'KIS_MCP_SOURCE_REVISION_UNAVAILABLE'
+}
+$SourceRevision = $SourceRevision.Trim().ToLowerInvariant()
 $AgentSettingsPath = Join-Path $RepositoryRoot 'settings\agents\code-review-agent.settings.json'
 if (-not (Test-Path -LiteralPath $AgentSettingsPath -PathType Leaf)) {
     throw "KIS_MCP_AGENT_SETTINGS_MISSING: $AgentSettingsPath"
@@ -488,7 +493,8 @@ try {
         -TunnelPid $Tunnel.Id `
         -PythonPath $Python `
         -RepositoryRoot $RepositoryRoot `
-        -StartupStatePath $StartupStatePath
+        -StartupStatePath $StartupStatePath `
+        -SourceRevision $SourceRevision
     $CurrentStateWritten = $true
 
     $HealthGuardScript = Join-Path $RepositoryRoot 'scripts\runtime-health-guard.ps1'

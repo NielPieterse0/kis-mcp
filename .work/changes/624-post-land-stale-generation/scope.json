@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "624-post-land-stale-generation",
+  "status": "active",
+  "branch": "change/624-post-land-stale-generation",
+  "worktree": ".work/worktrees/624-post-land-stale-generation",
+  "base": "main",
+  "outcome": "Prevent post-land restart from certifying a healthy stale kis-dev runtime generation as ready.",
+  "owned_paths": [
+    "scripts/restart-kis-dev-after-land.ps1",
+    "scripts/recover-kis-dev.ps1",
+    "scripts/recover-chatgpt.ps1",
+    "scripts/start-chatgpt.ps1",
+    "scripts/startup-instance-lifecycle.ps1",
+    "tests/projects/test_post_land_restart.py",
+    "tests/test_startup_recovery.py",
+    "tests/test_startup_scripts.py",
+    ".work/changes/624-post-land-stale-generation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "deployment",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "c4a3bbd846e57ed2e38589f996e5dc62a2cbc2d3",
+    "local_tree": "79a90810e5d40c5c75053ba0da942eb3d5d8a9e5",
+    "upstream_sha": "c4a3bbd846e57ed2e38589f996e5dc62a2cbc2d3",
+    "upstream_tree": "79a90810e5d40c5c75053ba0da942eb3d5d8a9e5",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-657",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 657,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

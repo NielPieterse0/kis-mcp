@@ -380,6 +380,7 @@ def test_worker_is_hardwired_to_kis_dev_only() -> None:
     assert "-Instance 'kis-op'" not in content
     assert "Invoke-CimMethod" in content
     assert "git merge --ff-only" in content
+    assert "-ExpectedSourceRevision $LaunchedSha" in content
 
 
 @pytest.mark.parametrize(
@@ -401,7 +402,7 @@ def test_worker_behavior_invokes_only_kis_dev(
     (scripts / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     target_log = root / "restart-target.txt"
     (scripts / "recover-kis-dev.ps1").write_text(
-        "param([string]$RepositoryRoot,[int]$WaitSeconds)\n"
+        "param([string]$RepositoryRoot,[string]$ExpectedSourceRevision,[int]$WaitSeconds)\n"
         "[IO.File]::WriteAllText($env:KIS_TEST_TARGET, 'kis-dev')\n",
         encoding="utf-8",
     )
@@ -512,7 +513,7 @@ def test_worker_retries_transient_kis_dev_launch_failure_then_succeeds(tmp_path:
     (scripts / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     attempts = root / "launch-attempts.txt"
     (scripts / "recover-kis-dev.ps1").write_text(
-        "param([string]$RepositoryRoot,[int]$WaitSeconds)\n"
+        "param([string]$RepositoryRoot,[string]$ExpectedSourceRevision,[int]$WaitSeconds)\n"
         "$count = if (Test-Path $env:KIS_TEST_ATTEMPTS) { [int](Get-Content $env:KIS_TEST_ATTEMPTS -Raw) } else { 0 }\n"
         "$count += 1\n"
         "[IO.File]::WriteAllText($env:KIS_TEST_ATTEMPTS, [string]$count)\n"
