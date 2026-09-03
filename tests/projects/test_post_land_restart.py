@@ -110,7 +110,9 @@ def test_detached_scheduler_propagates_requested_delay(tmp_path: Path) -> None:
         capture_output=True, text=True, timeout=30, check=False,
     )
     assert result.returncode == 0, result.stderr
-    assert '-DelaySeconds "0" -Worker' in command_log.read_text(encoding="utf-8")
+    command = command_log.read_text(encoding="utf-8")
+    assert '-DelaySeconds "0"' in command
+    assert '-RecoveryRetryDelaySeconds "60" -Worker' in command
 
 
 def test_scheduler_receipt_replace_is_windows_powershell_compatible(tmp_path: Path) -> None:
@@ -573,7 +575,8 @@ def test_worker_retries_transient_kis_dev_launch_failure_then_succeeds(tmp_path:
     result = subprocess.run(
         ["pwsh.exe", "-NoProfile", "-File", str(scripts / source.name),
          "-ExpectedLandedSha", SHA, "-RepositoryRoot", str(root),
-         "-StateRoot", str(state_root), "-Worker", "-DelaySeconds", "0"],
+         "-StateRoot", str(state_root), "-Worker", "-DelaySeconds", "0",
+         "-RecoveryRetryDelaySeconds", "1"],
         cwd=root, env=env, capture_output=True, text=True, timeout=30, check=False,
     )
 

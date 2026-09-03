@@ -1,0 +1,45 @@
+{
+  "schema_version": 4,
+  "change_id": "625-0-recovery-hook-grace-observability",
+  "status": "active",
+  "branch": "change/625-0-recovery-hook-grace-observability",
+  "worktree": ".work/worktrees/625-0-recovery-hook-grace-observability",
+  "base": "main",
+  "outcome": "Harden recovery hook grace observability and suppress visible duplicate recovery launchers.",
+  "owned_paths": [
+    "scripts/runtime-health-guard.ps1",
+    "scripts/recover-chatgpt.ps1",
+    "scripts/restart-kis-dev-after-land.ps1",
+    "tests/test_runtime_health_guard.py",
+    "tests/test_startup_recovery.py",
+    "tests/projects/test_post_land_restart.py",
+    ".work/changes/625-0-recovery-hook-grace-observability/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "deployment",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "065d02c5334c12ae7775248063b247f376c60c19",
+    "local_tree": "9e112a36e70a5c4ab4a99493b835d05187c7f205",
+    "upstream_sha": "065d02c5334c12ae7775248063b247f376c60c19",
+    "upstream_tree": "9e112a36e70a5c4ab4a99493b835d05187c7f205",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-657",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 657,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

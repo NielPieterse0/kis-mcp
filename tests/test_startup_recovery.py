@@ -56,10 +56,12 @@ def test_compatibility_wrappers_delegate_to_general_recovery() -> None:
     scripts = Path(__file__).parents[1] / "scripts"
     dev = (scripts / "recover-kis-dev.ps1").read_text(encoding="utf-8")
     op = (scripts / "recover-kis-op.ps1").read_text(encoding="utf-8")
+    recovery = (scripts / "recover-chatgpt.ps1").read_text(encoding="utf-8")
     assert "recover-chatgpt.ps1" in dev
     assert "Instance = 'kis-dev'" in dev
     assert "recover-chatgpt.ps1" in op
     assert "Instance = 'kis-op'" in op
+    assert '-NoProfile -WindowStyle Hidden -File' in recovery
 
 
 def test_recovery_read_is_bounded_and_does_not_launch(tmp_path: Path) -> None:

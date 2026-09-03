@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory)][string]$RepositoryRoot,
     [Parameter(Mandatory)][string]$StateRoot,
     [switch]$Worker,
-    [ValidateRange(0, 300)][int]$DelaySeconds = 10
+    [ValidateRange(0, 300)][int]$DelaySeconds = 10,
+    # Keep automated replacement retries outside the operator's 60s recovery margin.
+    [ValidateRange(1, 300)][int]$RecoveryRetryDelaySeconds = 60
 )
 
 Set-StrictMode -Version Latest
@@ -232,8 +234,8 @@ if (-not $Worker) {
 
         $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
         $CommandLine = (
-            '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -ExpectedLandedSha "{2}" -RepositoryRoot "{3}" -StateRoot "{4}" -DelaySeconds "{5}" -Worker' -f
-            $Pwsh, $PSCommandPath, $ExpectedLandedSha, $RepositoryRoot, $StateRoot, $DelaySeconds
+            '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -ExpectedLandedSha "{2}" -RepositoryRoot "{3}" -StateRoot "{4}" -DelaySeconds "{5}" -RecoveryRetryDelaySeconds "{6}" -Worker' -f
+            $Pwsh, $PSCommandPath, $ExpectedLandedSha, $RepositoryRoot, $StateRoot, $DelaySeconds, $RecoveryRetryDelaySeconds
         )
         $Created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
             CommandLine = $CommandLine
@@ -349,7 +351,7 @@ try {
             if (-not $OwnsReceipt) {
                 return
             }
-            Start-Sleep -Seconds ([Math]::Min(5, $RecoveryAttempts))
+            Start-Sleep -Seconds $RecoveryRetryDelaySeconds
             $OwnsReceipt = Write-KisDevRestartReceipt -State 'launching' -Detail "recovery attempt $RecoveryAttempts/$MaxRecoveryAttempts" -LaunchedSha $LaunchedSha -WorkerPid $PID
             if (-not $OwnsReceipt) {
                 return
