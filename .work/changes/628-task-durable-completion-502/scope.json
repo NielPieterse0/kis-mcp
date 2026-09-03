@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "628-task-durable-completion-502",
+  "status": "active",
+  "branch": "change/628-task-durable-completion-502",
+  "worktree": ".work/worktrees/628-task-durable-completion-502",
+  "base": "main",
+  "outcome": "Make MCP 2026 task-backed long-running completion durable across transport loss so transient 502 responses do not obscure workflow state or duplicate registered GitHub mutations.",
+  "owned_paths": [
+    "src/kis_mcp/mcp2026.py",
+    "src/kis_mcp/workflows/completion/**",
+    "tests/test_mcp2026_tasks.py",
+    "tests/discover/test_tool_registration.py",
+    "tests/workflows/completion/**",
+    "SPEC.md",
+    "docs/PROJECT-TASKS-IMPROVEMENT.md",
+    ".work/changes/628-task-durable-completion-502/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "local_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "upstream_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-663",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 663,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

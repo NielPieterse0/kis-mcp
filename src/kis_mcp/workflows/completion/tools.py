@@ -6,7 +6,7 @@ from typing import Any, Protocol
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from ...mcp2026 import LONG_RUNNING_TASK_CONFIG
+from ...mcp2026 import DURABLE_EXTERNAL_TASK_CONFIG, SYNC_FALLBACK_TASK_CONFIG
 from .contracts import CompletionReceipt, CompletionResult
 from .service import CompletionInvocationError
 
@@ -51,7 +51,7 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
     @server.tool(
         name="prepare_reviewable_pull_request",
         annotations=_ANNOTATIONS,
-        task=LONG_RUNNING_TASK_CONFIG,
+        task=DURABLE_EXTERNAL_TASK_CONFIG,
     )
     async def prepare_reviewable_pull_request(
         project_id: str,
@@ -77,49 +77,92 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
         reconcile_only: bool = False,
         promotion_work_id: str | None = None,
     ) -> dict[str, object]:
-        """Verify one exact source commit, reconcile its tree, and create an open reviewable PR."""
-        try:
-            result = await service.prepare(
-                project_id=project_id,
-                commit=commit,
-                source_base=source_base,
-                branch=branch,
-                expected_remote_branch=expected_remote_branch,
-                expected_remote_default=expected_remote_default,
-                title=title,
-                body=body,
-                approved=approved,
-                task_terms=tuple(task_terms or ()),
-                complexity=complexity,
-                risk_triggers=tuple(risk_triggers or ()),
-                max_verifications=max_verifications,
-                verification_timeout_ms=verification_timeout_ms,
-                review_types=(tuple(review_types) if review_types is not None else None),
-                review_backend=review_backend,
-                review_model=review_model,
-                documentation_impact=documentation_impact,
-                residual_state=residual_state,
-                deadline_ms=deadline_ms,
-                reconcile_only=reconcile_only,
-                promotion_work_id=promotion_work_id,
+        """Prepare review through a required MCP 2026 task-backed execution."""
+        return await _prepare_result(service, locals())
+
+    @server.tool(
+        name="prepare_reviewable_pull_request_sync",
+        annotations=_ANNOTATIONS,
+        task=SYNC_FALLBACK_TASK_CONFIG,
+    )
+    async def prepare_reviewable_pull_request_sync(
+        project_id: str,
+        commit: str,
+        source_base: str,
+        branch: str,
+        expected_remote_branch: str | None,
+        expected_remote_default: str,
+        title: str,
+        body: str,
+        approved: bool,
+        task_terms: list[str] | None = None,
+        complexity: str = "medium",
+        risk_triggers: list[str] | None = None,
+        max_verifications: int | None = None,
+        verification_timeout_ms: int = 120_000,
+        review_types: list[str] | None = None,
+        review_backend: str | None = None,
+        review_model: str | None = None,
+        documentation_impact: str = "not_assessed",
+        residual_state: str = "none declared",
+        deadline_ms: int = 120_000,
+        reconcile_only: bool = False,
+        promotion_work_id: str | None = None,
+    ) -> dict[str, object]:
+        """Compatibility fallback for clients that do not implement MCP Tasks."""
+        return await _prepare_result(service, locals())
+
+
+async def _prepare_result(
+    service: CompletionServicePort,
+    arguments: dict[str, Any],
+) -> dict[str, object]:
+    try:
+        result = await service.prepare(
+            project_id=arguments["project_id"],
+            commit=arguments["commit"],
+            source_base=arguments["source_base"],
+            branch=arguments["branch"],
+            expected_remote_branch=arguments["expected_remote_branch"],
+            expected_remote_default=arguments["expected_remote_default"],
+            title=arguments["title"],
+            body=arguments["body"],
+            approved=arguments["approved"],
+            task_terms=tuple(arguments["task_terms"] or ()),
+            complexity=arguments["complexity"],
+            risk_triggers=tuple(arguments["risk_triggers"] or ()),
+            max_verifications=arguments["max_verifications"],
+            verification_timeout_ms=arguments["verification_timeout_ms"],
+            review_types=(
+                tuple(arguments["review_types"])
+                if arguments["review_types"] is not None
+                else None
+            ),
+            review_backend=arguments["review_backend"],
+            review_model=arguments["review_model"],
+            documentation_impact=arguments["documentation_impact"],
+            residual_state=arguments["residual_state"],
+            deadline_ms=arguments["deadline_ms"],
+            reconcile_only=arguments["reconcile_only"],
+            promotion_work_id=arguments["promotion_work_id"],
+        )
+        return result.to_json_dict()
+    except CompletionInvocationError as exc:
+        raise ToolError(
+            _error_payload(
+                exc.code,
+                exc.reason,
+                retryable=exc.retryable,
+                stage=exc.stage,
+                completed_steps=exc.completed_steps,
+                operation_id=exc.operation_id,
+                operation_state=exc.operation_state,
+                elapsed_ms=exc.elapsed_ms,
+                stage_timings_ms=exc.stage_timings_ms,
             )
-            return result.to_json_dict()
-        except CompletionInvocationError as exc:
-            raise ToolError(
-                _error_payload(
-                    exc.code,
-                    exc.reason,
-                    retryable=exc.retryable,
-                    stage=exc.stage,
-                    completed_steps=exc.completed_steps,
-                    operation_id=exc.operation_id,
-                    operation_state=exc.operation_state,
-                    elapsed_ms=exc.elapsed_ms,
-                    stage_timings_ms=exc.stage_timings_ms,
-                )
-            ) from exc
-        except ValueError as exc:
-            raise ToolError(_error_payload("COMPLETION_REQUEST_INVALID", str(exc))) from exc
+        ) from exc
+    except ValueError as exc:
+        raise ToolError(_error_payload("COMPLETION_REQUEST_INVALID", str(exc))) from exc
 
 
 def _error_payload(
