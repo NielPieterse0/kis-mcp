@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "cryptography==50.0.0",
-  "fastmcp[tasks]==4.0.0b3",
+  "fastmcp[tasks]==4.0.0",
   "httpx==0.28.1",
 ]
 
