@@ -190,7 +190,7 @@ try {
         return
     }
     $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
-    $CommandLine = '"{0}" -NoProfile -File "{1}" -Instance "{2}"' -f $Pwsh,$StartScript,$App
+    $CommandLine = '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -Instance "{2}"' -f $Pwsh,$StartScript,$App
     $Created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine=$CommandLine}
     if ([int]$Created.ReturnValue -ne 0 -or [int]$Created.ProcessId -le 0) {
         throw "KIS_MCP_RECOVERY_DETACH_FAILED: return=$($Created.ReturnValue)"

@@ -6,7 +6,8 @@ param(
     [ValidateRange(1,60)][int]$PollSeconds = 2,
     [ValidateRange(1,60)][int]$FailureGraceSeconds = 60,
     [ValidateRange(0,1000)][int]$MaxRecoveryAttempts = 0,
-    [ValidateRange(1,300)][int]$RecoveryBackoffSeconds = 2,
+    # Operator safety invariant: automated recovery attempts must never re-fire inside 60s by default.
+    [ValidateRange(1,300)][int]$RecoveryBackoffSeconds = 60,
     [ValidateRange(1,300)][int]$MaxRecoveryBackoffSeconds = 60
 )
 Set-StrictMode -Version Latest

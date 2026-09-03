@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 
 
@@ -59,6 +60,28 @@ def test_guard_recovers_same_unhealthy_generation(tmp_path: Path) -> None:
         "-PollSeconds", "1", "-FailureGraceSeconds", "1",
     ], cwd=root, env=env, capture_output=True, text=True, timeout=10, check=False)
     assert result.returncode == 0, result.stderr
+    assert marker.read_text(encoding="utf-8") == "kis-op|run-a"
+
+
+def test_guard_does_not_recover_before_configured_failure_grace(tmp_path: Path) -> None:
+    root, _ = _fixture(tmp_path)
+    marker = tmp_path / "recovered-after-grace.txt"
+    (root / "scripts" / "recover-chatgpt.ps1").write_text(
+        "param([string]$Instance,[string]$RepositoryRoot,[string]$ExpectedRunId)\n"
+        "[IO.File]::WriteAllText($env:KIS_RECOVERY_MARKER,\"$Instance|$ExpectedRunId\")\n",
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["KIS_RECOVERY_MARKER"] = str(marker)
+    process = subprocess.Popen([
+        "pwsh.exe", "-NoProfile", "-File", str(root / "scripts" / "runtime-health-guard.ps1"),
+        "-Instance", "kis-op", "-RunId", "run-a", "-RepositoryRoot", str(root),
+        "-PollSeconds", "1", "-FailureGraceSeconds", "2",
+    ], cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    time.sleep(1.0)
+    assert not marker.exists()
+    stdout, stderr = process.communicate(timeout=10)
+    assert process.returncode == 0, stderr or stdout
     assert marker.read_text(encoding="utf-8") == "kis-op|run-a"
 
 
@@ -150,6 +173,8 @@ def test_launcher_installs_generation_scoped_health_guard() -> None:
 def test_guard_default_failure_grace_is_sixty_seconds() -> None:
     guard = (Path(__file__).parents[1] / "scripts" / "runtime-health-guard.ps1").read_text(encoding="utf-8")
     assert "[ValidateRange(1,60)][int]$FailureGraceSeconds = 60" in guard
+    assert "[ValidateRange(1,300)][int]$RecoveryBackoffSeconds = 60" in guard
+    assert "[ValidateRange(1,300)][int]$MaxRecoveryBackoffSeconds = 60" in guard
 
 
 def test_launcher_preserves_failed_ready_generation_for_health_recovery() -> None:
