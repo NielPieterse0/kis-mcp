@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from .evidence import quality_evidence_summary
+
 
 @dataclass(frozen=True, slots=True)
 class AgentValidationResult:
@@ -31,6 +33,7 @@ class AgentValidationResult:
             "files_checked": self.files_checked,
             "summary": {"errors": self.errors, "warnings": self.warnings, "info": self.info},
             "diagnostics": [dict(item) for item in self.diagnostics],
+            "quality_evidence": [dict(item) for item in quality_evidence_summary(self.diagnostics)],
             "truncated": self.truncated,
         }
 
