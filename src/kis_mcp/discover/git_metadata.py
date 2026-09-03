@@ -35,19 +35,20 @@ def validate_git_metadata_graph(
     root: Path,
     *,
     boundary: Path,
-    maximum_file_bytes: int,
+    maximum_control_bytes: int,
+    maximum_collection_bytes: int,
 ) -> GitMetadataGraph:
     marker = root / ".git"
     git_dir = _resolve_git_dir(
         marker,
         root=root,
         boundary=boundary,
-        maximum=maximum_file_bytes,
+        maximum=maximum_control_bytes,
     )
     common_dir = _resolve_common_dir(
         git_dir,
         boundary=boundary,
-        maximum=maximum_file_bytes,
+        maximum=maximum_control_bytes,
     )
 
     _validate_directory(git_dir, boundary=boundary, required=True)
@@ -58,14 +59,14 @@ def validate_git_metadata_graph(
 
     config = _GitConfigState(
         git_dir=git_dir,
-        branch=_current_branch(git_dir, boundary, maximum_file_bytes),
+        branch=_current_branch(git_dir, boundary, maximum_control_bytes),
     )
     active_config_files: list[Path] = []
     common_config = common_dir / "config"
     _load_active_config(
         common_config,
         boundary=boundary,
-        maximum=maximum_file_bytes,
+        maximum=maximum_collection_bytes,
         state=config,
         active_files=active_config_files,
         depth=0,
@@ -76,7 +77,7 @@ def validate_git_metadata_graph(
         _load_active_config(
             git_dir / "config.worktree",
             boundary=boundary,
-            maximum=maximum_file_bytes,
+            maximum=maximum_collection_bytes,
             state=config,
             active_files=active_config_files,
             depth=0,
@@ -87,13 +88,19 @@ def validate_git_metadata_graph(
     _validate_regular_file_identity(index_path, boundary=boundary, required=False)
 
     active_alternates: list[Path] = []
-    if _resolved_head_object(git_dir, common_dir, boundary, maximum_file_bytes):
+    if _resolved_head_object(
+        git_dir,
+        common_dir,
+        boundary,
+        maximum_control_bytes,
+        maximum_collection_bytes,
+    ):
         alternates_file = object_dir / "info" / "alternates"
         if alternates_file.exists():
             data = _read_regular_file(
                 alternates_file,
                 boundary=boundary,
-                maximum=maximum_file_bytes,
+                maximum=maximum_control_bytes,
             )
             for raw_line in data.decode("utf-8", errors="strict").splitlines():
                 value = raw_line.strip()
@@ -286,12 +293,13 @@ def _resolved_head_object(
     git_dir: Path,
     common_dir: Path,
     boundary: Path,
-    maximum: int,
+    maximum_control: int,
+    maximum_collection: int,
 ) -> str | None:
     head = git_dir / "HEAD"
     if not head.exists():
         return None
-    data = _read_regular_file(head, boundary=boundary, maximum=maximum)
+    data = _read_regular_file(head, boundary=boundary, maximum=maximum_control)
     try:
         text = data.decode("utf-8-sig").strip()
     except UnicodeDecodeError:
@@ -307,7 +315,7 @@ def _resolved_head_object(
             value = _read_regular_file(
                 ref_path,
                 boundary=boundary,
-                maximum=maximum,
+                maximum=maximum_control,
             ).decode("ascii", errors="ignore").strip()
             if _HEX_OBJECT_ID.fullmatch(value):
                 return value.casefold()
@@ -316,7 +324,7 @@ def _resolved_head_object(
         text = _read_regular_file(
             packed,
             boundary=boundary,
-            maximum=maximum,
+            maximum=maximum_collection,
         ).decode("utf-8", errors="replace")
         for line in text.splitlines():
             if not line or line.startswith(("#", "^")):

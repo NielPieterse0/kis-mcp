@@ -160,6 +160,103 @@ def test_large_git_index_remains_available_for_repository_and_linked_worktree(
     assert linked_summary.tracked_files == 150
 
 
+def test_large_active_config_remains_available_for_linked_worktree(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _init_repository(project_root)
+    _commit(project_root, "tracked.txt", "tracked\n", "initial")
+    config_path = project_root / ".git" / "config"
+    with config_path.open("a", encoding="utf-8") as stream:
+        stream.write("# padding for legitimate repository-scale config\n" * 120)
+    assert config_path.stat().st_size > discover_settings.limits.git_metadata_max_bytes
+    assert config_path.stat().st_size < discover_settings.limits.git_max_output_bytes
+
+    linked = project_root.parent / f"{project_root.name}-large-config-linked"
+    _git(project_root, "worktree", "add", "-b", "large-config-linked", str(linked))
+
+    summary = _reader(discover_settings).inspect(str(linked))
+
+    assert summary.available is True
+    assert summary.repository is True
+    assert summary.branch == "large-config-linked"
+
+
+def test_large_packed_refs_remain_available_for_linked_worktree(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    _init_repository(project_root)
+    _commit(project_root, "tracked.txt", "tracked\n", "initial")
+    linked = project_root.parent / f"{project_root.name}-packed-refs-linked"
+    _git(project_root, "worktree", "add", "-b", "packed-refs-linked", str(linked))
+    for index in range(100):
+        _git(project_root, "branch", f"packed-{index:03}")
+    _git(project_root, "pack-refs", "--all")
+
+    packed_refs = project_root / ".git" / "packed-refs"
+    assert packed_refs.stat().st_size > discover_settings.limits.git_metadata_max_bytes
+    assert packed_refs.stat().st_size < discover_settings.limits.git_max_output_bytes
+
+    summary = _reader(discover_settings).inspect(str(linked))
+
+    assert summary.available is True
+    assert summary.repository is True
+    assert summary.branch == "packed-refs-linked"
+
+
+def test_active_config_exceeding_collection_budget_is_rejected(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    from dataclasses import replace
+
+    settings = replace(
+        discover_settings,
+        limits=replace(discover_settings.limits, git_max_output_bytes=5_000),
+    )
+    _init_repository(project_root)
+    _commit(project_root, "tracked.txt", "tracked\n", "initial")
+    config_path = project_root / ".git" / "config"
+    with config_path.open("a", encoding="utf-8") as stream:
+        stream.write("# oversized collection config\n" * 250)
+    assert config_path.stat().st_size > settings.limits.git_max_output_bytes
+
+    linked = project_root.parent / f"{project_root.name}-oversized-config-linked"
+    _git(project_root, "worktree", "add", "-b", "oversized-config-linked", str(linked))
+
+    summary = _reader(settings).inspect(str(linked))
+
+    assert summary.available is False
+    assert [item["code"] for item in summary.diagnostics] == ["GIT_METADATA_TOO_LARGE"]
+
+
+def test_packed_refs_exceeding_collection_budget_is_rejected(
+    project_root: Path,
+    discover_settings,
+) -> None:
+    from dataclasses import replace
+
+    settings = replace(
+        discover_settings,
+        limits=replace(discover_settings.limits, git_max_output_bytes=5_000),
+    )
+    _init_repository(project_root)
+    _commit(project_root, "tracked.txt", "tracked\n", "initial")
+    linked = project_root.parent / f"{project_root.name}-oversized-packed-refs-linked"
+    _git(project_root, "worktree", "add", "-b", "oversized-packed-refs-linked", str(linked))
+    for index in range(120):
+        _git(project_root, "branch", f"packed-{index:03}")
+    _git(project_root, "pack-refs", "--all")
+    packed_refs = project_root / ".git" / "packed-refs"
+    assert packed_refs.stat().st_size > settings.limits.git_max_output_bytes
+
+    summary = _reader(settings).inspect(str(linked))
+
+    assert summary.available is False
+    assert [item["code"] for item in summary.diagnostics] == ["GIT_METADATA_TOO_LARGE"]
+
+
 def test_git_index_must_still_be_a_regular_unlinked_file(
     project_root: Path,
     discover_settings,
