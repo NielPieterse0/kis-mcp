@@ -27,7 +27,21 @@ Sleep = Callable[[float], Awaitable[None]]
 
 
 class CommissioningBudgetError(RuntimeError):
-    pass
+    def __init__(self, budget_type: str) -> None:
+        self.budget_type = budget_type
+        self.code = f"{budget_type}_budget_exceeded"
+        super().__init__(f"{budget_type.replace('_', ' ')} budget exceeded")
+
+
+class _MutationBudget:
+    def __init__(self, maximum: int) -> None:
+        self.maximum = maximum
+        self.used = 0
+
+    def consume(self) -> None:
+        self.used += 1
+        if self.used > self.maximum:
+            raise CommissioningBudgetError("mutation")
 
 
 _MUTATING_OPERATIONS = frozenset({"github_issue_write"})
@@ -44,34 +58,36 @@ class BudgetedInvoker:
         *,
         max_external_reads: int,
         max_mutations: int,
+        mutation_budget: _MutationBudget | None = None,
     ) -> None:
         self.inner = inner
         self.max_external_reads = max_external_reads
         self.max_mutations = max_mutations
         self.external_reads = 0
-        self.mutations = 0
+        self._mutation_budget = mutation_budget or _MutationBudget(max_mutations)
+
+    @property
+    def mutations(self) -> int:
+        return self._mutation_budget.used
+
+    def _consume_read(self) -> None:
+        self.external_reads += 1
+        if self.external_reads > self.max_external_reads:
+            raise CommissioningBudgetError("external_read")
 
     async def external(self, operation: str, arguments: dict[str, Any]) -> Any:
         if operation in _MUTATING_OPERATIONS:
-            self.mutations += 1
-            if self.mutations > self.max_mutations:
-                raise CommissioningBudgetError("mutation budget exceeded")
+            self._mutation_budget.consume()
         else:
-            self.external_reads += 1
-            if self.external_reads > self.max_external_reads:
-                raise CommissioningBudgetError("external read budget exceeded")
+            self._consume_read()
         return await self.inner.external(operation, arguments)
 
     async def read(self, operation: str, arguments: dict[str, Any]) -> Any:
-        self.external_reads += 1
-        if self.external_reads > self.max_external_reads:
-            raise CommissioningBudgetError("external read budget exceeded")
+        self._consume_read()
         return await self.inner.read(operation, arguments)
 
     async def change(self, operation: str, arguments: dict[str, Any]) -> Any:
-        self.mutations += 1
-        if self.mutations > self.max_mutations:
-            raise CommissioningBudgetError("mutation budget exceeded")
+        self._mutation_budget.consume()
         return await self.inner.change(operation, arguments)
 
 
@@ -242,10 +258,12 @@ class CommissioningRuntimeService:
         if state is None:
             raise RuntimeError("initialized checkpoint disappeared before scan")
         first_scan = state.checkpoint_at == state.initialized_at
-        bounded = BudgetedInvoker(
+        mutation_budget = _MutationBudget(self.settings.max_mutations)
+        discovery_invoker = BudgetedInvoker(
             self.invoker,
             max_external_reads=self.settings.max_external_reads,
             max_mutations=self.settings.max_mutations,
+            mutation_budget=mutation_budget,
         )
         owner, repo = _repository_parts(repository)
         since = state.checkpoint_at - timedelta(seconds=self.settings.overlap_seconds)
@@ -256,7 +274,7 @@ class CommissioningRuntimeService:
         outcomes: list[dict[str, Any]] = []
         candidate_count = 0
         try:
-            discovered = await bounded.external(
+            discovered = await discovery_invoker.external(
                 "github_search_pull_requests",
                 {
                     "owner": owner,
@@ -276,13 +294,29 @@ class CommissioningRuntimeService:
             candidate_count = len(candidates)
             candidate_error_types: set[str] = set()
             for pull_number in candidates:
+                candidate_invoker = BudgetedInvoker(
+                    self.invoker,
+                    max_external_reads=self.settings.max_external_reads,
+                    max_mutations=self.settings.max_mutations,
+                    mutation_budget=mutation_budget,
+                )
                 try:
-                    outcome = await self.processor(repository, pull_number, bounded)
+                    outcome = await self.processor(repository, pull_number, candidate_invoker)
                     if not isinstance(outcome, dict):
                         raise TypeError("candidate processor result must be an object")
                     outcomes.append(outcome)
-                except CommissioningBudgetError:
-                    raise
+                except CommissioningBudgetError as exc:
+                    if exc.budget_type != "external_read":
+                        raise
+                    candidate_error_types.add(type(exc).__name__)
+                    outcomes.append(
+                        {
+                            "pull_number": pull_number,
+                            "classification": "unresolved_candidate",
+                            "error_type": type(exc).__name__,
+                            "error_code": exc.code,
+                        }
+                    )
                 except (RuntimeError, TypeError, ValueError, KeyError) as exc:
                     candidate_error_types.add(type(exc).__name__)
                     failure = {

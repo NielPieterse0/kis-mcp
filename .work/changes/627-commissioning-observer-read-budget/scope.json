@@ -1,0 +1,45 @@
+{
+  "schema_version": 4,
+  "change_id": "627-commissioning-observer-read-budget",
+  "status": "active",
+  "branch": "change/627-commissioning-observer-read-budget",
+  "worktree": ".work/worktrees/627-commissioning-observer-read-budget",
+  "base": "main",
+  "outcome": "Fix issue 641 so the bounded post-merge commissioning observer can process the configured candidate window without deterministic external-read starvation, while preserving exact identity, checkpoints, and fail-closed candidate evidence.",
+  "owned_paths": [
+    "src/kis_mcp/commissioning_runtime/service.py",
+    "src/kis_mcp/commissioning/settings.py",
+    "settings/post-merge-commissioning.settings.json",
+    "tests/post_merge_commissioning/test_runtime_service.py",
+    "tests/post_merge_commissioning/test_policy.py",
+    "docs/operations/post-merge-commissioning.md",
+    ".work/changes/627-commissioning-observer-read-budget/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "3adc4351282cf9e0cd0e6e9c2fbeb2a4273c3366",
+    "local_tree": "df45f1f7603eb2f4b1715eae5c67e4fbc8043339",
+    "upstream_sha": "3adc4351282cf9e0cd0e6e9c2fbeb2a4273c3366",
+    "upstream_tree": "df45f1f7603eb2f4b1715eae5c67e4fbc8043339",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-641",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 641,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

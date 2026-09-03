@@ -40,17 +40,17 @@ class RecordingProcessor:
         *,
         fail_on: int | None = None,
         blocked_on: int | None = None,
-        extra_read: bool = False,
+        extra_reads: int = 0,
     ) -> None:
         self.fail_on = fail_on
         self.blocked_on = blocked_on
-        self.extra_read = extra_read
+        self.extra_reads = extra_reads
         self.calls: list[int] = []
 
     async def __call__(self, repository: str, pull_number: int, invoker: Any) -> dict[str, Any]:
         assert repository == REPOSITORY
         self.calls.append(pull_number)
-        if self.extra_read:
+        for _ in range(self.extra_reads):
             await invoker.external(
                 "github_issue_read",
                 {
@@ -102,6 +102,60 @@ class RetryableEvidenceProcessor(RecordingProcessor):
         }
 
 
+class VariableReadProcessor(RecordingProcessor):
+    def __init__(self, reads_by_pull: dict[int, int]) -> None:
+        super().__init__()
+        self.reads_by_pull = reads_by_pull
+
+    async def __call__(
+        self, repository: str, pull_number: int, invoker: Any
+    ) -> dict[str, Any]:
+        assert repository == REPOSITORY
+        self.calls.append(pull_number)
+        for _ in range(self.reads_by_pull.get(pull_number, 0)):
+            await invoker.external(
+                "github_issue_read",
+                {
+                    "method": "get",
+                    "owner": "NielPieterse0",
+                    "repo": "kis-mcp",
+                    "issue_number": 1,
+                },
+            )
+        return {
+            "pull_number": pull_number,
+            "classification": "not_required",
+            "merge_sha": str(pull_number).zfill(40),
+            "commissioning_keys": [],
+            "issue_numbers": [],
+        }
+
+
+class MutatingProcessor(RecordingProcessor):
+    async def __call__(
+        self, repository: str, pull_number: int, invoker: Any
+    ) -> dict[str, Any]:
+        assert repository == REPOSITORY
+        self.calls.append(pull_number)
+        await invoker.external(
+            "github_issue_write",
+            {
+                "method": "create",
+                "owner": "NielPieterse0",
+                "repo": "kis-mcp",
+                "title": f"candidate-{pull_number}",
+                "body": "bounded test mutation",
+            },
+        )
+        return {
+            "pull_number": pull_number,
+            "classification": "not_required",
+            "merge_sha": str(pull_number).zfill(40),
+            "commissioning_keys": [],
+            "issue_numbers": [],
+        }
+
+
 class MixedFailureProcessor(RecordingProcessor):
     async def __call__(
         self, repository: str, pull_number: int, invoker: Any
@@ -142,10 +196,13 @@ def _service(
     *,
     current_instance: str = "kis-op",
     max_external_reads: int | None = None,
+    max_mutations: int | None = None,
 ) -> CommissioningRuntimeService:
     settings = load_post_merge_commissioning_settings()
     if max_external_reads is not None:
         settings = replace(settings, max_external_reads=max_external_reads)
+    if max_mutations is not None:
+        settings = replace(settings, max_mutations=max_mutations)
     return CommissioningRuntimeService(
         settings,
         CommissioningStateStore(tmp_path, retention=settings.receipt_retention),
@@ -356,7 +413,7 @@ def test_external_read_budget_failure_preserves_checkpoint(tmp_path: Path) -> No
             "github_issue_read": [{"number": 1}],
         }
     )
-    processor = RecordingProcessor(extra_read=True)
+    processor = RecordingProcessor(extra_reads=2)
     service = _service(
         tmp_path, now, invoker, processor, max_external_reads=1
     )
@@ -368,7 +425,97 @@ def test_external_read_budget_failure_preserves_checkpoint(tmp_path: Path) -> No
 
     assert result["complete"] is False
     assert result["error_type"] == "CommissioningBudgetError"
+    assert result["outcomes"] == [
+        {
+            "pull_number": 452,
+            "classification": "unresolved_candidate",
+            "error_type": "CommissioningBudgetError",
+            "error_code": "external_read_budget_exceeded",
+        }
+    ]
     assert service.store.load_checkpoint(REPOSITORY) == original
+
+
+def test_shared_mutation_budget_exhaustion_is_whole_scan_failure(tmp_path: Path) -> None:
+    now = [datetime(2026, 9, 1, 9, 0, tzinfo=UTC)]
+    invoker = FakeInvoker(
+        {
+            "github_search_pull_requests": [
+                _search(452, 453, closed_at="2026-09-01T09:01:00Z")
+            ],
+            "github_issue_write": [{"number": 9001}],
+        }
+    )
+    processor = MutatingProcessor()
+    service = _service(tmp_path, now, invoker, processor, max_mutations=1)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    original = service.store.load_checkpoint(REPOSITORY)
+
+    now[0] = now[0] + timedelta(seconds=300)
+    result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    assert result["complete"] is False
+    assert result["error_type"] == "CommissioningBudgetError"
+    assert processor.calls == [452, 453]
+    assert result["outcomes"][0]["pull_number"] == 452
+    assert result["outcomes"][0]["classification"] == "not_required"
+    assert service.store.load_checkpoint(REPOSITORY) == original
+
+
+def test_candidate_read_budget_exhaustion_does_not_starve_later_candidate(tmp_path: Path) -> None:
+    now = [datetime(2026, 9, 1, 9, 0, tzinfo=UTC)]
+    invoker = FakeInvoker(
+        {
+            "github_search_pull_requests": [
+                _search(452, 453, closed_at="2026-09-01T09:01:00Z")
+            ],
+            "github_issue_read": [{"number": 1}, {"number": 1}],
+        }
+    )
+    processor = VariableReadProcessor({452: 2, 453: 1})
+    service = _service(tmp_path, now, invoker, processor, max_external_reads=1)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+    original = service.store.load_checkpoint(REPOSITORY)
+
+    now[0] = now[0] + timedelta(seconds=300)
+    result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    assert result["complete"] is False
+    assert processor.calls == [452, 453]
+    assert result["outcomes"][0] == {
+        "pull_number": 452,
+        "classification": "unresolved_candidate",
+        "error_type": "CommissioningBudgetError",
+        "error_code": "external_read_budget_exceeded",
+    }
+    assert result["outcomes"][1]["pull_number"] == 453
+    assert result["outcomes"][1]["classification"] == "not_required"
+    assert service.store.load_checkpoint(REPOSITORY) == original
+
+
+def test_candidate_read_budgets_prevent_later_candidate_starvation(tmp_path: Path) -> None:
+    now = [datetime(2026, 9, 1, 9, 0, tzinfo=UTC)]
+    numbers = tuple(range(600, 626))
+    invoker = FakeInvoker(
+        {
+            "github_search_pull_requests": [
+                _search(*numbers, closed_at="2026-09-01T09:01:00Z")
+            ],
+            "github_issue_read": [{"number": 1}] * (len(numbers) * 8),
+        }
+    )
+    processor = RecordingProcessor(extra_reads=8)
+    service = _service(tmp_path, now, invoker, processor, max_external_reads=8)
+    asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    now[0] = now[0] + timedelta(seconds=300)
+    result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
+
+    assert result["complete"] is True
+    assert result["candidate_count"] == 26
+    assert processor.calls == list(numbers)
+    assert len(invoker.calls) == 1 + (26 * 8)
+    assert service.store.load_checkpoint(REPOSITORY) == now[0]
 
 
 def test_scheduler_is_hosted_only_on_kis_op(tmp_path: Path) -> None:
