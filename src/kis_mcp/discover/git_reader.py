@@ -297,7 +297,8 @@ class GitReader:
             validate_git_metadata_graph(
                 root,
                 boundary=self._authority.boundary,
-                maximum_file_bytes=self._settings.limits.git_metadata_max_bytes,
+                maximum_control_bytes=self._settings.limits.git_metadata_max_bytes,
+                maximum_collection_bytes=self._settings.limits.git_max_output_bytes,
             )
         except GitMetadataValidationError as exc:
             return exc.code

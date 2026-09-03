@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "629-linked-worktree-metadata-bounds",
+  "status": "active",
+  "branch": "change/629-linked-worktree-metadata-bounds",
+  "worktree": ".work/worktrees/629-linked-worktree-metadata-bounds",
+  "base": "main",
+  "outcome": "Make bounded Git evidence inspection accept legitimate repository-scale active config and packed-refs metadata in linked worktrees without weakening pointer/path/link safety, with regression coverage and live commodity verification.",
+  "owned_paths": [
+    "src/kis_mcp/discover/git_metadata.py",
+    "src/kis_mcp/discover/git_reader.py",
+    "tests/discover/test_git_reader.py",
+    ".work/changes/629-linked-worktree-metadata-bounds/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "local_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "upstream_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
