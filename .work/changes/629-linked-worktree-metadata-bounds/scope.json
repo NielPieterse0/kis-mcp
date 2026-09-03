@@ -1,7 +1,7 @@
 {
   "schema_version": 4,
   "change_id": "629-linked-worktree-metadata-bounds",
-  "status": "active",
+  "status": "closed",
   "branch": "change/629-linked-worktree-metadata-bounds",
   "worktree": ".work/worktrees/629-linked-worktree-metadata-bounds",
   "base": "main",
