@@ -21,7 +21,7 @@ def test_canonical_contracts_load_complete_work_semantics() -> None:
     assert contracts.work_item.schema_version == 1
     assert contracts.lifecycle.schema_version == 1
     assert contracts.selection.schema_version == 1
-    assert len(contracts.work_item.managed_fields) == 28
+    assert len(contracts.work_item.managed_fields) == 29
     assert contracts.work_item.managed_fields[-3:] == (
         "Live Verification",
         "Commissioning Key",
@@ -129,3 +129,12 @@ def test_selection_profiles_preserve_adapter_reason_order() -> None:
     )
     assert selection.profile("normalized_domain").reason("eligible_state") == "state_not_executable"
     assert selection.profile("provider_project").reason("eligible_state") == "state_not_ready"
+
+
+def test_issue_number_is_canonical_github_derived_evidence() -> None:
+    field = load_canonical_work_contracts(CONTRACTS_PATH).work_item.field("Issue Number")
+    assert field.provider_type == "number"
+    assert field.authority == "github"
+    assert field.direction == "evidence"
+    assert "source_issue.number" in field.population
+    assert "title" in field.population

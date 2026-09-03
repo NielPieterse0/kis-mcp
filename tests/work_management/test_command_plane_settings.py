@@ -197,3 +197,8 @@ def test_command_plane_projects_live_verification_authority() -> None:
     assert settings.authority("Live Verification") == FieldAuthority("derived", "evidence")
     assert settings.authority("Commissioning Key") == FieldAuthority("derived", "evidence")
     assert settings.authority("Live Verification Evidence") == FieldAuthority("derived", "evidence")
+
+
+def test_issue_number_is_github_evidence_authority() -> None:
+    settings = load_command_plane_settings(SETTINGS_PATH)
+    assert settings.authority("Issue Number") == FieldAuthority("github", "evidence")

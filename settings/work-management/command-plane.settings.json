@@ -18,6 +18,7 @@
     "Documentation Impact": {"authority": "work_management_then_repository_change", "direction": "handoff"},
     "Module": {"authority": "work_management_then_repository_change", "direction": "handoff"},
     "Project ID": {"authority": "derived", "direction": "evidence"},
+    "Issue Number": {"authority": "github", "direction": "evidence"},
     "Created": {"authority": "github", "direction": "evidence"},
     "Blocked By": {"authority": "github", "direction": "evidence"},
     "Change ID": {"authority": "repository_change", "direction": "evidence"},

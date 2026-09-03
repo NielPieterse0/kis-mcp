@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "contract_id": "work-admission-conformance",
+  "supported_record_types": ["idea", "task", "specification_slice", "defect", "security_finding", "research"],
+  "formal_record_types": ["task", "specification_slice", "defect", "security_finding", "research"],
+  "formal_required_inputs": ["repository", "title", "record_type", "priority", "effort", "documentation_impact", "context", "acceptance"],
+  "optional_inputs": ["constraints", "lineage_issue_number"],
+  "derived_fields": {
+    "Project ID": "registered_repository.project_id",
+    "Issue Number": "source_issue.number",
+    "Status": "inbox"
+  },
+  "body_sections": ["Outcome", "Context", "Acceptance criteria", "Constraints / dependencies", "Lineage"],
+  "inbox_idea": {
+    "pre_work": true,
+    "auto_promote": false,
+    "formal_issue_creation": false
+  },
+  "done_history": {
+    "immutable": true,
+    "follow_on_requires_new_issue": true,
+    "lineage_format": "Follow-on to #{issue_number}."
+  },
+  "idempotency": {
+    "required_for_apply": true,
+    "source_marker_prefix": "KIS-WORK-ADMISSION-",
+    "reuse_open_match": true,
+    "never_reopen_closed_match": true
+  }
+}

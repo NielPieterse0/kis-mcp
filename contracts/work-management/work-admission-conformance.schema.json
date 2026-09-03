@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kis-mcp.local/contracts/work-admission-conformance.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract_id", "supported_record_types", "formal_record_types", "formal_required_inputs", "optional_inputs", "derived_fields", "body_sections", "inbox_idea", "done_history", "idempotency"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "contract_id": {"const": "work-admission-conformance"},
+    "supported_record_types": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "formal_record_types": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "formal_required_inputs": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "optional_inputs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "derived_fields": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+    "body_sections": {"type": "array", "minItems": 4, "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "inbox_idea": {"type": "object", "additionalProperties": false, "required": ["pre_work", "auto_promote", "formal_issue_creation"], "properties": {"pre_work": {"const": true}, "auto_promote": {"const": false}, "formal_issue_creation": {"const": false}}},
+    "done_history": {"type": "object", "additionalProperties": false, "required": ["immutable", "follow_on_requires_new_issue", "lineage_format"], "properties": {"immutable": {"const": true}, "follow_on_requires_new_issue": {"const": true}, "lineage_format": {"type": "string", "minLength": 1}}},
+    "idempotency": {"type": "object", "additionalProperties": false, "required": ["required_for_apply", "source_marker_prefix", "reuse_open_match", "never_reopen_closed_match"], "properties": {"required_for_apply": {"const": true}, "source_marker_prefix": {"type": "string", "minLength": 1}, "reuse_open_match": {"const": true}, "never_reopen_closed_match": {"const": true}}}
+  }
+}

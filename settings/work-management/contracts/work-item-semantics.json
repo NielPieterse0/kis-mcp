@@ -233,6 +233,19 @@
       "population": "Derived from the registered repository-to-project mapping."
     },
     {
+      "id": "issue_number",
+      "name": "Issue Number",
+      "provider_type": "number",
+      "managed": true,
+      "authority": "github",
+      "direction": "evidence",
+      "definition": "Canonical numeric identity of the source GitHub issue.",
+      "vocabulary": null,
+      "applicable_record_types": ["*"],
+      "required_contexts": [],
+      "population": "Projected directly from source_issue.number; never parsed from title text."
+    },
+    {
       "id": "repository",
       "name": "Repository",
       "provider_type": "repository",
