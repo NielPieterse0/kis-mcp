@@ -1,0 +1,62 @@
+{
+  "schema_version": 4,
+  "change_id": "631-work-admission-conformance",
+  "status": "active",
+  "branch": "change/631-work-admission-conformance",
+  "worktree": ".work/worktrees/631-work-admission-conformance",
+  "base": "main",
+  "outcome": "Implement issue #542 canonical Work admission, intake, and conformance contract with deterministic registry identity, immutable Done lineage, repo-neutral Inbox targeting, canonical Issue Number projection, and idempotent reconciliation.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/project_management/admission.py",
+    "src/kis_mcp/workflows/project_management/enhanced_tools.py",
+    "src/kis_mcp/workflows/project_management/__init__.py",
+    "src/kis_mcp/workflows/platform.py",
+    "src/kis_mcp/work_management/canonical_contracts.py",
+    "tests/workflows/project_management/test_admission.py",
+    "tests/workflows/project_management/test_platform.py",
+    "settings/work-management/contracts/work-admission-conformance.json",
+    "settings/work-management/contracts/work-item-semantics.json",
+    "settings/work-management/github-project-schema.json",
+    "settings/work-management/command-plane.settings.json",
+    "contracts/work-management/work-admission-conformance.schema.json",
+    "tests/work_management/test_canonical_contracts.py",
+    "tests/work_management/test_command_plane_settings.py",
+    "tests/work_management/test_schema.py",
+    "tests/work_management/test_cli.py",
+    ".work/changes/631-work-admission-conformance/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/workflows/project_management/parsing.py",
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "tests/workflows/project_management/test_tools.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    "SPEC.md",
+    "src/kis_mcp/once_through/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "local_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_sha": "b17ffc090d05e03db16cf5ccf9c0f1275a211347",
+    "upstream_tree": "7d6d26f14fc435016bbb67c9c6d3157ae7394a1c",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-542",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 542,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-a"
+  }
+}

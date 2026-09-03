@@ -1,3 +1,4 @@
+from .admission import register_project_management_admission_tool
 from .descriptors import project_management_workflow_descriptors
 from .enhanced_tools import register_project_management_enhancement_tools
 from .parsing import (
@@ -26,6 +27,7 @@ __all__ = [
     "implementation_trace_from_json",
     "observed_projection_from_json",
     "project_management_workflow_descriptors",
+    "register_project_management_admission_tool",
     "register_project_management_enhancement_tools",
     "register_project_management_tools",
     "traceability_stage",

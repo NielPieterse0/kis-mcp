@@ -403,7 +403,7 @@ def _parse_item(document: dict[str, Any]) -> WorkItemSemanticsContract:
     vocabulary_ids = _unique(tuple(item.vocabulary_id for item in vocabularies), "vocabulary ids")
 
     fields: list[CanonicalField] = []
-    allowed_types = {"single_select", "text", "date", "iteration", "repository", "native_datetime"}
+    allowed_types = {"single_select", "text", "number", "date", "iteration", "repository", "native_datetime"}
     allowed_authorities = {"work_management", "work_management_then_repository_change", "repository_change", "git", "github", "actions", "derived"}
     allowed_directions = {"command", "evidence", "handoff"}
     for raw in _array(document["fields"], "fields"):

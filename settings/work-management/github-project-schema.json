@@ -13,6 +13,7 @@
     {"name": "Complexity", "type": "single_select", "options": ["Small", "Medium", "Large"]},
     {"name": "Risk Triggers", "type": "text", "options": []},
     {"name": "Project ID", "type": "text", "options": []},
+    {"name": "Issue Number", "type": "number", "options": []},
     {"name": "Repository", "type": "repository", "options": []},
     {"name": "Module", "type": "text", "options": []},
     {"name": "Change ID", "type": "text", "options": []},

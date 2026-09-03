@@ -43,6 +43,7 @@ from .once_through.state import TaskHandoffStore
 from .once_through.tools import register_once_through_tools
 from .project_management import (
     project_management_workflow_descriptors,
+    register_project_management_admission_tool,
     register_project_management_tools,
 )
 from .state_management import register_state_management_tools
@@ -438,11 +439,19 @@ def register_platform_workflows(
         return result_mapping(result)
 
     activation = WorkActivationCoordinator(once_through_store, load_issue)
+
+    async def invoke_external(operation: str, arguments: dict[str, object]) -> dict[str, Any]:
+        result = await server.call_tool(operation, arguments, run_middleware=True)
+        if getattr(result, "is_error", False):
+            raise ValueError(f"WORK_ADMISSION_EXTERNAL_FAILED: {operation}")
+        return result_mapping(result)
+
     register_project_management_tools(
         server,
         service,
         activation_materializer=activation.materialize,
     )
+    register_project_management_admission_tool(server, service, invoke_external)
     register_once_through_tools(
         server,
         Path(runtime.state_root),

@@ -93,6 +93,7 @@ def test_enabled_settings_mount_project_management_tools() -> None:
     names = {tool.name for tool in asyncio.run(server.list_tools())}
     assert {
         "project_management_inventory",
+        "project_management_admit_work",
         "project_management_reconcile",
         "project_management_portfolio_status",
         "project_management_persist_review",
