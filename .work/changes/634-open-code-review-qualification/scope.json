@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "634-open-code-review-qualification",
+  "status": "active",
+  "branch": "change/634-open-code-review-qualification",
+  "worktree": ".work/worktrees/634-open-code-review-qualification",
+  "base": "main",
+  "outcome": "Qualify Open Code Review for issue 534 with a pinned hermetic read-only comparative benchmark and record an adopt-or-not-adopt decision without product integration.",
+  "owned_paths": [
+    "scripts/qualification/open-code-review/**",
+    "tests/qualification/test_open_code_review_qualification.py",
+    ".work/changes/634-open-code-review-qualification/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/**",
+    "settings/**",
+    "policy/**",
+    "AGENTS.md",
+    "docs/TRUST-MODEL.md",
+    ".github/**"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "external_action",
+    "security"
+  ],
+  "base_evidence": {
+    "local_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "local_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "upstream_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-534",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 534,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-b"
+  }
+}
