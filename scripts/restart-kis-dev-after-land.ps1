@@ -335,7 +335,7 @@ try {
     $MaxRecoveryAttempts = 2
     while ($true) {
         try {
-            & (Join-Path $RepositoryRoot 'scripts\recover-kis-dev.ps1') -RepositoryRoot $RepositoryRoot -WaitSeconds 90
+            & (Join-Path $RepositoryRoot 'scripts\recover-kis-dev.ps1') -RepositoryRoot $RepositoryRoot -ExpectedSourceRevision $LaunchedSha -WaitSeconds 90
             $null = Write-KisDevRestartReceipt -State 'ready' -Detail 'replacement runtime recovered and verified ready' -LaunchedSha $LaunchedSha -WorkerPid $PID
             return
         }

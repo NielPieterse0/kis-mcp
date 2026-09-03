@@ -415,7 +415,8 @@ function Write-KisMcpCurrentInstanceState {
         [Parameter(Mandatory)][int]$TunnelPid,
         [Parameter(Mandatory)][string]$PythonPath,
         [Parameter(Mandatory)][string]$RepositoryRoot,
-        [Parameter(Mandatory)][string]$StartupStatePath
+        [Parameter(Mandatory)][string]$StartupStatePath,
+        [Parameter(Mandatory)][string]$SourceRevision
     )
 
     $Document = [ordered]@{
@@ -431,6 +432,7 @@ function Write-KisMcpCurrentInstanceState {
         tunnel_pid = $TunnelPid
         python_executable = $PythonPath
         repository_root = $RepositoryRoot
+        source_revision = $SourceRevision
         startup_state = $StartupStatePath
         started_utc = [DateTime]::UtcNow.ToString('o')
     }

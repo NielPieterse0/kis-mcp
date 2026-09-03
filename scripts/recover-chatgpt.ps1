@@ -5,6 +5,7 @@ param(
     [switch]$Foreground,
     [string]$ReadPath = '',
     [string]$ExpectedRunId = '',
+    [string]$ExpectedSourceRevision = '',
     [ValidateRange(0, 300)][int]$WaitSeconds = 60
 )
 
@@ -80,6 +81,10 @@ function Test-RecoveryReady {
     }
     $RunProperty = $Current.PSObject.Properties['run_id']
     if ($null -eq $RunProperty -or [string]::IsNullOrWhiteSpace([string]$RunProperty.Value)) { return $false }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedSourceRevision)) {
+        $SourceProperty = $Current.PSObject.Properties['source_revision']
+        if ($null -eq $SourceProperty -or [string]$SourceProperty.Value -cne $ExpectedSourceRevision) { return $false }
+    }
     foreach ($Name in @('launcher_pid','server_pid','server_listener_pid','tunnel_pid')) {
         $Property = $Current.PSObject.Properties[$Name]
         if ($null -eq $Property) { return $false }
