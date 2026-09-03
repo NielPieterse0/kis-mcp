@@ -122,7 +122,7 @@ def test_reader_checks_configured_ancestors_before_resolving_root(
     assert checked.index(skills_config.root.parent) < checked.index(skills_config.root)
 
 
-def test_refresh_rejects_invalid_skill_without_replacing_active_snapshot(
+def test_refresh_isolates_invalid_skill_and_commits_current_valid_snapshot(
     skills_config: SkillsConfig, make_skill
 ) -> None:
     make_skill("alpha-skill")
@@ -133,11 +133,13 @@ def test_refresh_rejects_invalid_skill_without_replacing_active_snapshot(
     broken.mkdir()
     (broken / "SKILL.md").write_text("# no frontmatter\n", encoding="utf-8")
 
-    with pytest.raises(SkillsError, match="SKILLS_REFRESH_REJECTED"):
-        catalogue.refresh_skills()
+    catalogue.refresh_skills()
 
     assert catalogue.snapshot_id == original
     assert [item.id for item in catalogue.list_skills().skills] == ["alpha-skill"]
+    assert [(item.source_directory, item.code) for item in catalogue.diagnostics] == [
+        ("broken", "SKILLS_FRONTMATTER_INVALID")
+    ]
 
 
 def test_validate_create_and_replacement_are_read_only(
@@ -195,22 +197,25 @@ def test_catalogue_accepts_exact_allowed_extensionless_filename_only(
     assert replacement.content == "updated package license"
 
     (root / "NOTICE").write_text("not configured", encoding="utf-8")
-    with pytest.raises(SkillsError, match="SKILLS_SUFFIX_FORBIDDEN"):
-        SkillCatalogue(configured)
+    invalid = SkillCatalogue(configured)
+    assert invalid.list_skills().skills == ()
+    assert invalid.diagnostics[0].code == "SKILLS_SUFFIX_FORBIDDEN"
 
 
-def test_catalogue_rejects_disallowed_suffix_and_oversize_file(
+def test_catalogue_isolates_disallowed_suffix_and_oversize_file(
     skills_config: SkillsConfig, make_skill
 ) -> None:
     root = make_skill("alpha-skill")
     (root / "binary.exe").write_bytes(b"MZ")
 
-    with pytest.raises(SkillsError, match="SKILLS_REFRESH_REJECTED"):
-        SkillCatalogue(skills_config)
+    disallowed = SkillCatalogue(skills_config)
+    assert disallowed.list_skills().skills == ()
+    assert disallowed.diagnostics[0].code == "SKILLS_SUFFIX_FORBIDDEN"
 
     (root / "binary.exe").unlink()
     (root / "large.md").write_text(
         "x" * (skills_config.limits.max_file_bytes + 1), encoding="utf-8"
     )
-    with pytest.raises(SkillsError, match="SKILLS_REFRESH_REJECTED"):
-        SkillCatalogue(skills_config)
+    oversized = SkillCatalogue(skills_config)
+    assert oversized.list_skills().skills == ()
+    assert oversized.diagnostics[0].code == "SKILLS_SIZE_EXCEEDED"

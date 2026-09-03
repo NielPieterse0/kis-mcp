@@ -38,11 +38,21 @@ def test_unclassified_valid_skill_has_no_private_contribution() -> None:
     assert skill_capability_contributions((card,), load_capability_settings()) == ()
 
 
-def test_catalogue_requires_configured_kis_mcp(skills_config, make_skill) -> None:
+def test_missing_configured_skill_is_diagnostic_not_catalogue_failure(
+    skills_config, make_skill
+) -> None:
     make_skill("bayesian-modeler")
     configured = replace(skills_config, required_skills=("kis-mcp",))
-    with pytest.raises(SkillsError, match="SKILLS_REQUIRED_MISSING"):
-        SkillCatalogue(configured)
+    catalogue = SkillCatalogue(configured)
+
+    refreshed = catalogue.refresh_skills()
+    assert [item.id for item in catalogue.list_skills(limit=10).skills] == [
+        "bayesian-modeler"
+    ]
+    assert any(
+        item.source_directory == "kis-mcp" and item.code == "SKILLS_REQUIRED_MISSING"
+        for item in catalogue.diagnostics
+    )
 
 
 def test_catalogue_accepts_required_and_unclassified_skills(skills_config, make_skill) -> None:
@@ -80,6 +90,86 @@ def test_active_skill_contributions_follow_refreshed_catalogue(skills_config, ma
     assert "skill.develop-code" not in refreshed
     assert "skill.github" in refreshed
     assert catalogue.load_skill("github").skill.id == "github"
+
+
+def test_empty_catalogue_reconciles_to_healthy_empty_snapshot(skills_config) -> None:
+    catalogue = SkillCatalogue(skills_config)
+
+    result = catalogue.refresh_skills()
+
+    assert result.skill_count == 0
+    assert catalogue.diagnostics == ()
+    assert catalogue.list_skills(limit=10).skills == ()
+
+
+def test_malformed_skill_is_isolated_without_suppressing_valid_skill(
+    skills_config, make_skill
+) -> None:
+    make_skill("develop-code")
+    malformed = skills_config.root / "broken-skill"
+    malformed.mkdir()
+    (malformed / "SKILL.md").write_text("# missing frontmatter\n", encoding="utf-8")
+
+    catalogue = SkillCatalogue(skills_config)
+    result = catalogue.refresh_skills()
+
+    assert [item.id for item in catalogue.list_skills(limit=10).skills] == ["develop-code"]
+    assert len(catalogue.diagnostics) == 1
+    assert catalogue.diagnostics[0].source_directory == "broken-skill"
+    assert catalogue.diagnostics[0].code == "SKILLS_FRONTMATTER_INVALID"
+
+
+def test_modified_skill_reconciliation_changes_snapshot_and_current_content(
+    skills_config, make_skill
+) -> None:
+    root = make_skill("develop-code", description="first version")
+    catalogue = SkillCatalogue(skills_config)
+    before = catalogue.load_skill("develop-code")
+
+    (root / "SKILL.md").write_text(
+        "---\nname: develop-code\ndescription: second version\nstatus: active\n---\n\n# changed\n",
+        encoding="utf-8",
+    )
+    refreshed = catalogue.refresh_skills()
+    after = catalogue.load_skill("develop-code")
+
+    assert refreshed.snapshot_id != before.snapshot_id
+    assert after.sha256 != before.sha256
+    assert after.skill.summary == "second version"
+    assert "# changed" in after.content
+
+
+def test_malformed_reconciliation_drops_previously_valid_skill_instead_of_stale_fallback(
+    skills_config, make_skill
+) -> None:
+    root = make_skill("develop-code")
+    catalogue = SkillCatalogue(skills_config)
+    assert catalogue.load_skill("develop-code").skill.id == "develop-code"
+
+    (root / "SKILL.md").write_text("not valid skill metadata\n", encoding="utf-8")
+    result = catalogue.refresh_skills()
+
+    assert result.skill_count == 0
+    assert catalogue.diagnostics[0].source_directory == "develop-code"
+    with pytest.raises(SkillsError, match="SKILLS_UNKNOWN"):
+        catalogue.load_skill("develop-code")
+
+
+def test_root_unavailable_reconciliation_drops_stale_snapshot(
+    skills_config, make_skill
+) -> None:
+    make_skill("develop-code")
+    catalogue = SkillCatalogue(skills_config)
+    assert catalogue.load_skill("develop-code").skill.id == "develop-code"
+
+    shutil.rmtree(skills_config.root)
+    result = catalogue.refresh_skills()
+
+    assert result.skill_count == 0
+    assert catalogue.diagnostics[0].source_directory == "."
+    assert catalogue.diagnostics[0].code == "SKILLS_ROOT_UNAVAILABLE"
+    with pytest.raises(SkillsError, match="SKILLS_UNKNOWN"):
+        catalogue.load_skill("develop-code")
 
 
 def test_internal_capability_enumeration_does_not_emit_discovery_telemetry(
