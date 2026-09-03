@@ -767,3 +767,50 @@ def test_capability_search_ranks_exact_operation_before_generic_git_matches() ->
     assert payload is not None
     assert payload["operations"][0]["operation_name"] == "github_merge_pull_request"
     assert payload["operations"][0]["match_score"] > payload["operations"][1]["match_score"]
+
+
+def test_governed_change_mutations_are_discoverable_capability_operations() -> None:
+    operations = {
+        operation.name: operation
+        for operation in capability_control_contribution().operations
+    }
+
+    create = operations["create_change_worktree"]
+    commit = operations["commit_change"]
+    assert create.exposure.mode is ExposureMode.DISCOVERABLE
+    assert commit.exposure.mode is ExposureMode.DISCOVERABLE
+    assert "governed-change" in create.tags
+    assert "governed-change" in commit.tags
+    assert create.input_schema["required"] == [
+        "repository",
+        "change_id",
+        "outcome",
+        "owned_paths",
+    ]
+    assert commit.input_schema["required"] == ["path", "message", "paths"]
+
+
+@pytest.mark.parametrize("operation", ["create_change_worktree", "commit_change"])
+def test_governed_change_mutations_dispatch_through_change_action(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def execute_virtual(name: str, arguments: dict[str, object]) -> dict[str, object]:
+        calls.append((name, dict(arguments)))
+        return {"operation": name, "ok": True}
+
+    monkeypatch.setattr(
+        execution_module,
+        "execute_governed_change_operation",
+        execute_virtual,
+    )
+    router = CapabilityExecutionRouter(
+        FastMCP("governed-change-test"),
+        state(capability_control_contribution()),
+    )
+    result = asyncio.run(router.execute_change(operation, {"probe": True}))
+
+    assert result == {"operation": operation, "ok": True}
+    assert calls == [(operation, {"probe": True})]

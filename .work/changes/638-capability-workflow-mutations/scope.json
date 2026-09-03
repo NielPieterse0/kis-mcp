@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "638-capability-workflow-mutations",
+  "status": "active",
+  "branch": "change/638-capability-workflow-mutations",
+  "worktree": ".work/worktrees/638-capability-workflow-mutations",
+  "base": "main",
+  "outcome": "Restore executable create_change_worktree and commit_change operations for governed development workflow",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/**",
+    "tests/capabilities/**",
+    ".work/changes/638-capability-workflow-mutations/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "cebabe261dfec94c7f524f45be06879757977c4d",
+    "local_tree": "0e05d08cb7f90bf46f5ba3469c95964cd6df284c",
+    "upstream_sha": "cebabe261dfec94c7f524f45be06879757977c4d",
+    "upstream_tree": "0e05d08cb7f90bf46f5ba3469c95964cd6df284c",
+    "upstream_ref": "origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  }
+}

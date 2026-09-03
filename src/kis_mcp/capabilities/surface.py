@@ -11,6 +11,7 @@ from ..projects.github_merge_queue import (
     REGISTERED_GITHUB_MERGE_QUEUE_OPERATION_SCHEMAS,
 )
 from ..projects.github_tracking import REGISTERED_GITHUB_TRACKING_OPERATION_SCHEMAS
+from .governed_change import COMMIT_CHANGE_SCHEMA, CREATE_CHANGE_WORKTREE_SCHEMA
 from .contracts import (
     CapabilityContribution,
     CapabilityDomain,
@@ -133,6 +134,30 @@ def capability_control_contribution() -> CapabilityContribution:
         for name, description, effect in operations
     )
     virtual_descriptors = (
+        OperationDescriptor(
+            operation_id="capability-control.create-change-worktree",
+            name="create_change_worktree",
+            description="Create one governed isolated change worktree through the repository change workflow.",
+            capabilities=("operation.create_change_worktree", "git.worktree.create"),
+            effects=(OperationEffect.LOCAL_CHANGE, OperationEffect.PROCESS),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=98),
+            quality=default_quality(context_cost=10, reversibility=95, reliability=95, workflow_integration=100),
+            tags=("governed-change", "virtual"),
+            input_schema=CREATE_CHANGE_WORKTREE_SCHEMA,
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.commit-change",
+            name="commit_change",
+            description="Commit selected paths from one governed change worktree after verifying its change branch.",
+            capabilities=("operation.commit_change", "repository.git"),
+            effects=(OperationEffect.LOCAL_CHANGE, OperationEffect.PROCESS),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=98),
+            quality=default_quality(context_cost=10, reversibility=90, reliability=95, workflow_integration=100),
+            tags=("governed-change", "virtual"),
+            input_schema=COMMIT_CHANGE_SCHEMA,
+        ),
         OperationDescriptor(
             operation_id="capability-control.kis-github-publish-registered-commit",
             name="kis_github_publish_registered_commit",
