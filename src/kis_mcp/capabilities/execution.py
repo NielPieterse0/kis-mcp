@@ -19,6 +19,7 @@ from ..projects.github_tracking import (
 )
 from ..workflows.merge_queue import execute_governed_github_merge_queue_operation
 from ..workflows.registered_github import execute_runtime_registered_github_operation
+from .governed_change import execute_governed_change_operation
 from .contracts import OperationDescriptor, OperationEffect
 from .eligibility import evaluate_eligibility
 from .result_resources import ResultResourceStore
@@ -35,7 +36,7 @@ _CONTROL_DISPATCH_OPERATIONS = frozenset(
         "execute_external_action",
     }
 )
-_REGISTERED_VIRTUAL_FAMILIES = frozenset({"registered-github", "registered-acquisition"})
+_REGISTERED_VIRTUAL_FAMILIES = frozenset({"registered-github", "registered-acquisition", "governed-change"})
 
 
 def _json_chars(value: Any) -> int:
@@ -280,7 +281,9 @@ class CapabilityExecutionRouter:
             )
 
         if "virtual" in operation.tags:
-            if "registered-acquisition" in operation.tags:
+            if "governed-change" in operation.tags:
+                result = execute_governed_change_operation(operation.name, dict(arguments))
+            elif "registered-acquisition" in operation.tags:
                 if operation.name != "kis_acquire_registered_evidence":
                     raise ToolError(f"VIRTUAL_OPERATION_UNSUPPORTED: {operation.name}")
                 result = execute_registered_acquisition_operation(dict(arguments))
