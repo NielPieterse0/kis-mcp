@@ -274,6 +274,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "execute_change_workflow",
         "change_lifecycle_decision",
         "prepare_reviewable_pull_request",
+        "prepare_reviewable_pull_request_sync",
         "materialize_task_handoff",
         "get_task_handoff",
         "candidate_endpoint_status",
