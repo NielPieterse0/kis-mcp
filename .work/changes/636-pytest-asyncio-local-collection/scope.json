@@ -1,0 +1,40 @@
+{
+  "schema_version": 4,
+  "change_id": "636-pytest-asyncio-local-collection",
+  "status": "active",
+  "branch": "change/636-pytest-asyncio-local-collection",
+  "worktree": ".work/worktrees/636-pytest-asyncio-local-collection",
+  "base": "main",
+  "outcome": "Restore deterministic supported local pytest collection by routing local tests through the canonical locked Python environment with user-site isolation, preventing incompatible ambient pytest plugins from participating in collection.",
+  "owned_paths": [
+    "scripts/test.ps1",
+    "tests/test_repository_scope.py",
+    ".work/changes/636-pytest-asyncio-local-collection/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "local_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "upstream_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "BUG-671",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 671,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-c"
+  }
+}
