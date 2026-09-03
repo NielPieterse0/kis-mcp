@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -69,6 +70,40 @@ def test_verification_uses_locked_external_interpreter() -> None:
     assert '"-m",\n            "pytest"' in python
     assert "uv run --no-sync pytest" not in powershell
     assert "uv run --no-sync kis-mcp" not in start
+
+
+def test_local_test_entrypoint_isolates_ambient_pytest_plugins(tmp_path: Path) -> None:
+    probe = tmp_path / "test_environment_probe.py"
+    probe.write_text(
+        "import os\n"
+        "import sys\n\n"
+        "def test_environment_probe():\n"
+        "    assert sys.executable.lower() == r'C:\\Projects\\.kis-mcp\\python-env\\Scripts\\python.exe'.lower()\n"
+        "    assert os.environ.get('PYTHONNOUSERSITE') == '1'\n"
+        "    assert os.environ.get('PYTEST_DISABLE_PLUGIN_AUTOLOAD') is None\n",
+        encoding="utf-8",
+    )
+    command = [
+        "pwsh",
+        "-NoProfile",
+        "-File",
+        str(REPOSITORY_ROOT / "scripts" / "test.ps1"),
+        "-q",
+        "-k",
+        "environment_probe",
+        str(probe),
+    ]
+    result = subprocess.run(command, cwd=REPOSITORY_ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "1 passed" in result.stdout
+
+    no_match = subprocess.run(
+        [*command[:4], "-q", "-k", "definitely_not_selected", str(probe)],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert no_match.returncode == 5
 
 
 def test_desktop_commander_bootstrap_resolves_windows_node_and_npm_launchers() -> None:
