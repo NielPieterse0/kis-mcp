@@ -147,7 +147,7 @@ def _candidate_numbers(
         selected.append(number)
     if len(set(numbers)) != len(numbers):
         raise RuntimeError("candidate search contains duplicate pull requests")
-    return tuple(sorted(selected))
+    return tuple(sorted(selected, reverse=True))
 
 
 def _repository_parts(repository: str) -> tuple[str, str]:

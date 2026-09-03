@@ -241,7 +241,7 @@ def test_successful_run_uses_overlap_and_advances_checkpoint(tmp_path: Path) -> 
 
     assert result["complete"] is True
     assert result["candidate_count"] == 2
-    assert processor.calls == [452, 453]
+    assert processor.calls == [453, 452]
     query = invoker.calls[0][1]["query"]
     assert "repo:NielPieterse0/kis-mcp" in query
     assert "is:merged" in query
@@ -263,8 +263,8 @@ def test_blocked_evidence_candidate_is_accounted_and_replayable(tmp_path: Path) 
     first = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
     assert first["complete"] is True
     assert [item["classification"] for item in first["outcomes"]] == [
-        "blocked_evidence",
         "not_required",
+        "blocked_evidence",
     ]
     assert service.store.load_checkpoint(REPOSITORY) == now[0]
 
@@ -276,7 +276,7 @@ def test_blocked_evidence_candidate_is_accounted_and_replayable(tmp_path: Path) 
         "not_required",
         "not_required",
     ]
-    assert processor.calls == [452, 453, 452, 453]
+    assert processor.calls == [453, 452, 453, 452]
     assert service.store.load_checkpoint(REPOSITORY) == now[0]
 
 
@@ -297,7 +297,7 @@ def test_failed_candidate_does_not_advance_checkpoint_and_is_retryable(tmp_path:
     assert service.store.load_checkpoint(REPOSITORY) == original
     receipt = service.store.load_receipt(result["receipt_id"])
     assert "provider detail" not in str(receipt)
-    assert receipt["outcomes"][0]["pull_number"] == 452
+    assert receipt["outcomes"][0]["pull_number"] == 453
 
 
 def test_retryable_merge_evidence_error_preserves_checkpoint(tmp_path: Path) -> None:
@@ -346,8 +346,8 @@ def test_historical_merge_evidence_failure_does_not_wedge_later_merge(tmp_path: 
     assert result["complete"] is False
     assert result["candidate_count"] == 3
     assert result["error_type"] == "MergeEvidenceError"
-    assert processor.calls == [565, 570, 615]
-    assert result["outcomes"][0]["pull_number"] == 565
+    assert processor.calls == [615, 570, 565]
+    assert result["outcomes"][0]["pull_number"] == 615
     assert result["outcomes"][0]["classification"] == "not_required"
     assert result["outcomes"][1] == {
         "pull_number": 570,
@@ -355,7 +355,7 @@ def test_historical_merge_evidence_failure_does_not_wedge_later_merge(tmp_path: 
         "error_type": "MergeEvidenceError",
         "error_code": "provider_evidence_invalid",
     }
-    assert result["outcomes"][2]["pull_number"] == 615
+    assert result["outcomes"][2]["pull_number"] == 565
     assert result["outcomes"][2]["classification"] == "not_required"
     assert service.store.load_checkpoint(REPOSITORY) == original
 
@@ -379,11 +379,11 @@ def test_mixed_candidate_failures_preserve_each_error_type(tmp_path: Path) -> No
 
     assert result["complete"] is False
     assert result["error_type"] == "MultipleCandidateErrors"
-    assert [item["error_type"] for item in result["outcomes"][:2]] == [
-        "MergeEvidenceError",
+    assert result["outcomes"][0]["pull_number"] == 615
+    assert [item["error_type"] for item in result["outcomes"][1:]] == [
         "ValueError",
+        "MergeEvidenceError",
     ]
-    assert result["outcomes"][2]["pull_number"] == 615
     assert service.store.load_checkpoint(REPOSITORY) == original
 
 
@@ -456,8 +456,8 @@ def test_shared_mutation_budget_exhaustion_is_whole_scan_failure(tmp_path: Path)
 
     assert result["complete"] is False
     assert result["error_type"] == "CommissioningBudgetError"
-    assert processor.calls == [452, 453]
-    assert result["outcomes"][0]["pull_number"] == 452
+    assert processor.calls == [453, 452]
+    assert result["outcomes"][0]["pull_number"] == 453
     assert result["outcomes"][0]["classification"] == "not_required"
     assert service.store.load_checkpoint(REPOSITORY) == original
 
@@ -481,15 +481,15 @@ def test_candidate_read_budget_exhaustion_does_not_starve_later_candidate(tmp_pa
     result = asyncio.run(service.run_scheduled_once(REPOSITORY, scheduled_for=now[0]))
 
     assert result["complete"] is False
-    assert processor.calls == [452, 453]
-    assert result["outcomes"][0] == {
+    assert processor.calls == [453, 452]
+    assert result["outcomes"][0]["pull_number"] == 453
+    assert result["outcomes"][0]["classification"] == "not_required"
+    assert result["outcomes"][1] == {
         "pull_number": 452,
         "classification": "unresolved_candidate",
         "error_type": "CommissioningBudgetError",
         "error_code": "external_read_budget_exceeded",
     }
-    assert result["outcomes"][1]["pull_number"] == 453
-    assert result["outcomes"][1]["classification"] == "not_required"
     assert service.store.load_checkpoint(REPOSITORY) == original
 
 
@@ -513,7 +513,7 @@ def test_candidate_read_budgets_prevent_later_candidate_starvation(tmp_path: Pat
 
     assert result["complete"] is True
     assert result["candidate_count"] == 26
-    assert processor.calls == list(numbers)
+    assert processor.calls == list(reversed(numbers))
     assert len(invoker.calls) == 1 + (26 * 8)
     assert service.store.load_checkpoint(REPOSITORY) == now[0]
 
