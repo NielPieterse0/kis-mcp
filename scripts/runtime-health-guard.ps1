@@ -39,6 +39,19 @@ function Read-OwnedCurrent {
     return $Current
 }
 
+function Test-OwnedLocalServerHealth {
+    param([Parameter(Mandatory)]$Current)
+    $ListenerProperty = $Current.PSObject.Properties['server_listener_pid']
+    if ($null -eq $ListenerProperty) { return $false }
+    try { $ServerListenerPid = [int]$ListenerProperty.Value } catch { return $false }
+    if ($ServerListenerPid -le 0 -or $null -eq (Get-Process -Id $ServerListenerPid -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        $Payload = @{jsonrpc='2.0';id=1;method='initialize';params=@{protocolVersion='2025-06-18';capabilities=@{};clientInfo=@{name='kis-health-guard-local';version='1.0'}}} | ConvertTo-Json -Depth 8 -Compress
+        $Response = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers @{Accept='application/json, text/event-stream';'MCP-Protocol-Version'='2025-06-18'} -ContentType 'application/json' -Body $Payload -TimeoutSec 2
+        return $null -ne $Response.result.serverInfo
+    } catch { return $false }
+}
+
 function Test-OwnedHealth {
     param([Parameter(Mandatory)]$Current)
     foreach ($Name in @('launcher_pid','server_pid','server_listener_pid','tunnel_pid')) {
@@ -95,11 +108,16 @@ while ($true) {
         Start-Sleep -Seconds $PollSeconds
         continue
     }
+    if (Test-OwnedLocalServerHealth -Current $Current) {
+        Start-Sleep -Seconds $PollSeconds
+        continue
+    }
 
     Start-Sleep -Seconds $FailureGraceSeconds
     $Current = Read-OwnedCurrent
     if ($null -eq $Current) { return }
     if (Test-OwnedHealth -Current $Current) { continue }
+    if (Test-OwnedLocalServerHealth -Current $Current) { continue }
 
     $RecoveryScript = Join-Path $RepositoryRoot 'scripts\recover-chatgpt.ps1'
     $Attempt = 0
