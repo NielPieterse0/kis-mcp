@@ -16,6 +16,7 @@ from .governed_change import (
     COMMIT_CHANGE_SCHEMA,
     CREATE_CHANGE_WORKTREE_SCHEMA,
     LIST_WORKTREES_SCHEMA,
+    RETIRE_CLOSED_ORPHAN_WORKTREE_SCHEMA,
     VALIDATE_CHANGE_CLAIMS_SCHEMA,
 )
 from .contracts import (
@@ -199,6 +200,18 @@ def capability_control_contribution() -> CapabilityContribution:
             quality=default_quality(context_cost=10, reversibility=95, reliability=95, workflow_integration=100),
             tags=("governed-change", "virtual"),
             input_schema=CLEANUP_CHANGE_WORKTREE_SCHEMA,
+        ),
+        OperationDescriptor(
+            operation_id="capability-control.retire-closed-orphan-worktree",
+            name="retire_closed_orphan_worktree",
+            description="Retire one clean unclaimed terminal governed worktree while preserving its unmerged branch and committed evidence.",
+            capabilities=("operation.retire_closed_orphan_worktree", "git.worktree.retire-orphan"),
+            effects=(OperationEffect.LOCAL_CHANGE, OperationEffect.PROCESS),
+            dependencies=(),
+            exposure=ExposurePolicy(mode=ExposureMode.DISCOVERABLE, priority=99),
+            quality=default_quality(context_cost=10, reversibility=98, reliability=95, workflow_integration=100),
+            tags=("governed-change", "recovery", "virtual"),
+            input_schema=RETIRE_CLOSED_ORPHAN_WORKTREE_SCHEMA,
         ),
         OperationDescriptor(
             operation_id="capability-control.kis-github-publish-registered-commit",

@@ -780,13 +780,14 @@ def test_governed_change_mutations_are_discoverable_capability_operations() -> N
     listing = operations["list_worktrees"]
     validate = operations["validate_change_claims"]
     cleanup = operations["cleanup_change_worktree"]
+    retire = operations["retire_closed_orphan_worktree"]
     assert all(
         operation.exposure.mode is ExposureMode.DISCOVERABLE
-        for operation in (create, commit, listing, validate, cleanup)
+        for operation in (create, commit, listing, validate, cleanup, retire)
     )
     assert all(
         "governed-change" in operation.tags
-        for operation in (create, commit, listing, validate, cleanup)
+        for operation in (create, commit, listing, validate, cleanup, retire)
     )
     assert create.input_schema["required"] == [
         "repository",
@@ -798,11 +799,21 @@ def test_governed_change_mutations_are_discoverable_capability_operations() -> N
     assert listing.input_schema["required"] == ["repository"]
     assert validate.input_schema["required"] == ["repository"]
     assert cleanup.input_schema["required"] == ["repository", "change_id"]
+    assert retire.input_schema["required"] == [
+        "repository",
+        "change_id",
+        "terminal_work_confirmed",
+    ]
 
 
 @pytest.mark.parametrize(
     "operation",
-    ["create_change_worktree", "commit_change", "cleanup_change_worktree"],
+    [
+        "create_change_worktree",
+        "commit_change",
+        "cleanup_change_worktree",
+        "retire_closed_orphan_worktree",
+    ],
 )
 def test_governed_change_mutations_dispatch_through_change_action(
     monkeypatch: pytest.MonkeyPatch,

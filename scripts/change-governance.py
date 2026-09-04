@@ -1176,6 +1176,20 @@ def validate_repository(
     return claims
 
 
+def orphaned_change_worktrees(repository: Path) -> list[dict[str, str]]:
+    root = repository_root(repository)
+    worktrees = discover_worktrees(root)
+    claims = load_worktree_claims(root)
+    claimed = {claim.branch for claim in claims}
+    return [
+        {"branch": entry.branch, "path": str(entry.path)}
+        for entry in worktrees[1:]
+        if entry.branch
+        and entry.branch.startswith("change/")
+        and entry.branch not in claimed
+    ]
+
+
 def check_current_change(repository: Path) -> list[str]:
     root = repository_root(repository)
     branch = _run_git(root, "branch", "--show-current").stdout.strip()
@@ -1206,6 +1220,53 @@ def check_current_change(repository: Path) -> list[str]:
     if violations:
         raise ClaimError("\n".join(violations))
     return sorted(set(changed))
+
+
+def retire_closed_orphan_worktree(
+    repository: Path,
+    change_id: str,
+    *,
+    terminal_work_confirmed: bool,
+) -> CleanupResult:
+    root = repository_root(repository)
+    normalized_id = _require_change_id(change_id, "change_id")
+    if not terminal_work_confirmed:
+        raise ClaimError(f"TERMINAL_WORK_EVIDENCE_REQUIRED: {normalized_id}")
+    target = (root / ".work" / "worktrees" / normalized_id).resolve()
+    branch = f"change/{normalized_id}"
+    entries = {entry.branch: entry for entry in discover_worktrees(root) if entry.branch}
+    entry = entries.get(branch)
+    if entry is None or entry.path != target:
+        raise ClaimError(f"CHANGE_WORKTREE_MISSING: {normalized_id}")
+    claims = [claim for claim in load_worktree_claims(root) if claim.branch == branch]
+    if claims:
+        raise ClaimError(f"ORPHAN_CHANGE_CLAIM_PRESENT: {normalized_id}")
+    status = _run_git(target, "status", "--porcelain", "--untracked-files=all").stdout
+    if status.strip():
+        raise ClaimError(f"CHANGE_WORKTREE_DIRTY: {target}")
+    head = _run_git(target, "rev-parse", "HEAD").stdout.strip()
+    removal = _run_git(root, "-c", "core.longpaths=true", "worktree", "remove", str(target), check=False)
+    recovered = False
+    backup_path: Path | None = None
+    if removal.returncode != 0:
+        remaining = {worktree.branch: worktree for worktree in discover_worktrees(root) if worktree.branch}
+        if branch in remaining:
+            detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+            raise ClaimError(f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered: {detail}")
+        if target.exists():
+            backup_root = root.parent / ".backup"
+            backup_root.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+            backup_path = backup_root / f"{normalized_id}-orphan-worktree-remnant-{timestamp}"
+            if backup_path.exists():
+                raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
+            target.replace(backup_path)
+            recovered = True
+    preserved = _run_git(root, "rev-parse", branch).stdout.strip()
+    if preserved != head:
+        raise ClaimError(f"ORPHAN_BRANCH_PRESERVATION_FAILED: {branch}: {preserved} != {head}")
+    _run_git(root, "worktree", "prune")
+    return CleanupResult(change_id=normalized_id, branch=branch, recovered=recovered, backup_path=backup_path)
 
 
 def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
@@ -1668,6 +1729,11 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("list", help="List active and ready change claims.")
     cleanup = subparsers.add_parser("cleanup", help="Remove one clean merged worktree.")
     cleanup.add_argument("change_id")
+    retire = subparsers.add_parser(
+        "retire-orphan", help="Retire one clean unclaimed terminal worktree while preserving its branch."
+    )
+    retire.add_argument("change_id")
+    retire.add_argument("--terminal-work-confirmed", action="store_true")
     return parser
 
 
@@ -1725,6 +1791,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     {
                         "active_changes": sum(c.status in ACTIVE_STATUSES for c in claims),
                         "historical_compatibility_warnings": compatibility,
+                        "orphaned_change_worktrees": orphaned_change_worktrees(args.repository),
                     }
                 )
             )
@@ -1741,6 +1808,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "cleanup":
             result = cleanup_change_worktree(args.repository, args.change_id)
             print(json.dumps(result.to_mapping()))
+        elif args.command == "retire-orphan":
+            result = retire_closed_orphan_worktree(
+                args.repository,
+                args.change_id,
+                terminal_work_confirmed=args.terminal_work_confirmed,
+            )
+            payload = result.to_mapping()
+            payload.update({"branch_preserved": True, "terminal_work_confirmed": True})
+            print(json.dumps(payload))
         else:
             parser.error(f"unsupported command: {args.command}")
     except ClaimError as exc:

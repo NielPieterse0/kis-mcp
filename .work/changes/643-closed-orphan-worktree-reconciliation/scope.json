@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "change_id": "643-closed-orphan-worktree-reconciliation",
+  "status": "active",
+  "branch": "change/643-closed-orphan-worktree-reconciliation",
+  "worktree": ".work/worktrees/643-closed-orphan-worktree-reconciliation",
+  "base": "main",
+  "outcome": "Safely reconcile terminal unclaimed orphan worktrees while preserving unmerged branch and evidence.",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "src/kis_mcp/capabilities/governed_change.py",
+    "src/kis_mcp/capabilities/surface.py",
+    "tests/capabilities/test_governed_change.py",
+    "tests/capabilities/test_exposure_execution.py",
+    "tests/test_change_governance.py",
+    ".work/changes/643-closed-orphan-worktree-reconciliation/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "91406fa904d71f1b1a8d66a350e05d0b6f44c28e",
+    "local_tree": "2933afbfd87fbd5070cd79dff6cd52ae1a5c9f3e",
+    "upstream_sha": "91406fa904d71f1b1a8d66a350e05d0b6f44c28e",
+    "upstream_tree": "2933afbfd87fbd5070cd79dff6cd52ae1a5c9f3e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

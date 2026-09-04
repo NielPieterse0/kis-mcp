@@ -60,6 +60,17 @@ CLEANUP_CHANGE_WORKTREE_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
+RETIRE_CLOSED_ORPHAN_WORKTREE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "repository": {"type": "string"},
+        "change_id": {"type": "string", "minLength": 1},
+        "terminal_work_confirmed": {"type": "boolean"},
+    },
+    "required": ["repository", "change_id", "terminal_work_confirmed"],
+    "additionalProperties": False,
+}
+
 
 def _within_project_boundary(raw: str) -> Path:
     path = Path(raw).resolve(strict=True)
@@ -209,6 +220,15 @@ def _cleanup_change_worktree(arguments: dict[str, Any]) -> dict[str, Any]:
     return {"operation": "cleanup_change_worktree", "repository": str(repository), **result}
 
 
+def _retire_closed_orphan_worktree(arguments: dict[str, Any]) -> dict[str, Any]:
+    repository = _within_project_boundary(str(arguments["repository"]))
+    argv = ["retire-orphan", str(arguments["change_id"])]
+    if bool(arguments.get("terminal_work_confirmed", False)):
+        argv.append("--terminal-work-confirmed")
+    result = _run_change_workflow(repository, *argv)
+    return {"operation": "retire_closed_orphan_worktree", "repository": str(repository), **result}
+
+
 def execute_governed_change_operation(operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if operation == "create_change_worktree":
         return _create_change_worktree(arguments)
@@ -220,6 +240,8 @@ def execute_governed_change_operation(operation: str, arguments: dict[str, Any])
         return _validate_change_claims(arguments)
     if operation == "cleanup_change_worktree":
         return _cleanup_change_worktree(arguments)
+    if operation == "retire_closed_orphan_worktree":
+        return _retire_closed_orphan_worktree(arguments)
     raise ValueError(f"UNKNOWN_GOVERNED_CHANGE_OPERATION: {operation}")
 
 
@@ -228,6 +250,7 @@ __all__ = [
     "COMMIT_CHANGE_SCHEMA",
     "CREATE_CHANGE_WORKTREE_SCHEMA",
     "LIST_WORKTREES_SCHEMA",
+    "RETIRE_CLOSED_ORPHAN_WORKTREE_SCHEMA",
     "VALIDATE_CHANGE_CLAIMS_SCHEMA",
     "execute_governed_change_operation",
 ]
