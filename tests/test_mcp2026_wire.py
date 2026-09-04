@@ -7,6 +7,11 @@ from fastmcp.tools import ToolResult
 from jsonschema import Draft202012Validator
 from mcp import types as mcp_types
 
+from kis_mcp.mcp2026_prompts import (
+    DeterministicDiscoveryTransform,
+    register_mcp2026_workflow_prompts,
+)
+
 
 def test_fastmcp4_sdk_surface_is_snake_case_while_mcp_wire_uses_aliases() -> None:
     server = FastMCP("mcp2026-wire")
@@ -58,3 +63,66 @@ def test_resource_link_is_accepted_as_modern_tool_content() -> None:
     assert isinstance(link, mcp_types.ResourceLink)
     assert link.type == "resource_link"
     assert str(link.uri) == "file:///project/source.py"
+
+
+def test_mcp2026_workflow_prompts_are_thin_user_invoked_entry_points() -> None:
+    server = FastMCP("mcp2026-prompts")
+    server.add_transform(DeterministicDiscoveryTransform())
+    register_mcp2026_workflow_prompts(server)
+
+    async def run() -> None:
+        prompts = await server.list_prompts()
+        assert [prompt.name for prompt in prompts] == [
+            "explain-change",
+            "resume-change",
+            "start-change",
+            "take-next-work",
+        ]
+
+        rendered = await server.render_prompt(
+            "take-next-work",
+            {"project_id": "kis-mcp", "execution_owner": "agent-c"},
+        )
+        text = "\n".join(str(message.content) for message in rendered.messages)
+        assert "project_management_take_next_work" in text
+        assert "Work Management remains authoritative" in text
+        assert "agent-c" in text
+
+    asyncio.run(run())
+
+
+def test_pinned_sdk_supports_2026_cacheable_list_result_contract() -> None:
+    expected = {"ttl_ms", "cache_scope", "result_type"}
+    assert expected <= set(mcp_types.ListToolsResult.model_fields)
+    assert expected <= set(mcp_types.ListPromptsResult.model_fields)
+    assert expected <= set(mcp_types.ListResourcesResult.model_fields)
+
+
+def test_discovery_transform_orders_tools_and_resources_deterministically() -> None:
+    server = FastMCP("mcp2026-discovery-order")
+    server.add_transform(DeterministicDiscoveryTransform())
+
+    @server.tool(name="zeta")
+    def zeta() -> str:
+        return "z"
+
+    @server.tool(name="alpha")
+    def alpha() -> str:
+        return "a"
+
+    @server.resource("file:///zeta")
+    def zeta_resource() -> str:
+        return "z"
+
+    @server.resource("file:///alpha")
+    def alpha_resource() -> str:
+        return "a"
+
+    async def run() -> None:
+        assert [tool.name for tool in await server.list_tools()] == ["alpha", "zeta"]
+        assert [str(resource.uri) for resource in await server.list_resources()] == [
+            "file:///alpha",
+            "file:///zeta",
+        ]
+
+    asyncio.run(run())

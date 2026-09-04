@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "635-mcp2026-workflow-prompts",
+  "status": "active",
+  "branch": "change/635-mcp2026-workflow-prompts",
+  "worktree": ".work/worktrees/635-mcp2026-workflow-prompts",
+  "base": "main",
+  "outcome": "Implement thin MCP workflow prompts for issue 589 and record evidence-backed decisions for MCP 2026 cache hints and header routing without creating workflow authority.",
+  "owned_paths": [
+    "src/kis_mcp/mcp2026_prompts.py",
+    "src/kis_mcp/gateway/composition.py",
+    "tests/test_mcp2026_wire.py",
+    ".work/changes/635-mcp2026-workflow-prompts/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "local_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "upstream_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-589",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 589,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "agent-c"
+  }
+}
