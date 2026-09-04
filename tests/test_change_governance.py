@@ -624,8 +624,10 @@ def test_validate_cli_exposes_additive_historical_compatibility_warnings(
     )
     change_root = target / ".work" / "changes" / "083-historical"
     change_root.mkdir(parents=True)
+    scope = historical_schema_v4_scope(module)
+    scope["dependencies"] = ["86"]
     change_root.joinpath("scope.json").write_text(
-        json.dumps(historical_schema_v4_scope(module), indent=2) + "\n",
+        json.dumps(scope, indent=2) + "\n",
         encoding="utf-8",
     )
     for name in ("spec.md", "plan.md", "tasks.md", "closeout.md"):
@@ -657,7 +659,10 @@ def test_validate_cli_exposes_additive_historical_compatibility_warnings(
         "historical_compatibility_warnings": [
             {
                 "change_id": "083-historical",
-                "warnings": ["HISTORICAL_WORK_RECORD_ID_SYNTHESIZED"],
+                "warnings": [
+                    "HISTORICAL_DEPENDENCY_UNRESOLVED:86",
+                    "HISTORICAL_WORK_RECORD_ID_SYNTHESIZED",
+                ],
             }
         ],
     }

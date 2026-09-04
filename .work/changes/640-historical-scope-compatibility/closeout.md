@@ -19,7 +19,8 @@ Historical schema-v4 file loading receives a bounded in-memory compatibility pro
 - Both findings were corrected: compatibility now requires landed/retired topology plus the scope record on the base branch; unmerged malformed schema-v4 claims remain strict. Unresolved legacy dependency tokens are retained as structured compatibility warnings.
 - Corrected exact-commit code-quality re-review: 0 findings; prior High/Medium closed.
 - API-contract review then found a Medium/Low test-contract gap around CLI warning/error serialization; exact `validate` success/error contract tests and complete warning-order assertions were added and are green.
-- Final exact-commit API re-review: pending.
+- Final API re-review found one Low: multi-warning CLI ordering was not locked end-to-end. The CLI success test now emits two warnings and asserts the exact ordered JSON array; 53/53 tests remain green.
+- Final exact-commit API re-review after that test-only correction: pending.
 
 ## Safety / authority
 
