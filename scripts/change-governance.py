@@ -299,6 +299,7 @@ class ChangeClaim:
     base_evidence: BaseEvidence | None
     work_management: WorkManagementClaim | None
     source: Path
+    compatibility_warnings: tuple[str, ...] = ()
 
     @classmethod
     def from_mapping(
@@ -611,39 +612,65 @@ def paths_outside_claim(claim: ChangeClaim, paths: Iterable[str]) -> list[str]:
     return violations
 
 
-def _project_historical_schema_v4(data: Mapping[str, Any]) -> dict[str, Any]:
+def _project_historical_schema_v4(
+    data: Mapping[str, Any],
+) -> tuple[dict[str, Any], tuple[str, ...]]:
     projected = dict(data)
+    warnings: list[str] = []
     if projected.get("schema_version") != 4:
-        return projected
+        return projected, ()
     change_id = projected.get("change_id")
-    if isinstance(change_id, str) and CHANGE_ID_PATTERN.fullmatch(change_id):
-        projected.setdefault("owned_paths", [f".work/changes/{change_id}/**"])
-    projected.setdefault("shared_paths", [])
-    projected.setdefault("excluded_paths", [])
-    projected.setdefault("dependencies", [])
+    if (
+        "owned_paths" not in projected
+        and isinstance(change_id, str)
+        and CHANGE_ID_PATTERN.fullmatch(change_id)
+    ):
+        projected["owned_paths"] = [f".work/changes/{change_id}/**"]
+        warnings.append("HISTORICAL_OWNED_PATHS_DEFAULTED_TO_CHANGE_RECORD")
+    for field in ("shared_paths", "excluded_paths", "dependencies"):
+        if field not in projected:
+            projected[field] = []
+            warnings.append(f"HISTORICAL_{field.upper()}_DEFAULTED_EMPTY")
     projected.setdefault("integration_owner", None)
     projected.setdefault("risk_triggers", [])
     if projected.get("base_evidence") is None:
         projected["base_evidence"] = {}
+        warnings.append("HISTORICAL_BASE_EVIDENCE_UNAVAILABLE")
     dependencies = projected.get("dependencies")
     if isinstance(dependencies, list):
-        projected["dependencies"] = [
-            item
-            for item in dependencies
-            if isinstance(item, str) and CHANGE_ID_PATTERN.fullmatch(item)
-        ]
+        retained: list[str] = []
+        for item in dependencies:
+            if isinstance(item, str) and CHANGE_ID_PATTERN.fullmatch(item):
+                retained.append(item)
+            else:
+                warnings.append(f"HISTORICAL_DEPENDENCY_UNRESOLVED:{item}")
+        projected["dependencies"] = retained
+    owner = projected.get("integration_owner")
+    if owner is not None and (
+        not isinstance(owner, str) or CHANGE_ID_PATTERN.fullmatch(owner) is None
+    ):
+        warnings.append(f"HISTORICAL_INTEGRATION_OWNER_UNRESOLVED:{owner}")
+    risk_triggers = projected.get("risk_triggers")
+    if isinstance(risk_triggers, list):
+        unknown = [item for item in risk_triggers if item not in RISK_TRIGGERS]
+        if unknown:
+            warnings.append("HISTORICAL_RISK_TRIGGERS_PRESERVED:" + ",".join(unknown))
     work_management = projected.get("work_management")
     if isinstance(work_management, Mapping):
         work_data = dict(work_management)
-        work_data.setdefault("documentation_impact", "not_assessed")
+        if "record_id" not in work_data:
+            warnings.append("HISTORICAL_WORK_RECORD_ID_SYNTHESIZED")
+        if "documentation_impact" not in work_data:
+            work_data["documentation_impact"] = "not_assessed"
+            warnings.append("HISTORICAL_DOCUMENTATION_IMPACT_DEFAULTED")
         projected["work_management"] = work_data
-    return projected
+    return projected, tuple(warnings)
 
 
 def load_claim(
     path: Path,
     *,
-    historical_compatibility: bool = True,
+    historical_compatibility: bool = False,
 ) -> ChangeClaim:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -651,13 +678,87 @@ def load_claim(
         raise ClaimError(f"CHANGE_SCOPE_UNREADABLE: {path}: {exc}") from exc
     if not isinstance(data, dict):
         raise ClaimError(f"CHANGE_SCOPE_INVALID: {path} must contain a JSON object")
+    warnings: tuple[str, ...] = ()
     if historical_compatibility:
-        data = _project_historical_schema_v4(data)
-    return ChangeClaim.from_mapping(
+        data, warnings = _project_historical_schema_v4(data)
+    claim = ChangeClaim.from_mapping(
         data,
         source=path,
         historical_compatibility=historical_compatibility,
     )
+    return replace(claim, compatibility_warnings=warnings) if warnings else claim
+
+
+def _scope_record_exists_on_base(root: Path, base: str, change_id: str) -> bool:
+    probe = _run_git(
+        root,
+        "cat-file",
+        "-e",
+        f"{base}:.work/changes/{change_id}/scope.json",
+        check=False,
+    )
+    return probe.returncode == 0
+
+
+def _scope_is_historical_by_topology(root: Path, path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(data, dict) or data.get("schema_version") != 4:
+        return False
+    change_id = data.get("change_id")
+    branch = data.get("branch")
+    base = data.get("base")
+    if (
+        not isinstance(change_id, str)
+        or CHANGE_ID_PATTERN.fullmatch(change_id) is None
+        or not isinstance(branch, str)
+        or not branch
+        or not isinstance(base, str)
+        or not base
+    ):
+        return False
+    if not _scope_record_exists_on_base(root, base, change_id):
+        return False
+    if not _git_ref_exists(root, f"refs/heads/{branch}"):
+        return True
+    landed = _run_git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        branch,
+        base,
+        check=False,
+    )
+    return landed.returncode == 0
+
+
+def _load_claim_for_inventory(root: Path, path: Path) -> ChangeClaim:
+    try:
+        return load_claim(path)
+    except ClaimError:
+        if not _scope_is_historical_by_topology(root, path):
+            raise
+        return load_claim(path, historical_compatibility=True)
+
+
+def _claim_is_released(root: Path, claim: ChangeClaim) -> bool:
+    if claim.schema_version < 3:
+        return False
+    if not _scope_record_exists_on_base(root, claim.base, claim.change_id):
+        return False
+    if not _git_ref_exists(root, f"refs/heads/{claim.branch}"):
+        return True
+    landed = _run_git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        claim.branch,
+        claim.base,
+        check=False,
+    )
+    return landed.returncode == 0
 
 
 def discover_worktrees(repository: Path) -> list[WorktreeEntry]:
@@ -688,7 +789,7 @@ def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
         return []
 
     current_root = repository_root(repository)
-    claims = _claims_in_checkout(current_root)
+    claims = _claims_in_checkout(current_root, allow_historical=True)
     known_change_ids = {claim.change_id for claim in claims}
 
     for entry in worktrees:
@@ -700,16 +801,12 @@ def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
         scope_path = entry.path / ".work" / "changes" / change_id / "scope.json"
         if not scope_path.is_file():
             continue
-        claims.append(load_claim(scope_path))
+        claims.append(_load_claim_for_inventory(current_root, scope_path))
         known_change_ids.add(change_id)
 
     return [
         replace(claim, status="closed")
-        if (
-            claim.schema_version >= 3
-            and claim.status in ACTIVE_STATUSES
-            and not _git_ref_exists(current_root, f"refs/heads/{claim.branch}")
-        )
+        if claim.status in ACTIVE_STATUSES and _claim_is_released(current_root, claim)
         else claim
         for claim in claims
     ]
@@ -1129,7 +1226,7 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
 
     claims = [
         claim
-        for claim in _claims_in_checkout(target)
+        for claim in _claims_in_checkout(target, allow_historical=True)
         if claim.change_id == normalized_id
     ]
     if len(claims) != 1:
@@ -1261,15 +1358,25 @@ def _claims_are_coordinated(left: ChangeClaim, right: ChangeClaim) -> bool:
     return False
 
 
-def _claims_in_checkout(root: Path) -> list[ChangeClaim]:
+def _claims_in_checkout(
+    root: Path,
+    *,
+    allow_historical: bool = False,
+) -> list[ChangeClaim]:
     changes_root = root / ".work" / "changes"
     if not changes_root.is_dir():
         return []
     claims: list[ChangeClaim] = []
+    repository = repository_root(root)
     for scope_path in sorted(changes_root.glob("*/scope.json")):
         if scope_path.parent.name.startswith("_"):
             continue
-        claims.append(load_claim(scope_path))
+        claim = (
+            _load_claim_for_inventory(repository, scope_path)
+            if allow_historical
+            else load_claim(scope_path)
+        )
+        claims.append(claim)
     return claims
 
 
@@ -1605,9 +1712,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.repository,
                 require_active_worktrees=not args.claims_only,
             )
+            compatibility = [
+                {
+                    "change_id": claim.change_id,
+                    "warnings": list(claim.compatibility_warnings),
+                }
+                for claim in claims
+                if claim.compatibility_warnings
+            ]
             print(
                 json.dumps(
-                    {"active_changes": sum(c.status in ACTIVE_STATUSES for c in claims)}
+                    {
+                        "active_changes": sum(c.status in ACTIVE_STATUSES for c in claims),
+                        "historical_compatibility_warnings": compatibility,
+                    }
                 )
             )
         elif args.command == "check":

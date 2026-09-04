@@ -159,7 +159,7 @@ def test_load_claim_projects_historical_schema_v4_work_record_id(tmp_path: Path)
     path.parent.mkdir()
     path.write_text(json.dumps(historical_schema_v4_scope(module)), encoding="utf-8")
 
-    current = module.load_claim(path)
+    current = module.load_claim(path, historical_compatibility=True)
 
     assert current.work_management is not None
     assert current.work_management.record_id == "WORK-83"
@@ -176,7 +176,7 @@ def test_load_claim_projects_historical_schema_v4_metadata_only(tmp_path: Path) 
     path.parent.mkdir()
     path.write_text(json.dumps(data), encoding="utf-8")
 
-    current = module.load_claim(path)
+    current = module.load_claim(path, historical_compatibility=True)
 
     assert current.risk_triggers == (
         "research-methodology",
@@ -202,7 +202,7 @@ def test_load_claim_projects_early_schema_v4_omitted_fields(tmp_path: Path) -> N
     path.parent.mkdir()
     path.write_text(json.dumps(data), encoding="utf-8")
 
-    current = module.load_claim(path)
+    current = module.load_claim(path, historical_compatibility=True)
 
     assert [item.raw for item in current.owned_paths] == [
         ".work/changes/273-historical/**"
@@ -215,7 +215,7 @@ def test_load_claim_projects_early_schema_v4_omitted_fields(tmp_path: Path) -> N
     assert current.work_management.documentation_impact == "not_assessed"
 
 
-def test_load_claim_drops_noncanonical_historical_dependency_tokens(tmp_path: Path) -> None:
+def test_load_claim_reports_noncanonical_historical_dependency_tokens(tmp_path: Path) -> None:
     module = load_module()
     data = historical_schema_v4_scope(module, "115-historical")
     data["dependencies"] = ["86", "114-valid-dependency"]
@@ -223,9 +223,10 @@ def test_load_claim_drops_noncanonical_historical_dependency_tokens(tmp_path: Pa
     path.parent.mkdir()
     path.write_text(json.dumps(data), encoding="utf-8")
 
-    current = module.load_claim(path)
+    current = module.load_claim(path, historical_compatibility=True)
 
     assert current.dependencies == ("114-valid-dependency",)
+    assert "HISTORICAL_DEPENDENCY_UNRESOLVED:86" in current.compatibility_warnings
 
 
 def test_schema_v3_claim_remains_valid_with_legacy_risk_profile() -> None:
@@ -543,6 +544,64 @@ def test_claim_discovery_ignores_underscore_template_directories(
 
     assert [item.change_id for item in worktree_claims] == ["001-alpha"]
     assert [item.change_id for item in checkout_claims] == ["001-alpha"]
+
+
+def test_inventory_accepts_only_landed_malformed_schema_v4(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "083-historical"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/083-historical",
+        "main",
+    )
+    change_root = target / ".work" / "changes" / "083-historical"
+    change_root.mkdir(parents=True)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(historical_schema_v4_scope(module), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for name in ("spec.md", "plan.md", "tasks.md", "closeout.md"):
+        change_root.joinpath(name).write_text(f"# {name}\n", encoding="utf-8")
+    run_git(target, "add", ".work/changes/083-historical")
+    run_git(target, "commit", "-m", "test: add historical malformed scope")
+    run_git(repository, "merge", "--no-ff", "change/083-historical", "-m", "merge historical")
+
+    claims = module.load_worktree_claims(repository)
+    current = next(item for item in claims if item.change_id == "083-historical")
+
+    assert current.status == "closed"
+    assert "HISTORICAL_WORK_RECORD_ID_SYNTHESIZED" in current.compatibility_warnings
+
+
+def test_inventory_rejects_unmerged_malformed_schema_v4(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "083-historical"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/083-historical",
+        "main",
+    )
+    change_root = target / ".work" / "changes" / "083-historical"
+    change_root.mkdir(parents=True)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(historical_schema_v4_scope(module), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    run_git(target, "add", ".work/changes/083-historical/scope.json")
+    run_git(target, "commit", "-m", "test: add active malformed scope")
+
+    with pytest.raises(module.ClaimError, match="WORK_MANAGEMENT_FIELDS_MISSING: record_id"):
+        module.load_worktree_claims(repository)
 
 
 def test_primary_claim_overrides_stale_copies_in_other_worktrees(
