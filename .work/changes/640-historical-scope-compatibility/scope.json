@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "640-historical-scope-compatibility",
+  "status": "active",
+  "branch": "change/640-historical-scope-compatibility",
+  "worktree": ".work/worktrees/640-historical-scope-compatibility",
+  "base": "main",
+  "outcome": "Allow current KIS change-governance reads and validation to consume historical schema-v4 scope records created under earlier KIS contracts without weakening strict creation of new schema-v4 scopes.",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "tests/test_change_governance.py",
+    ".work/changes/640-historical-scope-compatibility/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "architecture_boundary",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "f8b7066795fdd4f70961f30e36df47b0c1423223",
+    "local_tree": "10b89f2ea711e4be94e7ea6c0fb5f36b02f797d5",
+    "upstream_sha": "f8b7066795fdd4f70961f30e36df47b0c1423223",
+    "upstream_tree": "10b89f2ea711e4be94e7ea6c0fb5f36b02f797d5",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

@@ -299,9 +299,16 @@ class ChangeClaim:
     base_evidence: BaseEvidence | None
     work_management: WorkManagementClaim | None
     source: Path
+    compatibility_warnings: tuple[str, ...] = ()
 
     @classmethod
-    def from_mapping(cls, data: Mapping[str, Any], *, source: Path) -> "ChangeClaim":
+    def from_mapping(
+        cls,
+        data: Mapping[str, Any],
+        *,
+        source: Path,
+        historical_compatibility: bool = False,
+    ) -> "ChangeClaim":
         missing = sorted(REQUIRED_FIELDS.difference(data))
         if missing:
             raise ClaimError(f"CHANGE_FIELDS_MISSING: {', '.join(missing)}")
@@ -329,9 +336,20 @@ class ChangeClaim:
             raise ClaimError(f"CHANGE_FIELDS_UNKNOWN: {', '.join(unknown)}")
         work_management = None
         if "work_management" in data:
-            work_management = WorkManagementClaim.from_mapping(
-                _require_mapping(data["work_management"], "work_management")
-            )
+            work_data = dict(_require_mapping(data["work_management"], "work_management"))
+            if (
+                historical_compatibility
+                and schema_version == 4
+                and "record_id" not in work_data
+            ):
+                source_number = work_data.get("source_number")
+                if (
+                    isinstance(source_number, int)
+                    and not isinstance(source_number, bool)
+                    and source_number > 0
+                ):
+                    work_data["record_id"] = f"WORK-{source_number}"
+            work_management = WorkManagementClaim.from_mapping(work_data)
         risk_profile = None
         complexity = None
         risk_triggers: tuple[str, ...] = ()
@@ -345,12 +363,26 @@ class ChangeClaim:
             complexity = _require_string(data["complexity"], "complexity")
             if complexity not in COMPLEXITIES:
                 raise ClaimError(f"CHANGE_COMPLEXITY_INVALID: {complexity}")
-            risk_triggers = _require_risk_triggers(data["risk_triggers"])
+            if historical_compatibility:
+                try:
+                    risk_triggers = _require_risk_triggers(data["risk_triggers"])
+                except ClaimError:
+                    risk_triggers = _require_historical_risk_triggers(
+                        data["risk_triggers"]
+                    )
+            else:
+                risk_triggers = _require_risk_triggers(data["risk_triggers"])
         base_evidence = None
         if schema_version >= 3:
-            base_evidence = BaseEvidence.from_mapping(
-                _require_mapping(data["base_evidence"], "base_evidence")
+            raw_base_evidence = _require_mapping(
+                data["base_evidence"], "base_evidence"
             )
+            if not (
+                historical_compatibility
+                and schema_version == 4
+                and not raw_base_evidence
+            ):
+                base_evidence = BaseEvidence.from_mapping(raw_base_evidence)
 
         change_id = _require_change_id(data["change_id"], "change_id")
         status = _require_string(data["status"], "status")
@@ -392,11 +424,19 @@ class ChangeClaim:
             raise ClaimError("CHANGE_DEPENDENCY_SELF: a change cannot depend on itself")
 
         owner_value = data["integration_owner"]
-        integration_owner = (
-            None
-            if owner_value is None
-            else _require_change_id(owner_value, "integration_owner")
-        )
+        if owner_value is None:
+            integration_owner = None
+        else:
+            try:
+                integration_owner = _require_change_id(
+                    owner_value, "integration_owner"
+                )
+            except ClaimError:
+                if historical_compatibility and schema_version == 4:
+                    _require_string(owner_value, "integration_owner")
+                    integration_owner = None
+                else:
+                    raise
 
         for owned in owned_paths:
             if any(owned.overlaps(shared) for shared in shared_paths):
@@ -572,14 +612,153 @@ def paths_outside_claim(claim: ChangeClaim, paths: Iterable[str]) -> list[str]:
     return violations
 
 
-def load_claim(path: Path) -> ChangeClaim:
+def _project_historical_schema_v4(
+    data: Mapping[str, Any],
+) -> tuple[dict[str, Any], tuple[str, ...]]:
+    projected = dict(data)
+    warnings: list[str] = []
+    if projected.get("schema_version") != 4:
+        return projected, ()
+    change_id = projected.get("change_id")
+    if (
+        "owned_paths" not in projected
+        and isinstance(change_id, str)
+        and CHANGE_ID_PATTERN.fullmatch(change_id)
+    ):
+        projected["owned_paths"] = [f".work/changes/{change_id}/**"]
+        warnings.append("HISTORICAL_OWNED_PATHS_DEFAULTED_TO_CHANGE_RECORD")
+    for field in ("shared_paths", "excluded_paths", "dependencies"):
+        if field not in projected:
+            projected[field] = []
+            warnings.append(f"HISTORICAL_{field.upper()}_DEFAULTED_EMPTY")
+    projected.setdefault("integration_owner", None)
+    projected.setdefault("risk_triggers", [])
+    if projected.get("base_evidence") is None:
+        projected["base_evidence"] = {}
+        warnings.append("HISTORICAL_BASE_EVIDENCE_UNAVAILABLE")
+    dependencies = projected.get("dependencies")
+    if isinstance(dependencies, list):
+        retained: list[str] = []
+        for item in dependencies:
+            if isinstance(item, str) and CHANGE_ID_PATTERN.fullmatch(item):
+                retained.append(item)
+            else:
+                warnings.append(f"HISTORICAL_DEPENDENCY_UNRESOLVED:{item}")
+        projected["dependencies"] = retained
+    owner = projected.get("integration_owner")
+    if owner is not None and (
+        not isinstance(owner, str) or CHANGE_ID_PATTERN.fullmatch(owner) is None
+    ):
+        warnings.append(f"HISTORICAL_INTEGRATION_OWNER_UNRESOLVED:{owner}")
+    risk_triggers = projected.get("risk_triggers")
+    if isinstance(risk_triggers, list):
+        unknown = [item for item in risk_triggers if item not in RISK_TRIGGERS]
+        if unknown:
+            warnings.append("HISTORICAL_RISK_TRIGGERS_PRESERVED:" + ",".join(unknown))
+    work_management = projected.get("work_management")
+    if isinstance(work_management, Mapping):
+        work_data = dict(work_management)
+        if "record_id" not in work_data:
+            warnings.append("HISTORICAL_WORK_RECORD_ID_SYNTHESIZED")
+        if "documentation_impact" not in work_data:
+            work_data["documentation_impact"] = "not_assessed"
+            warnings.append("HISTORICAL_DOCUMENTATION_IMPACT_DEFAULTED")
+        projected["work_management"] = work_data
+    return projected, tuple(warnings)
+
+
+def load_claim(
+    path: Path,
+    *,
+    historical_compatibility: bool = False,
+) -> ChangeClaim:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ClaimError(f"CHANGE_SCOPE_UNREADABLE: {path}: {exc}") from exc
     if not isinstance(data, dict):
         raise ClaimError(f"CHANGE_SCOPE_INVALID: {path} must contain a JSON object")
-    return ChangeClaim.from_mapping(data, source=path)
+    warnings: tuple[str, ...] = ()
+    if historical_compatibility:
+        data, warnings = _project_historical_schema_v4(data)
+    claim = ChangeClaim.from_mapping(
+        data,
+        source=path,
+        historical_compatibility=historical_compatibility,
+    )
+    return replace(claim, compatibility_warnings=warnings) if warnings else claim
+
+
+def _scope_record_exists_on_base(root: Path, base: str, change_id: str) -> bool:
+    probe = _run_git(
+        root,
+        "cat-file",
+        "-e",
+        f"{base}:.work/changes/{change_id}/scope.json",
+        check=False,
+    )
+    return probe.returncode == 0
+
+
+def _scope_is_historical_by_topology(root: Path, path: Path) -> bool:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(data, dict) or data.get("schema_version") != 4:
+        return False
+    change_id = data.get("change_id")
+    branch = data.get("branch")
+    base = data.get("base")
+    if (
+        not isinstance(change_id, str)
+        or CHANGE_ID_PATTERN.fullmatch(change_id) is None
+        or not isinstance(branch, str)
+        or not branch
+        or not isinstance(base, str)
+        or not base
+    ):
+        return False
+    if not _scope_record_exists_on_base(root, base, change_id):
+        return False
+    if not _git_ref_exists(root, f"refs/heads/{branch}"):
+        return True
+    landed = _run_git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        branch,
+        base,
+        check=False,
+    )
+    return landed.returncode == 0
+
+
+def _load_claim_for_inventory(root: Path, path: Path) -> ChangeClaim:
+    try:
+        return load_claim(path)
+    except ClaimError:
+        if not _scope_is_historical_by_topology(root, path):
+            raise
+        return load_claim(path, historical_compatibility=True)
+
+
+def _claim_is_released(root: Path, claim: ChangeClaim) -> bool:
+    if claim.schema_version < 3:
+        return False
+    if not _scope_record_exists_on_base(root, claim.base, claim.change_id):
+        return False
+    if not _git_ref_exists(root, f"refs/heads/{claim.branch}"):
+        return True
+    landed = _run_git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        claim.branch,
+        claim.base,
+        check=False,
+    )
+    return landed.returncode == 0
 
 
 def discover_worktrees(repository: Path) -> list[WorktreeEntry]:
@@ -610,7 +789,7 @@ def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
         return []
 
     current_root = repository_root(repository)
-    claims = _claims_in_checkout(current_root)
+    claims = _claims_in_checkout(current_root, allow_historical=True)
     known_change_ids = {claim.change_id for claim in claims}
 
     for entry in worktrees:
@@ -622,16 +801,12 @@ def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
         scope_path = entry.path / ".work" / "changes" / change_id / "scope.json"
         if not scope_path.is_file():
             continue
-        claims.append(load_claim(scope_path))
+        claims.append(_load_claim_for_inventory(current_root, scope_path))
         known_change_ids.add(change_id)
 
     return [
         replace(claim, status="closed")
-        if (
-            claim.schema_version >= 3
-            and claim.status in ACTIVE_STATUSES
-            and not _git_ref_exists(current_root, f"refs/heads/{claim.branch}")
-        )
+        if claim.status in ACTIVE_STATUSES and _claim_is_released(current_root, claim)
         else claim
         for claim in claims
     ]
@@ -1006,12 +1181,20 @@ def check_current_change(repository: Path) -> list[str]:
     branch = _run_git(root, "branch", "--show-current").stdout.strip()
     if not branch:
         raise ClaimError("CHANGE_BRANCH_DETACHED: current worktree has no branch")
-    matches = [claim for claim in _claims_in_checkout(root) if claim.branch == branch]
-    if len(matches) != 1:
+    if not branch.startswith("change/"):
+        raise ClaimError(f"CURRENT_CHANGE_CLAIM_MISSING: current branch is {branch}")
+    change_id = _require_change_id(
+        branch.removeprefix("change/"),
+        "current_change_id",
+    )
+    scope_path = root / ".work" / "changes" / change_id / "scope.json"
+    if not scope_path.is_file():
+        raise ClaimError(f"CURRENT_CHANGE_CLAIM_MISSING: no scope for {branch}")
+    claim = load_claim(scope_path, historical_compatibility=False)
+    if claim.branch != branch:
         raise ClaimError(
-            f"CURRENT_CHANGE_CLAIM_MISSING: expected one claim for {branch}, found {len(matches)}"
+            f"CURRENT_CHANGE_CLAIM_MISMATCH: {claim.branch} != {branch}"
         )
-    claim = matches[0]
     _require_change_artifacts(root, claim)
     merge_base = _run_git(root, "merge-base", claim.base, "HEAD").stdout.strip()
     committed = _run_git(
@@ -1043,7 +1226,7 @@ def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
 
     claims = [
         claim
-        for claim in _claims_in_checkout(target)
+        for claim in _claims_in_checkout(target, allow_historical=True)
         if claim.change_id == normalized_id
     ]
     if len(claims) != 1:
@@ -1175,15 +1358,25 @@ def _claims_are_coordinated(left: ChangeClaim, right: ChangeClaim) -> bool:
     return False
 
 
-def _claims_in_checkout(root: Path) -> list[ChangeClaim]:
+def _claims_in_checkout(
+    root: Path,
+    *,
+    allow_historical: bool = False,
+) -> list[ChangeClaim]:
     changes_root = root / ".work" / "changes"
     if not changes_root.is_dir():
         return []
     claims: list[ChangeClaim] = []
+    repository = repository_root(root)
     for scope_path in sorted(changes_root.glob("*/scope.json")):
         if scope_path.parent.name.startswith("_"):
             continue
-        claims.append(load_claim(scope_path))
+        claim = (
+            _load_claim_for_inventory(repository, scope_path)
+            if allow_historical
+            else load_claim(scope_path)
+        )
+        claims.append(claim)
     return claims
 
 
@@ -1327,6 +1520,14 @@ def _require_risk_triggers(value: Any) -> tuple[str, ...]:
             "CHANGE_RISK_TRIGGER_ORDER_INVALID: risk_triggers must be sorted"
         )
     return tuple(values)
+
+
+def _require_historical_risk_triggers(value: Any) -> tuple[str, ...]:
+    values = _require_string_list(value, "risk_triggers")
+    normalized = tuple(_require_string(item, "risk_triggers") for item in values)
+    if len(set(normalized)) != len(normalized):
+        raise ClaimError("CHANGE_RISK_TRIGGER_DUPLICATE: risk_triggers")
+    return normalized
 
 
 def _require_string_list(value: Any, field: str) -> tuple[str, ...]:
@@ -1511,9 +1712,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.repository,
                 require_active_worktrees=not args.claims_only,
             )
+            compatibility = [
+                {
+                    "change_id": claim.change_id,
+                    "warnings": list(claim.compatibility_warnings),
+                }
+                for claim in claims
+                if claim.compatibility_warnings
+            ]
             print(
                 json.dumps(
-                    {"active_changes": sum(c.status in ACTIVE_STATUSES for c in claims)}
+                    {
+                        "active_changes": sum(c.status in ACTIVE_STATUSES for c in claims),
+                        "historical_compatibility_warnings": compatibility,
+                    }
                 )
             )
         elif args.command == "check":
