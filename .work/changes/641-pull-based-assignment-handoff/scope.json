@@ -1,0 +1,48 @@
+{
+  "schema_version": 4,
+  "change_id": "641-pull-based-assignment-handoff",
+  "status": "active",
+  "branch": "change/641-pull-based-assignment-handoff",
+  "worktree": ".work/worktrees/641-pull-based-assignment-handoff",
+  "base": "main",
+  "outcome": "Complete issue 544 pull-based Work assignment, resume, and structured handoff using authoritative claim and coordinator packet state.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/project_management/enhanced_tools.py",
+    "src/kis_mcp/workflows/project_management/__init__.py",
+    "tests/workflows/project_management/test_pull_assignment.py",
+    "docs/COORDINATOR-MODULE-PRODUCT-SPEC.md",
+    ".work/changes/641-pull-based-assignment-handoff/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "src/kis_mcp/workflows/project_management/parsing.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    "SPEC.md"
+  ],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "02dac3ae76fff72a1c24ad6859dd13969a8d842a",
+    "local_tree": "1522acbec3f6b32524ce077d303a067e48eb8976",
+    "upstream_sha": "02dac3ae76fff72a1c24ad6859dd13969a8d842a",
+    "upstream_tree": "1522acbec3f6b32524ce077d303a067e48eb8976",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-544",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 544,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "agent-b"
+  }
+}
