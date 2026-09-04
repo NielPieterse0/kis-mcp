@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastmcp import FastMCP
@@ -14,6 +15,8 @@ from ...work_management.board import (
 from ...work_management.board_bridge import get_work_board_bridge
 from ...work_management.canonical_contracts import load_canonical_work_contracts
 from ...work_management.results import error_json, result_envelope
+
+AssignmentMaterializer = Callable[[str, str, int], Awaitable[dict[str, Any]]]
 
 _EXTERNAL_READ = {
     "read_only_hint": True,
@@ -34,6 +37,7 @@ def register_project_management_enhancement_tools(
     service: Any,
     *,
     board_bridge: WorkBoardProjectionBridge | None = None,
+    activation_materializer: AssignmentMaterializer | None = None,
 ) -> None:
     tool_server = FastMCP("kis-mcp-project-management-enhancements")
     active_bridge = board_bridge or get_work_board_bridge()
@@ -58,8 +62,17 @@ def register_project_management_enhancement_tools(
                 execution_owner,
             )
             selected = selection.selected
+            payload = selection.to_json_dict()
+            if selected is not None and activation_materializer is not None:
+                if selected.repository is None or selected.number is None:
+                    raise ValueError("current Active work is missing source identity")
+                payload["task_handoff"] = await activation_materializer(
+                    project_id,
+                    selected.repository,
+                    selected.number,
+                )
             return result_envelope(
-                selection.to_json_dict(),
+                payload,
                 project_id,
                 repository=selected.repository if selected else inventory.binding.repository,
                 issue_number=selected.number if selected else None,

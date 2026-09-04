@@ -225,6 +225,14 @@ Reconstructed by Change 193 from the retained #252 behavior:
 - a cross-process serialized integration queue that admits one active candidate per integration owner, requires exact-head GitHub Actions verification before delivery authorization, and records delivered merge identity without duplicating the existing registered GitHub merge client;
 - fail-closed behavior for tampered packet evidence, stale authority, out-of-scope changes, invalid global claims, unsatisfied dependencies, busy integration owners, and stale verification evidence.
 
+Completed by #544 at the Work-facing pull boundary:
+
+- Work remains the public assignment authority; the coordinator still exposes no independent public mutation tool and ChatGPT conversations are never push-launch targets;
+- successful `project_management_claim_work` and `project_management_take_next_work` activation returns the frozen task handoff only after the Work claim reaches and re-reads Active;
+- `project_management_current_work` resumes an already Active assignment by re-reading the authoritative Project owner first, then returning the same deterministic persisted task handoff without recreating the claim or lifecycle state;
+- a different or ambiguous execution owner receives no resumable assignment, so conversation/project references remain navigation or provenance rather than ownership authority;
+- the Work-facing result retains the selected Active record, owner, blocker/status evidence, next actions, and persisted handoff together, while coordinator generation/run/lease/fence authority remains authoritative only when present in the underlying coordinator packet lifecycle.
+
 The reconstructed coordinator exposes no public MCP coordinator tool. Transport discovery/connectivity never grants authority.
 
 Out of scope for Change 193:

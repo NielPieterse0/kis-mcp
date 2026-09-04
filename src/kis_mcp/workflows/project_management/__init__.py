@@ -20,7 +20,11 @@ def register_project_management_tools(server, service, *, activation_materialize
         service,
         activation_materializer=activation_materializer,
     )
-    register_project_management_enhancement_tools(server, service)
+    register_project_management_enhancement_tools(
+        server,
+        service,
+        activation_materializer=activation_materializer,
+    )
 
 
 __all__ = [
