@@ -226,7 +226,10 @@ def test_load_claim_reports_noncanonical_historical_dependency_tokens(tmp_path: 
     current = module.load_claim(path, historical_compatibility=True)
 
     assert current.dependencies == ("114-valid-dependency",)
-    assert "HISTORICAL_DEPENDENCY_UNRESOLVED:86" in current.compatibility_warnings
+    assert current.compatibility_warnings == (
+        "HISTORICAL_DEPENDENCY_UNRESOLVED:86",
+        "HISTORICAL_WORK_RECORD_ID_SYNTHESIZED",
+    )
 
 
 def test_schema_v3_claim_remains_valid_with_legacy_risk_profile() -> None:
@@ -602,6 +605,105 @@ def test_inventory_rejects_unmerged_malformed_schema_v4(tmp_path: Path) -> None:
 
     with pytest.raises(module.ClaimError, match="WORK_MANAGEMENT_FIELDS_MISSING: record_id"):
         module.load_worktree_claims(repository)
+
+
+def test_validate_cli_exposes_additive_historical_compatibility_warnings(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "083-historical"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/083-historical",
+        "main",
+    )
+    change_root = target / ".work" / "changes" / "083-historical"
+    change_root.mkdir(parents=True)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(historical_schema_v4_scope(module), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    for name in ("spec.md", "plan.md", "tasks.md", "closeout.md"):
+        change_root.joinpath(name).write_text(f"# {name}\n", encoding="utf-8")
+    run_git(target, "add", ".work/changes/083-historical")
+    run_git(target, "commit", "-m", "test: add historical malformed scope")
+    run_git(repository, "merge", "--no-ff", "change/083-historical", "-m", "merge historical")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--repository",
+            str(repository),
+            "validate",
+            "--claims-only",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert set(payload) == {"active_changes", "historical_compatibility_warnings"}
+    assert payload == {
+        "active_changes": 0,
+        "historical_compatibility_warnings": [
+            {
+                "change_id": "083-historical",
+                "warnings": ["HISTORICAL_WORK_RECORD_ID_SYNTHESIZED"],
+            }
+        ],
+    }
+
+
+def test_validate_cli_keeps_unmerged_malformed_claim_error_contract(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "083-historical"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/083-historical",
+        "main",
+    )
+    change_root = target / ".work" / "changes" / "083-historical"
+    change_root.mkdir(parents=True)
+    change_root.joinpath("scope.json").write_text(
+        json.dumps(historical_schema_v4_scope(module), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    run_git(target, "add", ".work/changes/083-historical/scope.json")
+    run_git(target, "commit", "-m", "test: add active malformed scope")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT_PATH),
+            "--repository",
+            str(repository),
+            "validate",
+            "--claims-only",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == "WORK_MANAGEMENT_FIELDS_MISSING: record_id\n"
 
 
 def test_primary_claim_overrides_stale_copies_in_other_worktrees(
