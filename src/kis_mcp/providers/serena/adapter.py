@@ -100,10 +100,13 @@ def resolve_managed_pyright_launcher(settings: SerenaSettings) -> Path:
 
 def _managed_serena_path(source_path: str, settings: SerenaSettings) -> str:
     entries = [item for item in source_path.split(os.pathsep) if item]
-    retained: list[str] = []
+    managed_python = str(settings.executable.parent)
+    retained: list[str] = [managed_python]
     for item in entries:
         lowered = item.casefold()
         if lowered.startswith("c:\\users\\"):
+            continue
+        if lowered == managed_python.casefold():
             continue
         retained.append(item)
     return os.pathsep.join(retained)
