@@ -1,0 +1,69 @@
+{
+  "schema_version": 4,
+  "change_id": "637-deterministic-triage-work-selection",
+  "status": "active",
+  "branch": "change/637-deterministic-triage-work-selection",
+  "worktree": ".work/worktrees/637-deterministic-triage-work-selection",
+  "base": "main",
+  "outcome": "Implement issue #543 deterministic Triage progression and canonical tiered Work selection from the landed #542 Work contract, with machine-readable attention evidence and live next/take behavior.",
+  "owned_paths": [
+    "src/kis_mcp/work_management/selection.py",
+    "src/kis_mcp/work_management/project_commands.py",
+    "src/kis_mcp/work_management/service.py",
+    "src/kis_mcp/work_management/triage.py",
+    "src/kis_mcp/work_management/canonical_contracts.py",
+    "src/kis_mcp/work_management/__init__.py",
+    "src/kis_mcp/workflows/project_management/descriptors.py",
+    "src/kis_mcp/workflows/project_management/triage_tools.py",
+    "src/kis_mcp/workflows/project_management/__init__.py",
+    "src/kis_mcp/workflows/platform.py",
+    "settings/work-management/contracts/work-selection.json",
+    "tests/work_management/test_selection.py",
+    "tests/work_management/test_project_commands.py",
+    "tests/work_management/test_command_service.py",
+    "tests/work_management/test_canonical_contracts.py",
+    "tests/work_management/test_architecture.py",
+    "tests/work_management/test_triage.py",
+    "tests/workflows/project_management/test_triage_tools.py",
+    "tests/workflows/project_management/test_platform.py",
+    ".work/changes/637-deterministic-triage-work-selection/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [
+    "src/kis_mcp/work_management/contracts.py",
+    "src/kis_mcp/work_management/board.py",
+    "src/kis_mcp/workflows/project_management/parsing.py",
+    "src/kis_mcp/workflows/project_management/tools.py",
+    "tests/workflows/project_management/test_tools.py",
+    "tests/workflows/project_management/test_enhanced_tools.py",
+    "src/kis_mcp/once_through/**",
+    "SPEC.md"
+  ],
+  "dependencies": [
+    "631-work-admission-conformance"
+  ],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "external_action",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "local_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_sha": "ba01ba4657661f7ea84fdabf95601ea2d3e1bae2",
+    "upstream_tree": "129dc420f51476e1e618ba26307e61050eb3327f",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "provided",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-543",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 543,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "agent-a"
+  }
+}

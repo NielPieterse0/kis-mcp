@@ -146,3 +146,100 @@ def test_item_projections_preserve_source_identity_and_revision() -> None:
     assert observed.external_id == "item-30"
     assert observed.revision == "rev-30"
     assert dict(observed.fields)["Status"] == "Ready"
+
+
+def test_project_next_work_uses_canonical_tiers_before_intra_tier_ranking() -> None:
+    current = inventory(
+        item(
+            40,
+            Status="Ready",
+            Priority="Critical",
+            Effort="Tiny",
+            **{"Blocked By": None, "Record Type": "Task"},
+        ),
+        item(
+            41,
+            Status="Ready",
+            Priority="Low",
+            Effort="Large",
+            **{
+                "Blocked By": None,
+                "Record Type": "Finding",
+                "Severity": "Medium",
+                "Confidence": "High",
+            },
+        ),
+        item(
+            42,
+            Status="Ready",
+            Priority="Low",
+            Effort="Large",
+            **{"Blocked By": None, "Record Type": "Defect"},
+        ),
+    )
+
+    result = select_next_project_item(current)
+
+    assert result.selected is not None
+    assert result.selected.number == 42
+    payload = result.to_json_dict()
+    assert payload["selected_tier"] == "defect"
+    assert {entry["number"]: entry["selection_tier"] for entry in payload["evaluations"]} == {
+        40: "new",
+        41: "material_finding",
+        42: "defect",
+    }
+
+
+def test_project_finding_materiality_uses_canonical_severity() -> None:
+    current = inventory(
+        item(50, Status="Ready", Priority="High", Effort="Small", **{
+            "Blocked By": None, "Record Type": "Finding", "Severity": "Low", "Confidence": "High"
+        }),
+        item(51, Status="Ready", Priority="Low", Effort="Large", **{
+            "Blocked By": None, "Record Type": "Finding", "Severity": "High", "Confidence": "High"
+        }),
+    )
+
+    result = select_next_project_item(current)
+
+    assert result.selected is not None
+    assert result.selected.number == 51
+    tiers = {entry.number: entry.selection_tier for entry in result.evaluations}
+    assert tiers == {50: "new", 51: "material_finding"}
+
+
+def test_operator_origin_is_explicit_evidence_not_queue_override() -> None:
+    current = inventory(
+        item(60, Status="Ready", Priority="Low", Effort="Large", **{
+            "Blocked By": None, "Origin": "Operator"
+        }),
+        item(61, Status="Ready", Priority="Critical", Effort="Tiny", **{
+            "Blocked By": None, "Origin": "Implementation"
+        }),
+    )
+
+    result = select_next_project_item(current)
+
+    assert result.selected is not None
+    assert result.selected.number == 61
+    directed = {entry.number: entry.operator_directed for entry in result.evaluations}
+    assert directed == {60: True, 61: False}
+
+
+def test_invalid_delivery_stage_does_not_create_unfinished_priority() -> None:
+    current = inventory(
+        item(70, Status="Ready", Priority="Low", Effort="Large", **{
+            "Blocked By": None, "Delivery Stage": "Banana"
+        }),
+        item(71, Status="Ready", Priority="Critical", Effort="Tiny", **{
+            "Blocked By": None, "Delivery Stage": "None"
+        }),
+    )
+
+    result = select_next_project_item(current)
+
+    assert result.selected is not None
+    assert result.selected.number == 71
+    tiers = {entry.number: entry.selection_tier for entry in result.evaluations}
+    assert tiers == {70: "new", 71: "new"}

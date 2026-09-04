@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +14,8 @@ class CandidateEvaluation:
     record_id: str
     project_id: str
     eligible: bool
+    selection_tier: str
+    operator_directed: bool = False
     reasons: tuple[str, ...] = ()
 
 
@@ -31,6 +34,11 @@ class SelectionFacts:
     effort: str | None
     created_order: int | float
     stable_id: str
+    record_type: str | None = None
+    severity: str | None = None
+    origin: str | None = None
+    delivery_stage: str | None = None
+    change_id: str | None = None
     source_issue: bool = True
     source_open: bool = True
     project_match: bool = True
@@ -114,12 +122,39 @@ def evaluate_selection_facts(
     return SelectionFactsDecision(not reasons, tuple(reasons), tuple(rule_ids))
 
 
+def selection_tier(
+    facts: SelectionFacts,
+    contract: WorkSelectionContract | None = None,
+) -> str:
+    configured = contract or load_canonical_work_contracts().selection
+    record_type = (facts.record_type or "").casefold()
+    if record_type == "defect":
+        return "defect"
+    if (
+        record_type in {"finding", "security_finding"}
+        and (facts.severity or "").casefold() in configured.material_finding_severity
+    ):
+        return "material_finding"
+    stage = (facts.delivery_stage or "").casefold()
+    if (facts.change_id and facts.change_id.strip()) or stage not in {"", "none", "complete"}:
+        return "unfinished"
+    return "new"
+
+
+def is_operator_directed(
+    facts: SelectionFacts,
+    contract: WorkSelectionContract | None = None,
+) -> bool:
+    configured = contract or load_canonical_work_contracts().selection
+    return (facts.origin or "").casefold() == configured.operator_origin
+
+
 def selection_rank_key(
     facts: SelectionFacts,
     contract: WorkSelectionContract | None = None,
 ) -> tuple[Any, ...]:
     configured = contract or load_canonical_work_contracts().selection
-    values: list[Any] = []
+    values: list[Any] = [configured.selection_tiers.index(selection_tier(facts, configured))]
     for field in configured.ranking:
         if field == "priority":
             values.append(configured.priority_order.index(facts.priority) if facts.priority in configured.priority_order else 2**31 - 1)
@@ -139,6 +174,8 @@ def _selection_facts_for_record(
     *,
     project_id: str | None,
     completed: set[tuple[str, str]],
+    severity: str | None = None,
+    origin: str | None = None,
 ) -> SelectionFacts:
     blockers = tuple(
         dependency_id
@@ -153,6 +190,10 @@ def _selection_facts_for_record(
         effort=record.effort.value,
         created_order=record.created_order,
         stable_id=record.record_id,
+        record_type=record.record_type.value,
+        severity=severity,
+        origin=origin,
+        delivery_stage=record.delivery_stage.value,
         project_match=project_id is None or record.project_id == project_id,
         claimed_owner=record.execution_owner,
         approval_required=record.approval_required,
@@ -166,6 +207,8 @@ def select_next_work(
     *,
     project_id: str | None = None,
     completed_record_ids: tuple[str, ...] = (),
+    severity_by_record_id: Mapping[tuple[str, str], str] | None = None,
+    origin_by_record_id: Mapping[tuple[str, str], str] | None = None,
     settings: CommandPlaneSettings | None = None,
 ) -> WorkSelection:
     if not isinstance(records, tuple):
@@ -188,12 +231,23 @@ def select_next_work(
     if project_id is not None:
         completed.update((project_id, record_id) for record_id in completed_record_ids)
 
-    canonical = load_canonical_work_contracts().selection
+    contracts = load_canonical_work_contracts()
+    canonical = contracts.selection
+    severities = dict(severity_by_record_id or {})
+    origins = dict(origin_by_record_id or {})
     evaluations: list[CandidateEvaluation] = []
     eligible: list[tuple[WorkRecord, SelectionFacts]] = []
     for record in records:
         facts = _selection_facts_for_record(
-            record, project_id=project_id, completed=completed
+            record,
+            project_id=project_id,
+            completed=completed,
+            severity=contracts.work_item.vocabulary_token(
+                "severity", severities.get((record.project_id, record.record_id))
+            ),
+            origin=contracts.work_item.vocabulary_token(
+                "origin", origins.get((record.project_id, record.record_id))
+            ),
         )
         decision = evaluate_selection_facts(
             facts, profile="normalized_domain", contract=canonical
@@ -203,6 +257,8 @@ def select_next_work(
                 record_id=record.record_id,
                 project_id=record.project_id,
                 eligible=decision.eligible,
+                selection_tier=selection_tier(facts, canonical),
+                operator_directed=is_operator_directed(facts, canonical),
                 reasons=decision.reasons,
             )
         )
@@ -223,6 +279,8 @@ __all__ = [
     "SelectionFactsDecision",
     "WorkSelection",
     "evaluate_selection_facts",
+    "is_operator_directed",
     "select_next_work",
     "selection_rank_key",
+    "selection_tier",
 ]

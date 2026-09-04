@@ -11,6 +11,7 @@ from .parsing import (
 from .tools import (
     register_project_management_tools as _register_project_management_tools,
 )
+from .triage_tools import register_project_management_triage_tool
 
 
 def register_project_management_tools(server, service, *, activation_materializer=None) -> None:
@@ -30,6 +31,7 @@ __all__ = [
     "register_project_management_admission_tool",
     "register_project_management_enhancement_tools",
     "register_project_management_tools",
+    "register_project_management_triage_tool",
     "traceability_stage",
     "work_record_from_json",
 ]

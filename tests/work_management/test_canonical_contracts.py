@@ -48,18 +48,17 @@ def test_canonical_vocabularies_preserve_current_tokens_and_meaning() -> None:
     assert all(meanings.values())
 
 
-def test_selection_contract_preserves_current_policy_without_withdrawn_tiers() -> None:
+def test_selection_contract_declares_canonical_tiers_and_intra_tier_ranking() -> None:
     contracts = load_canonical_work_contracts(CONTRACTS_PATH)
     selection = contracts.selection
 
     assert selection.eligible_states == ("ready",)
+    assert selection.selection_tiers == (
+        "defect", "material_finding", "unfinished", "new"
+    )
     assert selection.priority_order == ("critical", "high", "medium", "low")
     assert selection.effort_order == ("tiny", "small", "medium", "large")
     assert selection.ranking == ("priority", "effort", "created_order", "record_id")
-    serialized = json.dumps(selection.to_json_dict(), sort_keys=True).casefold()
-    assert "work_class" not in serialized
-    assert "selection_tier" not in serialized
-    assert "material_finding" not in serialized
 
 def test_contract_fingerprints_are_stable_sha256_values() -> None:
     first = load_canonical_work_contracts(CONTRACTS_PATH)

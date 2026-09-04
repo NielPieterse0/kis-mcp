@@ -7,7 +7,12 @@
     "effort": "Effort",
     "created": "Created",
     "blocked_by": "Blocked By",
-    "execution_owner": "Execution Owner"
+    "execution_owner": "Execution Owner",
+    "record_type": "Record Type",
+    "severity": "Severity",
+    "origin": "Origin",
+    "delivery_stage": "Delivery Stage",
+    "change_id": "Change ID"
   },
   "eligible_states": [
     "ready"
@@ -24,6 +29,18 @@
     "medium",
     "large"
   ],
+  "selection_tiers": [
+    "defect",
+    "material_finding",
+    "unfinished",
+    "new"
+  ],
+  "material_finding_severity": [
+    "critical",
+    "high",
+    "medium"
+  ],
+  "operator_origin": "operator",
   "ranking": [
     "priority",
     "effort",
@@ -106,7 +123,19 @@
       "id": "SEL-012",
       "kind": "ranking",
       "reason_code": null,
-      "definition": "Eligible candidates rank by Priority, Effort, creation order, then stable record identity."
+      "definition": "Eligible candidates rank by Priority, Effort, creation order, then stable record identity within the winning selection tier."
+    },
+    {
+      "id": "SEL-013",
+      "kind": "material_finding_classification",
+      "reason_code": null,
+      "definition": "Finding and Security Finding records enter the material-finding tier only with canonical Severity evidence; findings without material-impact evidence are not promoted into that tier."
+    },
+    {
+      "id": "SEL-014",
+      "kind": "operator_direction",
+      "reason_code": null,
+      "definition": "Origin=Operator is explicit operator-directed evidence but does not override deterministic next/take ranking. An operator-directed exact item is executed through the exact-target claim operation; prompt text is never queue-ranking authority."
     }
   ],
   "profiles": {

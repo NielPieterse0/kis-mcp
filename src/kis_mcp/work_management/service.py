@@ -12,6 +12,7 @@ from .backend import (
     ProjectInventory,
     ProjectItem,
 )
+from .canonical_contracts import load_canonical_work_contracts
 from .command_settings import CommandPlaneSettings, load_command_plane_settings
 from .contracts import LifecycleState, ManagedProject, WorkRecord
 from .evidence import EvidenceWriteResult, ReviewEvidenceStore
@@ -45,6 +46,7 @@ from .settings import (
     WorkManagementSettings,
 )
 from .status import PortfolioStatus, build_portfolio_status
+from .triage import evaluate_triage
 
 
 @runtime_checkable
@@ -290,9 +292,11 @@ class WorkManagementService:
 
     @staticmethod
     def _command_field_names(settings: CommandPlaneSettings) -> tuple[str, ...]:
+        selection_fields = tuple(dict(load_canonical_work_contracts().selection.fields).values())
         return tuple(
             dict.fromkeys(
                 (
+                    *selection_fields,
                     settings.queue.state_field,
                     settings.queue.priority_field,
                     settings.queue.effort_field,
@@ -322,6 +326,69 @@ class WorkManagementService:
             item_limit=item_limit,
         )
         return select_next_project_item(inventory, settings=settings)
+
+    async def progress_triage(
+        self,
+        project_id: str,
+        repository: str,
+        issue_number: int,
+        issue_body: str,
+        *,
+        previous_fingerprint: str | None = None,
+        apply: bool = False,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        _inventory, item, settings = await self._issue_command_inventory(
+            project_id, repository, issue_number
+        )
+        current = self._issue_transition_state(item, settings)
+        if current not in {LifecycleState.TRIAGE, LifecycleState.APPROVED}:
+            raise ValueError("triage progression requires Status = Triage or Approved")
+        evaluation = evaluate_triage(item, issue_body, settings)
+        planned = (
+            ["approved", "ready"]
+            if current is LifecycleState.TRIAGE and evaluation.ready
+            else ["ready"] if evaluation.ready else []
+        )
+        result: dict[str, Any] = {
+            "mode": "apply" if apply else "preview",
+            "current_state": current.value,
+            "evaluation": evaluation.to_json_dict(),
+            "attention": not evaluation.ready,
+            "planned_transitions": planned,
+        }
+        if (
+            not apply
+            and current is LifecycleState.TRIAGE
+            and previous_fingerprint == evaluation.fingerprint
+        ):
+            return {**result, "mode": "unchanged", "planned_transitions": []}
+        if apply:
+            if not isinstance(previous_fingerprint, str) or not previous_fingerprint.strip():
+                raise ValueError("previous_fingerprint is required when apply is true")
+            if previous_fingerprint != evaluation.fingerprint:
+                raise ValueError("triage fingerprint changed since preview")
+        if not evaluation.ready:
+            return result
+        if not apply:
+            return result
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise ValueError("idempotency_key is required when apply is true")
+        operation_key = f"{idempotency_key}:{evaluation.fingerprint}"
+        transitions: list[dict[str, Any]] = []
+        if current is LifecycleState.TRIAGE:
+            approved = await self.transition_work(
+                project_id, repository, issue_number, LifecycleState.APPROVED,
+                apply=True, idempotency_key=f"{operation_key}:approved",
+            )
+            transitions.append(approved)
+        ready = await self.transition_work(
+            project_id, repository, issue_number, LifecycleState.READY,
+            metadata={"__source_issue_body": issue_body},
+            apply=True, idempotency_key=f"{operation_key}:ready",
+        )
+        transitions.append(ready)
+        return {**result, "transitions": transitions}
 
     async def take_next_work(
         self,
@@ -596,6 +663,23 @@ class WorkManagementService:
                 f"transition is not declared: {current.value}->{target.value}"
             )
         values = dict(metadata or {})
+        source_issue_body = values.pop("__source_issue_body", None)
+        if target is LifecycleState.READY:
+            existing_owner = _field_value(item, settings.claim.execution_owner_field)
+            if isinstance(existing_owner, str) and existing_owner.strip():
+                raise ValueError(
+                    "claimed work must use release_work before returning to Ready"
+                )
+            if not isinstance(source_issue_body, str):
+                raise ValueError(
+                    "transition to ready requires __source_issue_body readiness evidence"
+                )
+            readiness = evaluate_triage(item, source_issue_body, settings)
+            if not readiness.ready:
+                raise ValueError(
+                    "transition to ready failed readiness: "
+                    + ", ".join(readiness.attention_reasons)
+                )
         claim_field = settings.claim.execution_owner_field.casefold()
         for field_name in values:
             if field_name.casefold() == claim_field:
