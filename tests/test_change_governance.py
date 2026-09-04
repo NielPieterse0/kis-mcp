@@ -68,6 +68,26 @@ def base_evidence():
     }
 
 
+def historical_schema_v4_scope(module, change_id: str = "083-historical") -> dict:
+    data = claim(
+        module,
+        change_id,
+        schema_version=4,
+        complexity="medium",
+        risk_triggers=[],
+        base_evidence=base_evidence(),
+    ).to_mapping()
+    data["work_management"] = {
+        "project_id": "commodity",
+        "source_repository": "NielPieterse0/commodity",
+        "source_number": 83,
+        "source_kind": "issue",
+        "documentation_impact": "planned",
+        "execution_owner": "codex",
+    }
+    return data
+
+
 def create_registered_change(module, repository: Path, **kwargs):
     change_number = kwargs["change_id"].split("-", 1)[0]
     kwargs.setdefault(
@@ -123,6 +143,89 @@ def test_schema_v4_work_management_can_bind_execution_owner() -> None:
     assert current.work_management is not None
     assert current.work_management.execution_owner == "codex"
     assert current.to_mapping()["work_management"]["execution_owner"] == "codex"
+
+
+def test_schema_v4_direct_parser_remains_strict_for_missing_work_record_id() -> None:
+    module = load_module()
+    data = historical_schema_v4_scope(module)
+
+    with pytest.raises(module.ClaimError, match="WORK_MANAGEMENT_FIELDS_MISSING: record_id"):
+        module.ChangeClaim.from_mapping(data, source=Path("083-historical/scope.json"))
+
+
+def test_load_claim_projects_historical_schema_v4_work_record_id(tmp_path: Path) -> None:
+    module = load_module()
+    path = tmp_path / "083-historical" / "scope.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(historical_schema_v4_scope(module)), encoding="utf-8")
+
+    current = module.load_claim(path)
+
+    assert current.work_management is not None
+    assert current.work_management.record_id == "WORK-83"
+    assert current.work_management.source_number == 83
+
+
+def test_load_claim_projects_historical_schema_v4_metadata_only(tmp_path: Path) -> None:
+    module = load_module()
+    data = historical_schema_v4_scope(module, "273-historical")
+    data["risk_triggers"] = ["research-methodology", "protected-outcome-boundary"]
+    data["integration_owner"] = "codex"
+    data["base_evidence"] = {}
+    path = tmp_path / "273-historical" / "scope.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    current = module.load_claim(path)
+
+    assert current.risk_triggers == (
+        "research-methodology",
+        "protected-outcome-boundary",
+    )
+    assert current.integration_owner is None
+    assert current.base_evidence is None
+
+
+def test_load_claim_projects_early_schema_v4_omitted_fields(tmp_path: Path) -> None:
+    module = load_module()
+    data = historical_schema_v4_scope(module, "273-historical")
+    for field in (
+        "owned_paths",
+        "shared_paths",
+        "excluded_paths",
+        "dependencies",
+        "base_evidence",
+    ):
+        data.pop(field)
+    data["work_management"].pop("documentation_impact")
+    path = tmp_path / "273-historical" / "scope.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    current = module.load_claim(path)
+
+    assert [item.raw for item in current.owned_paths] == [
+        ".work/changes/273-historical/**"
+    ]
+    assert current.shared_paths == ()
+    assert current.excluded_paths == ()
+    assert current.dependencies == ()
+    assert current.base_evidence is None
+    assert current.work_management is not None
+    assert current.work_management.documentation_impact == "not_assessed"
+
+
+def test_load_claim_drops_noncanonical_historical_dependency_tokens(tmp_path: Path) -> None:
+    module = load_module()
+    data = historical_schema_v4_scope(module, "115-historical")
+    data["dependencies"] = ["86", "114-valid-dependency"]
+    path = tmp_path / "115-historical" / "scope.json"
+    path.parent.mkdir()
+    path.write_text(json.dumps(data), encoding="utf-8")
+
+    current = module.load_claim(path)
+
+    assert current.dependencies == ("114-valid-dependency",)
 
 
 def test_schema_v3_claim_remains_valid_with_legacy_risk_profile() -> None:
@@ -584,6 +687,25 @@ def test_create_change_worktree_uses_standard_location_and_artifacts(
     assert scope["owned_paths"] == ["src/**", ".work/changes/001-alpha/**"]
     for name in ("spec.md", "plan.md", "tasks.md", "closeout.md"):
         assert (target / ".work" / "changes" / "001-alpha" / name).is_file()
+
+
+def test_check_current_change_keeps_current_schema_v4_strict(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = create_registered_change(
+        module,
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+    scope_path = target / ".work" / "changes" / "001-alpha" / "scope.json"
+    scope = json.loads(scope_path.read_text(encoding="utf-8"))
+    scope["risk_triggers"] = ["historical-only-trigger"]
+    scope_path.write_text(json.dumps(scope, indent=2) + "\n", encoding="utf-8")
+
+    with pytest.raises(module.ClaimError, match="CHANGE_RISK_TRIGGER_INVALID"):
+        module.check_current_change(target)
 
 
 def test_create_small_change_with_risk_trigger_uses_compact_record(
