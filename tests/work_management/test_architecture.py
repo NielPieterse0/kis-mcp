@@ -50,6 +50,7 @@ def test_work_management_package_has_bounded_files_and_no_platform_dependencies(
         "settings.py",
         "status.py",
         "traceability.py",
+        "triage.py",
     }
 
     imports = {

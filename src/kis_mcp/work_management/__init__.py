@@ -118,7 +118,13 @@ from .schema import (
     load_project_schema_manifest,
     plan_project_schema_repair,
 )
-from .selection import CandidateEvaluation, WorkSelection, select_next_work
+from .selection import (
+    CandidateEvaluation,
+    SelectionFacts,
+    WorkSelection,
+    select_next_work,
+    selection_tier,
+)
 from .service import (
     EvidenceStoreFactory,
     WorkManagementBackend,
@@ -254,6 +260,7 @@ __all__ = [
     "ReviewType",
     "RiskDetails",
     "RiskTrigger",
+    "SelectionFacts",
     "TraceabilityIssue",
     "TraceabilityIssueKind",
     "TraceabilityReport",
@@ -290,6 +297,7 @@ __all__ = [
     "run_reconciliation",
     "select_next_project_item",
     "select_next_work",
+    "selection_tier",
     "transition_finding",
     "transition_record",
 ]

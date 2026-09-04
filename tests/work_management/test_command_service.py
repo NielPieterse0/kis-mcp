@@ -483,6 +483,7 @@ def test_provider_todo_intake_can_progress_through_command_plane_to_ready() -> N
     asyncio.run(
         service.transition_work(
             "alpha-project", "owner/alpha", 177, LifecycleState.READY,
+            metadata={"__source_issue_body": "## Outcome\nValid\n\n## Acceptance criteria\nComplete"},
             apply=True, idempotency_key="approved-ready",
         )
     )
@@ -833,3 +834,144 @@ def test_primary_change_scope_wins_over_active_worktree_fallback(tmp_path: Path)
 
     assert result["classification"]["complexity"] == "small"
     assert result["source_scope"] == f".work/changes/{change_id}/scope.json"
+
+
+def test_progress_triage_applies_declared_edges_and_fingerprint_noop() -> None:
+    backend = Backend(project_item(status="Triage"))
+    service = WorkManagementService(wm_settings(), {"github": backend})
+    body = "## Outcome\nDefined\n\n## Acceptance criteria\nVerified"
+
+    preview = asyncio.run(
+        service.progress_triage("alpha-project", "owner/alpha", 177, body)
+    )
+    assert preview["attention"] is False
+    assert preview["planned_transitions"] == ["approved", "ready"]
+
+    unchanged = asyncio.run(
+        service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body,
+            previous_fingerprint=preview["evaluation"]["fingerprint"],
+        )
+    )
+    assert unchanged["mode"] == "unchanged"
+
+    applied = asyncio.run(
+        service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body,
+            previous_fingerprint=preview["evaluation"]["fingerprint"],
+            apply=True, idempotency_key="triage-177",
+        )
+    )
+    assert len(applied["transitions"]) == 2
+    values = {value.field_name: value.value for value in backend.item.field_values}
+    assert values["Status"] == "Ready"
+
+
+class FailReadyOnceBackend(Backend):
+    def __init__(self, item: ProjectItem) -> None:
+        super().__init__(item)
+        self.failed_ready = False
+
+    async def apply_reconciliation(self, decision, *, idempotency_key: str):
+        desired = dict(decision.desired_fields)
+        if desired.get("Status") == "Ready" and not self.failed_ready:
+            self.failed_ready = True
+            raise RuntimeError("injected ready transition failure")
+        return await super().apply_reconciliation(
+            decision, idempotency_key=idempotency_key
+        )
+
+
+def test_progress_triage_resumes_from_approved_after_partial_failure() -> None:
+    backend = FailReadyOnceBackend(project_item(status="Triage"))
+    service = WorkManagementService(wm_settings(), {"github": backend})
+    body = "## Outcome\nDefined\n\n## Acceptance criteria\nVerified"
+    preview = asyncio.run(
+        service.progress_triage("alpha-project", "owner/alpha", 177, body)
+    )
+    fingerprint = preview["evaluation"]["fingerprint"]
+    with pytest.raises(RuntimeError, match="injected ready transition failure"):
+        asyncio.run(service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body,
+            previous_fingerprint=fingerprint,
+            apply=True, idempotency_key="triage-resume-177",
+        ))
+    assert dict((v.field_name, v.value) for v in backend.item.field_values)["Status"] == "Approved"
+    resumed = asyncio.run(service.progress_triage(
+        "alpha-project", "owner/alpha", 177, body,
+        previous_fingerprint=fingerprint,
+        apply=True, idempotency_key="triage-resume-177",
+    ))
+    assert resumed["current_state"] == "approved"
+    assert resumed["planned_transitions"] == ["ready"]
+    assert len(resumed["transitions"]) == 1
+    values = {value.field_name: value.value for value in backend.item.field_values}
+    assert values["Status"] == "Ready"
+
+
+def test_progress_triage_apply_requires_matching_preview_fingerprint() -> None:
+    backend = Backend(project_item(status="Triage"))
+    service = WorkManagementService(wm_settings(), {"github": backend})
+    body = "## Outcome\nDefined\n\n## Acceptance criteria\nVerified"
+
+    with pytest.raises(ValueError, match="previous_fingerprint"):
+        asyncio.run(service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body,
+            apply=True, idempotency_key="triage-177",
+        ))
+    with pytest.raises(ValueError, match="fingerprint changed"):
+        asyncio.run(service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body,
+            previous_fingerprint="stale", apply=True,
+            idempotency_key="triage-177",
+        ))
+
+    values = {value.field_name: value.value for value in backend.item.field_values}
+    assert values["Status"] == "Triage"
+
+
+def test_progress_triage_fingerprint_is_bound_to_exact_issue_identity() -> None:
+    body = "## Outcome\nDefined\n\n## Acceptance criteria\nVerified"
+    first_service = WorkManagementService(
+        wm_settings(), {"github": Backend(project_item(number=177, status="Triage"))}
+    )
+    preview = asyncio.run(
+        first_service.progress_triage("alpha-project", "owner/alpha", 177, body)
+    )
+
+    second_backend = Backend(project_item(number=178, status="Triage"))
+    second_service = WorkManagementService(wm_settings(), {"github": second_backend})
+    with pytest.raises(ValueError, match="fingerprint changed"):
+        asyncio.run(second_service.progress_triage(
+            "alpha-project", "owner/alpha", 178, body,
+            previous_fingerprint=preview["evaluation"]["fingerprint"],
+            apply=True, idempotency_key="triage-178",
+        ))
+    values = {value.field_name: value.value for value in second_backend.item.field_values}
+    assert values["Status"] == "Triage"
+
+
+def test_non_ready_triage_apply_still_requires_exact_preview_fingerprint() -> None:
+    backend = Backend(project_item(status="Triage"))
+    service = WorkManagementService(wm_settings(), {"github": backend})
+    body = "## Outcome\nDefined"
+    preview = asyncio.run(
+        service.progress_triage("alpha-project", "owner/alpha", 177, body)
+    )
+    fingerprint = preview["evaluation"]["fingerprint"]
+
+    with pytest.raises(ValueError, match="previous_fingerprint"):
+        asyncio.run(service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body, apply=True,
+        ))
+    with pytest.raises(ValueError, match="fingerprint changed"):
+        asyncio.run(service.progress_triage(
+            "alpha-project", "owner/alpha", 177, body,
+            previous_fingerprint="stale", apply=True,
+        ))
+    attention = asyncio.run(service.progress_triage(
+        "alpha-project", "owner/alpha", 177, body,
+        previous_fingerprint=fingerprint, apply=True,
+    ))
+    assert attention["attention"] is True
+    assert "transitions" not in attention

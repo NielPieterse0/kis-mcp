@@ -22,7 +22,8 @@ _LIFECYCLE_KEYS = frozenset({
 })
 _SELECTION_KEYS = frozenset({
     "schema_version", "contract_id", "fields", "eligible_states", "priority_order",
-    "effort_order", "ranking", "dependency_evidence", "rules", "profiles",
+    "effort_order", "selection_tiers", "material_finding_severity", "operator_origin",
+    "ranking", "dependency_evidence", "rules", "profiles",
 })
 
 
@@ -151,6 +152,44 @@ class WorkItemSemanticsContract:
 
     def vocabulary_tokens(self, vocabulary_id: str) -> tuple[str, ...]:
         return tuple(item.token for item in self.vocabulary(vocabulary_id).values)
+
+    def vocabulary_token(self, vocabulary_id: str, value: object) -> str | None:
+        if not isinstance(value, str) or not value.strip():
+            return None
+        normalized = value.strip().casefold().replace(" ", "_").replace("-", "_")
+        for item in self.vocabulary(vocabulary_id).values:
+            if normalized in {
+                item.token.casefold(),
+                item.label.casefold().replace(" ", "_").replace("-", "_"),
+            }:
+                return item.token
+        return None
+
+    def required_fields_for(
+        self,
+        *,
+        state: str | None,
+        record_type: str | None,
+        signals: tuple[str, ...] = (),
+    ) -> tuple[str, ...]:
+        active: set[str] = set()
+        signal_set = set(signals)
+        for context in self.contexts:
+            if context.kind == "state_in" and state in context.values:
+                active.add(context.context_id)
+            elif context.kind == "record_type_in" and record_type in context.values:
+                active.add(context.context_id)
+            elif context.kind == "signal" and signal_set.intersection(context.values):
+                active.add(context.context_id)
+        return tuple(
+            field.name
+            for field in self.fields
+            if set(field.required_contexts).intersection(active)
+            and (
+                "*" in field.applicable_record_types
+                or record_type in field.applicable_record_types
+            )
+        )
 
     def to_json_dict(self) -> dict[str, Any]:
         return {
@@ -306,6 +345,9 @@ class WorkSelectionContract:
     eligible_states: tuple[str, ...]
     priority_order: tuple[str, ...]
     effort_order: tuple[str, ...]
+    selection_tiers: tuple[str, ...]
+    material_finding_severity: tuple[str, ...]
+    operator_origin: str
     ranking: tuple[str, ...]
     dependency_evidence: tuple[str, ...]
     rules: tuple[SelectionRule, ...]
@@ -332,6 +374,9 @@ class WorkSelectionContract:
             "eligible_states": list(self.eligible_states),
             "priority_order": list(self.priority_order),
             "effort_order": list(self.effort_order),
+            "selection_tiers": list(self.selection_tiers),
+            "material_finding_severity": list(self.material_finding_severity),
+            "operator_origin": self.operator_origin,
             "ranking": list(self.ranking),
             "dependency_evidence": list(self.dependency_evidence),
             "rules": [
@@ -562,10 +607,20 @@ def _parse_selection(document: dict[str, Any]) -> WorkSelectionContract:
     if document["schema_version"] != 1 or document["contract_id"] != "work-selection":
         raise ValueError("work selection identity is invalid")
     fields_raw = _object(document["fields"], "selection fields")
-    expected_roles = {"state", "priority", "effort", "created", "blocked_by", "execution_owner"}
+    expected_roles = {
+        "state", "priority", "effort", "created", "blocked_by", "execution_owner",
+        "record_type", "severity", "origin", "delivery_stage", "change_id",
+    }
     if set(fields_raw) != expected_roles:
         raise ValueError("selection fields must declare the exact canonical roles")
     fields = tuple(sorted((role, _text(name, f"selection field {role}")) for role, name in fields_raw.items()))
+    selection_tiers = _string_tuple(document["selection_tiers"], "selection tiers")
+    if selection_tiers != ("defect", "material_finding", "unfinished", "new"):
+        raise ValueError("selection tiers must be defect, material_finding, unfinished, new")
+    material_finding_severity = _string_tuple(
+        document["material_finding_severity"], "material finding severity"
+    )
+    operator_origin = _text(document["operator_origin"], "operator origin")
     ranking = _string_tuple(document["ranking"], "selection ranking")
     if any(item not in {"priority", "effort", "created_order", "record_id"} for item in ranking):
         raise ValueError("selection ranking contains unsupported values")
@@ -608,7 +663,8 @@ def _parse_selection(document: dict[str, Any]) -> WorkSelectionContract:
         1, "work-selection", fields,
         _string_tuple(document["eligible_states"], "eligible states"),
         _string_tuple(document["priority_order"], "priority order"),
-        _string_tuple(document["effort_order"], "effort order"), ranking,
+        _string_tuple(document["effort_order"], "effort order"), selection_tiers,
+        material_finding_severity, operator_origin, ranking,
         _string_tuple(document["dependency_evidence"], "dependency evidence"),
         tuple(rules), tuple(profiles), _fingerprint(document),
     )
@@ -639,6 +695,13 @@ def _validate_cross_contracts(contracts: CanonicalWorkContracts) -> None:
         raise ValueError("selection priority order must exactly match canonical Priority vocabulary")
     if tuple(selection.effort_order) != item.vocabulary_tokens("effort"):
         raise ValueError("selection effort order must exactly match canonical Effort vocabulary")
+    severity_tokens = set(item.vocabulary_tokens("severity"))
+    if not selection.material_finding_severity or any(
+        value not in severity_tokens for value in selection.material_finding_severity
+    ):
+        raise ValueError("material finding severity must use canonical Severity tokens")
+    if selection.operator_origin not in item.vocabulary_tokens("origin"):
+        raise ValueError("operator origin must be a canonical Origin token")
     if lifecycle.delivery_stages != item.vocabulary_tokens("delivery_stage"):
         raise ValueError("delivery stages must exactly match canonical Delivery Stage vocabulary")
 

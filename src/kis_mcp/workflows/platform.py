@@ -45,6 +45,7 @@ from .project_management import (
     project_management_workflow_descriptors,
     register_project_management_admission_tool,
     register_project_management_tools,
+    register_project_management_triage_tool,
 )
 from .state_management import register_state_management_tools
 from .verification.descriptors import verification_workflow_descriptors
@@ -451,6 +452,7 @@ def register_platform_workflows(
         service,
         activation_materializer=activation.materialize,
     )
+    register_project_management_triage_tool(server, service)
     register_project_management_admission_tool(server, service, invoke_external)
     register_once_through_tools(
         server,

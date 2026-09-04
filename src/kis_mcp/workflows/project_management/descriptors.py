@@ -58,8 +58,9 @@ def project_management_workflow_descriptors() -> tuple[WorkflowDescriptor, ...]:
             ("project_management.read", "project_management.write", "work.reconcile"),
             ("project_management_take_next_work",),
             (
-                "selection uses the configured priority, effort, age, and stable tie-break order",
-                "blocked or already claimed work is excluded",
+                "selection tiers are defect, material finding, unfinished, then new work",
+                "priority, effort, age, and stable identity rank only within the winning tier",
+                "blocked or already claimed work is excluded with tier and reason evidence",
                 "the execution claim is established and re-read before Active",
             ),
             ("take next work", "do next work item", "claim next ready work"),

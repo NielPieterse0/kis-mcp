@@ -5,9 +5,16 @@ from datetime import datetime
 from typing import Any
 
 from .backend import ProjectInventory, ProjectItem, ProjectItemKind
+from .canonical_contracts import load_canonical_work_contracts
 from .command_settings import CommandPlaneSettings, load_command_plane_settings
 from .reconciliation import DesiredProjection, ObservedProjection
-from .selection import SelectionFacts, evaluate_selection_facts, selection_rank_key
+from .selection import (
+    SelectionFacts,
+    evaluate_selection_facts,
+    is_operator_directed,
+    selection_rank_key,
+    selection_tier,
+)
 
 _MISSING = object()
 
@@ -47,6 +54,8 @@ class ProjectCandidateEvaluation:
     number: int | None
     title: str
     eligible: bool
+    selection_tier: str
+    operator_directed: bool
     reasons: tuple[str, ...]
 
     def to_json_dict(self) -> dict[str, Any]:
@@ -56,6 +65,8 @@ class ProjectCandidateEvaluation:
             "number": self.number,
             "title": self.title,
             "eligible": self.eligible,
+            "selection_tier": self.selection_tier,
+            "operator_directed": self.operator_directed,
             "reasons": list(self.reasons),
         }
 
@@ -69,10 +80,19 @@ class ProjectWorkSelection:
     reasons: tuple[str, ...] = ()
 
     def to_json_dict(self) -> dict[str, Any]:
+        selected_tier = next(
+            (
+                entry.selection_tier
+                for entry in self.evaluations
+                if self.selected is not None and entry.item_id == self.selected.item_id
+            ),
+            None,
+        )
         return {
             "selected": self.selected.to_json_dict()
             if self.selected is not None
             else None,
+            "selected_tier": selected_tier,
             "evaluations": [entry.to_json_dict() for entry in self.evaluations],
             "dependency_evidence": self.dependency_evidence,
             "complete": self.complete,
@@ -90,19 +110,36 @@ def _dependency_evidence(items: tuple[ProjectItem, ...], field_name: str) -> str
 
 
 def _selection_facts(item: ProjectItem, settings: CommandPlaneSettings) -> SelectionFacts:
+    canonical = load_canonical_work_contracts().work_item
+    record_type = canonical.vocabulary_token("record_type", _field(item, "Record Type"))
+    semantic_required = canonical.required_fields_for(
+        state="ready", record_type=record_type
+    )
+    required_fields = tuple(
+        dict.fromkeys((*settings.readiness.required_project_fields, *semantic_required))
+    )
     required_missing: list[str] = []
-    for required_field in settings.readiness.required_project_fields:
+    for required_field in required_fields:
         if required_field in {
             settings.queue.priority_field,
             settings.queue.effort_field,
         }:
             continue
         required_value = _field(item, required_field)
-        if (
+        missing = (
             required_value is _MISSING
             or required_value is None
             or (isinstance(required_value, str) and not required_value.strip())
-        ):
+        )
+        if not missing:
+            field_contract = canonical.field(required_field)
+            if (
+                field_contract.vocabulary is not None
+                and canonical.vocabulary_token(field_contract.vocabulary, required_value)
+                is None
+            ):
+                missing = True
+        if missing:
             required_missing.append(required_field)
 
     owner_value = _field(item, settings.claim.execution_owner_field)
@@ -121,6 +158,17 @@ def _selection_facts(item: ProjectItem, settings: CommandPlaneSettings) -> Selec
         effort=_normalized_choice(_field(item, settings.queue.effort_field)),
         created_order=_created_order(item, settings),
         stable_id=f"{item.repository or ''}#{item.number or 0:020d}",
+        record_type=record_type,
+        severity=canonical.vocabulary_token("severity", _field(item, "Severity")),
+        origin=canonical.vocabulary_token("origin", _field(item, "Origin")),
+        delivery_stage=canonical.vocabulary_token(
+            "delivery_stage", _field(item, "Delivery Stage")
+        ),
+        change_id=(
+            str(_field(item, "Change ID")).strip()
+            if _field(item, "Change ID") not in {_MISSING, None, ""}
+            else None
+        ),
         source_issue=item.kind is ProjectItemKind.ISSUE,
         source_open=item.state is None or item.state.casefold() == "open",
         claimed_owner=owner,
@@ -162,6 +210,8 @@ def select_next_project_item(
             number=item.number,
             title=item.title,
             eligible=decision.eligible,
+            selection_tier=selection_tier(facts),
+            operator_directed=is_operator_directed(facts),
             reasons=decision.reasons,
         )
         evaluations.append(evaluation)
