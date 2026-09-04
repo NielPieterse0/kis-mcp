@@ -267,6 +267,37 @@ def test_capability_search_returns_workflow_without_optional_skill_fixture() -> 
         for item in payload["workflows"]
     )
 
+
+def test_cleanup_workflow_required_steps_are_executable() -> None:
+    composed = compose_gateway(
+        load_runtime_config(),
+        validate_provider=False,
+        provider_service=service(),
+        provider_runtime_settings=runtime_settings(),
+        create_proxy_fn=lambda *_args, **_kwargs: FastMCP("cleanup-workflow-search"),
+    )
+
+    payload = asyncio.run(
+        composed.server.call_tool(
+            "search_capabilities",
+            {"query": "clean repository worktrees", "limit": 20},
+        )
+    ).structured_content
+
+    assert payload is not None
+    workflow = next(
+        item
+        for item in payload["workflows"]
+        if item["workflow_id"] == "clean-repository-worktrees"
+    )
+    assert workflow["required_steps"] == [
+        "list_worktrees",
+        "validate_change_claims",
+        "cleanup_change_worktree",
+    ]
+    assert workflow["executable_steps"] == workflow["required_steps"]
+
+
 def test_gateway_installs_mcp2026_tasks_extension() -> None:
     composed = compose_gateway(
         load_runtime_config(),

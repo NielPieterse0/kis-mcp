@@ -777,10 +777,17 @@ def test_governed_change_mutations_are_discoverable_capability_operations() -> N
 
     create = operations["create_change_worktree"]
     commit = operations["commit_change"]
-    assert create.exposure.mode is ExposureMode.DISCOVERABLE
-    assert commit.exposure.mode is ExposureMode.DISCOVERABLE
-    assert "governed-change" in create.tags
-    assert "governed-change" in commit.tags
+    listing = operations["list_worktrees"]
+    validate = operations["validate_change_claims"]
+    cleanup = operations["cleanup_change_worktree"]
+    assert all(
+        operation.exposure.mode is ExposureMode.DISCOVERABLE
+        for operation in (create, commit, listing, validate, cleanup)
+    )
+    assert all(
+        "governed-change" in operation.tags
+        for operation in (create, commit, listing, validate, cleanup)
+    )
     assert create.input_schema["required"] == [
         "repository",
         "change_id",
@@ -788,9 +795,15 @@ def test_governed_change_mutations_are_discoverable_capability_operations() -> N
         "owned_paths",
     ]
     assert commit.input_schema["required"] == ["path", "message", "paths"]
+    assert listing.input_schema["required"] == ["repository"]
+    assert validate.input_schema["required"] == ["repository"]
+    assert cleanup.input_schema["required"] == ["repository", "change_id"]
 
 
-@pytest.mark.parametrize("operation", ["create_change_worktree", "commit_change"])
+@pytest.mark.parametrize(
+    "operation",
+    ["create_change_worktree", "commit_change", "cleanup_change_worktree"],
+)
 def test_governed_change_mutations_dispatch_through_change_action(
     monkeypatch: pytest.MonkeyPatch,
     operation: str,
@@ -814,3 +827,29 @@ def test_governed_change_mutations_dispatch_through_change_action(
 
     assert result == {"operation": operation, "ok": True}
     assert calls == [(operation, {"probe": True})]
+
+
+@pytest.mark.parametrize("operation", ["list_worktrees", "validate_change_claims"])
+def test_governed_change_reads_dispatch_through_read_action(
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    calls: list[tuple[str, dict[str, object]]] = []
+
+    def execute_virtual(name: str, arguments: dict[str, object]) -> dict[str, object]:
+        calls.append((name, dict(arguments)))
+        return {"operation": name, "ok": True}
+
+    monkeypatch.setattr(
+        execution_module,
+        "execute_governed_change_operation",
+        execute_virtual,
+    )
+    router = CapabilityExecutionRouter(
+        FastMCP("governed-change-read-test"),
+        state(capability_control_contribution()),
+    )
+    result = asyncio.run(router.execute_read(operation, {"repository": r"C:\Projects\kis-mcp"}))
+
+    assert result == {"operation": operation, "ok": True}
+    assert calls == [(operation, {"repository": r"C:\Projects\kis-mcp"})]

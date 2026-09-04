@@ -178,6 +178,12 @@ def register_capability_tools(
             if score <= 0:
                 continue
             payload = workflow.to_json_dict()
+            resolved_steps = {
+                operation.name for operation in catalogue.operations if operation.enabled
+            } | {item.workflow_id for item in catalogue.workflows}
+            payload["executable_steps"] = [
+                step for step in workflow.required_steps if step in resolved_steps
+            ]
             payload["match_score"] = score
             workflows.append(payload)
 
@@ -257,12 +263,23 @@ def register_capability_tools(
             )
             operations.append(payload)
 
+        resolved_steps = {
+            operation.name for operation in catalogue.operations if operation.enabled
+        } | {item.workflow_id for item in catalogue.workflows}
+        workflow_payloads: list[dict[str, Any]] = []
+        for workflow in workflow_matches:
+            payload = workflow.to_json_dict()
+            payload["executable_steps"] = [
+                step for step in workflow.required_steps if step in resolved_steps
+            ]
+            workflow_payloads.append(payload)
+
         return {
             "schema_version": 1,
             "capability_id": capability_id,
             "contributions": [item.to_json_dict() for item in contribution_matches],
             "operations": operations,
-            "workflows": [item.to_json_dict() for item in workflow_matches],
+            "workflows": workflow_payloads,
         }
 
     @server.tool(name="recommend_workflow")

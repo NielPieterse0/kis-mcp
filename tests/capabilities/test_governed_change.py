@@ -89,3 +89,59 @@ def test_commit_change_rejects_preexisting_staged_changes(
         governed_change._commit_change(
             {"path": str(tmp_path), "message": "test", "paths": ["src/example.py"]}
         )
+
+
+def test_list_worktrees_delegates_to_governed_list(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(governed_change, "_within_project_boundary", lambda _raw: tmp_path)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        governed_change,
+        "_run_change_workflow",
+        lambda _repo, *args: calls.append(args) or [{"change_id": "638-test"}],
+    )
+
+    result = governed_change._list_worktrees({"repository": str(tmp_path)})
+
+    assert calls == [("list",)]
+    assert result["claims"] == [{"change_id": "638-test"}]
+
+
+def test_validate_change_claims_defaults_to_claims_only(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(governed_change, "_within_project_boundary", lambda _raw: tmp_path)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        governed_change,
+        "_run_change_workflow",
+        lambda _repo, *args: calls.append(args) or {"active_changes": 2},
+    )
+
+    result = governed_change._validate_change_claims({"repository": str(tmp_path)})
+
+    assert calls == [("validate", "--claims-only")]
+    assert result["active_changes"] == 2
+
+
+def test_cleanup_change_worktree_delegates_to_governed_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(governed_change, "_within_project_boundary", lambda _raw: tmp_path)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        governed_change,
+        "_run_change_workflow",
+        lambda _repo, *args: calls.append(args) or {"removed": True, "branch_deleted": True},
+    )
+
+    result = governed_change._cleanup_change_worktree(
+        {"repository": str(tmp_path), "change_id": "638-test"}
+    )
+
+    assert calls == [("cleanup", "638-test")]
+    assert result["removed"] is True

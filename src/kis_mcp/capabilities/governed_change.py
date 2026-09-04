@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -29,6 +30,33 @@ COMMIT_CHANGE_SCHEMA: dict[str, Any] = {
         "paths": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     },
     "required": ["path", "message", "paths"],
+    "additionalProperties": False,
+}
+
+LIST_WORKTREES_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {"repository": {"type": "string"}},
+    "required": ["repository"],
+    "additionalProperties": False,
+}
+
+VALIDATE_CHANGE_CLAIMS_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "repository": {"type": "string"},
+        "claims_only": {"type": "boolean"},
+    },
+    "required": ["repository"],
+    "additionalProperties": False,
+}
+
+CLEANUP_CHANGE_WORKTREE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "repository": {"type": "string"},
+        "change_id": {"type": "string", "minLength": 1},
+    },
+    "required": ["repository", "change_id"],
     "additionalProperties": False,
 }
 
@@ -138,16 +166,68 @@ def _commit_change(arguments: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _change_workflow_script(repository: Path) -> Path:
+    script = repository / "scripts" / "change-workflow.ps1"
+    if not script.is_file():
+        raise ValueError(f"CHANGE_WORKFLOW_NOT_FOUND: {script}")
+    return script
+
+
+def _run_change_workflow(
+    repository: Path,
+    *arguments: str,
+) -> Any:
+    result = _run(
+        ["pwsh", "-NoProfile", "-File", str(_change_workflow_script(repository)), *arguments],
+        cwd=repository,
+    )
+    text = result.stdout.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError("GOVERNED_CHANGE_INVALID_OUTPUT") from exc
+
+
+def _list_worktrees(arguments: dict[str, Any]) -> dict[str, Any]:
+    repository = _within_project_boundary(str(arguments["repository"]))
+    claims = _run_change_workflow(repository, "list")
+    return {"operation": "list_worktrees", "repository": str(repository), "claims": claims}
+
+
+def _validate_change_claims(arguments: dict[str, Any]) -> dict[str, Any]:
+    repository = _within_project_boundary(str(arguments["repository"]))
+    argv = ["validate"]
+    if bool(arguments.get("claims_only", True)):
+        argv.append("--claims-only")
+    result = _run_change_workflow(repository, *argv)
+    return {"operation": "validate_change_claims", "repository": str(repository), **result}
+
+
+def _cleanup_change_worktree(arguments: dict[str, Any]) -> dict[str, Any]:
+    repository = _within_project_boundary(str(arguments["repository"]))
+    result = _run_change_workflow(repository, "cleanup", str(arguments["change_id"]))
+    return {"operation": "cleanup_change_worktree", "repository": str(repository), **result}
+
+
 def execute_governed_change_operation(operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if operation == "create_change_worktree":
         return _create_change_worktree(arguments)
     if operation == "commit_change":
         return _commit_change(arguments)
+    if operation == "list_worktrees":
+        return _list_worktrees(arguments)
+    if operation == "validate_change_claims":
+        return _validate_change_claims(arguments)
+    if operation == "cleanup_change_worktree":
+        return _cleanup_change_worktree(arguments)
     raise ValueError(f"UNKNOWN_GOVERNED_CHANGE_OPERATION: {operation}")
 
 
 __all__ = [
+    "CLEANUP_CHANGE_WORKTREE_SCHEMA",
     "COMMIT_CHANGE_SCHEMA",
     "CREATE_CHANGE_WORKTREE_SCHEMA",
+    "LIST_WORKTREES_SCHEMA",
+    "VALIDATE_CHANGE_CLAIMS_SCHEMA",
     "execute_governed_change_operation",
 ]
