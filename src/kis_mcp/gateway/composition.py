@@ -33,6 +33,10 @@ from ..housekeeping_runtime.capability import housekeeping_capability_contributi
 from ..housekeeping_runtime.platform import compose_housekeeping_runtime
 from ..line_endings import RepositoryLineEndingNormalizer
 from ..mcp2026 import install_mcp2026_tasks
+from ..mcp2026_prompts import (
+    DeterministicDiscoveryTransform,
+    register_mcp2026_workflow_prompts,
+)
 from ..middleware import BoundaryObservabilityMiddleware, ThreeRuleMiddleware
 from ..policy import ThreeRulePolicy
 from ..process_environment import RepositoryProcessEnvironmentNormalizer
@@ -180,6 +184,8 @@ def compose_gateway(
     )
     server = create_proxy_fn(ProxyClient(transport), name=runtime.server_name)
     install_mcp2026_tasks(server)
+    server.add_transform(DeterministicDiscoveryTransform())
+    register_mcp2026_workflow_prompts(server)
     projects = load_project_registry_settings(boundary=runtime.project_boundary)
     repository_selection = SelectedRepositorySettings(
         registry=projects,
