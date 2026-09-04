@@ -357,6 +357,8 @@ def test_serena_child_environment_excludes_user_profile_launchers() -> None:
     )
     environment = _provider_environment(settings, {"PATH": source_path})
 
+    entries = environment["PATH"].split(os.pathsep)
+    assert entries[0] == str(settings.executable.parent)
     assert r"C:\Users\piete\.local\bin" not in environment["PATH"]
     assert r"C:\Projects\.tools\bin" in environment["PATH"]
     assert r"C:\Windows\System32" in environment["PATH"]
