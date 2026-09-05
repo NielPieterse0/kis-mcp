@@ -252,7 +252,7 @@ def test_resource_persistence_failure_preserves_budget_fallback(
     assert not any(getattr(item, "type", None) == "resource_link" for item in result.content)
 
 
-def test_oversized_dispatch_result_exposes_exact_resource_link(tmp_path: Path) -> None:
+def test_oversized_dispatch_result_requires_explicit_resource_read(tmp_path: Path) -> None:
     server = FastMCP("execution-resource-link-test")
 
     @server.tool
@@ -270,9 +270,11 @@ def test_oversized_dispatch_result_exposes_exact_resource_link(tmp_path: Path) -
             )
             payload = result.structured_content
             assert payload is not None
-            links = [item for item in result.content if getattr(item, "type", None) == "resource_link"]
-            assert len(links) == 1
-            resource = await client.read_resource(str(links[0].uri))
+            assert not any(
+                getattr(item, "type", None) == "resource_link"
+                for item in result.content
+            )
+            resource = await client.read_resource(str(payload["resource_uri"]))
             text = resource[0].text
             assert text is not None
             return payload, text

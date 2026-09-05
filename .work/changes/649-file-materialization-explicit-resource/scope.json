@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "649-file-materialization-explicit-resource",
+  "status": "active",
+  "branch": "change/649-file-materialization-explicit-resource",
+  "worktree": ".work/worktrees/649-file-materialization-explicit-resource",
+  "base": "main",
+  "outcome": "Prevent oversized dispatcher reads from implicitly returning ResourceLink attachments that trigger per-call ChatGPT materialization approval; retain exact-result resource identity for explicit retrieval.",
+  "owned_paths": [
+    "src/kis_mcp/capabilities/execution.py",
+    "tests/capabilities/test_exposure_execution.py",
+    "SPEC.md",
+    ".work/changes/649-file-materialization-explicit-resource/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "d50674510331e99d6e6c9dc3a87b7b750f967af3",
+    "local_tree": "d271b69bd10fc2e1c1e563b0360e45c980fbb026",
+    "upstream_sha": "d50674510331e99d6e6c9dc3a87b7b750f967af3",
+    "upstream_tree": "d271b69bd10fc2e1c1e563b0360e45c980fbb026",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
