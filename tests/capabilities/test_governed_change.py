@@ -145,3 +145,29 @@ def test_cleanup_change_worktree_delegates_to_governed_cleanup(
 
     assert calls == [("cleanup", "638-test")]
     assert result["removed"] is True
+
+
+def test_retire_closed_orphan_worktree_delegates_with_terminal_confirmation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(governed_change, "_within_project_boundary", lambda _raw: tmp_path)
+    calls: list[tuple[str, ...]] = []
+    monkeypatch.setattr(
+        governed_change,
+        "_run_change_workflow",
+        lambda _repo, *args: calls.append(args) or {"branch_preserved": True},
+    )
+
+    result = governed_change._retire_closed_orphan_worktree(
+        {
+            "repository": str(tmp_path),
+            "change_id": "078-diagnostics-agent3",
+            "terminal_work_confirmed": True,
+        }
+    )
+
+    assert calls == [
+        ("retire-orphan", "078-diagnostics-agent3", "--terminal-work-confirmed")
+    ]
+    assert result["branch_preserved"] is True

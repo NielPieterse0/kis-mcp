@@ -653,7 +653,11 @@ def test_validate_cli_exposes_additive_historical_compatibility_warnings(
     assert result.returncode == 0
     assert result.stderr == ""
     payload = json.loads(result.stdout)
-    assert set(payload) == {"active_changes", "historical_compatibility_warnings"}
+    assert set(payload) == {
+        "active_changes",
+        "historical_compatibility_warnings",
+        "orphaned_change_worktrees",
+    }
     assert payload == {
         "active_changes": 0,
         "historical_compatibility_warnings": [
@@ -665,6 +669,7 @@ def test_validate_cli_exposes_additive_historical_compatibility_warnings(
                 ],
             }
         ],
+        "orphaned_change_worktrees": [],
     }
 
 
@@ -1355,3 +1360,330 @@ def test_schema_v4_classification_uses_repository_settings() -> None:
     assert module.CHANGE_FILES_BY_COMPLEXITY["small"] == tuple(
         settings["complexities"]["small"]["artifacts"]
     )
+
+
+def test_retire_closed_orphan_preserves_unmerged_branch_and_unblocks_validation(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "078-diagnostics-agent3"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/078-diagnostics-agent3",
+        "main",
+    )
+    (target / "evidence.txt").write_text("preserved\n", encoding="utf-8")
+    run_git(target, "add", "evidence.txt")
+    run_git(target, "commit", "-m", "retain orphan evidence")
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    with pytest.raises(module.ClaimError, match="ACTIVE_CHANGE_CLAIM_MISSING"):
+        module.validate_repository(repository)
+    assert module.orphaned_change_worktrees(repository) == [
+        {"branch": "change/078-diagnostics-agent3", "path": str(target.resolve())}
+    ]
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "078-diagnostics-agent3",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.branch == "change/078-diagnostics-agent3"
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+    assert module.validate_repository(repository) == []
+
+
+def test_retire_closed_orphan_requires_terminal_confirmation_and_recovers_dirty_state(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "078-diagnostics-agent3"
+    run_git(repository, "worktree", "add", str(target), "-b", "change/078-diagnostics-agent3", "main")
+
+    with pytest.raises(module.ClaimError, match="TERMINAL_WORK_EVIDENCE_REQUIRED"):
+        module.retire_closed_orphan_worktree(
+            repository,
+            "078-diagnostics-agent3",
+            terminal_work_confirmed=False,
+        )
+
+    (target / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "078-diagnostics-agent3",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert result.backup_path.joinpath("dirty.txt").read_text(encoding="utf-8") == "dirty\n"
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+    assert result.branch not in {
+        entry.branch for entry in module.discover_worktrees(repository) if entry.branch
+    }
+
+
+def test_retire_closed_orphan_refuses_registered_claim(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    create_registered_change(
+        module,
+        repository,
+        change_id="001-alpha",
+        outcome="Implement alpha",
+        owned_paths=["src/**"],
+    )
+
+    with pytest.raises(module.ClaimError, match="ORPHAN_CHANGE_CLAIM_PRESENT"):
+        module.retire_closed_orphan_worktree(
+            repository,
+            "001-alpha",
+            terminal_work_confirmed=True,
+        )
+
+
+def test_retire_closed_orphan_accepts_legacy_mismatched_worktree_directory(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "082-kronos-empirical"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/081-kronos-target-interface-contract-repair",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "081-kronos-target-interface-contract-repair",
+        terminal_work_confirmed=True,
+    )
+
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_recovers_when_git_status_is_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "081-broken-submodule"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/081-broken-submodule",
+        "main",
+    )
+    marker = target / "preserve-me.txt"
+    marker.write_text("recoverable\n", encoding="utf-8")
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = module._run_git
+
+    def flaky_run_git(repo: Path, *args: str, check: bool = True):
+        if args[:1] == ("status",):
+            return subprocess.CompletedProcess(["git", *args], 128, "", "broken submodule metadata")
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", flaky_run_git)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "081-broken-submodule",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert result.backup_path.joinpath("preserve-me.txt").read_text(encoding="utf-8") == "recoverable\n"
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_recovers_when_git_worktree_remove_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "134-submodule-layout"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/134-submodule-layout",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = module._run_git
+
+    def flaky_run_git(repo: Path, *args: str, check: bool = True):
+        if args[:4] == ("-c", "core.longpaths=true", "worktree", "remove"):
+            return subprocess.CompletedProcess(["git", *args], 128, "", "working trees containing submodules cannot be removed")
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", flaky_run_git)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "134-submodule-layout",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_accepts_legacy_slug_change_id(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "repo-hardening-part-ii"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/repo-hardening-part-ii",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "repo-hardening-part-ii",
+        terminal_work_confirmed=True,
+    )
+
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_detaches_registration_when_dirty_tree_is_locked(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "repo-hardening-part-ii"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/repo-hardening-part-ii",
+        "main",
+    )
+    marker = target / "uncommitted.txt"
+    marker.write_text("preserve in place\n", encoding="utf-8")
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_move = module._move_path
+
+    def locked_worktree_move(source: Path, destination: Path) -> None:
+        if source.resolve() == target.resolve():
+            raise PermissionError("worktree is locked by another process")
+        original_move(source, destination)
+
+    monkeypatch.setattr(module, "_move_path", locked_worktree_move)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "repo-hardening-part-ii",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.preserved_in_place is True
+    assert result.backup_path is not None and result.backup_path.exists()
+    assert target.exists()
+    assert marker.read_text(encoding="utf-8") == "preserve in place\n"
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+    assert result.branch not in {
+        entry.branch for entry in module.discover_worktrees(repository) if entry.branch
+    }
+
+
+def test_retire_closed_orphan_accepts_legacy_sibling_worktree_root(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository.parent / f"{repository.name}-worktrees" / "168-roll-dte-cleanup"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/168-roll-dte-cleanup",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "168-roll-dte-cleanup",
+        terminal_work_confirmed=True,
+    )
+
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_treats_failed_remove_with_lost_registration_as_recovered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "rule-verification-hardening"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/rule-verification-hardening",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = module._run_git
+
+    def odd_remove(repo: Path, *args: str, check: bool = True):
+        if args[:4] == ("-c", "core.longpaths=true", "worktree", "remove"):
+            git_dir = Path(original_run_git(target, "rev-parse", "--git-dir").stdout.strip())
+            if not git_dir.is_absolute():
+                git_dir = (target / git_dir).resolve()
+            shutil.rmtree(git_dir)
+            return subprocess.CompletedProcess(["git", *args], 1, "", "failed to delete working tree")
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", odd_remove)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "rule-verification-hardening",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.preserved_in_place is True
+    assert target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
