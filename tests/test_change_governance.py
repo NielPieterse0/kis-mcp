@@ -1576,3 +1576,47 @@ def test_retire_closed_orphan_accepts_legacy_slug_change_id(tmp_path: Path) -> N
 
     assert not target.exists()
     assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_detaches_registration_when_dirty_tree_is_locked(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "repo-hardening-part-ii"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/repo-hardening-part-ii",
+        "main",
+    )
+    marker = target / "uncommitted.txt"
+    marker.write_text("preserve in place\n", encoding="utf-8")
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_move = module._move_path
+
+    def locked_worktree_move(source: Path, destination: Path) -> None:
+        if source.resolve() == target.resolve():
+            raise PermissionError("worktree is locked by another process")
+        original_move(source, destination)
+
+    monkeypatch.setattr(module, "_move_path", locked_worktree_move)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "repo-hardening-part-ii",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.preserved_in_place is True
+    assert result.backup_path is not None and result.backup_path.exists()
+    assert target.exists()
+    assert marker.read_text(encoding="utf-8") == "preserve in place\n"
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+    assert result.branch not in {
+        entry.branch for entry in module.discover_worktrees(repository) if entry.branch
+    }

@@ -522,6 +522,7 @@ class CleanupResult:
     branch: str
     recovered: bool
     backup_path: Path | None
+    preserved_in_place: bool = False
 
     def to_mapping(self) -> dict[str, Any]:
         return {
@@ -531,6 +532,7 @@ class CleanupResult:
             "backup_path": str(self.backup_path)
             if self.backup_path is not None
             else None,
+            "worktree_preserved_in_place": self.preserved_in_place,
         }
 
 
@@ -1222,6 +1224,40 @@ def check_current_change(repository: Path) -> list[str]:
     return sorted(set(changed))
 
 
+def _move_path(source: Path, destination: Path) -> None:
+    source.replace(destination)
+
+
+def _quarantine_worktree_registration(
+    root: Path,
+    target: Path,
+    normalized_id: str,
+    timestamp: str,
+) -> Path:
+    git_dir_text = _run_git(target, "rev-parse", "--git-dir").stdout.strip()
+    git_dir = Path(git_dir_text)
+    if not git_dir.is_absolute():
+        git_dir = (target / git_dir).resolve()
+    else:
+        git_dir = git_dir.resolve()
+    common_dir_text = _run_git(root, "rev-parse", "--git-common-dir").stdout.strip()
+    common_dir = Path(common_dir_text)
+    if not common_dir.is_absolute():
+        common_dir = (root / common_dir).resolve()
+    else:
+        common_dir = common_dir.resolve()
+    worktree_admin_root = (common_dir / "worktrees").resolve()
+    if worktree_admin_root not in git_dir.parents:
+        raise ClaimError(f"ORPHAN_WORKTREE_ADMIN_PATH_UNSAFE: {git_dir}")
+    backup_root = root.parent / ".backup"
+    backup_root.mkdir(parents=True, exist_ok=True)
+    admin_backup = backup_root / f"{normalized_id}-orphan-git-admin-{timestamp}"
+    if admin_backup.exists():
+        raise ClaimError(f"CHANGE_BACKUP_EXISTS: {admin_backup}")
+    _move_path(git_dir, admin_backup)
+    return admin_backup
+
+
 def retire_closed_orphan_worktree(
     repository: Path,
     change_id: str,
@@ -1256,6 +1292,7 @@ def retire_closed_orphan_worktree(
     head = _run_git(target, "rev-parse", "HEAD").stdout.strip()
     recovered = False
     backup_path: Path | None = None
+    preserved_in_place = False
     if status_unknown or status.strip():
         backup_root = root.parent / ".backup"
         backup_root.mkdir(parents=True, exist_ok=True)
@@ -1264,11 +1301,21 @@ def retire_closed_orphan_worktree(
         if backup_path.exists():
             raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
         try:
-            target.replace(backup_path)
+            _move_path(target, backup_path)
         except OSError as exc:
-            raise ClaimError(
-                f"CHANGE_WORKTREE_RECOVERY_FAILED: {target} -> {backup_path}: {exc}"
-            ) from exc
+            try:
+                backup_path = _quarantine_worktree_registration(
+                    root,
+                    target,
+                    normalized_id,
+                    timestamp,
+                )
+            except Exception as admin_exc:
+                raise ClaimError(
+                    f"CHANGE_WORKTREE_RECOVERY_FAILED: {target}: "
+                    f"working-tree move failed ({exc}); registration quarantine failed ({admin_exc})"
+                ) from admin_exc
+            preserved_in_place = True
         _run_git(root, "worktree", "prune", "--expire", "now")
         remaining = {
             worktree.branch: worktree
@@ -1299,13 +1346,22 @@ def retire_closed_orphan_worktree(
                 if backup_path.exists():
                     raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
                 try:
-                    target.replace(backup_path)
+                    _move_path(target, backup_path)
                 except OSError as exc:
-                    detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
-                    raise ClaimError(
-                        f"CHANGE_WORKTREE_RECOVERY_FAILED: {branch}: {detail}; "
-                        f"{target} -> {backup_path}: {exc}"
-                    ) from exc
+                    try:
+                        backup_path = _quarantine_worktree_registration(
+                            root,
+                            target,
+                            normalized_id,
+                            timestamp,
+                        )
+                    except Exception as admin_exc:
+                        detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+                        raise ClaimError(
+                            f"CHANGE_WORKTREE_RECOVERY_FAILED: {branch}: {detail}; "
+                            f"working-tree move failed ({exc}); registration quarantine failed ({admin_exc})"
+                        ) from admin_exc
+                    preserved_in_place = True
                 _run_git(root, "worktree", "prune", "--expire", "now")
                 recovered = True
             remaining = {
@@ -1322,7 +1378,13 @@ def retire_closed_orphan_worktree(
     if preserved != head:
         raise ClaimError(f"ORPHAN_BRANCH_PRESERVATION_FAILED: {branch}: {preserved} != {head}")
     _run_git(root, "worktree", "prune")
-    return CleanupResult(change_id=normalized_id, branch=branch, recovered=recovered, backup_path=backup_path)
+    return CleanupResult(
+        change_id=normalized_id,
+        branch=branch,
+        recovered=recovered,
+        backup_path=backup_path,
+        preserved_in_place=preserved_in_place,
+    )
 
 
 def cleanup_change_worktree(repository: Path, change_id: str) -> CleanupResult:
