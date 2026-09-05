@@ -129,15 +129,7 @@ def _budget_result(
         return payload
     rendered = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     return ToolResult(
-        content=[
-            mcp_types.TextContent(type="text", text=rendered),
-            mcp_types.ResourceLink(
-                name=f"{operation}-full-result.json",
-                uri=stored.uri,
-                mimeType="application/json",
-                description="Exact full result for the bounded dispatcher summary.",
-            ),
-        ],
+        content=[mcp_types.TextContent(type="text", text=rendered)],
         structured_content=payload,
     )
 
