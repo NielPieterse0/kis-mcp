@@ -13,6 +13,7 @@
 - Full `tests/workflows/once_through`: 89/89 passed.
 - Diff scope check: `scripts/change-workflow.ps1 check` passed on the final pre-commit tree.
 - Existing exact-head GitHub PR verification remains the canonical full-repository gate.
+- Initial PR #711 exact-head run exposed a pytest basename collision with `tests/projects/test_recovery.py`; the recovery test was renamed to `test_once_through_recovery.py` and the governed rename source/target are both explicitly claimed.
 
 ## Review
 
