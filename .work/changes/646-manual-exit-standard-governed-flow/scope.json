@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "646-manual-exit-standard-governed-flow",
+  "status": "active",
+  "branch": "change/646-manual-exit-standard-governed-flow",
+  "worktree": ".work/worktrees/646-manual-exit-standard-governed-flow",
+  "base": "main",
+  "outcome": "Make once-through manual exit continue through the standard governed implementation, PR, exact-head CI, merge, and cleanup path instead of implying PR-only closeout.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/lifecycle.py",
+    "src/kis_mcp/workflows/once_through/tools.py",
+    "tests/workflows/once_through/test_lifecycle_decision.py",
+    "tests/workflows/once_through/test_once_through.py",
+    ".work/changes/646-manual-exit-standard-governed-flow/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "a0fc003c3328e9b12b4069d9a02c830d49d07428",
+    "local_tree": "3bd38fd8b97d4c367cd344660fb7a6c6d173a734",
+    "upstream_sha": "a0fc003c3328e9b12b4069d9a02c830d49d07428",
+    "upstream_tree": "3bd38fd8b97d4c367cd344660fb7a6c6d173a734",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
