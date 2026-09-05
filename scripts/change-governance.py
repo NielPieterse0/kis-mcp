@@ -1232,12 +1232,15 @@ def retire_closed_orphan_worktree(
     normalized_id = _require_change_id(change_id, "change_id")
     if not terminal_work_confirmed:
         raise ClaimError(f"TERMINAL_WORK_EVIDENCE_REQUIRED: {normalized_id}")
-    target = (root / ".work" / "worktrees" / normalized_id).resolve()
     branch = f"change/{normalized_id}"
     entries = {entry.branch: entry for entry in discover_worktrees(root) if entry.branch}
     entry = entries.get(branch)
-    if entry is None or entry.path != target:
+    if entry is None:
         raise ClaimError(f"CHANGE_WORKTREE_MISSING: {normalized_id}")
+    target = entry.path.resolve()
+    worktree_root = (root / ".work" / "worktrees").resolve()
+    if worktree_root not in target.parents:
+        raise ClaimError(f"ORPHAN_WORKTREE_PATH_UNSAFE: {target}")
     claims = [claim for claim in load_worktree_claims(root) if claim.branch == branch]
     if claims:
         raise ClaimError(f"ORPHAN_CHANGE_CLAIM_PRESENT: {normalized_id}")

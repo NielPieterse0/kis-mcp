@@ -1450,3 +1450,28 @@ def test_retire_closed_orphan_refuses_registered_claim(tmp_path: Path) -> None:
             "001-alpha",
             terminal_work_confirmed=True,
         )
+
+
+def test_retire_closed_orphan_accepts_legacy_mismatched_worktree_directory(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "082-kronos-empirical"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/081-kronos-target-interface-contract-repair",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "081-kronos-target-interface-contract-repair",
+        terminal_work_confirmed=True,
+    )
+
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
