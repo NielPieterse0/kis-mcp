@@ -1,0 +1,42 @@
+{
+  "schema_version": 4,
+  "change_id": "647-file-materialization-permission",
+  "status": "active",
+  "branch": "change/647-file-materialization-permission",
+  "worktree": ".work/worktrees/647-file-materialization-permission",
+  "base": "main",
+  "outcome": "Expose file materialization as explicit host-owned permission metadata without granting authorization or changing Work policy.",
+  "owned_paths": [
+    "src/kis_mcp/file_materialization.py",
+    "src/kis_mcp/gateway/composition.py",
+    "tests/test_file_materialization.py",
+    "docs/NON-HARD-CONTROLS.md",
+    ".work/changes/647-file-materialization-permission/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "e3dcdee93bc8ce5a5542b244050892a6767af8be",
+    "local_tree": "f3de043405a8c4e6e205d3ded8f5f92c390758a2",
+    "upstream_sha": "e3dcdee93bc8ce5a5542b244050892a6767af8be",
+    "upstream_tree": "f3de043405a8c4e6e205d3ded8f5f92c390758a2",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-695",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 695,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}
