@@ -1274,8 +1274,11 @@ def retire_closed_orphan_worktree(
     if entry is None:
         raise ClaimError(f"CHANGE_WORKTREE_MISSING: {normalized_id}")
     target = entry.path.resolve()
-    worktree_root = (root / ".work" / "worktrees").resolve()
-    if worktree_root not in target.parents:
+    allowed_worktree_roots = (
+        (root / ".work" / "worktrees").resolve(),
+        (root.parent / f"{root.name}-worktrees").resolve(),
+    )
+    if not any(base == target or base in target.parents for base in allowed_worktree_roots):
         raise ClaimError(f"ORPHAN_WORKTREE_PATH_UNSAFE: {target}")
     claims = [claim for claim in load_worktree_claims(root) if claim.branch == branch]
     if claims:
@@ -1338,7 +1341,15 @@ def retire_closed_orphan_worktree(
             check=False,
         )
         if removal.returncode != 0:
-            if target.exists():
+            remaining_before_recovery = {
+                worktree.branch: worktree
+                for worktree in discover_worktrees(root)
+                if worktree.branch
+            }
+            if branch not in remaining_before_recovery:
+                recovered = True
+                preserved_in_place = target.exists()
+            elif target.exists():
                 backup_root = root.parent / ".backup"
                 backup_root.mkdir(parents=True, exist_ok=True)
                 timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")

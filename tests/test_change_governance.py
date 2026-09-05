@@ -1620,3 +1620,70 @@ def test_retire_closed_orphan_detaches_registration_when_dirty_tree_is_locked(
     assert result.branch not in {
         entry.branch for entry in module.discover_worktrees(repository) if entry.branch
     }
+
+
+def test_retire_closed_orphan_accepts_legacy_sibling_worktree_root(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository.parent / f"{repository.name}-worktrees" / "168-roll-dte-cleanup"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/168-roll-dte-cleanup",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "168-roll-dte-cleanup",
+        terminal_work_confirmed=True,
+    )
+
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_treats_failed_remove_with_lost_registration_as_recovered(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "rule-verification-hardening"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/rule-verification-hardening",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = module._run_git
+
+    def odd_remove(repo: Path, *args: str, check: bool = True):
+        if args[:4] == ("-c", "core.longpaths=true", "worktree", "remove"):
+            git_dir = Path(original_run_git(target, "rev-parse", "--git-dir").stdout.strip())
+            if not git_dir.is_absolute():
+                git_dir = (target / git_dir).resolve()
+            shutil.rmtree(git_dir)
+            return subprocess.CompletedProcess(["git", *args], 1, "", "failed to delete working tree")
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", odd_remove)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "rule-verification-hardening",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.preserved_in_place is True
+    assert target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
