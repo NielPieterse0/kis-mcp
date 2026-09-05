@@ -1244,11 +1244,19 @@ def retire_closed_orphan_worktree(
     claims = [claim for claim in load_worktree_claims(root) if claim.branch == branch]
     if claims:
         raise ClaimError(f"ORPHAN_CHANGE_CLAIM_PRESENT: {normalized_id}")
-    status = _run_git(target, "status", "--porcelain", "--untracked-files=all").stdout
+    status_result = _run_git(
+        target,
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        check=False,
+    )
+    status_unknown = status_result.returncode != 0
+    status = status_result.stdout
     head = _run_git(target, "rev-parse", "HEAD").stdout.strip()
     recovered = False
     backup_path: Path | None = None
-    if status.strip():
+    if status_unknown or status.strip():
         backup_root = root.parent / ".backup"
         backup_root.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")

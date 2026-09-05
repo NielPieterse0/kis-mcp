@@ -1475,3 +1475,42 @@ def test_retire_closed_orphan_accepts_legacy_mismatched_worktree_directory(tmp_p
 
     assert not target.exists()
     assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_recovers_when_git_status_is_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "081-broken-submodule"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/081-broken-submodule",
+        "main",
+    )
+    marker = target / "preserve-me.txt"
+    marker.write_text("recoverable\n", encoding="utf-8")
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = module._run_git
+
+    def flaky_run_git(repo: Path, *args: str, check: bool = True):
+        if args[:1] == ("status",):
+            return subprocess.CompletedProcess(["git", *args], 128, "", "broken submodule metadata")
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", flaky_run_git)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "081-broken-submodule",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert result.backup_path.joinpath("preserve-me.txt").read_text(encoding="utf-8") == "recoverable\n"
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
