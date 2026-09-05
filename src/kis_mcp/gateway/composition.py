@@ -31,6 +31,7 @@ from ..discover.platform import (
 )
 from ..housekeeping_runtime.capability import housekeeping_capability_contribution
 from ..housekeeping_runtime.platform import compose_housekeeping_runtime
+from ..file_materialization import FileMaterializationPermissionTransform
 from ..line_endings import RepositoryLineEndingNormalizer
 from ..mcp2026 import install_mcp2026_tasks
 from ..mcp2026_prompts import (
@@ -184,6 +185,7 @@ def compose_gateway(
     )
     server = create_proxy_fn(ProxyClient(transport), name=runtime.server_name)
     install_mcp2026_tasks(server)
+    server.add_transform(FileMaterializationPermissionTransform())
     server.add_transform(DeterministicDiscoveryTransform())
     register_mcp2026_workflow_prompts(server)
     projects = load_project_registry_settings(boundary=runtime.project_boundary)

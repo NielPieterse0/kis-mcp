@@ -70,6 +70,12 @@ These checks prevent verified automatic provider network activity before ordinar
 
 Offline installation, pinned package identity, exact provider version, local archive verification, locked Python environment, configuration validation, and provider compatibility checks may prevent installation, startup, or completion claims. They do not deny ordinary Work invocations under a fourth policy rule.
 
+## File materialization permission declaration
+
+KIS marks `read_file` and `read_multiple_files` in MCP tool metadata as operations that may materialize server-returned files. The declaration identifies the `file_materialization` effect and explicitly records that authorization is owned by the host, is not granted by default, and any persistent grant remains host-managed.
+
+This metadata is descriptive permission input for compatible clients. KIS cannot grant, persist, or revoke the host permission itself, and the declaration does not alter Work authorization, existing tool approval, or the HR-001 / HR-002 / HR-003 decision set. Absence or revocation of a host grant therefore remains subject to the client's normal approval behavior.
+
 ## Removed or rejected mappings
 
 The following mappings were removed and are not approval items:
