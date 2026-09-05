@@ -1291,14 +1291,6 @@ def retire_closed_orphan_worktree(
             check=False,
         )
         if removal.returncode != 0:
-            remaining = {
-                worktree.branch: worktree
-                for worktree in discover_worktrees(root)
-                if worktree.branch
-            }
-            if branch in remaining:
-                detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
-                raise ClaimError(f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered: {detail}")
             if target.exists():
                 backup_root = root.parent / ".backup"
                 backup_root.mkdir(parents=True, exist_ok=True)
@@ -1306,8 +1298,26 @@ def retire_closed_orphan_worktree(
                 backup_path = backup_root / f"{normalized_id}-orphan-worktree-remnant-{timestamp}"
                 if backup_path.exists():
                     raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
-                target.replace(backup_path)
+                try:
+                    target.replace(backup_path)
+                except OSError as exc:
+                    detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+                    raise ClaimError(
+                        f"CHANGE_WORKTREE_RECOVERY_FAILED: {branch}: {detail}; "
+                        f"{target} -> {backup_path}: {exc}"
+                    ) from exc
+                _run_git(root, "worktree", "prune", "--expire", "now")
                 recovered = True
+            remaining = {
+                worktree.branch: worktree
+                for worktree in discover_worktrees(root)
+                if worktree.branch
+            }
+            if branch in remaining:
+                detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+                raise ClaimError(
+                    f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered after recoverable move: {detail}"
+                )
     preserved = _run_git(root, "rev-parse", branch).stdout.strip()
     if preserved != head:
         raise ClaimError(f"ORPHAN_BRANCH_PRESERVATION_FAILED: {branch}: {preserved} != {head}")

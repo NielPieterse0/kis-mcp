@@ -1514,3 +1514,40 @@ def test_retire_closed_orphan_recovers_when_git_status_is_unavailable(
     assert result.backup_path is not None
     assert result.backup_path.joinpath("preserve-me.txt").read_text(encoding="utf-8") == "recoverable\n"
     assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_recovers_when_git_worktree_remove_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "134-submodule-layout"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/134-submodule-layout",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    original_run_git = module._run_git
+
+    def flaky_run_git(repo: Path, *args: str, check: bool = True):
+        if args[:4] == ("-c", "core.longpaths=true", "worktree", "remove"):
+            return subprocess.CompletedProcess(["git", *args], 128, "", "working trees containing submodules cannot be removed")
+        return original_run_git(repo, *args, check=check)
+
+    monkeypatch.setattr(module, "_run_git", flaky_run_git)
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "134-submodule-layout",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
