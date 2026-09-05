@@ -23,6 +23,7 @@ from kis_mcp.workflows.once_through import (
     resolve_evidence,
 )
 from kis_mcp.workflows.once_through.activation import WorkActivationCoordinator
+from kis_mcp.workflows.once_through.state import OnceThroughStateError
 from kis_mcp.workflows.once_through.candidate_runtime import _runtime_instance_id
 from kis_mcp.state import resolve_runtime_state_path
 from kis_mcp.workflows.once_through.contracts import (
@@ -139,6 +140,46 @@ def test_materialize_contract_is_atomic_and_idempotent_under_parallel_activation
     assert len({item.candidate_port for item in contracts}) == 1
     assert store.load_contract("WORK-586") == contracts[0]
     assert store.candidate_port("WORK-586") == contracts[0].candidate_port
+
+
+def test_handoff_change_id_binds_exactly_once_from_null(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+    original = store.materialize_contract(
+        project_id="kis-mcp", work_id="WORK-703", repository="NielPieterse0/kis-mcp",
+        requirements=("late bind governed change",), acceptance_criteria=("binding is safe",),
+        affected_surfaces=("work_management",), obligations=("verification", "review_closed"),
+        source_identity="github-issue:NielPieterse0/kis-mcp#703",
+    )
+
+    bound = store.bind_change_id("WORK-703", "644-handoff-late-bind-governed-change-id")
+
+    assert original.change_id is None
+    assert bound.change_id == "644-handoff-late-bind-governed-change-id"
+    assert bound.contract_fingerprint != original.contract_fingerprint
+    assert store.load_contract("WORK-703") == bound
+    assert store.bind_change_id("WORK-703", bound.change_id) == bound
+    with pytest.raises(OnceThroughStateError, match="HANDOFF_CONTRACT_IMMUTABLE"):
+        store.bind_change_id("WORK-703", "645-different-change")
+
+
+def test_handoff_late_binding_does_not_relax_other_contract_immutability(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path)
+    store.materialize_contract(
+        project_id="kis-mcp", work_id="WORK-703", repository="NielPieterse0/kis-mcp",
+        requirements=("original requirement",), acceptance_criteria=("original acceptance",),
+        affected_surfaces=("work_management",), obligations=("verification", "review_closed"),
+        source_identity="github-issue:NielPieterse0/kis-mcp#703",
+    )
+    store.bind_change_id("WORK-703", "644-handoff-late-bind-governed-change-id")
+
+    with pytest.raises(OnceThroughStateError, match="HANDOFF_CONTRACT_IMMUTABLE"):
+        store.materialize_contract(
+            project_id="kis-mcp", work_id="WORK-703", repository="NielPieterse0/kis-mcp",
+            requirements=("changed requirement",), acceptance_criteria=("original acceptance",),
+            affected_surfaces=("work_management",), obligations=("verification", "review_closed"),
+            source_identity="github-issue:NielPieterse0/kis-mcp#703",
+            change_id="644-handoff-late-bind-governed-change-id",
+        )
 
 
 def test_evidence_lineage_extends_immutably_by_reference(tmp_path: Path) -> None:
@@ -493,6 +534,39 @@ def test_work_id_paths_reject_lossy_aliases(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="canonical"):
         store.contract_path("WORK/586")
     assert store.contract_path("WORK-586").name == "WORK-586.json"
+
+
+def test_bind_task_handoff_change_uses_governed_scope_as_authority(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    store = TaskHandoffStore(state_root / "once-through")
+    store.materialize_contract(
+        project_id="kis-mcp", work_id="WORK-703", repository="NielPieterse0/kis-mcp",
+        requirements=("late bind",), acceptance_criteria=("bound",),
+        affected_surfaces=("work_management",), obligations=("verification", "review_closed"),
+        source_identity="github-issue:NielPieterse0/kis-mcp#703",
+    )
+    source = tmp_path / ".work" / "worktrees" / "644-handoff-late-bind-governed-change-id"
+    (source / "src" / "kis_mcp").mkdir(parents=True)
+    scope_dir = source / ".work" / "changes" / source.name
+    scope_dir.mkdir(parents=True)
+    (scope_dir / "scope.json").write_text(json.dumps({
+        "change_id": source.name,
+        "work_management": {
+            "record_id": "WORK-703",
+            "source_repository": "NielPieterse0/kis-mcp",
+        },
+    }), encoding="utf-8")
+    server = FastMCP("late-bind-test")
+    register_once_through_tools(server, state_root)
+
+    result = asyncio.run(server.call_tool("bind_task_handoff_change", {
+        "work_id": "WORK-703", "source_path": str(source),
+    })).structured_content
+
+    assert result is not None
+    assert result["change_id"] == source.name
+    assert result["binding"]["authority"] == "governed_scope"
+    assert store.load_contract("WORK-703").change_id == source.name
 
 
 def test_governed_source_binding_requires_exact_work_and_repository(tmp_path: Path) -> None:

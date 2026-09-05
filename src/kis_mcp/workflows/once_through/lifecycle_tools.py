@@ -61,7 +61,14 @@ def register_lifecycle_decision_tool(
                 source_tree=current_tree,
             )
             branch = git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
-            if branch != f"change/{decision['change_id']}":
+            change_id = decision.get("change_id")
+            if not isinstance(change_id, str) or not change_id.strip():
+                raise LifecycleDecisionError(
+                    "LIFECYCLE_CHANGE_ID_UNBOUND",
+                    "task handoff has no governed change identity; bind it from the governed scope before lifecycle evaluation",
+                    next_action="bind_task_handoff_change",
+                )
+            if branch != f"change/{change_id}":
                 raise LifecycleDecisionError("LIFECYCLE_CHANGE_WORKTREE_MISMATCH", "current branch does not match governed change identity")
             return decision
         except (LifecycleDecisionError, ValueError) as exc:

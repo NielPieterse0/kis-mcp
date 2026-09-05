@@ -1,0 +1,47 @@
+{
+  "schema_version": 4,
+  "change_id": "644-handoff-late-bind-governed-change-id",
+  "status": "active",
+  "branch": "change/644-handoff-late-bind-governed-change-id",
+  "worktree": ".work/worktrees/644-handoff-late-bind-governed-change-id",
+  "base": "main",
+  "outcome": "Allow an immutable once-through handoff created before governed change admission to bind change_id exactly once from null to the proven authoritative governed change ID, while preserving all other immutable identity fields and fail-closed lifecycle validation.",
+  "owned_paths": [
+    "src/kis_mcp/workflows/once_through/state.py",
+    "src/kis_mcp/workflows/once_through/lifecycle.py",
+    "src/kis_mcp/workflows/once_through/lifecycle_tools.py",
+    "src/kis_mcp/workflows/once_through/tools.py",
+    "src/kis_mcp/workflows/once_through/activation.py",
+    "src/kis_mcp/workflows/once_through/service.py",
+    "tests/workflows/once_through/**",
+    "tests/discover/test_tool_registration.py",
+    ".work/changes/644-handoff-late-bind-governed-change-id/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "persistent_state",
+    "public_contract"
+  ],
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-703",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 703,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  },
+  "base_evidence": {
+    "local_sha": "e633c92869202141a01366151f138cd365fd6e10",
+    "local_tree": "bcd4690525556bddbf5deed2852a749172649216",
+    "upstream_sha": "e633c92869202141a01366151f138cd365fd6e10",
+    "upstream_tree": "bcd4690525556bddbf5deed2852a749172649216",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
