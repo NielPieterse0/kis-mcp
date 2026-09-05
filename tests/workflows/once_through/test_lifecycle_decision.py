@@ -130,9 +130,17 @@ def test_manual_exit_bypasses_once_through_progression_without_discarding_eviden
 
     assert decision["state"] == "manual_closeout"
     assert decision["change_id"] is None
-    assert decision["next_required_action"] == "manual_pr_ci_closeout"
+    assert decision["next_required_action"] == "manual_governed_change_closeout"
     assert decision["lifecycle_blocked"] is False
     assert decision["manual_closeout"]["retained_evidence_ids"] == ["verification"]
+    assert decision["manual_closeout"]["current_required_step"] == "create_governed_change"
+    assert decision["manual_closeout"]["required_sequence"][:3] == [
+        "create_or_resume_governed_change",
+        "implement_requested_outcome",
+        "change_governance_check",
+    ]
+    assert decision["manual_closeout"]["not_ready_for_pr_without_implementation"] is True
+    assert decision["manual_closeout"]["do_not_reenter_once_through"] is True
     assert "github_actions_exact_pr_head" in decision["manual_closeout"]["required_gates"]
     assert decision["operation_dispositions"]["execute_change_workflow"] == {
         "disposition": "prohibited", "reason": "ONCE_THROUGH_EXITED"
@@ -164,7 +172,6 @@ def test_redundant_operation_failure_does_not_block_lifecycle(tmp_path: Path) ->
     assert failed["lifecycle_blocked"] is False
     assert failed["next_required_action"] == "converge_change_to_done"
     assert failed["failure"] == "local verifier unavailable: HTTP 502"
-
 
 
 def test_incomplete_done_checkpoint_is_rejected(tmp_path: Path) -> None:
