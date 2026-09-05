@@ -61,7 +61,7 @@ def test_app_exposes_one_model_entry_tool_and_one_ui_resource(
         assert [str(resource.uri) for resource in resources] == [
             CONTROL_CENTER_RESOURCE_URI
         ]
-        assert resources[0].mimeType == "text/html;profile=mcp-app"
+        assert resources[0].mime_type == "text/html;profile=mcp-app"
 
     asyncio.run(run())
 
@@ -86,6 +86,6 @@ def test_app_returns_structured_fallback_and_fresh_html_resource(
     assert result.structured_content["schema_version"] == 1
     assert result.structured_content["project"]["git"]["branch"].startswith("main")
     assert len(resource) == 1
-    assert resource[0].mimeType == "text/html;profile=mcp-app"
+    assert resource[0].mime_type == "text/html;profile=mcp-app"
     assert "KIS Control Center" in resource[0].text
     assert service.calls == 2

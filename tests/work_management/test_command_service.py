@@ -29,6 +29,7 @@ from kis_mcp.work_management import (
     WorkManagementSettings,
     WorkRecord,
 )
+from kis_mcp.work_management.canonical_contracts import load_canonical_work_contracts
 
 
 def option(name: str) -> ProjectFieldOption:
@@ -197,6 +198,18 @@ class Backend:
             success=True,
             provider_revision=self.item.revision,
             message="applied",
+        )
+
+
+class RecordingBackend(Backend):
+    def __init__(self, item: ProjectItem) -> None:
+        super().__init__(item)
+        self.requested_fields: list[tuple[str, ...]] = []
+
+    async def read_inventory(self, project_binding, *, field_names=(), item_limit=100):
+        self.requested_fields.append(tuple(field_names))
+        return await super().read_inventory(
+            project_binding, field_names=field_names, item_limit=item_limit
         )
 
 
@@ -455,13 +468,63 @@ def test_next_work_keeps_default_fail_closed_inventory_bound() -> None:
 
 
 def test_next_work_reads_live_project_command_fields() -> None:
-    backend = Backend(project_item())
+    backend = RecordingBackend(project_item())
     service = WorkManagementService(wm_settings(), {"github": backend})
 
     result = asyncio.run(service.next_work("alpha-project"))
 
     assert result.selected is not None
     assert result.selected.number == 177
+    expected = set(load_canonical_work_contracts().selection.field_names)
+    assert expected.issubset(set(backend.requested_fields[0]))
+
+
+def test_exact_target_lifecycle_does_not_depend_on_selection_only_fields() -> None:
+    probe_service = WorkManagementService(wm_settings(), {"github": RecordingBackend(project_item())})
+    command_settings = probe_service._command_settings()
+    command_fields = set(probe_service._command_field_names(command_settings))
+    selection_only = set(load_canonical_work_contracts().selection.field_names) - command_fields
+
+    claim_backend = RecordingBackend(project_item())
+    claim_service = WorkManagementService(wm_settings(), {"github": claim_backend})
+    claim = asyncio.run(
+        claim_service.claim_work(
+            "alpha-project", "owner/alpha", 177, "kis-dev/session-1", apply=False
+        )
+    )
+    assert claim["mode"] == "preview"
+
+    transition_backend = RecordingBackend(project_item())
+    transition_service = WorkManagementService(
+        wm_settings(), {"github": transition_backend}
+    )
+    transition = asyncio.run(
+        transition_service.transition_work(
+            "alpha-project", "owner/alpha", 177, LifecycleState.ACTIVE, apply=False
+        )
+    )
+    assert transition["mode"] == "preview"
+
+    completion_backend = RecordingBackend(project_item(status="Active"))
+    completion_service = WorkManagementService(
+        wm_settings(), {"github": completion_backend}
+    )
+    completion = asyncio.run(
+        completion_service.complete_work(
+            "alpha-project", "owner/alpha", 177, completion_record(), apply=False
+        )
+    )
+    assert completion["mode"] == "preview"
+
+    for backend in (claim_backend, transition_backend):
+        requested = set(backend.requested_fields[0])
+        assert requested.isdisjoint(selection_only)
+        assert {"Status", "Priority", "Effort", "Execution Owner"}.issubset(requested)
+
+    completion_requested = set(completion_backend.requested_fields[0])
+    allowed_completion_extra = {command_settings.delivery.stage_field}
+    assert completion_requested.isdisjoint(selection_only - allowed_completion_extra)
+    assert allowed_completion_extra.issubset(completion_requested)
 
 
 def test_provider_todo_intake_can_progress_through_command_plane_to_ready() -> None:
