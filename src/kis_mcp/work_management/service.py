@@ -292,11 +292,9 @@ class WorkManagementService:
 
     @staticmethod
     def _command_field_names(settings: CommandPlaneSettings) -> tuple[str, ...]:
-        selection_fields = tuple(dict(load_canonical_work_contracts().selection.fields).values())
         return tuple(
             dict.fromkeys(
                 (
-                    *selection_fields,
                     settings.queue.state_field,
                     settings.queue.priority_field,
                     settings.queue.effort_field,
@@ -313,6 +311,14 @@ class WorkManagementService:
             )
         )
 
+    @classmethod
+    def _selection_inventory_field_names(
+        cls, settings: CommandPlaneSettings
+    ) -> tuple[str, ...]:
+        """Fields needed by selection, including lifecycle readiness prerequisites."""
+        selection_fields = load_canonical_work_contracts().selection.field_names
+        return tuple(dict.fromkeys((*cls._command_field_names(settings), *selection_fields)))
+
     async def next_work(
         self,
         project_id: str,
@@ -322,7 +328,7 @@ class WorkManagementService:
         settings = self._command_settings()
         inventory = await self.read_inventory(
             project_id,
-            field_names=self._command_field_names(settings),
+            field_names=self._selection_inventory_field_names(settings),
             item_limit=item_limit,
         )
         return select_next_project_item(inventory, settings=settings)

@@ -1,0 +1,44 @@
+{
+  "schema_version": 4,
+  "change_id": "642-selection-contract-lifecycle-compat",
+  "status": "active",
+  "branch": "change/642-selection-contract-lifecycle-compat",
+  "worktree": ".work/worktrees/642-selection-contract-lifecycle-compat",
+  "base": "main",
+  "outcome": "Restore higher-level Work lifecycle compatibility with the canonical evolved work-selection contract while preserving tier semantics.",
+  "owned_paths": [
+    "src/kis_mcp/work_management/canonical_contracts.py",
+    "src/kis_mcp/work_management/service.py",
+    "tests/work_management/test_canonical_contracts.py",
+    "tests/work_management/test_command_service.py",
+    "tests/work_management/test_service.py",
+    "tests/control_center/test_control_center_app.py",
+    ".work/changes/642-selection-contract-lifecycle-compat/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "91406fa904d71f1b1a8d66a350e05d0b6f44c28e",
+    "local_tree": "2933afbfd87fbd5070cd79dff6cd52ae1a5c9f3e",
+    "upstream_sha": "91406fa904d71f1b1a8d66a350e05d0b6f44c28e",
+    "upstream_tree": "2933afbfd87fbd5070cd79dff6cd52ae1a5c9f3e",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-696",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 696,
+    "source_kind": "issue",
+    "documentation_impact": "none",
+    "execution_owner": "codex"
+  }
+}

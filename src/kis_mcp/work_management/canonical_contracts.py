@@ -354,6 +354,11 @@ class WorkSelectionContract:
     profiles: tuple[SelectionProfile, ...]
     fingerprint: str
 
+    @property
+    def field_names(self) -> tuple[str, ...]:
+        """Project fields required to evaluate the canonical selection contract."""
+        return tuple(name for _role, name in self.fields)
+
     def rule(self, kind: str) -> SelectionRule:
         for item in self.rules:
             if item.kind == kind:
