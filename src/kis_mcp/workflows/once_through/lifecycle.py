@@ -127,6 +127,48 @@ class LifecycleDecisionService:
         assert contract is not None
         observed = {"tree": tree}
         evidence: tuple[EvidenceReference, ...] = self.store.load_evidence(work_id)
+        manual_exit = self.store.load_manual_exit(work_id, required=False)
+        if manual_exit is not None:
+            projected = tuple(_evidence_projection(item, observed) for item in evidence)
+            stale = tuple(item for item in projected if item["state"] == EvidenceState.INVALID.value)
+            reusable = tuple(item for item in projected if item["state"] == EvidenceState.VALID.value)
+            dispositions = {
+                "execute_change_workflow": _disposition("prohibited", "ONCE_THROUGH_EXITED"),
+                "run_local_full_verification": _disposition("diagnostic_only", "MANUAL_CLOSEOUT"),
+                "converge_change_to_done": _disposition("prohibited", "ONCE_THROUGH_EXITED"),
+            }
+            return {
+                "schema_version": 1,
+                "contract": CONTRACT,
+                "state": "manual_closeout",
+                "work_id": work_id,
+                "change_id": contract.change_id,
+                "source_sha": source_sha,
+                "source_tree": tree,
+                "obligations": _obligation_projection(contract, set()),
+                "canonical_evidence_owners": dict(CANONICAL_EVIDENCE_OWNERS),
+                "promotion_operation_id": None,
+                "controller": None,
+                "reusable_evidence": list(reusable),
+                "stale_evidence": list(stale),
+                "next_required_action": "manual_pr_ci_closeout",
+                "operation_dispositions": dispositions,
+                "lifecycle_blocked": False,
+                "manual_closeout": {
+                    **manual_exit,
+                    "required_gates": [
+                        "change_governance",
+                        "github_pull_request",
+                        "github_actions_exact_pr_head",
+                        "merge_readiness",
+                    ],
+                },
+                "telemetry": {
+                    "prevented_operations": ["execute_change_workflow", "converge_change_to_done"],
+                    "reused_evidence_ids": [item["evidence_id"] for item in reusable],
+                    "stale_evidence_ids": [item["evidence_id"] for item in stale],
+                },
+            }
         satisfied: set[str] = set()
         promotion = None
         try:

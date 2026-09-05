@@ -277,6 +277,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "prepare_reviewable_pull_request_sync",
         "materialize_task_handoff",
         "bind_task_handoff_change",
+        "exit_once_through",
         "get_task_handoff",
         "candidate_endpoint_status",
         "start_task_candidate",

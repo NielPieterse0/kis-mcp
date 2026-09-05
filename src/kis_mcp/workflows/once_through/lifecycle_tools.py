@@ -60,6 +60,8 @@ def register_lifecycle_decision_tool(
                 source_commit_sha=current_sha,
                 source_tree=current_tree,
             )
+            if decision.get("state") == "manual_closeout":
+                return decision
             branch = git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
             change_id = decision.get("change_id")
             if not isinstance(change_id, str) or not change_id.strip():
