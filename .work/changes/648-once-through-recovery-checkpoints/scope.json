@@ -13,6 +13,7 @@
     "src/kis_mcp/workflows/once_through/lifecycle_tools.py",
     "tests/workflows/once_through/test_recovery.py",
     "tests/workflows/once_through/test_once_through_recovery.py",
+    "tests/discover/test_tool_registration.py",
     ".work/changes/648-once-through-recovery-checkpoints/**"
   ],
   "shared_paths": [],
