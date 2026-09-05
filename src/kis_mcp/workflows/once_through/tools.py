@@ -783,6 +783,26 @@ def register_once_through_tools(
         except (ValueError, OnceThroughStateError) as exc:
             raise ToolError(str(exc)) from exc
 
+    @server.tool(name="bind_task_handoff_change", annotations=_CHANGE)
+    async def bind_task_handoff_change(work_id: str, source_path: str) -> dict[str, Any]:
+        """Bind one previously unbound handoff to its proven governed change exactly once."""
+        try:
+            contract = store.load_contract(work_id)
+            assert contract is not None
+            source_root, change_id, scope = _governed_source_binding(contract, source_path)
+            bound = store.bind_change_id(work_id, change_id)
+            return {
+                **bound.to_json_dict(),
+                "binding": {
+                    "authority": "governed_scope",
+                    "source_path": str(source_root),
+                    "scope_change_id": scope["change_id"],
+                    "work_id": work_id,
+                },
+            }
+        except (ValueError, OnceThroughStateError) as exc:
+            raise ToolError(str(exc)) from exc
+
     @server.tool(name="get_task_handoff", annotations=_READ)
     async def get_task_handoff(work_id: str) -> dict[str, Any]:
         """Resolve a frozen implementation handoff by Work item identity."""

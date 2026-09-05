@@ -7,6 +7,7 @@ import re
 import socket
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -171,6 +172,31 @@ class TaskHandoffStore:
             return existing
         _write_json(self.contract_path(contract.work_id), contract.to_json_dict())
         return contract
+
+    def bind_change_id(self, work_id: str, change_id: str) -> TaskHandoffContract:
+        """Bind an unbound handoff to one governed change exactly once."""
+        self._safe_work_id(work_id)
+        if not isinstance(change_id, str) or not change_id.strip():
+            raise ValueError("change_id must be non-empty")
+        normalized = change_id.strip()
+        with _exclusive_lock(self.port_lock):
+            existing = self.load_contract(work_id)
+            assert existing is not None
+            if existing.change_id is not None:
+                if existing.change_id == normalized:
+                    return existing
+                raise OnceThroughStateError(
+                    "HANDOFF_CONTRACT_IMMUTABLE",
+                    "task handoff change_id is already bound to a different governed change",
+                )
+            if self.promotion_path(work_id).exists() or self.candidate_path(work_id).exists():
+                raise OnceThroughStateError(
+                    "HANDOFF_CHANGE_BIND_TOO_LATE",
+                    "task handoff cannot bind change_id after candidate or promotion identity exists",
+                )
+            bound = replace(existing, change_id=normalized)
+            _write_json(self.contract_path(work_id), bound.to_json_dict())
+            return bound
 
     def load_contract(self, work_id: str, *, required: bool = True) -> TaskHandoffContract | None:
         try:
