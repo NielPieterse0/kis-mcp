@@ -1229,7 +1229,7 @@ def retire_closed_orphan_worktree(
     terminal_work_confirmed: bool,
 ) -> CleanupResult:
     root = repository_root(repository)
-    normalized_id = _require_change_id(change_id, "change_id")
+    normalized_id = _require_retirement_change_id(change_id, "change_id")
     if not terminal_work_confirmed:
         raise ClaimError(f"TERMINAL_WORK_EVIDENCE_REQUIRED: {normalized_id}")
     branch = f"change/{normalized_id}"
@@ -1664,6 +1664,13 @@ def _require_change_id(value: Any, field: str) -> str:
     if not CHANGE_ID_PATTERN.fullmatch(text):
         raise ClaimError(f"CHANGE_ID_INVALID: {field}={text}")
     return text
+
+
+def _require_retirement_change_id(value: Any, field: str) -> str:
+    text = _require_string(value, field)
+    if CHANGE_ID_PATTERN.fullmatch(text) or CHANGE_SLUG_PATTERN.fullmatch(text):
+        return text
+    raise ClaimError(f"CHANGE_ID_INVALID: {field}={text}")
 
 
 def _require_string(value: Any, field: str) -> str:

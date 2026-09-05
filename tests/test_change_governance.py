@@ -1551,3 +1551,28 @@ def test_retire_closed_orphan_recovers_when_git_worktree_remove_fails(
     assert result.backup_path is not None
     assert not target.exists()
     assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+
+
+def test_retire_closed_orphan_accepts_legacy_slug_change_id(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = repository / ".work" / "worktrees" / "repo-hardening-part-ii"
+    run_git(
+        repository,
+        "worktree",
+        "add",
+        str(target),
+        "-b",
+        "change/repo-hardening-part-ii",
+        "main",
+    )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "repo-hardening-part-ii",
+        terminal_work_confirmed=True,
+    )
+
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
