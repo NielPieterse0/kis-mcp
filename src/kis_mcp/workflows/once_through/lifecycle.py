@@ -136,6 +136,7 @@ class LifecycleDecisionService:
                 "execute_change_workflow": _disposition("prohibited", "ONCE_THROUGH_EXITED"),
                 "run_local_full_verification": _disposition("diagnostic_only", "MANUAL_CLOSEOUT"),
                 "converge_change_to_done": _disposition("prohibited", "ONCE_THROUGH_EXITED"),
+                "manual_governed_change_closeout": _disposition("required"),
             }
             return {
                 "schema_version": 1,
@@ -151,17 +152,33 @@ class LifecycleDecisionService:
                 "controller": None,
                 "reusable_evidence": list(reusable),
                 "stale_evidence": list(stale),
-                "next_required_action": "manual_pr_ci_closeout",
+                "next_required_action": "manual_governed_change_closeout",
                 "operation_dispositions": dispositions,
                 "lifecycle_blocked": False,
                 "manual_closeout": {
                     **manual_exit,
+                    "meaning": "once-through progression is disabled; continue with the standard governed repository change workflow",
+                    "current_required_step": (
+                        "resume_governed_change" if contract.change_id else "create_governed_change"
+                    ),
+                    "required_sequence": [
+                        "create_or_resume_governed_change",
+                        "implement_requested_outcome",
+                        "change_governance_check",
+                        "github_pull_request",
+                        "github_actions_exact_pr_head",
+                        "merge_readiness",
+                        "merge",
+                        "refresh_main_and_cleanup",
+                    ],
                     "required_gates": [
                         "change_governance",
                         "github_pull_request",
                         "github_actions_exact_pr_head",
                         "merge_readiness",
                     ],
+                    "not_ready_for_pr_without_implementation": True,
+                    "do_not_reenter_once_through": True,
                 },
                 "telemetry": {
                     "prevented_operations": ["execute_change_workflow", "converge_change_to_done"],
