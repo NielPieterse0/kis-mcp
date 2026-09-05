@@ -1400,7 +1400,7 @@ def test_retire_closed_orphan_preserves_unmerged_branch_and_unblocks_validation(
     assert module.validate_repository(repository) == []
 
 
-def test_retire_closed_orphan_requires_terminal_confirmation_and_clean_unclaimed_state(
+def test_retire_closed_orphan_requires_terminal_confirmation_and_recovers_dirty_state(
     tmp_path: Path,
 ) -> None:
     module = load_module()
@@ -1416,12 +1416,21 @@ def test_retire_closed_orphan_requires_terminal_confirmation_and_clean_unclaimed
         )
 
     (target / "dirty.txt").write_text("dirty\n", encoding="utf-8")
-    with pytest.raises(module.ClaimError, match="CHANGE_WORKTREE_DIRTY"):
-        module.retire_closed_orphan_worktree(
-            repository,
-            "078-diagnostics-agent3",
-            terminal_work_confirmed=True,
-        )
+    head = run_git(target, "rev-parse", "HEAD").stdout.strip()
+    result = module.retire_closed_orphan_worktree(
+        repository,
+        "078-diagnostics-agent3",
+        terminal_work_confirmed=True,
+    )
+
+    assert result.recovered is True
+    assert result.backup_path is not None
+    assert result.backup_path.joinpath("dirty.txt").read_text(encoding="utf-8") == "dirty\n"
+    assert not target.exists()
+    assert run_git(repository, "rev-parse", result.branch).stdout.strip() == head
+    assert result.branch not in {
+        entry.branch for entry in module.discover_worktrees(repository) if entry.branch
+    }
 
 
 def test_retire_closed_orphan_refuses_registered_claim(tmp_path: Path) -> None:

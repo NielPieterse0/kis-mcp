@@ -1242,26 +1242,61 @@ def retire_closed_orphan_worktree(
     if claims:
         raise ClaimError(f"ORPHAN_CHANGE_CLAIM_PRESENT: {normalized_id}")
     status = _run_git(target, "status", "--porcelain", "--untracked-files=all").stdout
-    if status.strip():
-        raise ClaimError(f"CHANGE_WORKTREE_DIRTY: {target}")
     head = _run_git(target, "rev-parse", "HEAD").stdout.strip()
-    removal = _run_git(root, "-c", "core.longpaths=true", "worktree", "remove", str(target), check=False)
     recovered = False
     backup_path: Path | None = None
-    if removal.returncode != 0:
-        remaining = {worktree.branch: worktree for worktree in discover_worktrees(root) if worktree.branch}
-        if branch in remaining:
-            detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
-            raise ClaimError(f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered: {detail}")
-        if target.exists():
-            backup_root = root.parent / ".backup"
-            backup_root.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-            backup_path = backup_root / f"{normalized_id}-orphan-worktree-remnant-{timestamp}"
-            if backup_path.exists():
-                raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
+    if status.strip():
+        backup_root = root.parent / ".backup"
+        backup_root.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = backup_root / f"{normalized_id}-orphan-worktree-{timestamp}"
+        if backup_path.exists():
+            raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
+        try:
             target.replace(backup_path)
-            recovered = True
+        except OSError as exc:
+            raise ClaimError(
+                f"CHANGE_WORKTREE_RECOVERY_FAILED: {target} -> {backup_path}: {exc}"
+            ) from exc
+        _run_git(root, "worktree", "prune", "--expire", "now")
+        remaining = {
+            worktree.branch: worktree
+            for worktree in discover_worktrees(root)
+            if worktree.branch
+        }
+        if branch in remaining:
+            raise ClaimError(
+                f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered after recoverable move"
+            )
+        recovered = True
+    else:
+        removal = _run_git(
+            root,
+            "-c",
+            "core.longpaths=true",
+            "worktree",
+            "remove",
+            str(target),
+            check=False,
+        )
+        if removal.returncode != 0:
+            remaining = {
+                worktree.branch: worktree
+                for worktree in discover_worktrees(root)
+                if worktree.branch
+            }
+            if branch in remaining:
+                detail = removal.stderr.strip() or removal.stdout.strip() or "unknown removal failure"
+                raise ClaimError(f"CHANGE_WORKTREE_REMOVE_FAILED: {branch} remains registered: {detail}")
+            if target.exists():
+                backup_root = root.parent / ".backup"
+                backup_root.mkdir(parents=True, exist_ok=True)
+                timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+                backup_path = backup_root / f"{normalized_id}-orphan-worktree-remnant-{timestamp}"
+                if backup_path.exists():
+                    raise ClaimError(f"CHANGE_BACKUP_EXISTS: {backup_path}")
+                target.replace(backup_path)
+                recovered = True
     preserved = _run_git(root, "rev-parse", branch).stdout.strip()
     if preserved != head:
         raise ClaimError(f"ORPHAN_BRANCH_PRESERVATION_FAILED: {branch}: {preserved} != {head}")
