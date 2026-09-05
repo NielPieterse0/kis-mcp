@@ -5,7 +5,7 @@ import msvcrt
 import os
 import re
 import socket
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -19,6 +19,7 @@ from .contracts import (
     PromotionReadyHandoff,
     TaskHandoffContract,
 )
+from .recovery import RecoveryState, recovery_state_from_json, recovery_state_to_json
 
 _PORT_START = 46000
 _PORT_END = 60999
@@ -73,6 +74,7 @@ class TaskHandoffStore:
         self.candidates = root / "candidates"
         self.executions = root / "executions"
         self.manual_exits = root / "manual-exits"
+        self.recoveries = root / "recoveries"
         self.port_ledger = root / "candidate-ports.json"
         self.port_lock = root / "candidate-ports.lock"
 
@@ -270,6 +272,42 @@ class TaskHandoffStore:
             existing.append(reference)
             _write_json(self.evidence_path(work_id), [item.to_json_dict() for item in existing])
             return tuple(existing)
+
+    def recovery_path(self, work_id: str) -> Path:
+        return self.recoveries / f"{self._safe_work_id(work_id)}.json"
+
+    def save_recovery(self, work_id: str, state: RecoveryState) -> RecoveryState:
+        self.load_contract(work_id)
+        with _exclusive_lock(self.evidence_lock_path(work_id)):
+            _write_json(self.recovery_path(work_id), recovery_state_to_json(state))
+        return state
+
+    def update_recovery(
+        self,
+        work_id: str,
+        initial: RecoveryState,
+        transform: Callable[[RecoveryState], RecoveryState],
+    ) -> RecoveryState:
+        self.load_contract(work_id)
+        with _exclusive_lock(self.evidence_lock_path(work_id)):
+            current = self.load_recovery(work_id, required=False) or initial
+            updated = transform(current)
+            _write_json(self.recovery_path(work_id), recovery_state_to_json(updated))
+            return updated
+
+    def load_recovery(self, work_id: str, *, required: bool = False) -> RecoveryState | None:
+        try:
+            value = json.loads(self.recovery_path(work_id).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            if required:
+                raise OnceThroughStateError("RECOVERY_STATE_MISSING", f"no recovery state exists for {work_id}")
+            return None
+        if not isinstance(value, dict):
+            raise OnceThroughStateError("RECOVERY_STATE_INVALID", "recovery state is not an object")
+        try:
+            return recovery_state_from_json(value)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise OnceThroughStateError("RECOVERY_STATE_INVALID", str(exc)) from exc
 
     def manual_exit_path(self, work_id: str) -> Path:
         return self.manual_exits / f"{self._safe_work_id(work_id)}.json"
