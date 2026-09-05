@@ -72,6 +72,7 @@ class TaskHandoffStore:
         self.evidence = root / "evidence"
         self.candidates = root / "candidates"
         self.executions = root / "executions"
+        self.manual_exits = root / "manual-exits"
         self.port_ledger = root / "candidate-ports.json"
         self.port_lock = root / "candidate-ports.lock"
 
@@ -269,6 +270,44 @@ class TaskHandoffStore:
             existing.append(reference)
             _write_json(self.evidence_path(work_id), [item.to_json_dict() for item in existing])
             return tuple(existing)
+
+    def manual_exit_path(self, work_id: str) -> Path:
+        return self.manual_exits / f"{self._safe_work_id(work_id)}.json"
+
+    def save_manual_exit(self, work_id: str) -> dict[str, Any]:
+        contract = self.load_contract(work_id)
+        assert contract is not None
+        existing = self.load_manual_exit(work_id, required=False)
+        if existing is not None:
+            if existing.get("contract_fingerprint") != contract.contract_fingerprint:
+                raise OnceThroughStateError(
+                    "ONCE_THROUGH_EXIT_INVALID",
+                    "once-through exit contract fingerprint no longer matches the handoff",
+                )
+            return existing
+        evidence = self.load_evidence(work_id)
+        payload = {
+            "schema_version": 1,
+            "status": "manual_closeout",
+            "work_id": work_id,
+            "change_id": contract.change_id,
+            "contract_fingerprint": contract.contract_fingerprint,
+            "retained_evidence_ids": [item.evidence_id for item in evidence],
+            "retained_evidence_count": len(evidence),
+        }
+        _write_json(self.manual_exit_path(work_id), payload)
+        return payload
+
+    def load_manual_exit(self, work_id: str, *, required: bool = False) -> dict[str, Any] | None:
+        try:
+            value = json.loads(self.manual_exit_path(work_id).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            if required:
+                raise OnceThroughStateError("ONCE_THROUGH_EXIT_MISSING", f"no once-through exit exists for {work_id}")
+            return None
+        if not isinstance(value, dict) or value.get("work_id") != work_id or value.get("status") != "manual_closeout":
+            raise OnceThroughStateError("ONCE_THROUGH_EXIT_INVALID", "once-through exit receipt is invalid")
+        return dict(value)
 
     def candidate_path(self, work_id: str) -> Path:
         return self.candidates / f"{self._safe_work_id(work_id)}.json"

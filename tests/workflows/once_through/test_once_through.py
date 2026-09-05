@@ -569,6 +569,46 @@ def test_bind_task_handoff_change_uses_governed_scope_as_authority(tmp_path: Pat
     assert store.load_contract("WORK-703").change_id == source.name
 
 
+def test_exit_once_through_preserves_evidence_and_switches_to_manual_closeout(tmp_path: Path) -> None:
+    state_root = tmp_path / "state"
+    store = TaskHandoffStore(state_root / "once-through")
+    contract = store.materialize_contract(
+        project_id="commodity", work_id="WORK-316", repository="example/commodity",
+        requirements=("preserve work",), acceptance_criteria=("manual closeout available",),
+        affected_surfaces=("workflow",), obligations=("verification", "review_closed"),
+        source_identity="github-issue:example/commodity#316",
+    )
+    reference = EvidenceReference(
+        evidence_id="verify-316", kind="verification", subject=contract.source_identity,
+        validity_class=EvidenceValidityClass.CONTENT_STABLE,
+        validity_inputs={"tree": "a" * 40}, receipt_ref="change-execution:316",
+    )
+    store.append_evidence(contract.work_id, reference)
+    server = FastMCP("manual-exit-test")
+    register_once_through_tools(server, state_root)
+
+    result = asyncio.run(server.call_tool("exit_once_through", {
+        "work_id": contract.work_id,
+    })).structured_content
+
+    assert result is not None
+    assert result["status"] == "manual_closeout"
+    assert result["change_id"] is None
+    assert result["retained_evidence_count"] == 1
+    assert result["retained_evidence"][0]["evidence_id"] == reference.evidence_id
+    assert result["required_manual_gates"] == [
+        "change_governance", "github_pull_request", "github_actions_exact_pr_head", "merge_readiness"
+    ]
+    second = asyncio.run(server.call_tool("exit_once_through", {
+        "work_id": contract.work_id,
+    })).structured_content
+    assert second is not None
+    assert second["contract_fingerprint"] == result["contract_fingerprint"]
+    assert second["retained_evidence_count"] == 1
+    assert store.load_evidence(contract.work_id) == (reference,)
+    assert store.load_manual_exit(contract.work_id, required=True)["status"] == "manual_closeout"
+
+
 def test_governed_source_binding_requires_exact_work_and_repository(tmp_path: Path) -> None:
     contract = _contract(46000, work_id="WORK-586")
     root = tmp_path / ".work" / "worktrees" / "264-security-binding"

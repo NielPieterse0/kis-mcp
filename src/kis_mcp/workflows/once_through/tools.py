@@ -27,6 +27,7 @@ from .controller import (
     PromotionController,
     PromotionStateStore,
     build_terminal_receipt,
+    project_promotion_checkpoint,
     promotion_operation_id,
 )
 from .process_identity import (
@@ -799,6 +800,41 @@ def register_once_through_tools(
                     "scope_change_id": scope["change_id"],
                     "work_id": work_id,
                 },
+            }
+        except (ValueError, OnceThroughStateError) as exc:
+            raise ToolError(str(exc)) from exc
+
+    @server.tool(name="exit_once_through", annotations=_CHANGE)
+    async def exit_once_through(work_id: str) -> dict[str, Any]:
+        """Leave once-through before merge while retaining all gathered evidence for manual closeout."""
+        try:
+            contract = store.load_contract(work_id)
+            assert contract is not None
+            try:
+                promotion = store.load_promotion(work_id)
+            except OnceThroughStateError as exc:
+                if exc.code != "PROMOTION_HANDOFF_MISSING":
+                    raise
+            else:
+                operation_id = promotion_operation_id(promotion.to_json_dict())
+                checkpoint = project_promotion_checkpoint(promotion_state.load(operation_id))
+                if "merge_exact_head" in checkpoint["completed"] or checkpoint["state"] == "done":
+                    raise OnceThroughStateError(
+                        "ONCE_THROUGH_EXIT_TOO_LATE",
+                        "once-through cannot exit after the exact-head merge boundary has completed",
+                    )
+            receipt = store.save_manual_exit(work_id)
+            return {
+                **receipt,
+                "workflow_mode": "manual_closeout",
+                "retained_evidence": [item.to_json_dict() for item in store.load_evidence(work_id)],
+                "required_manual_gates": [
+                    "change_governance",
+                    "github_pull_request",
+                    "github_actions_exact_pr_head",
+                    "merge_readiness",
+                ],
+                "next_action": "manual_pr_ci_closeout",
             }
         except (ValueError, OnceThroughStateError) as exc:
             raise ToolError(str(exc)) from exc

@@ -107,6 +107,38 @@ def test_missing_promotion_requires_existing_change_execution(tmp_path: Path) ->
     assert decision["operation_dispositions"]["run_local_full_verification"]["disposition"] == "diagnostic_only"
 
 
+def test_manual_exit_bypasses_once_through_progression_without_discarding_evidence(tmp_path: Path) -> None:
+    store = TaskHandoffStore(tmp_path / "once-through")
+    contract = TaskHandoffContract(
+        project_id="commodity", work_id="WORK-316", repository="example/commodity",
+        requirements=("preserve work",), acceptance_criteria=("manual closeout",),
+        affected_surfaces=("workflow",), obligations=("verification", "review_closed", "provider_proof"),
+        candidate_port=47001, source_identity=SHA, change_id=None,
+    )
+    store.save_contract(contract)
+    store.append_evidence(contract.work_id, EvidenceReference(
+        evidence_id="verification", kind="verification", subject="change",
+        validity_class=EvidenceValidityClass.CONTENT_STABLE,
+        validity_inputs={"tree": TREE}, receipt_ref="receipt://verification",
+    ))
+    store.save_manual_exit(contract.work_id)
+    service = LifecycleDecisionService(
+        store, PromotionStateStore(tmp_path / "once-through" / "promotion-controller")
+    )
+
+    decision = service.decide(work_id=contract.work_id, source_commit_sha=SHA, source_tree=TREE)
+
+    assert decision["state"] == "manual_closeout"
+    assert decision["change_id"] is None
+    assert decision["next_required_action"] == "manual_pr_ci_closeout"
+    assert decision["lifecycle_blocked"] is False
+    assert decision["manual_closeout"]["retained_evidence_ids"] == ["verification"]
+    assert "github_actions_exact_pr_head" in decision["manual_closeout"]["required_gates"]
+    assert decision["operation_dispositions"]["execute_change_workflow"] == {
+        "disposition": "prohibited", "reason": "ONCE_THROUGH_EXITED"
+    }
+
+
 def test_tree_change_marks_promotion_evidence_stale(tmp_path: Path) -> None:
     decision = _service(tmp_path).decide(
         work_id="WORK-650", source_commit_sha=SHA, source_tree="c" * 40
