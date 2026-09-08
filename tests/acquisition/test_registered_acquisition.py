@@ -210,6 +210,14 @@ def test_settings_are_strict_and_authorize_recipe_namespace(tmp_path: Path) -> N
         load_external_acquisition_settings(path)
 
 
+def test_repository_commodity_authorizations_use_canonical_recipe_directory() -> None:
+    settings_path = Path(__file__).resolve().parents[2] / "settings" / "external-acquisition.settings.json"
+    settings = load_external_acquisition_settings(settings_path)
+
+    for profile_id in ("firecrawl-web", "public-http-dataset"):
+        assert settings.authorization("commodity", profile_id).recipe_directory == r"data\acquisition-recipes"
+
+
 def test_authorized_request_hashes_registered_consumer_recipe_before_provider_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

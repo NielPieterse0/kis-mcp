@@ -1,0 +1,31 @@
+{
+  "schema_version": 4,
+  "change_id": "714-commodity-acquisition-recipe-path",
+  "status": "active",
+  "branch": "change/714-commodity-acquisition-recipe-path",
+  "worktree": ".work/worktrees/714-commodity-acquisition-recipe-path",
+  "base": "main",
+  "outcome": "Repair Commodity registered external acquisition after repository consolidation by updating KIS to resolve immutable Commodity recipes from data/acquisition-recipes, without widening acquisition authority.",
+  "owned_paths": [
+    "settings/external-acquisition.settings.json",
+    "tests/acquisition/test_registered_acquisition.py",
+    ".work/changes/714-commodity-acquisition-recipe-path/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [
+    "migration"
+  ],
+  "base_evidence": {
+    "local_sha": "139e9929623d2194a82a222c7fa1d4b03ba82ad5",
+    "local_tree": "295104dfed34d8f3282e7a83345a21e6b1a4c528",
+    "upstream_sha": "139e9929623d2194a82a222c7fa1d4b03ba82ad5",
+    "upstream_tree": "295104dfed34d8f3282e7a83345a21e6b1a4c528",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
