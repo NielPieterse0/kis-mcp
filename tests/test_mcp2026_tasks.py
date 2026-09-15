@@ -6,6 +6,8 @@ from fastmcp import Client, Context, FastMCP
 from fastmcp_tasks.client import _send_get, call_tool_task
 
 from kis_mcp.mcp2026 import LONG_RUNNING_TASK_CONFIG, install_mcp2026_tasks
+from kis_mcp.workflows.change_execution.contracts import ChangeExecutionResult
+from kis_mcp.workflows.change_execution.tools import register_change_execution_tool
 from kis_mcp.workflows.completion.contracts import CompletionResult
 from kis_mcp.workflows.completion.tools import register_completion_tool
 from kis_mcp.workflows.verification.contracts import VerificationResult
@@ -71,6 +73,58 @@ def test_task_handle_survives_client_disconnect_and_result_is_retrievable() -> N
                     "task_id": task_id,
                     "background": True,
                 }
+
+    asyncio.run(run())
+
+
+def test_change_execution_returns_task_handle_before_completion() -> None:
+    class ChangeExecutionStub:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def execute(self, **kwargs):
+            self.calls += 1
+            await asyncio.sleep(0.15)
+            return ChangeExecutionResult(
+                project=kwargs["project"],
+                source_fingerprint="a" * 64,
+                complexity=kwargs.get("complexity", "medium"),
+                risk_triggers=tuple(kwargs.get("risk_triggers", ())),
+                selection={"contract": "verification-selection-v1"},
+                verifications=(),
+                reviews=(),
+                status="passed",
+                verification_failed_count=0,
+                verification_incomplete_count=0,
+                review_error_count=0,
+            )
+
+    server = FastMCP("mcp2026-change-execution-task")
+    install_mcp2026_tasks(server)
+    service = ChangeExecutionStub()
+    register_change_execution_tool(server, service)
+
+    async def run() -> None:
+        async with server._lifespan_manager():
+            async with Client(server) as client:
+                handle = await call_tool_task(
+                    client,
+                    "execute_change_workflow",
+                    {"project": r"C:\\Projects\\fixture", "source": "working_tree"},
+                )
+                task_id = handle.task_id
+                assert handle.create_result.result_type == "task"
+                first = await _send_get(client.session, task_id)
+                assert first.status in {"working", "completed"}
+                for _ in range(50):
+                    state = await _send_get(client.session, task_id)
+                    if state.status in {"completed", "failed", "cancelled"}:
+                        break
+                    await asyncio.sleep(0.02)
+                assert state.status == "completed"
+                assert state.result is not None
+                assert state.result.get("structuredContent", {}).get("status") == "passed"
+        assert service.calls == 1
 
     asyncio.run(run())
 

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "backend_image": "valkey/valkey:9.1.2-alpine",
+  "backend_url": "redis://127.0.0.1:6380/0",
+  "queue_prefix": "kis-mcp",
+  "worker_concurrency": 2,
+  "redelivery_timeout_seconds": 900,
+  "reconnection_delay_seconds": 5,
+  "minimum_check_interval_milliseconds": 100
+}
