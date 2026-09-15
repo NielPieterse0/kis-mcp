@@ -1,0 +1,35 @@
+{
+  "schema_version": 4,
+  "change_id": "715-python-project-boundary-authority",
+  "status": "active",
+  "branch": "change/715-python-project-boundary-authority",
+  "worktree": ".work/worktrees/715-python-project-boundary-authority",
+  "base": "main",
+  "outcome": "Fix #721 permanently: require Python base authority under C:\\Projects and reject any project venv whose base interpreter resolves outside C:\\Projects.",
+  "owned_paths": [
+    "settings/runtime-authority.settings.json",
+    "scripts/runtime-authority.ps1",
+    "scripts/bootstrap-python.ps1",
+    "scripts/install-serena.ps1",
+    "scripts/install-project-python.ps1",
+    "tests/test_runtime_authority.py",
+    "docs/OPERATIONS.md",
+    "docs/operations/setup.md",
+    ".work/changes/715-python-project-boundary-authority/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "small",
+  "risk_triggers": [],
+  "base_evidence": {
+    "local_sha": "90afdd23ff3b02eaadce797cf59c22d66ada646d",
+    "local_tree": "81a1b57c422ce3a345b83c8d39cb85416e1ff725",
+    "upstream_sha": "90afdd23ff3b02eaadce797cf59c22d66ada646d",
+    "upstream_tree": "81a1b57c422ce3a345b83c8d39cb85416e1ff725",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}

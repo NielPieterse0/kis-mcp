@@ -6,7 +6,7 @@ $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 $SettingsPath = Join-Path $RepositoryRoot 'settings\kis-mcp.settings.json'
 $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
 $RuntimeAuthority = Get-KisMcpRuntimeAuthority
-$PythonRuntime = Resolve-KisMcpSystemPython -Authority $RuntimeAuthority
+$PythonRuntime = Resolve-KisMcpProjectPython -Authority $RuntimeAuthority
 $UvRuntime = Resolve-KisMcpUvRuntime -Authority $RuntimeAuthority
 
 $CanonicalStateRoot = 'C:\Projects\.kis-mcp'
@@ -54,7 +54,7 @@ $env:UV_NO_MANAGED_PYTHON = '1'
 
 Push-Location $RepositoryRoot
 try {
-    Write-Host "Using verified shared-system Python: $($PythonRuntime.executable)"
+    Write-Host "Using verified project-managed Python: $($PythonRuntime.executable)"
     Write-Host "Using supervised uv bootstrap tool: $($UvRuntime.executable)"
     Write-Host 'Resolving and locking the pinned Python dependency graph...'
     & $UvRuntime.executable lock --python $PythonRuntime.executable --no-managed-python
@@ -67,6 +67,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Dependency synchronization failed with exit code $LASTEXITCODE"
     }
+    Assert-KisMcpProjectVenv -PythonExecutable (Join-Path $PythonEnvironmentRoot 'Scripts\python.exe') -Authority $RuntimeAuthority | Out-Null
 }
 finally {
     Pop-Location

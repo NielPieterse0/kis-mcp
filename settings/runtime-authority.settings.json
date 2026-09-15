@@ -1,9 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "project_boundary": "C:\\Projects",
   "python": {
-    "ownership": "shared_system",
-    "launcher": "py.exe",
-    "selector": "-3.11",
+    "ownership": "project_managed",
+    "executable": "C:\\Projects\\.tools\\python\\3.11.9\\python.exe",
+    "version": "3.11.9",
     "major_minor": "3.11",
     "authenticode_status": "Valid",
     "publisher_subject_contains": "Python Software Foundation",
