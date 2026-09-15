@@ -5,8 +5,11 @@ function Get-KisMcpRuntimeAuthority {
         throw "KIS_RUNTIME_AUTHORITY_MISSING: $RuntimeAuthorityPath"
     }
     $authority = Get-Content -LiteralPath $RuntimeAuthorityPath -Raw | ConvertFrom-Json
-    if ([int]$authority.schema_version -ne 1) {
-        throw 'KIS_RUNTIME_AUTHORITY_SCHEMA_INVALID: schema_version must be 1.'
+    if ([int]$authority.schema_version -ne 2) {
+        throw 'KIS_RUNTIME_AUTHORITY_SCHEMA_INVALID: schema_version must be 2.'
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$authority.project_boundary)) {
+        throw 'KIS_RUNTIME_AUTHORITY_SCHEMA_INVALID: project_boundary is required.'
     }
     return $authority
 }
@@ -33,17 +36,32 @@ function Assert-KisMcpAuthenticodeRuntime(
     }
 }
 
-function Resolve-KisMcpSystemPython([object]$Authority = $(Get-KisMcpRuntimeAuthority)) {
-    $launcher = Get-Command ([string]$Authority.python.launcher) -CommandType Application -ErrorAction Stop |
-        Select-Object -First 1
-    $selector = [string]$Authority.python.selector
-    $resolved = (& $launcher.Source $selector -c 'import sys; print(sys.executable)' 2>&1 | Select-Object -Last 1).Trim()
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
-        throw "KIS_SYSTEM_PYTHON_RESOLUTION_FAILED: selector=$selector resolved=$resolved"
+function Test-KisMcpPathWithinBoundary([string]$Path, [string]$Boundary) {
+    $fullPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\')
+    $fullBoundary = [System.IO.Path]::GetFullPath($Boundary).TrimEnd('\')
+    return $fullPath.Equals($fullBoundary, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith($fullBoundary + '\', [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Resolve-KisMcpProjectPython([object]$Authority = $(Get-KisMcpRuntimeAuthority)) {
+    $resolved = [System.IO.Path]::GetFullPath([string]$Authority.python.executable)
+    $boundary = [string]$Authority.project_boundary
+    if (-not (Test-KisMcpPathWithinBoundary -Path $resolved -Boundary $boundary)) {
+        throw "KIS_PROJECT_PYTHON_BOUNDARY_VIOLATION: executable=$resolved boundary=$boundary"
     }
-    $version = (& $resolved -c "import sys; print('%s.%s' % sys.version_info[:2])").Trim()
-    if ($LASTEXITCODE -ne 0 -or $version -ne [string]$Authority.python.major_minor) {
-        throw "KIS_SYSTEM_PYTHON_VERSION_INVALID: expected=$($Authority.python.major_minor) actual=$version"
+    if (-not (Test-Path -LiteralPath $resolved -PathType Leaf)) {
+        throw "KIS_PROJECT_PYTHON_MISSING: $resolved"
+    }
+    $runtime = (& $resolved -c "import json,sys; print(json.dumps({'version':'.'.join(map(str,sys.version_info[:3])),'major_minor':'.'.join(map(str,sys.version_info[:2])),'base_prefix':sys.base_prefix}))" | ConvertFrom-Json)
+    if ($LASTEXITCODE -ne 0) {
+        throw "KIS_PROJECT_PYTHON_INSPECTION_FAILED: $resolved"
+    }
+    if ([string]$runtime.version -ne [string]$Authority.python.version -or
+        [string]$runtime.major_minor -ne [string]$Authority.python.major_minor) {
+        throw "KIS_PROJECT_PYTHON_VERSION_INVALID: expected=$($Authority.python.version) actual=$($runtime.version)"
+    }
+    if (-not (Test-KisMcpPathWithinBoundary -Path ([string]$runtime.base_prefix) -Boundary $boundary)) {
+        throw "KIS_PROJECT_PYTHON_BASE_BOUNDARY_VIOLATION: base_prefix=$($runtime.base_prefix) boundary=$boundary"
     }
     $signature = Assert-KisMcpAuthenticodeRuntime -Path $resolved `
         -ExpectedStatus ([string]$Authority.python.authenticode_status) `
@@ -51,11 +69,28 @@ function Resolve-KisMcpSystemPython([object]$Authority = $(Get-KisMcpRuntimeAuth
         -RuntimeName 'python'
     return [pscustomobject]@{
         executable = $resolved
-        version = $version
+        version = [string]$runtime.major_minor
+        full_version = [string]$runtime.version
+        base_prefix = [string]$runtime.base_prefix
         ownership = [string]$Authority.python.ownership
         signature_status = [string]$signature.status
         signer_subject = [string]$signature.subject
     }
+}
+
+function Assert-KisMcpProjectVenv([string]$PythonExecutable, [object]$Authority = $(Get-KisMcpRuntimeAuthority)) {
+    $boundary = [string]$Authority.project_boundary
+    $info = (& $PythonExecutable -c "import json,sys; print(json.dumps({'executable':sys.executable,'prefix':sys.prefix,'base_prefix':sys.base_prefix}))" | ConvertFrom-Json)
+    if ($LASTEXITCODE -ne 0) {
+        throw "KIS_VENV_INSPECTION_FAILED: $PythonExecutable"
+    }
+    foreach ($name in @('executable', 'prefix', 'base_prefix')) {
+        $value = [string]$info.$name
+        if (-not (Test-KisMcpPathWithinBoundary -Path $value -Boundary $boundary)) {
+            throw "KIS_VENV_BOUNDARY_VIOLATION: field=$name value=$value boundary=$boundary"
+        }
+    }
+    return $info
 }
 
 function Resolve-KisMcpUvRuntime([object]$Authority = $(Get-KisMcpRuntimeAuthority)) {

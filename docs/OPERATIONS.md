@@ -39,6 +39,7 @@ Run commands from `C:\Projects\kis-mcp` unless a runbook says otherwise. Bootstr
 ### Bootstrap and local startup
 
 ```powershell
+pwsh -File .\scripts\install-project-python.ps1
 pwsh -File .\scripts\bootstrap-python.ps1
 pwsh -File .\scripts\prepare-desktop-commander-cache.ps1
 pwsh -File .\scripts\install-desktop-commander.ps1

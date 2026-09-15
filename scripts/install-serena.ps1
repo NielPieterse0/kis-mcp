@@ -13,7 +13,7 @@ $SettingsPath = Join-Path $RepositoryRoot 'settings\providers\serena.provider.js
 $Settings = Get-Content -LiteralPath $SettingsPath -Raw | ConvertFrom-Json
 $TempRoot = 'C:\Projects\.kis-mcp\temp'
 $RuntimeAuthority = Get-KisMcpRuntimeAuthority
-$PythonRuntime = Resolve-KisMcpSystemPython -Authority $RuntimeAuthority
+$PythonRuntime = Resolve-KisMcpProjectPython -Authority $RuntimeAuthority
 
 function Write-Utf8Json([string]$Path, [object]$Value) {
     $json = ($Value | ConvertTo-Json -Depth 10) + [Environment]::NewLine
@@ -140,6 +140,7 @@ if ($Mode -eq 'PrepareInstall') {
     }
 
     $CandidatePython = Join-Path $CandidateVenv 'Scripts\python.exe'
+    Assert-KisMcpProjectVenv -PythonExecutable $CandidatePython -Authority $RuntimeAuthority | Out-Null
     $ProxyArchives = @(
         Get-ChildItem -LiteralPath $Wheelhouse -Filter 'proxy_tools-0.1.0.tar.gz' -File
     )
@@ -258,6 +259,7 @@ catch {
 }
 
 $PromotedPython = Join-Path $Destination 'venv\Scripts\python.exe'
+Assert-KisMcpProjectVenv -PythonExecutable $PromotedPython -Authority $RuntimeAuthority | Out-Null
 & $PromotedPython -c 'import serena; from serena.cli import top_level'
 if ($LASTEXITCODE -ne 0) {
     throw "SERENA_PROMOTED_CLI_IMPORT_FAILED: relocated Python exited with $LASTEXITCODE."

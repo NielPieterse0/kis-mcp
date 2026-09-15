@@ -21,13 +21,16 @@ If derived project recovery state must be reconstructed, quarantine the affected
 
 ## Install Python dependencies
 
-Runtime location and Windows execution trust are separate concerns. `settings/runtime-authority.settings.json` defines the shared-system Python and Node host classifications plus the supervised `uv` bootstrap classification. The Python bootstrap resolves the configured Windows Python launcher/selector, verifies the expected Python version and Authenticode publisher, and disables uv-managed Python fallback.
+Runtime location and Windows execution trust are separate concerns. `settings/runtime-authority.settings.json` pins the project-managed Python interpreter beneath `C:\Projects`, retains the shared-system Node host classification, and defines the supervised `uv` bootstrap classification. The Python bootstrap resolves only that pinned project interpreter, verifies its exact version and Authenticode publisher, requires its base prefix to remain beneath `C:\Projects`, and disables uv-managed Python fallback. Any venv beneath `C:\Projects` is non-compliant if its `sys.base_prefix` resolves outside `C:\Projects`.
 
-Run the supervised bootstrap:
+Install or verify the pinned project Python through the explicit operator-supervised acquisition step, then bootstrap the locked environment:
 
 ```powershell
+pwsh -File .\scripts\install-project-python.ps1
 pwsh -File .\scripts\bootstrap-python.ps1
 ```
+
+`install-project-python.ps1` is an explicit external-network acquisition action and is not eligible through normal Work. It downloads only the exact configured CPython release from python.org, verifies the expected Authenticode publisher, installs to the configured path beneath `C:\Projects`, and re-validates the resulting interpreter before bootstrap may use it.
 
 If the existing generated KIS environment was built from another base interpreter, bootstrap moves that environment intact beneath `C:\Projects\.kis-mcp\quarantine\<operation-id>` before rebuilding it. Bootstrap may use external network access. Normal startup and verification use the locked external environment and do not perform dependency resolution as a substitute for bootstrap. A binary being beneath `C:\Projects` is never evidence that Defender or Smart App Control trusts it; validate native `.pyd`, `.dll`, `.exe`, and `.node` dependencies through the canonical workload and fresh Code Integrity evidence.
 
