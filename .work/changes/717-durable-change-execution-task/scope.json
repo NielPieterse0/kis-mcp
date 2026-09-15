@@ -1,0 +1,55 @@
+{
+  "schema_version": 4,
+  "change_id": "717-durable-change-execution-task",
+  "status": "active",
+  "branch": "change/717-durable-change-execution-task",
+  "worktree": ".work/worktrees/717-durable-change-execution-task",
+  "base": "main",
+  "outcome": "Make canonical change execution task-backed and establish durable MCP execution primitives without changing once-through workflow semantics.",
+  "owned_paths": [
+    "src/kis_mcp/mcp2026.py",
+    "src/kis_mcp/task_runtime.py",
+    "src/kis_mcp/gateway/composition.py",
+    "src/kis_mcp/middleware.py",
+    "src/kis_mcp/runtime_observability.py",
+    "src/kis_mcp/workflows/change_execution/tools.py",
+    "settings/task-runtime.settings.json",
+    "scripts/start-task-backend.ps1",
+    "scripts/start-task-worker.ps1",
+    "tests/discover/test_tool_registration.py",
+    "tests/integration/test_task_runtime_resilience.py",
+    "tests/workflows/change_execution/**",
+    "tests/test_mcp2026_tasks.py",
+    "tests/test_task_runtime.py",
+    "tests/test_boundary_request_correlation.py",
+    ".work/changes/717-durable-change-execution-task/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "large",
+  "risk_triggers": [
+    "architecture_boundary",
+    "persistent_state",
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "79eab25010284a99abf57abbb565dec647171416",
+    "local_tree": "965d8508317376ea6d9cc97411b1b350392af171",
+    "upstream_sha": "79eab25010284a99abf57abbb565dec647171416",
+    "upstream_tree": "965d8508317376ea6d9cc97411b1b350392af171",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  },
+  "work_management": {
+    "project_id": "kis-mcp",
+    "record_id": "WORK-498",
+    "source_repository": "NielPieterse0/kis-mcp",
+    "source_number": 498,
+    "source_kind": "issue",
+    "documentation_impact": "planned",
+    "execution_owner": "codex"
+  }
+}

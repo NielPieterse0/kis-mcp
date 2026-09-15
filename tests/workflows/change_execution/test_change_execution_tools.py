@@ -62,6 +62,8 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
     assert "operation" not in properties
     assert tool.annotations.read_only_hint is False
     assert tool.annotations.destructive_hint is False
+    assert tool.task_config.mode == "required"
+    assert tool.task_config.supports_tasks() is True
 
     result = asyncio.run(
         tool.run(
@@ -75,3 +77,28 @@ def test_execute_change_workflow_has_bounded_process_surface() -> None:
     assert result.structured_content["complexity"] == "medium"
     assert result.structured_content["risk_triggers"] == []
     assert service.calls[0]["review_types"] == ("architecture", "test-quality")
+
+
+def test_execute_change_workflow_sync_is_explicit_non_task_fallback() -> None:
+    server = FastMCP("change-execution-sync-test")
+    service = _Service()
+    register_change_execution_tool(server, service)
+    tools = {item.name: item for item in asyncio.run(server.list_tools())}
+    canonical = tools["execute_change_workflow"]
+    fallback = tools["execute_change_workflow_sync"]
+    assert fallback.parameters == canonical.parameters
+    assert fallback.task_config.mode == "forbidden"
+    assert fallback.task_config.supports_tasks() is False
+
+    result = asyncio.run(
+        fallback.run(
+            {
+                "project": r"C:\Projects\fixture",
+                "review_types": ["architecture"],
+            }
+        )
+    )
+    assert result.structured_content["contract"] == "change-execution-result-v2"
+    assert result.structured_content["status"] == "passed"
+    assert len(service.calls) == 1
+    assert service.calls[0]["review_types"] == ("architecture",)

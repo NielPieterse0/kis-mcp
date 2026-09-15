@@ -272,6 +272,7 @@ def test_build_server_adds_context_without_changing_existing_local_tools() -> No
         "run_verification",
         "select_change_verification",
         "execute_change_workflow",
+        "execute_change_workflow_sync",
         "change_lifecycle_decision",
         "once_through_recovery",
         "prepare_reviewable_pull_request",

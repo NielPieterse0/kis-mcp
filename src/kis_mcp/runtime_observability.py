@@ -50,6 +50,7 @@ class BoundaryRequestRecord:
     outcome: str
     tool_name: str | None = None
     error_type: str | None = None
+    tasks_capability: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,6 +197,7 @@ class RuntimeObservability:
         outcome: str,
         tool_name: str | None = None,
         error_type: str | None = None,
+        tasks_capability: bool | None = None,
         request_id: str | None = None,
     ) -> str:
         selected = request_id or self.reserve_boundary_request_id()
@@ -208,6 +210,7 @@ class RuntimeObservability:
                     outcome=str(outcome),
                     tool_name=str(tool_name) if tool_name is not None else None,
                     error_type=str(error_type) if error_type is not None else None,
+                    tasks_capability=tasks_capability,
                 )
             )
             return selected
