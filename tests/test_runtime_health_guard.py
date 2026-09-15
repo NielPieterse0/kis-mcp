@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -83,6 +85,73 @@ def test_guard_does_not_recover_before_configured_failure_grace(tmp_path: Path) 
     stdout, stderr = process.communicate(timeout=10)
     assert process.returncode == 0, stderr or stdout
     assert marker.read_text(encoding="utf-8") == "kis-op|run-a"
+
+
+def test_guard_does_not_recover_when_local_server_is_responsive_but_tunnel_is_degraded(tmp_path: Path) -> None:
+    root, state = _fixture(tmp_path)
+    marker = tmp_path / "recovered.txt"
+    server_script = tmp_path / "mcp_server.py"
+    server_script.write_text(
+        "from http.server import BaseHTTPRequestHandler, HTTPServer\n"
+        "import json, os\n"
+        "class Handler(BaseHTTPRequestHandler):\n"
+        "    def do_POST(self):\n"
+        "        length = int(self.headers.get('Content-Length', '0'))\n"
+        "        self.rfile.read(length)\n"
+        "        body = json.dumps({'jsonrpc':'2.0','id':1,'result':{'serverInfo':{'name':'test','version':'1'}}}).encode()\n"
+        "        self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)\n"
+        "    def log_message(self, format, *args): pass\n"
+        "HTTPServer(('127.0.0.1', int(os.environ['KIS_TEST_PORT'])), Handler).serve_forever()\n",
+        encoding="utf-8",
+    )
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    settings_path = root / "settings" / "kis-mcp.settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["remote_mcp"]["instances"]["operation"]["port"] = port
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    env = dict(os.environ)
+    env["KIS_TEST_PORT"] = str(port)
+    server = subprocess.Popen([sys.executable, str(server_script)], env=env)
+    try:
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                    break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.05)
+        current_path = state / "tunnel-client" / "runtime" / "operation" / "current.json"
+        current = json.loads(current_path.read_text(encoding="utf-8"))
+        current.update({
+            "launcher_pid": server.pid,
+            "server_pid": server.pid,
+            "server_listener_pid": server.pid,
+            "tunnel_pid": 999993,
+        })
+        current_path.write_text(json.dumps(current), encoding="utf-8")
+        (root / "scripts" / "recover-chatgpt.ps1").write_text(
+            "param([string]$Instance,[string]$RepositoryRoot,[string]$ExpectedRunId)\n"
+            "[IO.File]::WriteAllText($env:KIS_RECOVERY_MARKER,\"$Instance|$ExpectedRunId\")\n",
+            encoding="utf-8",
+        )
+        env["KIS_RECOVERY_MARKER"] = str(marker)
+        guard = subprocess.Popen([
+            "pwsh.exe", "-NoProfile", "-File", str(root / "scripts" / "runtime-health-guard.ps1"),
+            "-Instance", "kis-op", "-RunId", "run-a", "-RepositoryRoot", str(root),
+            "-PollSeconds", "1", "-FailureGraceSeconds", "1",
+        ], cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        time.sleep(2.5)
+        assert guard.poll() is None
+        assert not marker.exists()
+        guard.terminate()
+        guard.communicate(timeout=10)
+    finally:
+        server.terminate()
+        server.wait(timeout=10)
 
 
 def test_guard_recovers_same_stopped_generation(tmp_path: Path) -> None:

@@ -64,6 +64,36 @@ function Resolve-RecoveryReadPath {
     return $Candidate
 }
 
+function Test-RecoveryLocalServerResponsive {
+    if (-not [IO.File]::Exists($CurrentPath)) { return $false }
+    try { $Current = Get-Content -LiteralPath $CurrentPath -Raw | ConvertFrom-Json } catch { return $false }
+    $ExpectedIdentity = [ordered]@{
+        lifecycle = 'ready'
+        instance = $Internal
+        app = $App
+        endpoint = $Endpoint
+    }
+    foreach ($Name in $ExpectedIdentity.Keys) {
+        $Property = $Current.PSObject.Properties[$Name]
+        if ($null -eq $Property -or [string]$Property.Value -cne [string]$ExpectedIdentity[$Name]) {
+            return $false
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedRunId)) {
+        $RunProperty = $Current.PSObject.Properties['run_id']
+        if ($null -eq $RunProperty -or [string]$RunProperty.Value -cne $ExpectedRunId) { return $false }
+    }
+    $ListenerProperty = $Current.PSObject.Properties['server_listener_pid']
+    if ($null -eq $ListenerProperty) { return $false }
+    try { $ServerListenerPid = [int]$ListenerProperty.Value } catch { return $false }
+    if ($ServerListenerPid -le 0 -or $null -eq (Get-Process -Id $ServerListenerPid -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        $Payload = @{jsonrpc='2.0';id=1;method='initialize';params=@{protocolVersion='2025-06-18';capabilities=@{};clientInfo=@{name='kis-recovery-local';version='1.0'}}} | ConvertTo-Json -Depth 8 -Compress
+        $Response = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers @{Accept='application/json, text/event-stream';'MCP-Protocol-Version'='2025-06-18'} -ContentType 'application/json' -Body $Payload -TimeoutSec 2
+        return $null -ne $Response.result.serverInfo
+    } catch { return $false }
+}
+
 function Test-RecoveryReady {
     if (-not [IO.File]::Exists($CurrentPath)) { return $false }
     try { $Current = Get-Content -LiteralPath $CurrentPath -Raw | ConvertFrom-Json } catch { return $false }
@@ -171,6 +201,14 @@ try {
     $Ready = Test-RecoveryReady
     if ($Ready) {
         $Receipt = Write-RecoveryReceipt -State 'healthy' -Detail 'existing runtime reused' -ProcessId ([int]$Ready.launcher_pid) -RunId ([string]$Ready.run_id)
+        $Receipt | ConvertTo-Json -Depth 6 -Compress | Write-Output
+        return
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedRunId) -and (Test-RecoveryLocalServerResponsive)) {
+        $Receipt = Write-RecoveryReceipt `
+            -State 'degraded' `
+            -Detail 'local runtime remains responsive; destructive replacement suppressed' `
+            -RunId $ExpectedRunId
         $Receipt | ConvertTo-Json -Depth 6 -Compress | Write-Output
         return
     }

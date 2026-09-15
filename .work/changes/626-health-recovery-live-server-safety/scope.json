@@ -1,0 +1,36 @@
+{
+  "schema_version": 4,
+  "change_id": "626-health-recovery-live-server-safety",
+  "status": "active",
+  "branch": "change/626-health-recovery-live-server-safety",
+  "worktree": ".work/worktrees/626-health-recovery-live-server-safety",
+  "base": "main",
+  "outcome": "Prevent automated health recovery from replacing a live locally responsive KIS runtime when tunnel/provider health is degraded or transient.",
+  "owned_paths": [
+    "scripts/runtime-health-guard.ps1",
+    "scripts/recover-chatgpt.ps1",
+    "scripts/start-chatgpt.ps1",
+    "tests/test_runtime_health_guard.py",
+    "tests/test_startup_recovery.py",
+    "tests/test_startup_scripts.py",
+    ".work/changes/626-health-recovery-live-server-safety/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "deployment",
+    "persistent_state"
+  ],
+  "base_evidence": {
+    "local_sha": "3adc4351282cf9e0cd0e6e9c2fbeb2a4273c3366",
+    "local_tree": "df45f1f7603eb2f4b1715eae5c67e4fbc8043339",
+    "upstream_sha": "3adc4351282cf9e0cd0e6e9c2fbeb2a4273c3366",
+    "upstream_tree": "df45f1f7603eb2f4b1715eae5c67e4fbc8043339",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
