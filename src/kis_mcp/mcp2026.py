@@ -4,7 +4,8 @@ from datetime import timedelta
 
 from fastmcp import FastMCP
 from fastmcp.utilities.tasks import TaskConfig
-from fastmcp_tasks import TasksExtension
+
+from .task_runtime import install_task_runtime
 
 MCP_TASKS_EXTENSION_ID = "io.modelcontextprotocol/tasks"
 LONG_RUNNING_TASK_CONFIG = TaskConfig(
@@ -19,8 +20,8 @@ SYNC_FALLBACK_TASK_CONFIG = TaskConfig(mode="forbidden")
 
 
 def install_mcp2026_tasks(server: FastMCP) -> None:
-    """Install the MCP 2026 Tasks extension without creating a second KIS authority."""
-    server.add_extension(TasksExtension())
+    """Install the configured MCP 2026 task runtime without creating KIS authority."""
+    install_task_runtime(server)
 
 
 __all__ = [

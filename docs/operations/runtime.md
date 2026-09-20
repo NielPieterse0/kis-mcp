@@ -45,7 +45,7 @@ Treat its snapshot as current operational evidence only. Provider configuration 
 
 ## Long-running MCP Tasks
 
-FastMCP 4 exposes selected long operations as optional MCP Tasks: `run_verification`, `review_change_with_agent`, `kis_post_merge_commissioning_run`, and `prepare_reviewable_pull_request`. Clients that advertise `io.modelcontextprotocol/tasks` may receive a task ID and poll `tasks/get`; clients without Tasks support receive the compatible synchronous result path.
+FastMCP 4 exposes selected long operations as optional MCP Tasks. Callers use the canonical operation name; clients that advertise `io.modelcontextprotocol/tasks` may receive a task ID and poll `tasks/get`, while clients without Tasks support transparently receive the compatible synchronous result path. Transport capability selection is not a workflow step and callers should not need to choose a separate sync operation.
 
 Treat the MCP task ID as a transport handle, not KIS authority. Work records, execution IDs, receipts, revisions, and coordinator fences remain authoritative. A client may disconnect and reconnect to the same running KIS service and continue task retrieval by task ID. Current MCP task storage is process-local, so do not claim that the same task ID survives a KIS server-process restart; follow-up Work #498 owns that future trigger.
 
