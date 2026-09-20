@@ -6,7 +6,7 @@ from typing import Any, Protocol
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-from ...mcp2026 import DURABLE_EXTERNAL_TASK_CONFIG, SYNC_FALLBACK_TASK_CONFIG
+from ...mcp2026 import LONG_RUNNING_TASK_CONFIG, SYNC_FALLBACK_TASK_CONFIG
 from .contracts import CompletionReceipt, CompletionResult
 from .service import CompletionInvocationError
 
@@ -51,7 +51,7 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
     @server.tool(
         name="prepare_reviewable_pull_request",
         annotations=_ANNOTATIONS,
-        task=DURABLE_EXTERNAL_TASK_CONFIG,
+        task=LONG_RUNNING_TASK_CONFIG,
     )
     async def prepare_reviewable_pull_request(
         project_id: str,
@@ -77,7 +77,7 @@ def register_completion_tool(server: FastMCP, service: CompletionServicePort) ->
         reconcile_only: bool = False,
         promotion_work_id: str | None = None,
     ) -> dict[str, object]:
-        """Prepare review through a required MCP 2026 task-backed execution."""
+        """Prepare review; use MCP Tasks when the client supports them and sync otherwise."""
         return await _prepare_result(service, locals())
 
     @server.tool(

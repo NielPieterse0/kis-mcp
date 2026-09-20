@@ -12,6 +12,7 @@ from fastmcp.tools import ToolResult
 
 from .contracts import PolicyEvaluator, ProviderEffectResolver
 from .line_endings import RepositoryLineEndingNormalizer
+from .mcp2026 import MCP_TASKS_EXTENSION_ID
 from .models import DecisionKind, PolicyDecision
 from .process_environment import (
     ProcessSourceIsolationError,
@@ -39,9 +40,15 @@ class BoundaryObservabilityMiddleware(Middleware):
         if method not in _BOUNDARY_METHODS:
             return await call_next(context)
         tool_name = None
+        tasks_capability = None
         if method == "tools/call":
             candidate = getattr(context.message, "name", None)
             tool_name = str(candidate) if candidate else None
+            if context.fastmcp_context is not None:
+                tasks_capability = (
+                    context.fastmcp_context.client_extension_settings(MCP_TASKS_EXTENSION_ID)
+                    is not None
+                )
         request_id = self.observability.reserve_boundary_request_id()
         with boundary_request_context(request_id):
             try:
@@ -52,6 +59,7 @@ class BoundaryObservabilityMiddleware(Middleware):
                     outcome="cancelled",
                     tool_name=tool_name,
                     error_type=type(exc).__name__,
+                    tasks_capability=tasks_capability,
                     request_id=request_id,
                 )
                 raise
@@ -61,6 +69,7 @@ class BoundaryObservabilityMiddleware(Middleware):
                     outcome="rejected",
                     tool_name=tool_name,
                     error_type=type(exc).__name__,
+                    tasks_capability=tasks_capability,
                     request_id=request_id,
                 )
                 raise
@@ -78,6 +87,7 @@ class BoundaryObservabilityMiddleware(Middleware):
                     outcome="rejected" if rejected else "error",
                     tool_name=tool_name,
                     error_type=error_type,
+                    tasks_capability=tasks_capability,
                     request_id=request_id,
                 )
                 raise
@@ -87,6 +97,7 @@ class BoundaryObservabilityMiddleware(Middleware):
                     outcome="error",
                     tool_name=tool_name,
                     error_type=type(exc).__name__,
+                    tasks_capability=tasks_capability,
                     request_id=request_id,
                 )
                 raise
@@ -94,6 +105,7 @@ class BoundaryObservabilityMiddleware(Middleware):
                 method=method,
                 outcome="success",
                 tool_name=tool_name,
+                tasks_capability=tasks_capability,
                 request_id=request_id,
             )
             return result
