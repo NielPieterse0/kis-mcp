@@ -6,6 +6,7 @@ param(
     [string]$ReadPath = '',
     [string]$ExpectedRunId = '',
     [string]$ExpectedSourceRevision = '',
+    [switch]$TunnelOnly,
     [ValidateRange(0, 300)][int]$WaitSeconds = 60
 )
 
@@ -62,6 +63,57 @@ function Resolve-RecoveryReadPath {
         }
     }
     return $Candidate
+}
+
+function Test-RecoveryLocalServerResponsive {
+    if (-not [IO.File]::Exists($CurrentPath)) { return $false }
+    try { $Current = Get-Content -LiteralPath $CurrentPath -Raw | ConvertFrom-Json } catch { return $false }
+    $ExpectedIdentity = [ordered]@{
+        lifecycle = 'ready'
+        instance = $Internal
+        app = $App
+        endpoint = $Endpoint
+    }
+    foreach ($Name in $ExpectedIdentity.Keys) {
+        $Property = $Current.PSObject.Properties[$Name]
+        if ($null -eq $Property -or [string]$Property.Value -cne [string]$ExpectedIdentity[$Name]) {
+            return $false
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedRunId)) {
+        $RunProperty = $Current.PSObject.Properties['run_id']
+        if ($null -eq $RunProperty -or [string]$RunProperty.Value -cne $ExpectedRunId) { return $false }
+    }
+    $ListenerProperty = $Current.PSObject.Properties['server_listener_pid']
+    if ($null -eq $ListenerProperty) { return $false }
+    try { $ServerListenerPid = [int]$ListenerProperty.Value } catch { return $false }
+    if ($ServerListenerPid -le 0 -or $null -eq (Get-Process -Id $ServerListenerPid -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        $Payload = @{
+            jsonrpc = '2.0'
+            id = 1
+            method = 'server/discover'
+            params = @{
+                _meta = @{
+                    'io.modelcontextprotocol/protocolVersion' = '2026-07-28'
+                    'io.modelcontextprotocol/clientCapabilities' = @{}
+                    'io.modelcontextprotocol/clientInfo' = @{name='kis-recovery-local';version='1.0'}
+                }
+            }
+        } | ConvertTo-Json -Depth 10 -Compress
+        $Headers = @{
+            Accept = 'application/json, text/event-stream'
+            'MCP-Protocol-Version' = '2026-07-28'
+            'mcp-method' = 'server/discover'
+        }
+        $Response = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers $Headers -ContentType 'application/json' -Body $Payload -TimeoutSec 2
+        if ('2026-07-28' -in @($Response.result.supportedVersions)) { return $true }
+    } catch { }
+    try {
+        $LegacyPayload = @{jsonrpc='2.0';id=2;method='initialize';params=@{protocolVersion='2025-06-18';capabilities=@{};clientInfo=@{name='kis-recovery-local-legacy';version='1.0'}}} | ConvertTo-Json -Depth 8 -Compress
+        $Legacy = Invoke-RestMethod -Uri $Endpoint -Method Post -Headers @{Accept='application/json, text/event-stream';'MCP-Protocol-Version'='2025-06-18'} -ContentType 'application/json' -Body $LegacyPayload -TimeoutSec 2
+        return $null -ne $Legacy.result.serverInfo
+    } catch { return $false }
 }
 
 function Test-RecoveryReady {
@@ -121,8 +173,121 @@ function Test-RecoveryReady {
     return $Current
 }
 
+function Invoke-TunnelOnlyRecovery {
+    param(
+        [Parameter(Mandatory)]$Current,
+        [Parameter(Mandatory)]$Settings,
+        [Parameter(Mandatory)]$Record,
+        [Parameter(Mandatory)][string]$RuntimeRoot,
+        [Parameter(Mandatory)][string]$CurrentPath,
+        [Parameter(Mandatory)][string]$RepositoryRoot,
+        [Parameter(Mandatory)][string]$ExpectedRunId,
+        [ValidateRange(1,300)][int]$WaitSeconds = 60
+    )
+    if ([string]::IsNullOrWhiteSpace($ExpectedRunId)) {
+        throw 'KIS_MCP_TUNNEL_RECOVERY_RUN_ID_REQUIRED'
+    }
+    if (-not (Test-RecoveryLocalServerResponsive)) {
+        throw 'KIS_MCP_TUNNEL_RECOVERY_LOCAL_SERVER_UNHEALTHY'
+    }
+    $TunnelPidProperty = $Current.PSObject.Properties['tunnel_pid']
+    if ($null -eq $TunnelPidProperty) { throw 'KIS_MCP_TUNNEL_RECOVERY_PID_MISSING' }
+    try { $OldTunnelPid = [int]$TunnelPidProperty.Value } catch { throw 'KIS_MCP_TUNNEL_RECOVERY_PID_INVALID' }
+
+    $TunnelClient = [IO.Path]::GetFullPath([string]$Settings.remote_mcp.tunnel_client_path)
+    if (-not [IO.File]::Exists($TunnelClient)) { throw "KIS_MCP_TUNNEL_CLIENT_MISSING: $TunnelClient" }
+    $ProfileRoot = Join-Path ([string]$Settings.paths.state_root) 'tunnel-client\profiles'
+    $ProfileName = [string]$Record.profile_name
+    $SecretReference = [string]$Record.tunnel_secret_ref
+    if ([string]::IsNullOrWhiteSpace($ProfileName) -or [string]::IsNullOrWhiteSpace($SecretReference)) {
+        throw 'KIS_MCP_TUNNEL_RECOVERY_CONFIGURATION_INCOMPLETE'
+    }
+
+    . (Join-Path $RepositoryRoot 'scripts\windows-credential.ps1')
+    $CredentialTarget = Get-KisMcpTunnelCredentialTarget -Reference $SecretReference
+    $Credential = Get-KisMcpWindowsCredential -Target $CredentialTarget
+    $HealthFile = Join-Path $RuntimeRoot "provider-health-$ExpectedRunId.txt"
+    [IO.File]::WriteAllText($HealthFile, '', [Text.UTF8Encoding]::new($false))
+
+    if ($OldTunnelPid -gt 0) {
+        $OldTunnel = Get-Process -Id $OldTunnelPid -ErrorAction SilentlyContinue
+        if ($null -ne $OldTunnel) {
+            Stop-Process -Id $OldTunnelPid -Force -ErrorAction Stop
+            try { Wait-Process -Id $OldTunnelPid -Timeout 10 -ErrorAction SilentlyContinue } catch { }
+        }
+    }
+
+    $Info = [Diagnostics.ProcessStartInfo]::new()
+    $Info.FileName = $TunnelClient
+    $Info.WorkingDirectory = $RepositoryRoot
+    $Info.UseShellExecute = $false
+    $Info.CreateNoWindow = $true
+    foreach ($Argument in @(
+        'run', '--profile', $ProfileName, '--profile-dir', $ProfileRoot,
+        '--mcp.server-url', $Endpoint,
+        '--health.listen-addr', '127.0.0.1:0',
+        '--health.url-file', $HealthFile
+    )) { $Info.ArgumentList.Add($Argument) }
+    $CredentialEnvironmentName = 'KIS_MCP_TUNNEL_CONTROL_PLANE_API_KEY'
+    $Info.Environment[$CredentialEnvironmentName] = $Credential
+    $Process = [Diagnostics.Process]::new()
+    $Process.StartInfo = $Info
+    try {
+        if (-not $Process.Start()) { throw 'KIS_MCP_TUNNEL_RECOVERY_START_FAILED' }
+        $NewTunnelPid = $Process.Id
+    }
+    finally {
+        $Info.Environment[$CredentialEnvironmentName] = ''
+        $Credential = $null
+    }
+
+    $Deadline = [DateTime]::UtcNow.AddSeconds([Math]::Max(10, $WaitSeconds))
+    $Origin = $null
+    try {
+        while ([DateTime]::UtcNow -lt $Deadline) {
+            if ($Process.HasExited) { throw "KIS_MCP_TUNNEL_RECOVERY_EXITED: $($Process.ExitCode)" }
+            if ([IO.File]::Exists($HealthFile)) {
+                $Candidate = [IO.File]::ReadAllText($HealthFile).Trim().TrimEnd('/')
+                if ($Candidate) {
+                    try {
+                        $Uri = [Uri]$Candidate
+                        if ($Uri.Scheme -eq 'http' -and $Uri.Host -in @('127.0.0.1','localhost') -and $Uri.Port -gt 0) {
+                            $Ready = Invoke-WebRequest -Uri "$Candidate/readyz" -UseBasicParsing -TimeoutSec 2
+                            $Metrics = [string](Invoke-WebRequest -Uri "$Candidate/metrics" -UseBasicParsing -TimeoutSec 2).Content
+                            if ($Ready.StatusCode -eq 200 -and $Metrics -match '(?m)^commands_poll_last_successful_timestamp_seconds(?:\{[^}]*\})?\s+([0-9.eE+\-]+)\s*$') {
+                                $Timestamp = [double]::Parse($Matches[1], [Globalization.CultureInfo]::InvariantCulture)
+                                $Age = ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() / 1000.0) - $Timestamp
+                                if ($Age -ge 0 -and $Age -le 90) { $Origin = $Candidate; break }
+                            }
+                        }
+                    } catch { }
+                }
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        if (-not $Origin) { throw 'KIS_MCP_TUNNEL_RECOVERY_NOT_READY' }
+
+        $Latest = Get-Content -LiteralPath $CurrentPath -Raw | ConvertFrom-Json
+        if ([string]$Latest.run_id -cne $ExpectedRunId) { throw 'KIS_MCP_TUNNEL_RECOVERY_SUPERSEDED' }
+        $Latest.tunnel_pid = $NewTunnelPid
+        $Temporary = "$CurrentPath.next-$([Guid]::NewGuid().ToString('N'))"
+        [IO.File]::WriteAllText($Temporary, ($Latest | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
+        [IO.File]::Move($Temporary, $CurrentPath, $true)
+        return [pscustomobject]@{ tunnel_pid = $NewTunnelPid; health_origin = $Origin }
+    }
+    catch {
+        if (-not $Process.HasExited) {
+            try { $Process.Kill(); $Process.WaitForExit(5000) | Out-Null } catch { }
+        }
+        throw
+    }
+    finally {
+        $Process.Dispose()
+    }
+}
+
 if (-not [string]::IsNullOrWhiteSpace($ReadPath)) {
-    if ($Foreground) { throw 'KIS_MCP_RECOVERY_MODE_INVALID: ReadPath cannot be combined with Foreground.' }
+    if ($Foreground -or $TunnelOnly) { throw 'KIS_MCP_RECOVERY_MODE_INVALID: ReadPath cannot be combined with Foreground or TunnelOnly.' }
     $Candidate = Resolve-RecoveryReadPath -RelativePath $ReadPath
     if (-not [IO.File]::Exists($Candidate)) { throw "KIS_MCP_RECOVERY_READ_NOT_FOUND: $ReadPath" }
     $Info = [IO.FileInfo]::new($Candidate)
@@ -168,9 +333,37 @@ try {
             }
         }
     }
+    if ($TunnelOnly) {
+        if (-not [IO.File]::Exists($CurrentPath)) { throw 'KIS_MCP_TUNNEL_RECOVERY_CURRENT_MISSING' }
+        $TunnelCurrent = Get-Content -LiteralPath $CurrentPath -Raw | ConvertFrom-Json
+        $RecoveredTunnel = Invoke-TunnelOnlyRecovery `
+            -Current $TunnelCurrent `
+            -Settings $Settings `
+            -Record $Record `
+            -RuntimeRoot $RuntimeRoot `
+            -CurrentPath $CurrentPath `
+            -RepositoryRoot $RepositoryRoot `
+            -ExpectedRunId $ExpectedRunId `
+            -WaitSeconds ([Math]::Max(10, $WaitSeconds))
+        $Receipt = Write-RecoveryReceipt `
+            -State 'tunnel_only' `
+            -Detail 'owned tunnel replaced; healthy local KIS server preserved' `
+            -ProcessId ([int]$RecoveredTunnel.tunnel_pid) `
+            -RunId $ExpectedRunId
+        $Receipt | ConvertTo-Json -Depth 6 -Compress | Write-Output
+        return
+    }
     $Ready = Test-RecoveryReady
     if ($Ready) {
         $Receipt = Write-RecoveryReceipt -State 'healthy' -Detail 'existing runtime reused' -ProcessId ([int]$Ready.launcher_pid) -RunId ([string]$Ready.run_id)
+        $Receipt | ConvertTo-Json -Depth 6 -Compress | Write-Output
+        return
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedRunId) -and (Test-RecoveryLocalServerResponsive)) {
+        $Receipt = Write-RecoveryReceipt `
+            -State 'degraded' `
+            -Detail 'local runtime remains responsive; destructive replacement suppressed' `
+            -RunId $ExpectedRunId
         $Receipt | ConvertTo-Json -Depth 6 -Compress | Write-Output
         return
     }

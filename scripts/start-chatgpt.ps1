@@ -503,7 +503,7 @@ try {
     }
     $Pwsh = (Get-Command pwsh.exe -ErrorAction Stop).Source
     $HealthGuardCommand = (
-        '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -Instance "{2}" -RunId "{3}" -RepositoryRoot "{4}" -FailureGraceSeconds 60' -f
+        '"{0}" -NoProfile -WindowStyle Hidden -File "{1}" -Instance "{2}" -RunId "{3}" -RepositoryRoot "{4}" -FailureGraceSeconds 120' -f
         $Pwsh, $HealthGuardScript, $Remote.app_name, $RunId, $RepositoryRoot
     )
     $HealthGuard = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
