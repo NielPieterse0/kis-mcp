@@ -187,6 +187,14 @@ def test_tunnel_state_helper_reads_non_secret_identifiers_and_reference() -> Non
     assert "Assert-KisMcpTunnelClientExecutable" in content
     assert "Get-FileHash" in content
     assert "--version" in content
+    assert "[System.Diagnostics.ProcessStartInfo]::new()" in content
+    assert "Arguments = '--version'" in content
+    assert "RedirectStandardOutput = $true" in content
+    assert "RedirectStandardError = $true" in content
+    assert "UseShellExecute = $false" in content
+    assert "KIS_MCP_TUNNEL_CLIENT_PROBE_ATTEMPTS" in content
+    assert "KIS_MCP_TUNNEL_CLIENT_LAUNCH_FAILED" in content
+    assert "KIS_MCP_TUNNEL_CLIENT_VERSION_PROBE_FAILED" in content
     assert "KIS_MCP_TUNNEL_CLIENT_SHA256_MISMATCH" in content
     assert "KIS_MCP_TUNNEL_CLIENT_VERSION_MISMATCH" in content
 

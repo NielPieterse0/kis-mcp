@@ -111,8 +111,52 @@ function Assert-KisMcpTunnelClientExecutable {
     if ($ActualSha256 -cne [string]$Remote.tunnel_client_sha256) {
         throw "KIS_MCP_TUNNEL_CLIENT_SHA256_MISMATCH: expected=$($Remote.tunnel_client_sha256); actual=$ActualSha256"
     }
-    $VersionOutput = [string](& $Remote.tunnel_client_path --version 2>&1)
-    if ($LASTEXITCODE -ne 0 -or $VersionOutput -notmatch '^([0-9]+\.[0-9]+\.[0-9]+)(?:\+|\s|$)') {
+
+    $ProbeAttempts = 3
+    $VersionOutput = ''
+    $ProbeFailure = $null
+    for ($Attempt = 1; $Attempt -le $ProbeAttempts; $Attempt++) {
+        $Process = $null
+        try {
+            $StartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+            $StartInfo.FileName = [string]$Remote.tunnel_client_path
+            $StartInfo.Arguments = '--version'
+            $StartInfo.UseShellExecute = $false
+            $StartInfo.RedirectStandardOutput = $true
+            $StartInfo.RedirectStandardError = $true
+            $StartInfo.CreateNoWindow = $true
+            $Process = [System.Diagnostics.Process]::new()
+            $Process.StartInfo = $StartInfo
+            if (-not $Process.Start()) {
+                throw 'Process.Start returned false.'
+            }
+            $Stdout = $Process.StandardOutput.ReadToEnd()
+            $Stderr = $Process.StandardError.ReadToEnd()
+            $Process.WaitForExit()
+            $VersionOutput = ([string]$Stdout).Trim()
+            if ($Process.ExitCode -eq 0 -and $VersionOutput -match '^([0-9]+\.[0-9]+\.[0-9]+)(?:\+|\s|$)') {
+                $ProbeFailure = $null
+                break
+            }
+            $ProbeFailure = "KIS_MCP_TUNNEL_CLIENT_VERSION_PROBE_FAILED: attempt=$Attempt/$ProbeAttempts; exit=$($Process.ExitCode); stderr=$(([string]$Stderr).Trim())"
+        }
+        catch {
+            $ProbeFailure = "KIS_MCP_TUNNEL_CLIENT_LAUNCH_FAILED: attempt=$Attempt/$ProbeAttempts; error=$($_.Exception.Message)"
+        }
+        finally {
+            if ($null -ne $Process) {
+                $Process.Dispose()
+            }
+        }
+        if ($Attempt -lt $ProbeAttempts) {
+            Start-Sleep -Milliseconds 200
+        }
+    }
+
+    if ($null -ne $ProbeFailure) {
+        throw "$ProbeFailure; KIS_MCP_TUNNEL_CLIENT_PROBE_ATTEMPTS=$ProbeAttempts"
+    }
+    if ($VersionOutput -notmatch '^([0-9]+\.[0-9]+\.[0-9]+)(?:\+|\s|$)') {
         throw 'KIS_MCP_TUNNEL_CLIENT_VERSION_UNREADABLE'
     }
     if ($Matches[1] -cne [string]$Remote.tunnel_client_version) {

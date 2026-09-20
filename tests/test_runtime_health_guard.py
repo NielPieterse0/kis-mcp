@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -83,6 +85,77 @@ def test_guard_does_not_recover_before_configured_failure_grace(tmp_path: Path) 
     stdout, stderr = process.communicate(timeout=10)
     assert process.returncode == 0, stderr or stdout
     assert marker.read_text(encoding="utf-8") == "kis-op|run-a"
+
+
+def test_guard_repairs_only_tunnel_when_local_server_is_responsive_but_tunnel_is_degraded(tmp_path: Path) -> None:
+    root, state = _fixture(tmp_path)
+    marker = tmp_path / "recovered.txt"
+    server_script = tmp_path / "mcp_server.py"
+    server_script.write_text(
+        "from http.server import BaseHTTPRequestHandler, HTTPServer\n"
+        "import json, os\n"
+        "class Handler(BaseHTTPRequestHandler):\n"
+        "    def do_POST(self):\n"
+        "        length = int(self.headers.get('Content-Length', '0'))\n"
+        "        self.rfile.read(length)\n"
+        "        body = json.dumps({'jsonrpc':'2.0','id':1,'result':{'serverInfo':{'name':'test','version':'1'}}}).encode()\n"
+        "        self.send_response(200); self.send_header('Content-Type','application/json'); self.send_header('Content-Length',str(len(body))); self.end_headers(); self.wfile.write(body)\n"
+        "    def log_message(self, format, *args): pass\n"
+        "HTTPServer(('127.0.0.1', int(os.environ['KIS_TEST_PORT'])), Handler).serve_forever()\n",
+        encoding="utf-8",
+    )
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    settings_path = root / "settings" / "kis-mcp.settings.json"
+    settings = json.loads(settings_path.read_text(encoding="utf-8"))
+    settings["remote_mcp"]["instances"]["operation"]["port"] = port
+    settings_path.write_text(json.dumps(settings), encoding="utf-8")
+    env = dict(os.environ)
+    env["KIS_TEST_PORT"] = str(port)
+    server = subprocess.Popen([sys.executable, str(server_script)], env=env)
+    try:
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                    break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.05)
+        current_path = state / "tunnel-client" / "runtime" / "operation" / "current.json"
+        current = json.loads(current_path.read_text(encoding="utf-8"))
+        current.update({
+            "launcher_pid": server.pid,
+            "server_pid": server.pid,
+            "server_listener_pid": server.pid,
+            "tunnel_pid": 999993,
+        })
+        current_path.write_text(json.dumps(current), encoding="utf-8")
+        (root / "scripts" / "recover-chatgpt.ps1").write_text(
+            "param([string]$Instance,[string]$RepositoryRoot,[string]$ExpectedRunId,[switch]$TunnelOnly)\n"
+            "[IO.File]::WriteAllText($env:KIS_RECOVERY_MARKER,\"$Instance|$ExpectedRunId|$TunnelOnly\")\n",
+            encoding="utf-8",
+        )
+        env["KIS_RECOVERY_MARKER"] = str(marker)
+        guard = subprocess.Popen([
+            "pwsh.exe", "-NoProfile", "-File", str(root / "scripts" / "runtime-health-guard.ps1"),
+            "-Instance", "kis-op", "-RunId", "run-a", "-RepositoryRoot", str(root),
+            "-PollSeconds", "1", "-FailureGraceSeconds", "1",
+        ], cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        marker_deadline = time.monotonic() + 10
+        while not marker.exists():
+            assert guard.poll() is None
+            if time.monotonic() >= marker_deadline:
+                raise AssertionError("tunnel-only recovery marker was not created within 10 seconds")
+            time.sleep(0.1)
+        assert marker.read_text(encoding="utf-8") == "kis-op|run-a|True"
+        guard.terminate()
+        guard.communicate(timeout=10)
+    finally:
+        server.terminate()
+        server.wait(timeout=10)
 
 
 def test_guard_recovers_same_stopped_generation(tmp_path: Path) -> None:
@@ -166,13 +239,13 @@ def test_launcher_installs_generation_scoped_health_guard() -> None:
     start = (Path(__file__).parents[1] / "scripts" / "start-chatgpt.ps1").read_text(encoding="utf-8")
     assert "runtime-health-guard.ps1" in start
     assert "-RunId" in start
-    assert "-FailureGraceSeconds 60" in start
+    assert "-FailureGraceSeconds 120" in start
     assert "KIS_MCP_HEALTH_GUARD_START_FAILED" in start
 
 
-def test_guard_default_failure_grace_is_sixty_seconds() -> None:
+def test_guard_default_failure_grace_is_one_hundred_twenty_seconds() -> None:
     guard = (Path(__file__).parents[1] / "scripts" / "runtime-health-guard.ps1").read_text(encoding="utf-8")
-    assert "[ValidateRange(1,60)][int]$FailureGraceSeconds = 60" in guard
+    assert "[ValidateRange(1,300)][int]$FailureGraceSeconds = 120" in guard
     assert "[ValidateRange(1,300)][int]$RecoveryBackoffSeconds = 60" in guard
     assert "[ValidateRange(1,300)][int]$MaxRecoveryBackoffSeconds = 60" in guard
 
@@ -187,7 +260,26 @@ def test_health_checks_use_canonical_server_listener_pid() -> None:
     root = Path(__file__).parents[1]
     guard = (root / "scripts" / "runtime-health-guard.ps1").read_text(encoding="utf-8")
     recovery = (root / "scripts" / "recover-chatgpt.ps1").read_text(encoding="utf-8")
-    assert "$ServerListenerPid = [int]$Current.PSObject.Properties['server_listener_pid'].Value" in guard
-    assert "OwningProcess -eq $ServerListenerPid" in guard
+    assert "$ListenerProperty = $Current.PSObject.Properties['server_listener_pid']" in guard
+    assert "Get-Process -Id $ServerListenerPid" in guard
     assert "$ServerListenerPid = [int]$Current.PSObject.Properties['server_listener_pid'].Value" in recovery
     assert "OwningProcess -eq $ServerListenerPid" in recovery
+
+
+def test_health_guard_uses_modern_mcp_2026_probe_and_control_plane_freshness() -> None:
+    guard = (Path(__file__).parents[1] / "scripts" / "runtime-health-guard.ps1").read_text(encoding="utf-8")
+    assert "server/discover" in guard
+    assert "2026-07-28" in guard
+    assert "mcp-method" in guard
+    assert "commands_poll_last_successful_timestamp_seconds" in guard
+    assert "/metrics" in guard
+
+
+def test_stale_tunnel_recovery_is_tunnel_only_and_preserves_full_recovery_for_server_failure() -> None:
+    root = Path(__file__).parents[1]
+    guard = (root / "scripts" / "runtime-health-guard.ps1").read_text(encoding="utf-8")
+    recovery = (root / "scripts" / "recover-chatgpt.ps1").read_text(encoding="utf-8")
+    assert "-TunnelOnly" in guard
+    assert "[switch]$TunnelOnly" in recovery
+    assert "tunnel_only" in recovery
+    assert "destructive replacement suppressed" in recovery
