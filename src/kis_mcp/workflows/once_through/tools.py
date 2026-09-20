@@ -827,6 +827,20 @@ def register_once_through_tools(
             return {
                 **receipt,
                 "workflow_mode": "manual_closeout",
+                "meaning": "once-through progression is disabled; continue with the standard governed repository change workflow",
+                "current_required_step": (
+                    "resume_governed_change" if contract.change_id else "create_governed_change"
+                ),
+                "required_sequence": [
+                    "create_or_resume_governed_change",
+                    "implement_requested_outcome",
+                    "change_governance_check",
+                    "github_pull_request",
+                    "github_actions_exact_pr_head",
+                    "merge_readiness",
+                    "merge",
+                    "refresh_main_and_cleanup",
+                ],
                 "retained_evidence": [item.to_json_dict() for item in store.load_evidence(work_id)],
                 "required_manual_gates": [
                     "change_governance",
@@ -834,7 +848,9 @@ def register_once_through_tools(
                     "github_actions_exact_pr_head",
                     "merge_readiness",
                 ],
-                "next_action": "manual_pr_ci_closeout",
+                "not_ready_for_pr_without_implementation": True,
+                "do_not_reenter_once_through": True,
+                "next_action": "manual_governed_change_closeout",
             }
         except (ValueError, OnceThroughStateError) as exc:
             raise ToolError(str(exc)) from exc

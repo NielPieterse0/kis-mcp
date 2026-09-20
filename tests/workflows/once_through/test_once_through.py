@@ -596,9 +596,23 @@ def test_exit_once_through_preserves_evidence_and_switches_to_manual_closeout(tm
     assert result["change_id"] is None
     assert result["retained_evidence_count"] == 1
     assert result["retained_evidence"][0]["evidence_id"] == reference.evidence_id
+    assert result["current_required_step"] == "create_governed_change"
+    assert result["required_sequence"] == [
+        "create_or_resume_governed_change",
+        "implement_requested_outcome",
+        "change_governance_check",
+        "github_pull_request",
+        "github_actions_exact_pr_head",
+        "merge_readiness",
+        "merge",
+        "refresh_main_and_cleanup",
+    ]
     assert result["required_manual_gates"] == [
         "change_governance", "github_pull_request", "github_actions_exact_pr_head", "merge_readiness"
     ]
+    assert result["not_ready_for_pr_without_implementation"] is True
+    assert result["do_not_reenter_once_through"] is True
+    assert result["next_action"] == "manual_governed_change_closeout"
     second = asyncio.run(server.call_tool("exit_once_through", {
         "work_id": contract.work_id,
     })).structured_content

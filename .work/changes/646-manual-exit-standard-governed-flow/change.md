@@ -17,8 +17,8 @@ Make once-through manual exit continue through the standard governed implementat
 
 ## Implementation and verification
 
-- Implementation notes: lifecycle decision now returns `manual_governed_change_closeout` with an explicit standard governed sequence and current required step.
-- Focused checks: lifecycle and once-through focused tests passed locally; change governance check passed.
-- Review findings: bounded contract clarification only; broader reversible checkpoint work remains #707.
-- Residual risk: `exit_once_through` immediate response still uses the older PR-closeout label until the follow-up tool-response alignment lands; lifecycle decision is authoritative for current progression.
-- Closeout state: publication and exact-head GitHub Actions remain.
+- Implementation notes: lifecycle decision and direct `exit_once_through` response now agree on `manual_governed_change_closeout`, the current governed-change step, the full required sequence, and the no-reentry/no-PR-before-implementation flags.
+- Focused checks: direct exit contract regression plus lifecycle/once-through focused tests pass locally; change governance check passes.
+- Review findings: bounded contract reconciliation only; no once-through workflow stage was added.
+- Residual risk: none identified for this bounded contract mismatch.
+- Closeout state: ready for publication, exact-head GitHub Actions, merge, and cleanup.
