@@ -144,8 +144,12 @@ def test_guard_repairs_only_tunnel_when_local_server_is_responsive_but_tunnel_is
             "-Instance", "kis-op", "-RunId", "run-a", "-RepositoryRoot", str(root),
             "-PollSeconds", "1", "-FailureGraceSeconds", "1",
         ], cwd=root, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        time.sleep(2.5)
-        assert guard.poll() is None
+        marker_deadline = time.monotonic() + 10
+        while not marker.exists():
+            assert guard.poll() is None
+            if time.monotonic() >= marker_deadline:
+                raise AssertionError("tunnel-only recovery marker was not created within 10 seconds")
+            time.sleep(0.1)
         assert marker.read_text(encoding="utf-8") == "kis-op|run-a|True"
         guard.terminate()
         guard.communicate(timeout=10)
