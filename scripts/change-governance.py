@@ -791,24 +791,41 @@ def load_worktree_claims(repository: Path) -> list[ChangeClaim]:
         return []
 
     current_root = repository_root(repository)
-    claims = _claims_in_checkout(current_root, allow_historical=True)
-    known_change_ids = {claim.change_id for claim in claims}
+    claims_by_id = {
+        claim.change_id: claim
+        for claim in _claims_in_checkout(current_root, allow_historical=True)
+    }
+    live_change_ids: set[str] = set()
 
     for entry in worktrees:
         if not entry.branch or not entry.branch.startswith("change/"):
             continue
         change_id = entry.branch.removeprefix("change/")
-        if change_id in known_change_ids:
-            continue
         scope_path = entry.path / ".work" / "changes" / change_id / "scope.json"
         if not scope_path.is_file():
             continue
-        claims.append(_load_claim_for_inventory(current_root, scope_path))
-        known_change_ids.add(change_id)
+        claims_by_id[change_id] = _load_claim_for_inventory(current_root, scope_path)
+        live_change_ids.add(change_id)
 
+    claims = list(claims_by_id.values())
     return [
         replace(claim, status="closed")
-        if claim.status in ACTIVE_STATUSES and _claim_is_released(current_root, claim)
+        if (
+            claim.schema_version >= 3
+            and claim.status in ACTIVE_STATUSES
+            and (
+                (
+                    claim.change_id in live_change_ids
+                    and _claim_is_released(current_root, claim)
+                )
+                or (
+                    claim.change_id not in live_change_ids
+                    and _scope_record_exists_on_base(
+                        current_root, claim.base, claim.change_id
+                    )
+                )
+            )
+        )
         else claim
         for claim in claims
     ]
