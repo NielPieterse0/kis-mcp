@@ -581,6 +581,70 @@ def test_inventory_accepts_only_landed_malformed_schema_v4(tmp_path: Path) -> No
     assert "HISTORICAL_WORK_RECORD_ID_SYNTHESIZED" in current.compatibility_warnings
 
 
+def test_live_worktree_overrides_landed_historical_claim(tmp_path: Path) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = create_registered_change(
+        module,
+        repository,
+        change_id="083-historical",
+        outcome="Historical change",
+        owned_paths=["src/shared.py"],
+        complexity="small",
+    )
+    run_git(target, "add", ".work/changes/083-historical")
+    run_git(target, "commit", "-m", "test: add historical change")
+    run_git(repository, "merge", "--no-ff", "change/083-historical", "-m", "merge historical")
+    note = target / ".work" / "changes" / "083-historical" / "change.md"
+    note.write_text(note.read_text(encoding="utf-8") + "\nResidual follow-up.\n", encoding="utf-8")
+    run_git(target, "add", ".work/changes/083-historical/change.md")
+    run_git(target, "commit", "-m", "test: advance historical branch")
+
+    claims = module.load_worktree_claims(repository)
+    current = next(item for item in claims if item.change_id == "083-historical")
+
+    assert current.status == "active"
+    assert current.source == target / ".work" / "changes" / "083-historical" / "scope.json"
+
+
+def test_landed_claim_releases_after_worktree_retirement_even_if_branch_advances(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    repository = initialize_repository(tmp_path)
+    target = create_registered_change(
+        module,
+        repository,
+        change_id="083-historical",
+        outcome="Historical change",
+        owned_paths=["src/shared.py"],
+        complexity="small",
+    )
+    run_git(target, "add", ".work/changes/083-historical")
+    run_git(target, "commit", "-m", "test: add historical change")
+    run_git(repository, "merge", "--no-ff", "change/083-historical", "-m", "merge historical")
+
+    note = target / ".work" / "changes" / "083-historical" / "change.md"
+    note.write_text(note.read_text(encoding="utf-8") + "\nResidual follow-up.\n", encoding="utf-8")
+    run_git(target, "add", ".work/changes/083-historical/change.md")
+    run_git(target, "commit", "-m", "test: advance historical branch")
+    run_git(repository, "worktree", "remove", str(target))
+
+    claims = module.load_worktree_claims(repository)
+    current = next(item for item in claims if item.change_id == "083-historical")
+    assert current.status == "closed"
+
+    follow_up = create_registered_change(
+        module,
+        repository,
+        change_id="084-follow-up",
+        outcome="Follow up historical change",
+        owned_paths=["src/shared.py"],
+        complexity="small",
+    )
+    assert follow_up.is_dir()
+
+
 def test_inventory_rejects_unmerged_malformed_schema_v4(tmp_path: Path) -> None:
     module = load_module()
     repository = initialize_repository(tmp_path)

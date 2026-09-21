@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "change_id": "718-historical-change-recovery-maze",
+  "status": "active",
+  "branch": "change/718-historical-change-recovery-maze",
+  "worktree": ".work/worktrees/718-historical-change-recovery-maze",
+  "base": "main",
+  "outcome": "Make historical merged-change recovery and follow-up transfer deterministic so stale landed claims do not block safe follow-up work or force manual branch/worktree surgery.",
+  "owned_paths": [
+    "scripts/change-governance.py",
+    "tests/test_change_governance.py",
+    "tests/capabilities/test_governed_change.py",
+    ".work/changes/718-historical-change-recovery-maze/**"
+  ],
+  "shared_paths": [],
+  "excluded_paths": [],
+  "dependencies": [],
+  "integration_owner": null,
+  "complexity": "medium",
+  "risk_triggers": [
+    "public_contract"
+  ],
+  "base_evidence": {
+    "local_sha": "805b78f5b3af78e23658711316390e806683f650",
+    "local_tree": "be4849fc0f5dfb2a9a3636182533d38f042f8814",
+    "upstream_sha": "805b78f5b3af78e23658711316390e806683f650",
+    "upstream_tree": "be4849fc0f5dfb2a9a3636182533d38f042f8814",
+    "upstream_ref": "refs/remotes/origin/main",
+    "evidence_source": "local_remote_tracking_ref",
+    "relation": "same_sha"
+  }
+}
